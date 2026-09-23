@@ -114,7 +114,8 @@ int main(int argc, char** argv) {
                  <<" note=memory-transfers-not-mixed-audio"<<'\n';
         if (rt.padBackend().scriptActive())
             std::cout<<"[TS:pad-script] reads="<<rt.padBackend().scriptReadCount()
-                     <<" exhausted="<<rt.padBackend().scriptExhausted()<<'\n';
+                     <<" exhausted="<<rt.padBackend().scriptExhausted()
+                     <<" timed="<<rt.padBackend().scriptTimed()<<'\n';
         // Save memory only after run() has joined its EE worker.
         const char* dump=std::getenv("TS_DUMP_RAM");
         if(dump && *dump) {std::ofstream f(dump,std::ios::binary);f.write(reinterpret_cast<char*>(rt.memory().getRDRAM()),PS2_RAM_SIZE);if(!f)throw std::runtime_error("RAM dump write failed");}

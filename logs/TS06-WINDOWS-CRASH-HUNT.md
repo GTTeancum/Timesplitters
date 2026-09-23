@@ -274,3 +274,81 @@ Note: final pass/fail evidence logs are committed with this file. Some early fai
 - Evidence boundary:
   - This proves the Windows native executable can consume scripted process-local controller input while running a longer bounded boot/frontend path without crashing or regressing original DMA failure counters.
   - This is still not proof of combat, hit registration, player damage, kills, deaths, respawns, or Story objective completion.
+
+### 2026-09-23 timed pad-script replay support
+
+- Extended `TS_PAD_SCRIPT` with timed frames while preserving the existing read-count format.
+- Timed frame format:
+  - `at <seconds> <buttons> [lx ly rx ry]`.
+  - Frames are absolute host elapsed time since script load.
+  - Before the first timed frame, input remains neutral.
+  - The last timed frame is held after it is reached.
+  - Timed and read-count frames cannot be mixed in one script.
+- Added converter:
+  - `scripts/convert_input_sequence_to_pad.py`.
+  - Converts preserved `project\tools\input-sequences\*.json` key schedules into process-local timed pad frames.
+  - Keyboard mapping follows the native runtime mapping:
+    - `Return=start`, `x/space=cross`, `c=circle`, `z=square`, `v=triangle`.
+    - `q/e=L1/R1`, shifts `L2/R2`, arrows D-pad.
+    - `WASD` left stick, `IJKL` right stick.
+- Generated timed scripts:
+  - `scripts/pad/ts05-final-arcade-observed.pad`.
+  - `scripts/pad/ts05-final-story-observed.pad`.
+- Regression coverage:
+  - Timed parser immediate frame behavior.
+  - Timed parser mode reporting.
+  - Rejection of mixed timed/read-count scripts.
+  - Rejection of duplicate or decreasing timed frames.
+- Windows `ps2x_tests.exe`:
+  - Command run from `source\PS2Recomp`.
+  - Result: 472 total, 472 passed, 0 failed.
+  - Log: `logs/TS06-windows-tests-run-timedpad-01.log`.
+
+### 2026-09-23 Windows timed-replay build and smoke
+
+- Rebuilt native game executable through NMake after timed pad-script changes:
+  - Result: passed.
+  - Log: `logs/TS06-windows-nmake-game-build-timedpad-01.log`.
+  - Executable: `build-windows-nmake\timesplitters\timesplitters.exe`.
+  - Size: 111,175,168 bytes.
+- Quick rebuilt-executable self-test:
+  - Command: `timesplitters.exe --self-test project\game-data\SLUS_200.90`.
+  - Result: exit 0.
+  - Log: `logs/TS06-windows-self-test-timedpad-01.log`.
+- 150-second timed Arcade replay:
+  - `TS_PAD_SCRIPT=scripts\pad\ts05-final-arcade-observed.pad`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-timedpad-arcade-150s-01.log`.
+  - Stopped at PC `0x2d0048`.
+  - DMA starts: 926.
+  - GIF copies: 592.
+  - VIF writes: 222.
+  - Original `numdmafail=0`.
+  - IOP: 8 modules, 12 threads, 10 RPC servers.
+  - Sound-memory counters: 7 writes, 57,856 bytes written, 0 reads.
+  - Pad script: 119 reads consumed, not exhausted, timed mode active.
+- 270-second timed Arcade replay with stopped-RAM dump:
+  - `TS_PAD_SCRIPT=scripts\pad\ts05-final-arcade-observed.pad`.
+  - `TS_DUMP_RAM=project\diagnostics\ts06-windows-timedpad-arcade-270s-01-ram.bin`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-timedpad-arcade-270s-01.log`.
+  - Stopped at PC `0x2d0048`.
+  - DMA starts: 1,277.
+  - GIF copies: 592.
+  - VIF writes: 456.
+  - Original `numdmafail=0`.
+  - IOP: 8 modules, 12 threads, 10 RPC servers.
+  - Sound-memory counters: 7 writes, 57,856 bytes written, 0 reads.
+  - Pad script: 236 reads consumed, exhausted, timed mode active.
+  - RAM dump SHA256: `ebe19d45a24726ebc9bb02b9b0742f4788ebc0e7c47cb95d62a23d98cfa8898e`.
+  - Read-only counter inspection: `project\analysis\TS06-windows-timedpad-arcade-270s-01-counters.json`.
+- Negative evidence from the 270-second run:
+  - `local_players=1`.
+  - `active_characters=0`.
+  - `first_player=null`.
+  - All inspected kill/death counters remain zero.
+  - No cheats or invincibility were set.
+- Interpretation:
+  - Timed replay now widens Windows boot/frontend path coverage and consumes the full preserved Arcade schedule without crashing.
+  - It does not yet reproduce the TS05 Linux Arcade in-match state; therefore it is not combat, hit-registration, damage, kill, death, or respawn evidence.
+  - Next crash-hunt work should add state-aware observation or gated input timing rather than relying only on absolute host seconds.

@@ -1,0 +1,9 @@
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008[TS:self-test] fread size=1 count=5 PASS
+[TS:self-test] fread size=2 count=2 PASS
+[TS:self-test] fread size=0 count=5 PASS
+[TS:self-test] original sceSdTransToIOP copied 64 bytes to IOP RAM PASS
+[TS:self-test] 4 original-EE ABI checks passed
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x11000 dst=0x140000 size=0x40 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8

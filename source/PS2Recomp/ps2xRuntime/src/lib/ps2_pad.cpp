@@ -45,6 +45,7 @@ constexpr int16_t XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE = 8689;
 #include "ps2_host_backend.h"
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <fstream>
@@ -94,6 +95,17 @@ namespace
             throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected read count 1..1000000");
         }
         return static_cast<uint32_t>(value);
+    }
+
+    double parseSecondsValue(const std::string &text, size_t lineNumber)
+    {
+        size_t consumed = 0;
+        const double value = std::stod(text, &consumed);
+        if (consumed != text.size() || !std::isfinite(value) || value < 0.0 || value > 3600.0)
+        {
+            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected seconds value 0..3600");
+        }
+        return value;
     }
 
     void clearButton(uint16_t &buttons, uint16_t mask)
@@ -207,6 +219,8 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
     std::istringstream input(text);
     std::string line;
     size_t lineNumber = 0;
+    bool modeKnown = false;
+    bool timed = false;
 
     try
     {
@@ -224,13 +238,47 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
             {
                 continue;
             }
+
+            std::string marker = readsText;
+            std::transform(marker.begin(), marker.end(), marker.begin(), [](unsigned char c)
+                           { return static_cast<char>(std::tolower(c)); });
+            const bool lineTimed = marker == "at";
+            if (!modeKnown)
+            {
+                modeKnown = true;
+                timed = lineTimed;
+            }
+            else if (lineTimed != timed)
+            {
+                throw std::runtime_error("line " + std::to_string(lineNumber) + ": cannot mix timed and read-count pad script frames");
+            }
+
+            std::string secondsText;
+            if (timed)
+            {
+                if (!(tokens >> secondsText))
+                {
+                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected seconds token");
+                }
+            }
             if (!(tokens >> buttonsText))
             {
                 throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected buttons token");
             }
 
             ScriptFrame frame{};
-            frame.reads = parseReadCount(readsText, lineNumber);
+            if (timed)
+            {
+                frame.atSeconds = parseSecondsValue(secondsText, lineNumber);
+                if (!frames.empty() && frame.atSeconds <= frames.back().atSeconds)
+                {
+                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": timed frames must be strictly increasing");
+                }
+            }
+            else
+            {
+                frame.reads = parseReadCount(readsText, lineNumber);
+            }
             frame.buttons = parseButtonList(buttonsText, lineNumber);
             std::string value;
             if (tokens >> value)
@@ -273,6 +321,8 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
     m_scriptFrameRead = 0;
     m_scriptReadCount = 0;
     m_scriptExhausted = false;
+    m_scriptTimed = timed;
+    m_scriptStartTime = std::chrono::steady_clock::now();
     if (error)
     {
         error->clear();
@@ -303,6 +353,8 @@ void PSPadBackend::clearScript()
     m_scriptFrameRead = 0;
     m_scriptReadCount = 0;
     m_scriptExhausted = false;
+    m_scriptTimed = false;
+    m_scriptStartTime = {};
 }
 
 uint8_t PSPadBackend::analogAxisFromUnit(float value)
@@ -348,17 +400,35 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
     data[4] = data[5] = data[6] = data[7] = kPadStickCenter;
 
     uint16_t btns = 0xFFFFu;
-    if (!m_script.empty() && port == 0 && slot == 0)
+    auto writeScriptFrame = [data](const ScriptFrame &frame)
     {
-        const ScriptFrame &frame = m_script[std::min(m_scriptIndex, m_script.size() - 1)];
         data[2] = static_cast<uint8_t>(frame.buttons & 0xFFu);
         data[3] = static_cast<uint8_t>(frame.buttons >> 8);
         data[4] = frame.rx;
         data[5] = frame.ry;
         data[6] = frame.lx;
         data[7] = frame.ly;
-
+    };
+    if (!m_script.empty() && port == 0 && slot == 0)
+    {
         ++m_scriptReadCount;
+        if (m_scriptTimed)
+        {
+            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - m_scriptStartTime).count();
+            if (elapsed >= m_script.front().atSeconds)
+            {
+                while (m_scriptIndex + 1 < m_script.size() && elapsed >= m_script[m_scriptIndex + 1].atSeconds)
+                {
+                    ++m_scriptIndex;
+                }
+                writeScriptFrame(m_script[m_scriptIndex]);
+                m_scriptExhausted = m_scriptIndex + 1 >= m_script.size();
+            }
+            return true;
+        }
+
+        const ScriptFrame &frame = m_script[std::min(m_scriptIndex, m_script.size() - 1)];
+        writeScriptFrame(frame);
         if (!m_scriptExhausted && ++m_scriptFrameRead >= frame.reads)
         {
             m_scriptFrameRead = 0;

@@ -1,6 +1,7 @@
 #ifndef PS2_PAD_H
 #define PS2_PAD_H
 
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -25,12 +26,14 @@ public:
     void clearScript();
     bool scriptActive() const { return !m_script.empty(); }
     bool scriptExhausted() const { return m_scriptExhausted; }
+    bool scriptTimed() const { return m_scriptTimed; }
     size_t scriptReadCount() const { return m_scriptReadCount; }
     bool readState(int port, int slot, uint8_t *data, size_t size);
 private:
     struct ScriptFrame
     {
         uint32_t reads = 0;
+        double atSeconds = 0.0;
         uint16_t buttons = 0xFFFFu;
         uint8_t lx = 0x80u;
         uint8_t ly = 0x80u;
@@ -43,6 +46,8 @@ private:
     uint32_t m_scriptFrameRead = 0;
     size_t m_scriptReadCount = 0;
     bool m_scriptExhausted = false;
+    bool m_scriptTimed = false;
+    std::chrono::steady_clock::time_point m_scriptStartTime{};
     bool m_keyboardAnalogEnabled = false;
 };
 

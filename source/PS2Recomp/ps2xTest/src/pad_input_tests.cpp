@@ -158,6 +158,38 @@ void register_pad_input_tests()
             t.IsFalse(pad.loadScriptText("# comments only\n\n", &error), "empty script should fail");
             t.IsTrue(error.find("no frames") != std::string::npos, "empty script should explain failure");
         });
+        tc.Run("timed pad script frames use elapsed seconds", [](TestCase &t)
+        {
+            PSPadBackend pad;
+            std::string error;
+            t.IsTrue(pad.loadScriptText("at 0 start+cross 1 255 16 238\nat 999 none\n", &error), "timed script should parse");
+            t.IsTrue(pad.scriptTimed(), "script should report timed mode");
+
+            uint8_t data[32]{};
+            t.IsTrue(pad.readState(0, 0, data, sizeof(data)), "timed scripted read should succeed");
+            t.Equals(static_cast<uint16_t>(data[2] | (data[3] << 8)),
+                     static_cast<uint16_t>(0xFFFFu & ~kPadBtnStart & ~kPadBtnCross),
+                     "initial timed frame should be active at time zero");
+            t.Equals(data[4], uint8_t(16), "rx should come from timed script");
+            t.Equals(data[5], uint8_t(238), "ry should come from timed script");
+            t.Equals(data[6], uint8_t(1), "lx should come from timed script");
+            t.Equals(data[7], uint8_t(255), "ly should come from timed script");
+            t.IsFalse(pad.scriptExhausted(), "future timed frame should keep script unexhausted");
+        });
+        tc.Run("timed pad script rejects mixed and unsorted frames", [](TestCase &t)
+        {
+            PSPadBackend pad;
+            std::string error;
+
+            t.IsFalse(pad.loadScriptText("at 0 none\n1 cross\n", &error), "mixed timed and read-count frames should fail");
+            t.IsTrue(error.find("cannot mix") != std::string::npos, "mixed mode failure should explain itself");
+
+            t.IsFalse(pad.loadScriptText("at 1 none\nat 1.0 cross\n", &error), "duplicate timed frames should fail");
+            t.IsTrue(error.find("strictly increasing") != std::string::npos, "duplicate time failure should explain itself");
+
+            t.IsFalse(pad.loadScriptText("at 2 none\nat 1 cross\n", &error), "decreasing timed frames should fail");
+            t.IsTrue(error.find("strictly increasing") != std::string::npos, "decreasing time failure should explain itself");
+        });
         tc.Run("scePadRead uses override state", [](TestCase &t)
                {
             std::vector<uint8_t> rdram(PS2_RAM_SIZE, 0);

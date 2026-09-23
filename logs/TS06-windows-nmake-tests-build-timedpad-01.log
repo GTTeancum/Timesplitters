@@ -1,0 +1,32 @@
+Warning: NMake does not support parallel builds. Ignoring parallel build command line option.
+[ 14%] Built target rabbitizer
+[ 14%] Built target fmt
+[ 42%] Built target dwarf
+[ 57%] Built target ps2_recomp_lib
+[ 71%] Built target ps2_iop
+[ 71%] Built target glfw
+[ 71%] Built target raylib
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/game_overrides.cpp.obj
+game_overrides.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_iop_host.cpp.obj
+ps2_iop_host.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_pad.cpp.obj
+ps2_pad.cpp
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(424): error C2064: term does not evaluate to a function taking 2 arguments
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(424): note: class does not define an 'operator()' or a user defined conversion operator to a pointer-to-function or reference-to-function that takes appropriate number of arguments
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(424): note: while trying to match the argument list '(uint8_t *, _Ty)'
+        with
+        [
+            _Ty=PSPadBackend::ScriptFrame
+        ]
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(431): error C2064: term does not evaluate to a function taking 2 arguments
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(431): note: class does not define an 'operator()' or a user defined conversion operator to a pointer-to-function or reference-to-function that takes appropriate number of arguments
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(431): note: while trying to match the argument list '(uint8_t *, const PSPadBackend::ScriptFrame)'
+NMAKE : fatal error U1077: '"C:\Program Files\CMake\bin\cmake.exe" -E cmake_cl_compile_depends --dep-file=CMakeFiles\ps2_runtime.dir\src\lib\ps2_pad.cpp.obj.d --working-dir=D:\Programming\GitHub\Timesplitters\build-windows-nmake\ps2xRuntime --filter-prefix="Note: including file: " -- C:\PROGRA~1\MICROS~3\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe @C:\Users\smmel\AppData\Local\Temp\nmAD10.tmp' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f ps2xRuntime\CMakeFiles\ps2_runtime.dir\build.make /nologo -SL                 ps2xRuntime\CMakeFiles\ps2_runtime.dir\build' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -SL                 ps2xTest\CMakeFiles\ps2x_tests.dir\all' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -LS                 ps2x_tests' : return code '0x2'
+Stop.

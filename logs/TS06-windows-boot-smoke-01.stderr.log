@@ -1,0 +1,19 @@
+[SetupHeap] base=0x1ff5390 alignedBase=0x1ff5390 size=0x8000 runtimeBase=0x1ff5390 runtimeEnd=0x1ff5390
+[ps2xIOP] [IOP] loaded IRX id=1 entry=0x10abc base=0x10000 start=0
+[ps2xIOP] [IOP] loaded IRX id=2 entry=0x11d54 base=0x11300 start=0
+[ps2xIOP] [IOP] loaded IRX id=3 entry=0x15e68 base=0x13000 start=0
+[ps2xIOP] [IOP] loaded IRX id=4 entry=0x1c458 base=0x1c300 start=0
+[ps2xIOP] [IOP] loaded IRX id=5 entry=0x3fb40 base=0x3fb00 start=0
+[ps2xIOP] [IOP] loaded IRX id=6 entry=0x46830 base=0x42e00 start=0
+[ps2xIOP] [IOP printf] sdr driver version 1.4.0 (C)SCEI
+
+[ps2xIOP] [IOP printf]  Exit rsd_main 
+
+[ps2xIOP] [IOP] loaded IRX id=7 entry=0x47500 base=0x47500 start=0
+[ps2xIOP] [IOP printf] FRD Stream Driver v%d.%d
+
+[ps2xIOP] [IOP printf] Exit stream loader thread
+
+[ps2xIOP] [IOP] loaded IRX id=8 entry=0x48700 base=0x48700 start=0
+[ps2xIOP] [IOP printf] goto stream cmd loop
+

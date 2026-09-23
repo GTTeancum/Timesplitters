@@ -79,6 +79,29 @@ void register_pad_input_tests()
         tc.Run("opposite native keyboard axis keys cancel",[](TestCase&t){
             t.Equals(PSPadBackend::keyboardAxis(true,true),uint8_t(128),"opposites neutral");
         });
+        tc.Run("unit analog axes map to PS2 byte range", [](TestCase &t)
+        {
+            t.Equals(PSPadBackend::analogAxisFromUnit(-1.0f), uint8_t(0), "negative unit axis");
+            t.Equals(PSPadBackend::analogAxisFromUnit(0.0f), uint8_t(128), "neutral unit axis");
+            t.Equals(PSPadBackend::analogAxisFromUnit(1.0f), uint8_t(255), "positive unit axis");
+            t.Equals(PSPadBackend::analogAxisFromUnit(2.0f), uint8_t(255), "positive axis clamps");
+            t.Equals(PSPadBackend::analogAxisFromUnit(-2.0f), uint8_t(0), "negative axis clamps");
+        });
+        tc.Run("xinput thumb axes honor deadzone and inverted Y", [](TestCase &t)
+        {
+            t.Equals(PSPadBackend::xinputThumbAxis(0, 7849, false), uint8_t(128), "neutral is centered");
+            t.Equals(PSPadBackend::xinputThumbAxis(7000, 7849, false), uint8_t(128), "inside deadzone is centered");
+            t.Equals(PSPadBackend::xinputThumbAxis(32767, 7849, false), uint8_t(255), "positive X reaches high edge");
+            t.Equals(PSPadBackend::xinputThumbAxis(-32768, 7849, false), uint8_t(0), "negative X reaches low edge");
+            t.Equals(PSPadBackend::xinputThumbAxis(32767, 7849, true), uint8_t(0), "positive XInput Y maps to PS2 up");
+            t.Equals(PSPadBackend::xinputThumbAxis(-32768, 7849, true), uint8_t(255), "negative XInput Y maps to PS2 down");
+        });
+        tc.Run("xinput triggers use digital press threshold", [](TestCase &t)
+        {
+            t.IsFalse(PSPadBackend::xinputTriggerPressed(30), "threshold value is still released");
+            t.IsTrue(PSPadBackend::xinputTriggerPressed(31), "value above threshold is pressed");
+            t.IsTrue(PSPadBackend::xinputTriggerPressed(255), "full trigger is pressed");
+        });
         tc.Run("scePadRead uses override state", [](TestCase &t)
                {
             std::vector<uint8_t> rdram(PS2_RAM_SIZE, 0);

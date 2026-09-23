@@ -1,0 +1,33 @@
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008[TS:image-test] exact 96-byte descriptor PSM=0 PASS
+[gs:reg] idx=0 reg=0x50 value=0x2008000000000
+[gs:reg] idx=1 reg=0x51 value=0x5000300000000
+[gs:reg] idx=2 reg=0x52 value=0x1000000020
+[gs:reg] idx=3 reg=0x53 value=0x0
+[TS:image-test] original two-DMA upload PSM=0 512 exact texels PASS
+[TS:image-test] exact 96-byte descriptor PSM=1 PASS
+[gs:reg] idx=4 reg=0x50 value=0x102008000000000
+[gs:reg] idx=5 reg=0x51 value=0x5000300000000
+[gs:reg] idx=6 reg=0x52 value=0x1000000020
+[gs:reg] idx=7 reg=0x53 value=0x0
+[TS:image-test] original two-DMA upload PSM=1 512 exact texels PASS
+[TS:image-test] exact 96-byte descriptor PSM=2 PASS
+[gs:reg] idx=8 reg=0x50 value=0x202008000000000
+[gs:reg] idx=9 reg=0x51 value=0x5000300000000
+[gs:reg] idx=10 reg=0x52 value=0x1000000020
+[gs:reg] idx=11 reg=0x53 value=0x0
+[TS:image-test] original two-DMA upload PSM=2 512 exact texels PASS
+[TS:image-test] exact 96-byte descriptor PSM=19 PASS
+[gs:reg] idx=12 reg=0x50 value=0x1302008000000000
+[gs:reg] idx=13 reg=0x51 value=0x5000300000000
+[gs:reg] idx=14 reg=0x52 value=0x1000000020
+[gs:reg] idx=15 reg=0x53 value=0x0
+[TS:image-test] original two-DMA upload PSM=19 512 exact texels PASS
+[TS:image-test] exact 96-byte descriptor PSM=20 PASS
+[gs:reg] idx=16 reg=0x50 value=0x1402008000000000
+[gs:reg] idx=17 reg=0x51 value=0x5000300000000
+[gs:reg] idx=18 reg=0x52 value=0x1000000020
+[gs:reg] idx=19 reg=0x53 value=0x0
+[TS:image-test] original two-DMA upload PSM=20 512 exact texels PASS
+[TS:image-test] 10 original-EE descriptor/DMA checks passed

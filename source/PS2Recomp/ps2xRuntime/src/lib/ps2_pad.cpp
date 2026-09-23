@@ -1,5 +1,50 @@
 #include "runtime/ps2_pad.h"
+#if defined(_WIN32)
+using XInputWord = uint16_t;
+using XInputByte = uint8_t;
+using XInputShort = int16_t;
+using XInputDword = uint32_t;
+
+struct XINPUT_GAMEPAD
+{
+    XInputWord wButtons;
+    XInputByte bLeftTrigger;
+    XInputByte bRightTrigger;
+    XInputShort sThumbLX;
+    XInputShort sThumbLY;
+    XInputShort sThumbRX;
+    XInputShort sThumbRY;
+};
+
+struct XINPUT_STATE
+{
+    XInputDword dwPacketNumber;
+    XINPUT_GAMEPAD Gamepad;
+};
+
+extern "C" __declspec(dllimport) XInputDword __stdcall XInputGetState(XInputDword dwUserIndex, XINPUT_STATE *pState);
+
+constexpr XInputDword kXInputErrorSuccess = 0u;
+constexpr XInputWord XINPUT_GAMEPAD_DPAD_UP = 0x0001u;
+constexpr XInputWord XINPUT_GAMEPAD_DPAD_DOWN = 0x0002u;
+constexpr XInputWord XINPUT_GAMEPAD_DPAD_LEFT = 0x0004u;
+constexpr XInputWord XINPUT_GAMEPAD_DPAD_RIGHT = 0x0008u;
+constexpr XInputWord XINPUT_GAMEPAD_START = 0x0010u;
+constexpr XInputWord XINPUT_GAMEPAD_BACK = 0x0020u;
+constexpr XInputWord XINPUT_GAMEPAD_LEFT_THUMB = 0x0040u;
+constexpr XInputWord XINPUT_GAMEPAD_RIGHT_THUMB = 0x0080u;
+constexpr XInputWord XINPUT_GAMEPAD_LEFT_SHOULDER = 0x0100u;
+constexpr XInputWord XINPUT_GAMEPAD_RIGHT_SHOULDER = 0x0200u;
+constexpr XInputWord XINPUT_GAMEPAD_A = 0x1000u;
+constexpr XInputWord XINPUT_GAMEPAD_B = 0x2000u;
+constexpr XInputWord XINPUT_GAMEPAD_X = 0x4000u;
+constexpr XInputWord XINPUT_GAMEPAD_Y = 0x8000u;
+constexpr int16_t XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE = 7849;
+constexpr int16_t XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE = 8689;
+#endif
 #include "ps2_host_backend.h"
+#include <algorithm>
+#include <cmath>
 #include <cstring>
 
 namespace
@@ -23,6 +68,92 @@ namespace
     constexpr uint16_t PAD_L1 = 0x0400u;
     constexpr uint16_t PAD_R2 = 0x0200u;
     constexpr uint16_t PAD_L2 = 0x0100u;
+
+    void clearButton(uint16_t &buttons, uint16_t mask)
+    {
+        buttons = static_cast<uint16_t>(buttons & ~mask);
+    }
+
+#if defined(_WIN32)
+    bool readXInputState(uint8_t *data, uint16_t &buttons)
+    {
+        XINPUT_STATE state{};
+        if (XInputGetState(0, &state) != kXInputErrorSuccess)
+        {
+            return false;
+        }
+
+        const XInputWord xbuttons = state.Gamepad.wButtons;
+        if (xbuttons & XINPUT_GAMEPAD_DPAD_UP)
+            clearButton(buttons, PAD_UP);
+        if (xbuttons & XINPUT_GAMEPAD_DPAD_DOWN)
+            clearButton(buttons, PAD_DOWN);
+        if (xbuttons & XINPUT_GAMEPAD_DPAD_LEFT)
+            clearButton(buttons, PAD_LEFT);
+        if (xbuttons & XINPUT_GAMEPAD_DPAD_RIGHT)
+            clearButton(buttons, PAD_RIGHT);
+        if (xbuttons & XINPUT_GAMEPAD_START)
+            clearButton(buttons, PAD_START);
+        if (xbuttons & XINPUT_GAMEPAD_BACK)
+            clearButton(buttons, PAD_SELECT);
+        if (xbuttons & XINPUT_GAMEPAD_LEFT_THUMB)
+            clearButton(buttons, PAD_L3);
+        if (xbuttons & XINPUT_GAMEPAD_RIGHT_THUMB)
+            clearButton(buttons, PAD_R3);
+        if (xbuttons & XINPUT_GAMEPAD_LEFT_SHOULDER)
+            clearButton(buttons, PAD_L1);
+        if (xbuttons & XINPUT_GAMEPAD_RIGHT_SHOULDER)
+            clearButton(buttons, PAD_R1);
+        if (xbuttons & XINPUT_GAMEPAD_A)
+            clearButton(buttons, PAD_CROSS);
+        if (xbuttons & XINPUT_GAMEPAD_B)
+            clearButton(buttons, PAD_CIRCLE);
+        if (xbuttons & XINPUT_GAMEPAD_X)
+            clearButton(buttons, PAD_SQUARE);
+        if (xbuttons & XINPUT_GAMEPAD_Y)
+            clearButton(buttons, PAD_TRIANGLE);
+        if (PSPadBackend::xinputTriggerPressed(state.Gamepad.bLeftTrigger))
+            clearButton(buttons, PAD_L2);
+        if (PSPadBackend::xinputTriggerPressed(state.Gamepad.bRightTrigger))
+            clearButton(buttons, PAD_R2);
+
+        data[6] = PSPadBackend::xinputThumbAxis(state.Gamepad.sThumbLX, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, false);
+        data[7] = PSPadBackend::xinputThumbAxis(state.Gamepad.sThumbLY, XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE, true);
+        data[4] = PSPadBackend::xinputThumbAxis(state.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, false);
+        data[5] = PSPadBackend::xinputThumbAxis(state.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, true);
+        return true;
+    }
+#endif
+}
+
+uint8_t PSPadBackend::analogAxisFromUnit(float value)
+{
+    value = std::clamp(value, -1.0f, 1.0f);
+    return static_cast<uint8_t>(std::lround((value + 1.0f) * 127.5f));
+}
+
+uint8_t PSPadBackend::xinputThumbAxis(int16_t value, int16_t deadzone, bool invert)
+{
+    int32_t axis = value;
+    if (std::abs(axis) <= static_cast<int32_t>(deadzone))
+    {
+        return kPadStickCenter;
+    }
+
+    if (invert)
+    {
+        axis = -axis;
+    }
+
+    const float normalized = axis < 0
+                                 ? static_cast<float>(axis) / 32768.0f
+                                 : static_cast<float>(axis) / 32767.0f;
+    return analogAxisFromUnit(normalized);
+}
+
+bool PSPadBackend::xinputTriggerPressed(uint8_t value, uint8_t threshold)
+{
+    return value > threshold;
 }
 
 bool PSPadBackend::readState(int /*port*/, int /*slot*/, uint8_t *data, size_t size)
@@ -42,6 +173,15 @@ bool PSPadBackend::readState(int /*port*/, int /*slot*/, uint8_t *data, size_t s
     const bool useGamepad = IsGamepadAvailable(kGamepad);
     auto clearBit = [&btns](uint16_t mask)
     { btns &= ~mask; };
+
+#if defined(_WIN32)
+    if (readXInputState(data, btns))
+    {
+        data[2] = static_cast<uint8_t>(btns & 0xFF);
+        data[3] = static_cast<uint8_t>(btns >> 8);
+        return true;
+    }
+#endif
 
     if (useGamepad)
     {
@@ -82,10 +222,10 @@ bool PSPadBackend::readState(int /*port*/, int /*slot*/, uint8_t *data, size_t s
         float ly = GetGamepadAxisMovement(kGamepad, GAMEPAD_AXIS_LEFT_Y);
         float rx = GetGamepadAxisMovement(kGamepad, GAMEPAD_AXIS_RIGHT_X);
         float ry = GetGamepadAxisMovement(kGamepad, GAMEPAD_AXIS_RIGHT_Y);
-        data[6] = static_cast<uint8_t>(128 + lx * 127);
-        data[7] = static_cast<uint8_t>(128 + ly * 127);
-        data[4] = static_cast<uint8_t>(128 + rx * 127);
-        data[5] = static_cast<uint8_t>(128 + ry * 127);
+        data[6] = analogAxisFromUnit(lx);
+        data[7] = analogAxisFromUnit(ly);
+        data[4] = analogAxisFromUnit(rx);
+        data[5] = analogAxisFromUnit(ry);
     }
     else
     {

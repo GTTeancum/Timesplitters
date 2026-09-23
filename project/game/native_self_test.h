@@ -42,6 +42,7 @@ static int nativeSelfTest(const char *elf) {
     SET_GPR_U32(&ctx,4,eeSource);SET_GPR_U32(&ctx,5,iopDestination);
     SET_GPR_U32(&ctx,6,64u);SET_GPR_U32(&ctx,7,1u);
     SET_GPR_U32(&ctx,29,sp);SET_GPR_U32(&ctx,31,ret);
+    rt.eeScheduler().bindMainContextForSyscall(ctx, ram);
     for(int budget=0;ctx.pc!=ret && budget<1000;++budget) {
         rt.lookupFunction(ctx.pc)(ram,&ctx,&rt);
         if(rt.isStopRequested()) throw std::runtime_error("sound transfer hit missing AOT function");

@@ -10,6 +10,8 @@ project/game/files/
 project/game/iso/
 project/game/assets/
 project/game/disc/
+project/disc/
+project/game-data/
 
 # Build outputs and dependency caches
 build/
@@ -34,6 +36,7 @@ scratch/
 tmp/
 *.tmp
 *.log.tmp
+ps2_log.txt
 *.pid
 *.dmp
 *.dump

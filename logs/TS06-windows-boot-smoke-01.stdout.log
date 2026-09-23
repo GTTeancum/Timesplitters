@@ -1,0 +1,225 @@
+[TS:native] original-EE AOT via PS2Recomp; missing functions STOP; no EE interpreter fallback
+INFO: Initializing raylib 5.5
+INFO: Platform backend: DESKTOP (GLFW)
+INFO: Supported raylib modules:
+INFO:     > rcore:..... loaded (mandatory)
+INFO:     > rlgl:...... loaded (mandatory)
+INFO:     > rshapes:... loaded (optional)
+INFO:     > rtextures:. loaded (optional)
+INFO:     > rtext:..... loaded (optional)
+INFO:     > rmodels:... loaded (optional)
+INFO:     > raudio:.... loaded (optional)
+INFO: DISPLAY: Device initialized successfully
+INFO:     > Display size: 1920 x 1080
+INFO:     > Screen size:  640 x 448
+INFO:     > Render size:  640 x 448
+INFO:     > Viewport offsets: 0, 0
+INFO: GLAD: OpenGL extensions loaded successfully
+INFO: GL: Supported extensions count: 296
+INFO: GL: OpenGL device information:
+INFO:     > Vendor:   ATI Technologies Inc.
+INFO:     > Renderer: AMD Radeon 780M Graphics
+INFO:     > Version:  3.3.0 Core Profile Context 26.3.1.260309
+INFO:     > GLSL:     4.60
+INFO: GL: VAO extension detected, VAO functions loaded successfully
+INFO: GL: NPOT textures extension detected, full NPOT textures supported
+INFO: GL: DXT compressed textures supported
+INFO: GL: ETC2/EAC compressed textures supported
+INFO: PLATFORM: DESKTOP (GLFW - Win32): Initialized successfully
+INFO: TEXTURE: [ID 1] Texture loaded successfully (1x1 | R8G8B8A8 | 1 mipmaps)
+INFO: TEXTURE: [ID 1] Default texture loaded successfully
+INFO: SHADER: [ID 1] Vertex shader compiled successfully
+INFO: SHADER: [ID 2] Fragment shader compiled successfully
+INFO: SHADER: [ID 3] Program shader loaded successfully
+INFO: SHADER: [ID 3] Default shader loaded successfully
+INFO: RLGL: Render batch vertex buffers loaded successfully in RAM (CPU)
+INFO: RLGL: Render batch vertex buffers loaded successfully in VRAM (GPU)
+INFO: RLGL: Default OpenGL state initialized successfully
+INFO: TEXTURE: [ID 2] Texture loaded successfully (128x128 | GRAY_ALPHA | 1 mipmaps)
+INFO: FONT: Default font loaded successfully (224 glyphs)
+INFO: SYSTEM: Working Directory: D:\Programming\GitHub\Timesplitters
+INFO: AUDIO: Device initialized successfully
+INFO:     > Backend:       miniaudio | WASAPI
+INFO:     > Format:        32-bit IEEE Floating Point -> 32-bit IEEE Floating Point
+INFO:     > Channels:      2 -> 2
+INFO:     > Sample rate:   48000 -> 48000
+INFO:     > Periods size:  1440
+INFO: TIMER: Target time per frame: 16.667 milliseconds
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008Starting execution at address 0x200008INFO: TEXTURE: [ID 3] Texture loaded successfully (640x512 | R8G8B8A8 | 1 mipmaps)
+[SifInitRpc] Initialized[SIF module] load-emulated id=1 ref=1 path="cdrom0:\MODULES\SIO2MAN.IRX;1"
+[SIF module] load-emulated id=2 ref=1 path="cdrom0:\MODULES\MTAPMAN.IRX;1"
+[SIF module] load-emulated id=3 ref=1 path="cdrom0:\MODULES\PADMAN.IRX;1"
+[SIF module] load-emulated id=4 ref=1 path="cdrom0:\MODULES\MCMAN.IRX;1"
+[SIF module] load-emulated id=5 ref=1 path="cdrom0:\MODULES\MCSERV.IRX;1"
+[SIF module] load-emulated id=6 ref=1 path="cdrom0:\MODULES\LIBSD.IRX;1"
+[SIF module] load-emulated id=7 ref=1 path="cdrom0:\MODULES\SDRDRV.IRX;1"
+[SIF module] load-emulated id=8 ref=1 path="cdrom0:\MODULES\STREAM.IRX;1"
+[gs:reg] idx=0 reg=0x41 value=0x8005
+[gs:copy-reg] reg=0x41 value=0x8005 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=1 reg=0x42 value=0x3
+[gs:reg] idx=2 reg=0x4c value=0x100000
+[gs:reg] idx=3 reg=0x18 value=0x0
+[gs:reg] idx=4 reg=0x40 value=0x400000004000000
+[gs:reg] idx=5 reg=0x47 value=0x0
+[gs:reg] idx=6 reg=0x0 value=0x6
+[gs:copy-reg] reg=0x0 value=0x6 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=7 reg=0x1 value=0x3f80000000000000
+[gs:reg] idx=8 reg=0x4 value=0x0
+[gs:kick] idx=0 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=9 reg=0x4 value=0x40004000
+[gs:kick] idx=1 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=0 type=6 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=16 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1024,1024) test=0x0 alpha=0x3 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1024,1024) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[sceDmaSend] ch=0x1000a000 madr=0x3136b0 qwc=0xa tadr=0x3136b0 chcr=0x181
+[gs:reg] idx=10 reg=0x4c value=0x20a0000
+[gs:reg] idx=11 reg=0x18 value=0x790800006c00
+[gs:reg] idx=12 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=13 reg=0x47 value=0x30000
+[gs:reg] idx=14 reg=0x4c value=0x20a0000
+[gs:reg] idx=15 reg=0x18 value=0x790000006c00
+[gs:reg] idx=16 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=17 reg=0x47 value=0x30000
+[gs:reg] idx=18 reg=0x4c value=0x20a0000
+[gs:reg] idx=19 reg=0x18 value=0x790800006c00
+[gs:reg] idx=20 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=21 reg=0x47 value=0x30000
+[run:tick] tick=120 pc=0x201a88 ra=0x201b90 sp=0x1ffff00 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=1 dma=2 gif=2 gsw=0 vif=0
+[gs:reg] idx=22 reg=0x4c value=0x20a0000
+[gs:reg] idx=23 reg=0x18 value=0x790000006c00
+[gs:reg] idx=24 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=25 reg=0x47 value=0x30000
+[gs:reg] idx=26 reg=0x4c value=0x20a0000
+[gs:reg] idx=27 reg=0x18 value=0x790800006c00
+[gs:reg] idx=28 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=29 reg=0x47 value=0x30000
+[gs:reg] idx=30 reg=0x4c value=0x20a0000
+[gs:reg] idx=31 reg=0x18 value=0x790000006c00
+[gs:reg] idx=32 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=33 reg=0x47 value=0x30000
+[gs:reg] idx=34 reg=0x4c value=0x20a0000
+[gs:reg] idx=35 reg=0x18 value=0x790800006c00
+[gs:reg] idx=36 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=37 reg=0x47 value=0x30000
+[gs:reg] idx=38 reg=0x4c value=0x20a0000
+[gs:reg] idx=39 reg=0x18 value=0x790000006c00
+[gs:reg] idx=40 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=41 reg=0x47 value=0x30000
+[gs:reg] idx=42 reg=0x4c value=0x20a0000
+[gs:reg] idx=43 reg=0x18 value=0x790800006c00
+[gs:reg] idx=44 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=45 reg=0x47 value=0x30000
+[gs:reg] idx=46 reg=0x4c value=0x20a0000
+[gs:reg] idx=47 reg=0x18 value=0x790000006c00
+[gs:reg] idx=48 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=49 reg=0x47 value=0x30000
+[gs:reg] idx=50 reg=0x4c value=0x20a0000
+[gs:reg] idx=51 reg=0x18 value=0x790800006c00
+[gs:reg] idx=52 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=53 reg=0x47 value=0x30000
+[gs:reg] idx=54 reg=0x4c value=0x20a0000
+[gs:reg] idx=55 reg=0x18 value=0x790000006c00
+[gs:reg] idx=56 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=57 reg=0x47 value=0x30000
+[gs:reg] idx=58 reg=0x4c value=0x20a0000
+[gs:reg] idx=59 reg=0x18 value=0x790800006c00
+[gs:reg] idx=60 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=61 reg=0x47 value=0x30000
+[gs:reg] idx=62 reg=0x4c value=0x20a0000
+[gs:reg] idx=63 reg=0x18 value=0x790000006c00
+[gs:reg] idx=64 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=65 reg=0x47 value=0x30000
+[gs:reg] idx=66 reg=0x4c value=0x20a0000
+[gs:reg] idx=67 reg=0x18 value=0x790800006c00
+[gs:reg] idx=68 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=69 reg=0x47 value=0x30000
+[run:tick] tick=240 pc=0x201a88 ra=0x2001f4 sp=0x1ffff10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=1 dma=2 gif=2 gsw=0 vif=0
+[gs:reg] idx=70 reg=0x4c value=0x20a0000
+[gs:reg] idx=71 reg=0x18 value=0x790000006c00
+[gs:reg] idx=72 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=73 reg=0x47 value=0x30000
+[gs:reg] idx=74 reg=0x4c value=0x20a0000
+[gs:reg] idx=75 reg=0x18 value=0x790800006c00
+[gs:reg] idx=76 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=77 reg=0x47 value=0x30000
+[gs:reg] idx=78 reg=0x4c value=0x20a0000
+[gs:reg] idx=79 reg=0x18 value=0x790000006c00
+[gs:reg] idx=80 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=81 reg=0x47 value=0x30000
+[gs:reg] idx=82 reg=0x4c value=0x20a0000
+[gs:reg] idx=83 reg=0x18 value=0x790800006c00
+[gs:reg] idx=84 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=85 reg=0x47 value=0x30000
+[gs:reg] idx=86 reg=0x4c value=0x20a0000
+[gs:reg] idx=87 reg=0x18 value=0x790000006c00
+[gs:reg] idx=88 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=89 reg=0x47 value=0x30000
+[gs:reg] idx=90 reg=0x4c value=0x20a0000
+[gs:reg] idx=91 reg=0x18 value=0x790800006c00
+[gs:reg] idx=92 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=93 reg=0x47 value=0x30000
+Game thread returned. PC=0x201a88 RA=0x2001f4
+INFO: TEXTURE: [ID 3] Unloaded texture data from VRAM (GPU)
+INFO: TEXTURE: [ID 2] Unloaded texture data from VRAM (GPU)
+INFO: SHADER: [ID 3] Default shader unloaded successfully
+INFO: TEXTURE: [ID 1] Default texture unloaded successfully
+INFO: Window closed successfully
+[run] exiting loop[TS:stopped] timeout=1 pc=0x201a88 dma=2 gif=2 gs=0 vif=0 threads=1
+[TS:kernel] cycles=166661280 running=1
+[TS:thread] id=1 status=0 wait=0 waitid=0 depth=0 pc=0x201a88 ra=0x2001f4 sp=0x1ffff10 entry=0x200008
+[TS:semaphore] id=1 count=0 max=1 waiters=0
+[TS:semaphore] id=2 count=0 max=1 waiters=0
+[TS:semaphore] id=3 count=1 max=1 waiters=0
+[TS:semaphore] id=4 count=1 max=1 waiters=0
+[TS:registers] thread=1 pc=0x201a88
+[TS:reg] t=1 n=0 lo=0x0 hi=0x0 fbits=0xbb490feb f=-0.00306797
+[TS:reg] t=1 n=1 lo=0x3a000000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=2 lo=0x1 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=3 lo=0x6d hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=4 lo=0x1d14be8 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=5 lo=0x1e91f80 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=6 lo=0x6b hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=7 lo=0x72 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=8 lo=0x61 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=9 lo=0x5f hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=10 lo=0x65 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=11 lo=0x20000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=12 lo=0x320000 hi=0x0 fbits=0xbb491000 f=-0.00306797
+[TS:reg] t=1 n=13 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=14 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=15 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=16 lo=0x1fac580 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=17 lo=0x2d hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=18 lo=0x315e40 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=19 lo=0x3171b8 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=20 lo=0x318530 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=21 lo=0x3198a8 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=22 lo=0x1fb0000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=23 lo=0x3 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=24 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=25 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=26 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=27 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=28 lo=0x3b47f0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=29 lo=0x1ffff10 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=30 lo=0x2f2c30 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=31 lo=0x2001f4 hi=0x0 fbits=0x0 f=0
+[TS:DMA] ch=0 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=1 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=2 chcr=0x81 madr=0x3136b0 qwc=0x0 tadr=0x3136b0 sadr=0x0
+[TS:DMA] ch=3 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=4 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=5 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=6 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=7 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=8 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=9 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:original] numdmafail=0
+[TS:VIF] unit=0 stat=0x0 code=0x0 err=0x0 cycle=0x0 num=0x0 top=0x0 tops=0x0
+[TS:VIF] unit=1 stat=0x0 code=0x0 err=0x0 cycle=0x0 num=0x0 top=0x0 tops=0x0
+[TS:IOP] cycles=13329180 instructions=2209 modules=8 threads=12 rpcservers=10
+[TS:IOP-service] MCSERV active=1 unknown_rpc_logs=0
+[TS:IOP-service] dbcman active=0 reported_version=784 version_queries=0 failed_version_replies=0 unknown_rpc_logs=0
+[TS:IOP-service] libsd active=1
+[TS:sound-memory] writes=0 bytes_written=0 reads=0 bytes_read=0 note=memory-transfers-not-mixed-audio
+INFO: AUDIO: Device closed successfully

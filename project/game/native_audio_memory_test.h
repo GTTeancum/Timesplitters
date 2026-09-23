@@ -23,6 +23,7 @@ static int nativeAudioMemoryTest(const char* elf) {
     };
     auto invoke=[&](R5900Context& x){
         SET_GPR_U32((&x),29,sp);SET_GPR_U32((&x),31,ret);
+        rt.eeScheduler().bindMainContextForSyscall(x, ram);
         for(unsigned n=0;x.pc!=ret && n<1000;++n){
             if(!rt.hasFunction(x.pc))throw std::runtime_error("audio memory test missing AOT function");
             rt.lookupFunction(x.pc)(ram,&x,&rt);

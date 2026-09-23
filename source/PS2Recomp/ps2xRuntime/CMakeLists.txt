@@ -237,6 +237,10 @@ if(PS2X_IS_VITA)
 else()
     target_link_libraries(ps2_host_backend INTERFACE raylib)
 
+    if(WIN32)
+        target_link_libraries(ps2_host_backend INTERFACE xinput)
+    endif()
+
     if(PS2X_IS_ANDROID)
         target_link_libraries(ps2_host_backend INTERFACE log android)
     endif()

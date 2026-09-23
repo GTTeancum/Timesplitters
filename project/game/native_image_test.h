@@ -18,6 +18,7 @@ static int nativeImageTest(const char* elf) {
         R5900Context c{};c.pc=entry;
         SET_GPR_U32(&c,28,gp);SET_GPR_U32(&c,29,sp);SET_GPR_U32(&c,31,ret);
         unsigned reg=4;for(auto value:args){SET_GPR_U32(&c,reg,value);++reg;}
+        rt.eeScheduler().bindMainContextForSyscall(c, ram);
         for(unsigned n=0;c.pc!=ret&&n<10000;++n) {
             rt.lookupFunction(c.pc)(ram,&c,&rt);
             if(rt.isStopRequested())throw std::runtime_error("image ABI missing AOT entry");

@@ -1,0 +1,7 @@
+--self-test exit=0 log=logs\TS06-windows-self-test-04.log
+--image-self-test exit=0 log=logs\TS06-windows-image-self-test-04.log
+--mc-self-test exit=0 log=logs\TS06-windows-mc-self-test-04.log
+--math-self-test exit=0 log=logs\TS06-windows-math-self-test-04.log
+--matrix-self-test exit=0 log=logs\TS06-windows-matrix-self-test-04.log
+--format-self-test exit=0 log=logs\TS06-windows-format-self-test-04.log
+--audio-memory-self-test exit=0 log=logs\TS06-windows-audio-memory-self-test-04.log

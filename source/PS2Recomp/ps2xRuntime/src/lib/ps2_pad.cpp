@@ -346,6 +346,15 @@ bool PSPadBackend::loadScriptFile(const std::string &path, std::string *error)
     return loadScriptText(text.str(), error);
 }
 
+void PSPadBackend::setScriptTimeScale(double scale)
+{
+    if (!std::isfinite(scale) || scale <= 0.0 || scale > 1000.0)
+    {
+        throw std::runtime_error("pad script time scale must be > 0 and <= 1000");
+    }
+    m_scriptTimeScale = scale;
+}
+
 void PSPadBackend::clearScript()
 {
     m_script.clear();
@@ -354,6 +363,7 @@ void PSPadBackend::clearScript()
     m_scriptReadCount = 0;
     m_scriptExhausted = false;
     m_scriptTimed = false;
+    m_scriptTimeScale = 1.0;
     m_scriptStartTime = {};
 }
 
@@ -414,7 +424,7 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
         ++m_scriptReadCount;
         if (m_scriptTimed)
         {
-            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - m_scriptStartTime).count();
+            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - m_scriptStartTime).count() / m_scriptTimeScale;
             if (elapsed >= m_script.front().atSeconds)
             {
                 while (m_scriptIndex + 1 < m_script.size() && elapsed >= m_script[m_scriptIndex + 1].atSeconds)

@@ -23,10 +23,12 @@ public:
     static bool xinputTriggerPressed(uint8_t value, uint8_t threshold = 30u);
     bool loadScriptFile(const std::string &path, std::string *error = nullptr);
     bool loadScriptText(const std::string &text, std::string *error = nullptr);
+    void setScriptTimeScale(double scale);
     void clearScript();
     bool scriptActive() const { return !m_script.empty(); }
     bool scriptExhausted() const { return m_scriptExhausted; }
     bool scriptTimed() const { return m_scriptTimed; }
+    double scriptTimeScale() const { return m_scriptTimeScale; }
     size_t scriptReadCount() const { return m_scriptReadCount; }
     bool readState(int port, int slot, uint8_t *data, size_t size);
 private:
@@ -47,6 +49,7 @@ private:
     size_t m_scriptReadCount = 0;
     bool m_scriptExhausted = false;
     bool m_scriptTimed = false;
+    double m_scriptTimeScale = 1.0;
     std::chrono::steady_clock::time_point m_scriptStartTime{};
     bool m_keyboardAnalogEnabled = false;
 };

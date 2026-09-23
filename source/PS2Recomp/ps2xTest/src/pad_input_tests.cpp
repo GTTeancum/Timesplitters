@@ -190,6 +190,29 @@ void register_pad_input_tests()
             t.IsFalse(pad.loadScriptText("at 2 none\nat 1 cross\n", &error), "decreasing timed frames should fail");
             t.IsTrue(error.find("strictly increasing") != std::string::npos, "decreasing time failure should explain itself");
         });
+        tc.Run("timed pad script time scale validates and resets", [](TestCase &t)
+        {
+            PSPadBackend pad;
+            std::string error;
+            t.IsTrue(pad.loadScriptText("at 0 none\nat 999 cross\n", &error), "timed script should parse");
+            pad.setScriptTimeScale(2.5);
+            t.Equals(pad.scriptTimeScale(), 2.5, "time scale should be retained");
+
+            bool rejected = false;
+            try
+            {
+                pad.setScriptTimeScale(0.0);
+            }
+            catch (const std::runtime_error &)
+            {
+                rejected = true;
+            }
+            t.IsTrue(rejected, "invalid time scale should be rejected");
+            t.Equals(pad.scriptTimeScale(), 2.5, "failed scale update should leave previous value");
+
+            pad.clearScript();
+            t.Equals(pad.scriptTimeScale(), 1.0, "clearing script should reset time scale");
+        });
         tc.Run("scePadRead uses override state", [](TestCase &t)
                {
             std::vector<uint8_t> rdram(PS2_RAM_SIZE, 0);

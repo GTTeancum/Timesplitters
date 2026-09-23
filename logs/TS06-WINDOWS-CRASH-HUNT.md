@@ -352,3 +352,54 @@ Note: final pass/fail evidence logs are committed with this file. Some early fai
   - Timed replay now widens Windows boot/frontend path coverage and consumes the full preserved Arcade schedule without crashing.
   - It does not yet reproduce the TS05 Linux Arcade in-match state; therefore it is not combat, hit-registration, damage, kill, death, or respawn evidence.
   - Next crash-hunt work should add state-aware observation or gated input timing rather than relying only on absolute host seconds.
+
+### 2026-09-23 Windows state-watch diagnostics and timed-scale replay
+
+- Added `TS_WATCH_STATE_INTERVAL` to the native game harness.
+  - The hook samples original guest RAM read-only and logs `[TS:state]` lines during bounded runs.
+  - Current fields include PC, original `local_players`, `active_characters`, first-player pointer, player prop pointer validity, first-player health when the prop is valid, DMA/GIF/VIF counters, and a small frontend-state snapshot.
+  - This is diagnostic observation only; it does not patch guest state or wake guest logic.
+- Added `TS_PAD_TIME_SCALE` for timed pad scripts.
+  - Timed script timestamps are divided by this scale at read time.
+  - This preserves the captured `.pad` files while allowing slower Windows runs to delay inputs relative to host wall-clock time.
+  - Final pad summary now prints `time_scale=...`.
+- Regression coverage:
+  - Windows `ps2x_tests.exe`, run from `source\PS2Recomp`.
+  - Result: 473 total, 473 passed, 0 failed.
+  - Log: `logs/TS06-windows-tests-run-timescale-04.log`.
+- Rebuild:
+  - Full NMake rebuild of the native game after the runtime header change.
+  - Result: passed.
+  - Log: `logs/TS06-windows-nmake-build-timescale-01.log`.
+  - Executable: `build-windows-nmake\timesplitters\timesplitters.exe`.
+  - Size: 111,185,408 bytes.
+- State-watch Arcade replay, unscaled, 90 seconds:
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-statewatch-arcade-90s-02.log`.
+  - Original `numdmafail=0`.
+  - `active_characters` remained 0; no valid player prop/health was observed.
+  - Pad script summary: 73 reads, not exhausted, timed mode active.
+- State-watch Story replay, unscaled, 260 seconds:
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-statewatch-story-260s-01.log`.
+  - Original `numdmafail=0`.
+  - `active_characters` remained 0; no valid player prop/health was observed.
+  - Pad script summary: 230 reads, not exhausted, timed mode active.
+- State-watch Story replay, `TS_PAD_TIME_SCALE=2`, 360 seconds:
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-statewatch-story-360s-scale2-01.log`.
+  - Original `numdmafail=0`.
+  - `front0.f1c` changed from 0 to 1 around 300 seconds, confirming the slower script timing changed frontend progression.
+  - `active_characters` remained 0; no valid player prop/health was observed.
+  - Pad script summary: 376 reads, not exhausted, timed mode active, `time_scale=2`.
+- State-watch Story replay, `TS_PAD_TIME_SCALE=2`, 620 seconds:
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-statewatch-story-620s-scale2-01.log`.
+  - Original `numdmafail=0`.
+  - `active_characters` remained 0 through the first movement window of the preserved Story schedule.
+  - No valid first-player prop/health was observed.
+  - Pad script summary: 679 reads, not exhausted, timed mode active, `time_scale=2`.
+- Interpretation:
+  - Windows native replay coverage is broader and remained crash-free with zero original DMA failures, but it still has not reproduced the TS05 Linux in-level Story or Arcade state.
+  - Combat, player damage, enemy hit confirmation, kills, deaths, respawn, and Story objective progression remain unproven on Windows.
+  - The next crash-hunt harness should be state-gated rather than purely timed. The current evidence suggests the game is progressing through frontend/save-card paths, but timed input is still not a reliable way to enter match state on the slower Windows build.

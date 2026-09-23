@@ -1,6 +1,7 @@
 #include "ps2_runtime.h"
 #include "runtime/ee_scheduler.h"
 #include <chrono>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -41,6 +42,8 @@ int main(int argc, char** argv) {
             std::string error;
             if (!rt.padBackend().loadScriptFile(padScript, &error))
                 throw std::runtime_error("pad script load failed: " + error);
+            if (const char* scaleText=std::getenv("TS_PAD_TIME_SCALE"); scaleText && *scaleText)
+                rt.padBackend().setScriptTimeScale(std::stod(scaleText));
             std::cout<<"[TS:pad-script] "<<std::filesystem::absolute(padScript).string()<<'\n';
         }
         if (const char* cardRoot=std::getenv("TS_MC_ROOT"); cardRoot && *cardRoot) {
@@ -50,13 +53,74 @@ int main(int argc, char** argv) {
         }
         if (argc >= 4) {auto paths=PS2Runtime::getIoPaths();paths.cdImage=std::filesystem::absolute(argv[3]);PS2Runtime::setIoPaths(paths);}
         std::atomic<bool> done=false, limit=false;
+        auto readU32 = [&](uint32_t addr) {
+            uint32_t value = 0;
+            if (addr <= PS2_RAM_SIZE - sizeof(value))
+                std::memcpy(&value, rt.memory().getRDRAM() + addr, sizeof(value));
+            return value;
+        };
+        auto readF32 = [&](uint32_t addr) {
+            float value = 0.0f;
+            if (addr <= PS2_RAM_SIZE - sizeof(value))
+                std::memcpy(&value, rt.memory().getRDRAM() + addr, sizeof(value));
+            return value;
+        };
+        auto logOriginalState = [&](const char *tag, double elapsed) {
+            const uint32_t player = readU32(0x003afa20u);
+            uint32_t prop = 0;
+            float health = 0.0f;
+            bool propValid = false;
+            if (player != 0 && player <= PS2_RAM_SIZE - 0x184u) {
+                prop = readU32(player + 0x180u);
+                propValid = prop != 0 && prop <= PS2_RAM_SIZE - 0x20cu;
+                if (propValid)
+                    health = readF32(prop + 0x208u);
+            }
+            std::cout<<"[TS:state] tag="<<tag<<" elapsed="<<elapsed
+                     <<" pc=0x"<<std::hex<<rt.cpu().pc<<std::dec
+                     <<" local_players="<<readU32(0x003ae764u)
+                     <<" active_characters="<<readU32(0x003afd8cu)
+                     <<" player=0x"<<std::hex<<player
+                     <<" prop=0x"<<prop<<std::dec
+                     <<" prop_valid="<<(propValid ? 1 : 0)
+                     <<" health="<<health
+                     <<" dma="<<rt.memory().dmaStartCount()
+                     <<" gif="<<rt.memory().gifCopyCount()
+                     <<" vif="<<rt.memory().vifWriteCount();
+            for (uint32_t i = 0; i < 4; ++i) {
+                const uint32_t front = 0x00352da0u + i * 0x2cu;
+                std::cout<<" front"<<i<<"={v0=0x"<<std::hex<<readU32(front)
+                         <<" f18=0x"<<readU32(front + 0x18u)
+                         <<" f1c=0x"<<readU32(front + 0x1cu)<<std::dec<<"}";
+            }
+            std::cout<<'\n';
+        };
+        std::thread stateWatch;
+        if (const char* watchInterval=std::getenv("TS_WATCH_STATE_INTERVAL"); watchInterval && *watchInterval) {
+            const double intervalSeconds = std::stod(watchInterval);
+            if (intervalSeconds <= 0.0 || intervalSeconds > 300.0)
+                throw std::runtime_error("TS_WATCH_STATE_INTERVAL must be 0..300 seconds");
+            stateWatch = std::thread([&, intervalSeconds]{
+                const auto start=std::chrono::steady_clock::now();
+                auto next=start;
+                while(!done.load()) {
+                    const auto now=std::chrono::steady_clock::now();
+                    if(now>=next) {
+                        logOriginalState("watch", std::chrono::duration<double>(now-start).count());
+                        next=now+std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(intervalSeconds));
+                    }
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                }
+            });
+        }
         std::thread watchdog([&]{
           const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(seconds);
           while(!done.load()) { if(std::chrono::steady_clock::now()>=end) {limit=true;rt.requestStop();break;} std::this_thread::sleep_for(std::chrono::milliseconds(20)); }
         });
         std::exception_ptr failure;
         try { rt.run(); } catch(...) {failure=std::current_exception();}
-        done=true;watchdog.join();
+        done=true;watchdog.join();if(stateWatch.joinable()) stateWatch.join();
+        logOriginalState("stopped", static_cast<double>(seconds));
         const auto snapshot=rt.eeScheduler().snapshot();
         std::cout << "[TS:stopped] timeout=" << limit.load() << " pc=0x" << std::hex << rt.cpu().pc << std::dec
                   << " dma=" << rt.memory().dmaStartCount() << " gif=" << rt.memory().gifCopyCount()
@@ -115,7 +179,8 @@ int main(int argc, char** argv) {
         if (rt.padBackend().scriptActive())
             std::cout<<"[TS:pad-script] reads="<<rt.padBackend().scriptReadCount()
                      <<" exhausted="<<rt.padBackend().scriptExhausted()
-                     <<" timed="<<rt.padBackend().scriptTimed()<<'\n';
+                     <<" timed="<<rt.padBackend().scriptTimed()
+                     <<" time_scale="<<rt.padBackend().scriptTimeScale()<<'\n';
         // Save memory only after run() has joined its EE worker.
         const char* dump=std::getenv("TS_DUMP_RAM");
         if(dump && *dump) {std::ofstream f(dump,std::ios::binary);f.write(reinterpret_cast<char*>(rt.memory().getRDRAM()),PS2_RAM_SIZE);if(!f)throw std::runtime_error("RAM dump write failed");}

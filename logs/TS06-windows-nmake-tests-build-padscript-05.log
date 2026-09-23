@@ -1,0 +1,17 @@
+Warning: NMake does not support parallel builds. Ignoring parallel build command line option.
+[ 14%] Built target rabbitizer
+[ 14%] Built target fmt
+[ 42%] Built target dwarf
+[ 57%] Built target ps2_recomp_lib
+[ 71%] Built target ps2_iop
+[ 71%] Built target glfw
+[ 71%] Built target raylib
+[ 85%] Built target ps2_runtime
+[ 85%] Built target ps2_analyzer_lib
+[ 85%] Built target ps2_test_function_table
+[ 85%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_sif_dma_tests.cpp.obj
+ps2_sif_dma_tests.cpp
+[ 85%] Linking CXX static library ps2_test_lib.lib
+[100%] Built target ps2_test_lib
+[100%] Linking CXX executable ps2x_tests.exe
+[100%] Built target ps2x_tests

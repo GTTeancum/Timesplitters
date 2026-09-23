@@ -1,0 +1,127 @@
+Warning: NMake does not support parallel builds. Ignoring parallel build command line option.
+[ 14%] Built target rabbitizer
+[ 14%] Built target fmt
+[ 42%] Built target dwarf
+[ 57%] Built target ps2_recomp_lib
+[ 71%] Built target ps2_iop
+[ 71%] Built target glfw
+[ 71%] Built target raylib
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_pad.cpp.obj
+ps2_pad.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_runtime.cpp.obj
+ps2_runtime.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/EeScheduler.cpp.obj
+EeScheduler.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Audio.cpp.obj
+Audio.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/CD.cpp.obj
+CD.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Compatibility.cpp.obj
+Compatibility.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/DMA.cpp.obj
+DMA.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Deci2.cpp.obj
+Deci2.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/FileIO.cpp.obj
+FileIO.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Font.cpp.obj
+Font.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/GS.cpp.obj
+GS.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/IPU.cpp.obj
+IPU.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/LibC.cpp.obj
+LibC.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MPEG.cpp.obj
+MPEG.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MemoryCard.cpp.obj
+MemoryCard.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Pad.cpp.obj
+Pad.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/RPC.cpp.obj
+RPC.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/SIF.cpp.obj
+SIF.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/System.cpp.obj
+System.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/TTY.cpp.obj
+TTY.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Unimplemented.cpp.obj
+Unimplemented.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/VU.cpp.obj
+VU.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Deci2.cpp.obj
+Deci2.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Dispatcher.cpp.obj
+Dispatcher.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/FileIO.cpp.obj
+FileIO.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Interrupt.cpp.obj
+Interrupt.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/RPC.cpp.obj
+RPC.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Sync.cpp.obj
+Sync.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/System.cpp.obj
+System.cpp
+[ 85%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Thread.cpp.obj
+Thread.cpp
+[ 85%] Linking CXX static library ps2_runtime.lib
+[ 85%] Built target ps2_runtime
+[ 85%] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/analysis_passes.cpp.obj
+analysis_passes.cpp
+[ 85%] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/elf_analysis_context.cpp.obj
+elf_analysis_context.cpp
+[ 85%] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/elf_analyzer.cpp.obj
+elf_analyzer.cpp
+[ 85%] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/function_classifier.cpp.obj
+function_classifier.cpp
+[ 85%] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/sce_symbol_scanner.cpp.obj
+sce_symbol_scanner.cpp
+[ 85%] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/toml_generator.cpp.obj
+toml_generator.cpp
+[ 85%] Linking CXX static library ps2_analyzer_lib.lib
+[ 85%] Built target ps2_analyzer_lib
+[ 85%] Building CXX object ps2xTest/CMakeFiles/ps2_test_function_table.dir/src/test_function_table.cpp.obj
+test_function_table.cpp
+[ 85%] Built target ps2_test_function_table
+[ 85%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/code_generator_tests.cpp.obj
+code_generator_tests.cpp
+[ 85%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/r5900_decoder_tests.cpp.obj
+r5900_decoder_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/elf_analyzer_tests.cpp.obj
+elf_analyzer_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/pad_input_tests.cpp.obj
+pad_input_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_io_tests.cpp.obj
+ps2_runtime_io_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_kernel_tests.cpp.obj
+ps2_runtime_kernel_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_interrupt_tests.cpp.obj
+ps2_runtime_interrupt_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_memory_tests.cpp.obj
+ps2_memory_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_vu1_tests.cpp.obj
+ps2_vu1_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_vu_tests.cpp.obj
+ps2_vu_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.obj
+ps2_gif_stream_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.obj
+ps2_gs_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_iop_tests.cpp.obj
+ps2_iop_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_sif_rpc_tests.cpp.obj
+ps2_sif_rpc_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_sif_dma_tests.cpp.obj
+ps2_sif_dma_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_recompiler_tests.cpp.obj
+ps2_recompiler_tests.cpp
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_expansion_tests.cpp.obj
+ps2_runtime_expansion_tests.cpp
+[100%] Linking CXX static library ps2_test_lib.lib
+[100%] Built target ps2_test_lib
+[100%] Building CXX object ps2xTest/CMakeFiles/ps2x_tests.dir/src/main.cpp.obj
+main.cpp
+[100%] Linking CXX executable ps2x_tests.exe
+[100%] Built target ps2x_tests

@@ -1,4 +1,5 @@
 #include "MiniTest.h"
+#include "runtime/ee_scheduler.h"
 #include "runtime/ps2_memory.h"
 #include "runtime/gs/gs_frontend.h"
 #include "runtime/gs/ps2_gs_psmct32.h"
@@ -2032,6 +2033,7 @@ void register_ps2_memory_tests()
                      "guest should be able to configure VIF1 CHCR.TTE before submission");
 
             R5900Context ctx{};
+            runtime.eeScheduler().bindMainContextForSyscall(ctx, rdram);
             setRegU32(ctx, 4, 1u); // sceDmaGetChan(1) / VIF1
             setRegU32(ctx, 5, kTag);
             ps2_stubs::sceDmaSend(rdram, &ctx, &runtime);

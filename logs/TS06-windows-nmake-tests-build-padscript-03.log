@@ -1,0 +1,23 @@
+Warning: NMake does not support parallel builds. Ignoring parallel build command line option.
+[ 14%] Built target rabbitizer
+[ 14%] Built target fmt
+[ 42%] Built target dwarf
+[ 57%] Built target ps2_recomp_lib
+[ 71%] Built target ps2_iop
+[ 71%] Built target glfw
+[ 71%] Built target raylib
+[ 85%] Built target ps2_runtime
+[ 85%] Built target ps2_analyzer_lib
+[ 85%] Built target ps2_test_function_table
+[ 85%] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_memory_tests.cpp.obj
+ps2_memory_tests.cpp
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xTest\src\ps2_memory_tests.cpp(2035): error C2027: use of undefined type 'EeScheduler'
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\include\ps2_runtime.h(45): note: see declaration of 'EeScheduler'
+NMAKE : fatal error U1077: '"C:\Program Files\CMake\bin\cmake.exe" -E cmake_cl_compile_depends --dep-file=CMakeFiles\ps2_test_lib.dir\src\ps2_memory_tests.cpp.obj.d --working-dir=D:\Programming\GitHub\Timesplitters\build-windows-nmake\ps2xTest --filter-prefix="Note: including file: " -- C:\PROGRA~1\MICROS~3\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe @C:\Users\smmel\AppData\Local\Temp\nm2AE3.tmp' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f ps2xTest\CMakeFiles\ps2_test_lib.dir\build.make /nologo -SL                 ps2xTest\CMakeFiles\ps2_test_lib.dir\build' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -SL                 ps2xTest\CMakeFiles\ps2x_tests.dir\all' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -LS                 ps2x_tests' : return code '0x2'
+Stop.

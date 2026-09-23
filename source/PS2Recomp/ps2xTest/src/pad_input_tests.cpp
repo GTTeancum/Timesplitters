@@ -102,6 +102,62 @@ void register_pad_input_tests()
             t.IsTrue(PSPadBackend::xinputTriggerPressed(31), "value above threshold is pressed");
             t.IsTrue(PSPadBackend::xinputTriggerPressed(255), "full trigger is pressed");
         });
+        tc.Run("pad script parser advances active-low frames", [](TestCase &t)
+        {
+            PSPadBackend pad;
+            std::string error;
+            t.IsTrue(pad.loadScriptText("# reads buttons lx ly rx ry\n2 start+cross 1 255 16 238\n1 none\n", &error), "script should parse");
+            t.Equals(error, std::string(), "successful parse should clear error text");
+
+            uint8_t data[32]{};
+            t.IsTrue(pad.readState(0, 0, data, sizeof(data)), "first scripted read should succeed");
+            t.Equals(static_cast<uint16_t>(data[2] | (data[3] << 8)),
+                     static_cast<uint16_t>(0xFFFFu & ~kPadBtnStart & ~kPadBtnCross),
+                     "start and cross should be active-low");
+            t.Equals(data[4], uint8_t(16), "rx should come from script");
+            t.Equals(data[5], uint8_t(238), "ry should come from script");
+            t.Equals(data[6], uint8_t(1), "lx should come from script");
+            t.Equals(data[7], uint8_t(255), "ly should come from script");
+            t.Equals(pad.scriptReadCount(), static_cast<size_t>(1), "first read should be counted");
+            t.IsFalse(pad.scriptExhausted(), "first repeated frame should not exhaust script");
+
+            t.IsTrue(pad.readState(0, 0, data, sizeof(data)), "second scripted read should succeed");
+            t.Equals(static_cast<uint16_t>(data[2] | (data[3] << 8)),
+                     static_cast<uint16_t>(0xFFFFu & ~kPadBtnStart & ~kPadBtnCross),
+                     "second repeated frame should keep same buttons");
+            t.Equals(pad.scriptReadCount(), static_cast<size_t>(2), "second read should be counted");
+            t.IsFalse(pad.scriptExhausted(), "advancing to final frame should not yet exhaust script");
+
+            t.IsTrue(pad.readState(0, 0, data, sizeof(data)), "third scripted read should succeed");
+            t.Equals(static_cast<uint16_t>(data[2] | (data[3] << 8)), static_cast<uint16_t>(0xFFFFu), "none should release all buttons");
+            t.Equals(data[4], uint8_t(128), "default rx should be centered");
+            t.Equals(data[5], uint8_t(128), "default ry should be centered");
+            t.Equals(data[6], uint8_t(128), "default lx should be centered");
+            t.Equals(data[7], uint8_t(128), "default ly should be centered");
+            t.IsTrue(pad.scriptExhausted(), "final frame should exhaust script");
+
+            t.IsTrue(pad.readState(0, 0, data, sizeof(data)), "post-exhaustion scripted read should still succeed");
+            t.Equals(static_cast<uint16_t>(data[2] | (data[3] << 8)), static_cast<uint16_t>(0xFFFFu), "post-exhaustion read should hold last frame");
+            t.Equals(pad.scriptReadCount(), static_cast<size_t>(4), "post-exhaustion read should be counted");
+        });
+        tc.Run("pad script parser rejects invalid scripts", [](TestCase &t)
+        {
+            PSPadBackend pad;
+            std::string error;
+
+            t.IsFalse(pad.loadScriptText("0 none\n", &error), "zero read count should fail");
+            t.IsTrue(error.find("read count") != std::string::npos, "zero read count should explain failure");
+            t.IsFalse(pad.scriptActive(), "failed parse should clear existing script");
+
+            t.IsFalse(pad.loadScriptText("1 launch\n", &error), "unknown button should fail");
+            t.IsTrue(error.find("unknown pad button") != std::string::npos, "unknown button should explain failure");
+
+            t.IsFalse(pad.loadScriptText("1 none 128 128 128 128 128\n", &error), "too many fields should fail");
+            t.IsTrue(error.find("too many fields") != std::string::npos, "too many fields should explain failure");
+
+            t.IsFalse(pad.loadScriptText("# comments only\n\n", &error), "empty script should fail");
+            t.IsTrue(error.find("no frames") != std::string::npos, "empty script should explain failure");
+        });
         tc.Run("scePadRead uses override state", [](TestCase &t)
                {
             std::vector<uint8_t> rdram(PS2_RAM_SIZE, 0);

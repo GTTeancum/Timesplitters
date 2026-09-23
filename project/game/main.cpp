@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <thread>
 #include <atomic>
 #include <stdexcept>
@@ -36,6 +37,12 @@ int main(int argc, char** argv) {
         rt.gs().setHostPresentationMode(GS::HostPresentationMode::Signal);
         rt.setHostAspectRatio(4.0f / 3.0f);
         rt.padBackend().setKeyboardAnalogEnabled(true);
+        if (const char* padScript=std::getenv("TS_PAD_SCRIPT"); padScript && *padScript) {
+            std::string error;
+            if (!rt.padBackend().loadScriptFile(padScript, &error))
+                throw std::runtime_error("pad script load failed: " + error);
+            std::cout<<"[TS:pad-script] "<<std::filesystem::absolute(padScript).string()<<'\n';
+        }
         if (const char* cardRoot=std::getenv("TS_MC_ROOT"); cardRoot && *cardRoot) {
             auto paths=PS2Runtime::getIoPaths(); paths.mcRoot=std::filesystem::absolute(cardRoot);
             PS2Runtime::setIoPaths(paths);
@@ -105,6 +112,9 @@ int main(int argc, char** argv) {
         std::cout<<"[TS:sound-memory] writes="<<sound.writeTransfers<<" bytes_written="<<sound.bytesWritten
                  <<" reads="<<sound.readTransfers<<" bytes_read="<<sound.bytesRead
                  <<" note=memory-transfers-not-mixed-audio"<<'\n';
+        if (rt.padBackend().scriptActive())
+            std::cout<<"[TS:pad-script] reads="<<rt.padBackend().scriptReadCount()
+                     <<" exhausted="<<rt.padBackend().scriptExhausted()<<'\n';
         // Save memory only after run() has joined its EE worker.
         const char* dump=std::getenv("TS_DUMP_RAM");
         if(dump && *dump) {std::ofstream f(dump,std::ios::binary);f.write(reinterpret_cast<char*>(rt.memory().getRDRAM()),PS2_RAM_SIZE);if(!f)throw std::runtime_error("RAM dump write failed");}

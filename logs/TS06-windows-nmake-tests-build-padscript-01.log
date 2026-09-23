@@ -1,0 +1,263 @@
+Warning: NMake does not support parallel builds. Ignoring parallel build command line option.
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/analysis/RabbitizerJrRegData.c.obj
+RabbitizerJrRegData.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/analysis/RabbitizerLoPairingInfo.c.obj
+RabbitizerLoPairingInfo.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/analysis/RabbitizerRegistersTracker.c.obj
+RabbitizerRegistersTracker.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/analysis/RabbitizerTrackedRegisterState.c.obj
+RabbitizerTrackedRegisterState.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/common/RabbitizerConfig.c.obj
+RabbitizerConfig.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/common/RabbitizerVersion.c.obj
+RabbitizerVersion.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/common/Utils.c.obj
+Utils.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstrCategory.c.obj
+RabbitizerInstrCategory.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstrDescriptor.c.obj
+RabbitizerInstrDescriptor.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstrId.c.obj
+RabbitizerInstrId.c
+[  0%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstrIdType.c.obj
+RabbitizerInstrIdType.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstrSuffix.c.obj
+RabbitizerInstrSuffix.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstruction/RabbitizerInstruction.c.obj
+RabbitizerInstruction.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstruction/RabbitizerInstruction_Disassemble.c.obj
+RabbitizerInstruction_Disassemble.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstruction/RabbitizerInstruction_Examination.c.obj
+RabbitizerInstruction_Examination.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstruction/RabbitizerInstruction_Operand.c.obj
+RabbitizerInstruction_Operand.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstruction/RabbitizerInstruction_ProcessUniqueId.c.obj
+RabbitizerInstruction_ProcessUniqueId.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionCpu/RabbitizerInstructionCpu_OperandType.c.obj
+RabbitizerInstructionCpu_OperandType.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR3000GTE/RabbitizerInstructionR3000GTE.c.obj
+RabbitizerInstructionR3000GTE.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR3000GTE/RabbitizerInstructionR3000GTE_OperandType.c.obj
+RabbitizerInstructionR3000GTE_OperandType.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR3000GTE/RabbitizerInstructionR3000GTE_ProcessUniqueId.c.obj
+RabbitizerInstructionR3000GTE_ProcessUniqueId.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR4000Allegrex/RabbitizerInstructionR4000Allegrex.c.obj
+RabbitizerInstructionR4000Allegrex.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR4000Allegrex/RabbitizerInstructionR4000Allegrex_OperandType.c.obj
+RabbitizerInstructionR4000Allegrex_OperandType.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR4000Allegrex/RabbitizerInstructionR4000Allegrex_ProcessUniqueId.c.obj
+RabbitizerInstructionR4000Allegrex_ProcessUniqueId.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR5900/RabbitizerInstructionR5900.c.obj
+RabbitizerInstructionR5900.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR5900/RabbitizerInstructionR5900_OperandType.c.obj
+RabbitizerInstructionR5900_OperandType.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionR5900/RabbitizerInstructionR5900_ProcessUniqueId.c.obj
+RabbitizerInstructionR5900_ProcessUniqueId.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionRsp/RabbitizerInstructionRsp.c.obj
+RabbitizerInstructionRsp.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionRsp/RabbitizerInstructionRsp_OperandType.c.obj
+RabbitizerInstructionRsp_OperandType.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerInstructionRsp/RabbitizerInstructionRsp_ProcessUniqueId.c.obj
+RabbitizerInstructionRsp_ProcessUniqueId.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerRegister.c.obj
+RabbitizerRegister.c
+[ 14%] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/__/_deps/rabbitizer-src/src/instructions/RabbitizerRegisterDescriptor.c.obj
+RabbitizerRegisterDescriptor.c
+[ 14%] Linking C static library rabbitizer.lib
+[ 14%] Built target rabbitizer
+[ 14%] Building CXX object _deps/fmt-build/CMakeFiles/fmt.dir/src/format.cc.obj
+format.cc
+D:\Programming\GitHub\Timesplitters\build-windows-nmake\_deps\fmt-src\include\fmt\base.h(930): warning C4834: discarding return value of function with [[nodiscard]] attribute
+D:\Programming\GitHub\Timesplitters\build-windows-nmake\_deps\fmt-src\include\fmt\base.h(930): note: the template instantiation context (the oldest one first) is
+D:\Programming\GitHub\Timesplitters\build-windows-nmake\_deps\fmt-src\src\format.cc(13): note: see reference to function template instantiation 'fmt::v12::locale_ref::locale_ref<std::locale,0>(const std::locale &)' being compiled
+[ 14%] Building CXX object _deps/fmt-build/CMakeFiles/fmt.dir/src/os.cc.obj
+os.cc
+[ 14%] Linking CXX static library fmtd.lib
+[ 14%] Built target fmt
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_abbrev.c.obj
+dwarf_abbrev.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_alloc.c.obj
+dwarf_alloc.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_crc.c.obj
+dwarf_crc.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_crc32.c.obj
+dwarf_crc32.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_arange.c.obj
+dwarf_arange.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debug_sup.c.obj
+dwarf_debug_sup.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debugaddr.c.obj
+dwarf_debugaddr.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debuglink.c.obj
+dwarf_debuglink.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_die_deliv.c.obj
+dwarf_die_deliv.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debugnames.c.obj
+dwarf_debugnames.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_dsc.c.obj
+dwarf_dsc.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_elf_load_headers.c.obj
+dwarf_elf_load_headers.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_elfread.c.obj
+dwarf_elfread.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_elf_rel_detector.c.obj
+dwarf_elf_rel_detector.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_error.c.obj
+dwarf_error.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_fill_in_attr_form.c.obj
+dwarf_fill_in_attr_form.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_find_sigref.c.obj
+dwarf_find_sigref.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_fission_to_cu.c.obj
+dwarf_fission_to_cu.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_form.c.obj
+dwarf_form.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_form_class_names.c.obj
+dwarf_form_class_names.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_frame.c.obj
+dwarf_frame.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_frame2.c.obj
+dwarf_frame2.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_gdbindex.c.obj
+dwarf_gdbindex.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_global.c.obj
+dwarf_global.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_gnu_index.c.obj
+dwarf_gnu_index.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_groups.c.obj
+dwarf_groups.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_harmless.c.obj
+dwarf_harmless.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_generic_init.c.obj
+dwarf_generic_init.c
+[ 14%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_init_finish.c.obj
+dwarf_init_finish.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_leb.c.obj
+dwarf_leb.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_line.c.obj
+dwarf_line.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_loc.c.obj
+dwarf_loc.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_loclists.c.obj
+dwarf_loclists.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_locationop_read.c.obj
+dwarf_locationop_read.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_local_malloc.c.obj
+dwarf_local_malloc.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_lvn_name.c.obj
+dwarf_lvn_name.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_machoread.c.obj
+dwarf_machoread.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_64machoread.c.obj
+dwarf_64machoread.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_macro.c.obj
+dwarf_macro.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_macro5.c.obj
+dwarf_macro5.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_memcpy_swap.c.obj
+dwarf_memcpy_swap.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_names.c.obj
+dwarf_names.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_object_read_common.c.obj
+dwarf_object_read_common.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_object_detector.c.obj
+dwarf_object_detector.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_peread.c.obj
+dwarf_peread.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_query.c.obj
+dwarf_query.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_ranges.c.obj
+dwarf_ranges.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_rnglists.c.obj
+dwarf_rnglists.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_safe_arithmetic.c.obj
+dwarf_safe_arithmetic.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_safe_strcpy.c.obj
+dwarf_safe_strcpy.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_secname_ck.c.obj
+dwarf_secname_ck.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_seekr.c.obj
+dwarf_seekr.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_setup_sections.c.obj
+dwarf_setup_sections.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_string.c.obj
+dwarf_string.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_stringsection.c.obj
+dwarf_stringsection.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_tied.c.obj
+dwarf_tied.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_str_offsets.c.obj
+dwarf_str_offsets.c
+[ 28%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_tsearchhash.c.obj
+dwarf_tsearchhash.c
+[ 42%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_util.c.obj
+dwarf_util.c
+[ 42%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_xu_index.c.obj
+dwarf_xu_index.c
+[ 42%] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_print_lines.c.obj
+dwarf_print_lines.c
+[ 42%] Linking C static library dwarf.lib
+[ 42%] Built target dwarf
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/code_generator.cpp.obj
+code_generator.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/config_manager.cpp.obj
+config_manager.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/control_flow_analyzer.cpp.obj
+control_flow_analyzer.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/control_flow_emitter.cpp.obj
+control_flow_emitter.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/cop0_translator.cpp.obj
+cop0_translator.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/elf_parser.cpp.obj
+elf_parser.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/fpu_translator.cpp.obj
+fpu_translator.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/function_emitter.cpp.obj
+function_emitter.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/function_table_emitter.cpp.obj
+function_table_emitter.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/gif_dma_kick_analyzer.cpp.obj
+gif_dma_kick_analyzer.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/instruction_translator.cpp.obj
+instruction_translator.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/jump_table_switch_emitter.cpp.obj
+jump_table_switch_emitter.cpp
+[ 42%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/mmi_translation_helpers.cpp.obj
+mmi_translation_helpers.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/mmi_translator.cpp.obj
+mmi_translator.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/ps2_recompiler.cpp.obj
+ps2_recompiler.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/r5900_decoder.cpp.obj
+r5900_decoder.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/recompiler_reporter.cpp.obj
+recompiler_reporter.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/regimm_translator.cpp.obj
+regimm_translator.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/special_translator.cpp.obj
+special_translator.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/vu_translation_helpers.cpp.obj
+vu_translation_helpers.cpp
+[ 57%] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/vu_translator.cpp.obj
+vu_translator.cpp
+[ 57%] Linking CXX static library ps2_recomp_lib.lib
+[ 57%] Built target ps2_recomp_lib
+[ 71%] Built target ps2_iop
+[ 71%] Built target glfw
+[ 71%] Built target raylib
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/game_overrides.cpp.obj
+game_overrides.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_iop_host.cpp.obj
+ps2_iop_host.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_pad.cpp.obj
+ps2_pad.cpp
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(351): error C2065: 'port': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\ps2_pad.cpp(351): error C2065: 'slot': undeclared identifier
+NMAKE : fatal error U1077: '"C:\Program Files\CMake\bin\cmake.exe" -E cmake_cl_compile_depends --dep-file=CMakeFiles\ps2_runtime.dir\src\lib\ps2_pad.cpp.obj.d --working-dir=D:\Programming\GitHub\Timesplitters\build-windows-nmake\ps2xRuntime --filter-prefix="Note: including file: " -- C:\PROGRA~1\MICROS~3\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe @C:\Users\smmel\AppData\Local\Temp\nmEDA0.tmp' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f ps2xRuntime\CMakeFiles\ps2_runtime.dir\build.make /nologo -SL                 ps2xRuntime\CMakeFiles\ps2_runtime.dir\build' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -SL                 ps2xTest\CMakeFiles\ps2x_tests.dir\all' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -LS                 ps2x_tests' : return code '0x2'
+Stop.

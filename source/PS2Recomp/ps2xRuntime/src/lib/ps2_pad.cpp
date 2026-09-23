@@ -44,8 +44,13 @@ constexpr int16_t XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE = 8689;
 #endif
 #include "ps2_host_backend.h"
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <unordered_map>
 
 namespace
 {
@@ -69,9 +74,79 @@ namespace
     constexpr uint16_t PAD_R2 = 0x0200u;
     constexpr uint16_t PAD_L2 = 0x0100u;
 
+    uint8_t parseByteValue(const std::string &text, size_t lineNumber)
+    {
+        size_t consumed = 0;
+        const unsigned long value = std::stoul(text, &consumed, 0);
+        if (consumed != text.size() || value > 255ul)
+        {
+            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected byte value 0..255");
+        }
+        return static_cast<uint8_t>(value);
+    }
+
+    uint32_t parseReadCount(const std::string &text, size_t lineNumber)
+    {
+        size_t consumed = 0;
+        const unsigned long value = std::stoul(text, &consumed, 0);
+        if (consumed != text.size() || value == 0ul || value > 1000000ul)
+        {
+            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected read count 1..1000000");
+        }
+        return static_cast<uint32_t>(value);
+    }
+
     void clearButton(uint16_t &buttons, uint16_t mask)
     {
         buttons = static_cast<uint16_t>(buttons & ~mask);
+    }
+
+    uint16_t parseButtonList(std::string text, size_t lineNumber)
+    {
+        static const std::unordered_map<std::string, uint16_t> kButtons = {
+            {"select", PAD_SELECT},
+            {"l3", PAD_L3},
+            {"r3", PAD_R3},
+            {"start", PAD_START},
+            {"up", PAD_UP},
+            {"right", PAD_RIGHT},
+            {"down", PAD_DOWN},
+            {"left", PAD_LEFT},
+            {"l2", PAD_L2},
+            {"r2", PAD_R2},
+            {"l1", PAD_L1},
+            {"r1", PAD_R1},
+            {"triangle", PAD_TRIANGLE},
+            {"circle", PAD_CIRCLE},
+            {"cross", PAD_CROSS},
+            {"x", PAD_CROSS},
+            {"square", PAD_SQUARE},
+        };
+
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c)
+                       { return static_cast<char>(std::tolower(c)); });
+        std::replace(text.begin(), text.end(), '+', ',');
+
+        uint16_t buttons = 0xFFFFu;
+        std::istringstream parts(text);
+        std::string name;
+        while (std::getline(parts, name, ','))
+        {
+            name.erase(std::remove_if(name.begin(), name.end(), [](unsigned char c)
+                                      { return std::isspace(c) != 0; }),
+                       name.end());
+            if (name.empty() || name == "none" || name == "-")
+            {
+                continue;
+            }
+            const auto it = kButtons.find(name);
+            if (it == kButtons.end())
+            {
+                throw std::runtime_error("line " + std::to_string(lineNumber) + ": unknown pad button '" + name + "'");
+            }
+            clearButton(buttons, it->second);
+        }
+        return buttons;
     }
 
 #if defined(_WIN32)
@@ -126,6 +201,110 @@ namespace
 #endif
 }
 
+bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
+{
+    std::vector<ScriptFrame> frames;
+    std::istringstream input(text);
+    std::string line;
+    size_t lineNumber = 0;
+
+    try
+    {
+        while (std::getline(input, line))
+        {
+            ++lineNumber;
+            if (const size_t comment = line.find('#'); comment != std::string::npos)
+            {
+                line.resize(comment);
+            }
+            std::istringstream tokens(line);
+            std::string readsText;
+            std::string buttonsText;
+            if (!(tokens >> readsText))
+            {
+                continue;
+            }
+            if (!(tokens >> buttonsText))
+            {
+                throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected buttons token");
+            }
+
+            ScriptFrame frame{};
+            frame.reads = parseReadCount(readsText, lineNumber);
+            frame.buttons = parseButtonList(buttonsText, lineNumber);
+            std::string value;
+            if (tokens >> value)
+                frame.lx = parseByteValue(value, lineNumber);
+            if (tokens >> value)
+                frame.ly = parseByteValue(value, lineNumber);
+            if (tokens >> value)
+                frame.rx = parseByteValue(value, lineNumber);
+            if (tokens >> value)
+                frame.ry = parseByteValue(value, lineNumber);
+            if (tokens >> value)
+            {
+                throw std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields");
+            }
+            frames.push_back(frame);
+        }
+    }
+    catch (const std::exception &e)
+    {
+        clearScript();
+        if (error)
+        {
+            *error = e.what();
+        }
+        return false;
+    }
+
+    if (frames.empty())
+    {
+        clearScript();
+        if (error)
+        {
+            *error = "pad script contains no frames";
+        }
+        return false;
+    }
+
+    m_script = std::move(frames);
+    m_scriptIndex = 0;
+    m_scriptFrameRead = 0;
+    m_scriptReadCount = 0;
+    m_scriptExhausted = false;
+    if (error)
+    {
+        error->clear();
+    }
+    return true;
+}
+
+bool PSPadBackend::loadScriptFile(const std::string &path, std::string *error)
+{
+    std::ifstream file(path);
+    if (!file)
+    {
+        if (error)
+        {
+            *error = "failed to open pad script: " + path;
+        }
+        return false;
+    }
+    std::ostringstream text;
+    text << file.rdbuf();
+    return loadScriptText(text.str(), error);
+}
+
+void PSPadBackend::clearScript()
+{
+    m_script.clear();
+    m_scriptIndex = 0;
+    m_scriptFrameRead = 0;
+    m_scriptReadCount = 0;
+    m_scriptExhausted = false;
+}
+
 uint8_t PSPadBackend::analogAxisFromUnit(float value)
 {
     value = std::clamp(value, -1.0f, 1.0f);
@@ -156,7 +335,7 @@ bool PSPadBackend::xinputTriggerPressed(uint8_t value, uint8_t threshold)
     return value > threshold;
 }
 
-bool PSPadBackend::readState(int /*port*/, int /*slot*/, uint8_t *data, size_t size)
+bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
 {
     if (!data || size < 32)
         return false;
@@ -169,6 +348,32 @@ bool PSPadBackend::readState(int /*port*/, int /*slot*/, uint8_t *data, size_t s
     data[4] = data[5] = data[6] = data[7] = kPadStickCenter;
 
     uint16_t btns = 0xFFFFu;
+    if (!m_script.empty() && port == 0 && slot == 0)
+    {
+        const ScriptFrame &frame = m_script[std::min(m_scriptIndex, m_script.size() - 1)];
+        data[2] = static_cast<uint8_t>(frame.buttons & 0xFFu);
+        data[3] = static_cast<uint8_t>(frame.buttons >> 8);
+        data[4] = frame.rx;
+        data[5] = frame.ry;
+        data[6] = frame.lx;
+        data[7] = frame.ly;
+
+        ++m_scriptReadCount;
+        if (!m_scriptExhausted && ++m_scriptFrameRead >= frame.reads)
+        {
+            m_scriptFrameRead = 0;
+            if (m_scriptIndex + 1 < m_script.size())
+            {
+                ++m_scriptIndex;
+            }
+            else
+            {
+                m_scriptExhausted = true;
+            }
+        }
+        return true;
+    }
+
     constexpr int kGamepad = 0;
     const bool useGamepad = IsGamepadAvailable(kGamepad);
     auto clearBit = [&btns](uint16_t mask)

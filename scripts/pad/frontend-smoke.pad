@@ -1,0 +1,16 @@
+# Process-local pad script for bounded native smoke/crash-hunt runs.
+# Format: reads buttons [lx ly rx ry]
+# Buttons are active-low PS2 names joined with + or commas. Stick bytes are 0..255.
+#
+# This script only probes early frontend input paths. It is not gameplay evidence.
+180 none
+12 start
+30 none
+12 cross
+30 none
+12 cross
+30 none
+12 down
+12 none
+12 cross
+180 none

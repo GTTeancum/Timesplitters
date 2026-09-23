@@ -193,3 +193,84 @@ Note: final pass/fail evidence logs are committed with this file. Some early fai
 - Host OS input automation and screen/control takeover are prohibited in this environment, so combat crash-hunt needs either:
   - user-driven native play with logs/RAM dumps, or
   - process-local scenario hooks/replay harnesses that do not drive the desktop and do not fabricate guest success.
+
+### 2026-09-23 process-local pad-script hook
+
+- Added `TS_PAD_SCRIPT` support to the native executable.
+- Script format:
+  - One frame per line: `reads buttons [lx ly rx ry]`.
+  - `reads` is the number of `scePadRead` backend reads to hold the frame.
+  - `buttons` uses PS2 names joined by `+` or comma, for example `start+cross`; `none` releases all buttons.
+  - Optional stick bytes are literal PS2 analog values `0..255` in `lx ly rx ry` order.
+- The hook is process-local inside `PSPadBackend`; it does not send host OS keyboard, mouse, or controller input.
+- Scope:
+  - Slot `0:0` only.
+  - After script exhaustion, the last frame is held and the run logs total consumed reads plus exhaustion state.
+- Added reusable early frontend probe:
+  - `scripts/pad/frontend-smoke.pad`
+  - This is diagnostic input coverage only, not gameplay/combat evidence.
+- Regression coverage:
+  - Parser accepts repeated frames, active-low button combinations, explicit stick bytes, default centered sticks, and held-last-frame reads.
+  - Parser rejects empty scripts, zero read counts, unknown buttons, and extra fields.
+
+### 2026-09-23 Windows regression follow-up after pad-script hook
+
+- Initial NMake test rebuild failed because `PSPadBackend::readState` still had unnamed `port`/`slot` parameters after the script path began using them.
+  - Failed log: `logs/TS06-windows-nmake-tests-build-padscript-01.log`.
+  - Fixed by naming those parameters.
+- Full `ps2x_tests.exe` run then exposed two direct-test scheduler binding defects on Windows:
+  - `sceDmaSend preserves guest-configured VIF1 TTE` asserted in `EeScheduler::assertExecutor()`.
+  - `PS2SifDma` direct `sceSifSetDma` tests asserted in the same scheduler executor check.
+- Fixes:
+  - Bound the synthetic main context before the direct `sceDmaSend` test call.
+  - Bound the synthetic main context in the SIF DMA test fixture constructor.
+  - These are test harness fixes only; they do not change normal guest/runtime execution.
+- Correctly-rooted regression run:
+  - Command run from `source\PS2Recomp`.
+  - Result: 470 total, 470 passed, 0 failed.
+  - Log: `logs/TS06-windows-tests-run-padscript-04.log`.
+
+### 2026-09-23 Windows game rebuild after pad-script hook
+
+- Rebuilt native game executable through the stable NMake path:
+  - Command target: `timesplitters`.
+  - Result: passed.
+  - Log: `logs/TS06-windows-nmake-game-build-padscript-01.log`.
+  - Executable: `build-windows-nmake\timesplitters\timesplitters.exe`.
+  - Size: 111,165,952 bytes.
+- Quick rebuilt-executable self-test:
+  - Command: `timesplitters.exe --self-test project\game-data\SLUS_200.90`.
+  - Result: exit 0.
+  - Log: `logs/TS06-windows-self-test-padscript-01.log`.
+
+### 2026-09-23 scripted Windows boot/frontend crash-hunt
+
+- 8-second scripted smoke:
+  - `TS_PAD_SCRIPT=scripts\pad\frontend-smoke.pad`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-padscript-smoke-01.log`.
+  - Stopped at PC `0x2d0048`.
+  - DMA starts: 35.
+  - GIF copies: 26.
+  - VIF writes: 6.
+  - Threads: 3.
+  - Original `numdmafail=0`.
+  - IOP: 8 modules, 12 threads, 10 RPC servers.
+  - Sound-memory counters: 0 writes, 0 reads.
+  - Pad script: 4 reads consumed, not exhausted.
+- 30-second scripted smoke:
+  - `TS_PAD_SCRIPT=scripts\pad\frontend-smoke.pad`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Log: `logs/TS06-windows-padscript-smoke-02.log`.
+  - Stopped at PC `0x2d0048`.
+  - DMA starts: 644.
+  - GIF copies: 592.
+  - VIF writes: 34.
+  - Threads: 3.
+  - Original `numdmafail=0`.
+  - IOP: 8 modules, 12 threads, 10 RPC servers.
+  - Sound-memory counters: 7 writes, 57,856 bytes written, 0 reads.
+  - Pad script: 25 reads consumed, not exhausted.
+- Evidence boundary:
+  - This proves the Windows native executable can consume scripted process-local controller input while running a longer bounded boot/frontend path without crashing or regressing original DMA failure counters.
+  - This is still not proof of combat, hit registration, player damage, kills, deaths, respawns, or Story objective completion.

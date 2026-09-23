@@ -1,0 +1,810 @@
+
+[Suite]: CodeGenerator
+[33m  [Run]: [0mCOP0 MFC0/MTC0 translate to COP0 register access [32m  [Passed][0m
+[33m  [Run]: [0mFCR access uses CFC1/CTC1 [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA kick coalesces when CHCR store is a return delay slot [32m  [Passed][0m
+[33m  [Run]: [0mGenerated sources cannot be shadowed by stale local declaration headers [32m  [Passed][0m
+[33m  [Run]: [0mJAL to a resolved syscall publishes fallthrough before the handler [32m  [Passed][0m
+[33m  [Run]: [0mJAL to internal target becomes goto [32m  [Passed][0m
+[33m  [Run]: [0mJAL to known function emits call and check [32m  [Passed][0m
+[33m  [Run]: [0mJALR emits indirect call [32m  [Passed][0m
+[33m  [Run]: [0mJALR fallback should not expose epilogue tail-jump labels [32m  [Passed][0m
+[33m  [Run]: [0mJR $31 returns through dynamic target without broad local switch [32m  [Passed][0m
+[33m  [Run]: [0mPCPYLD uses runtime helper macro [32m  [Passed][0m
+[33m  [Run]: [0mQFSRV translation uses runtime helper macro [32m  [Passed][0m
+[33m  [Run]: [0mR5900 MMI MULT1 writes rd when rd is non-zero [32m  [Passed][0m
+[33m  [Run]: [0mR5900 MULT writes rd when rd is non-zero [32m  [Passed][0m
+[33m  [Run]: [0mR5900 SQRT.S reads FT, not reserved FS [32m  [Passed][0m
+[33m  [Run]: [0mSC requires matching LL reservation address [32m  [Passed][0m
+[33m  [Run]: [0mSYSCALL fallthrough is a resumable entry [32m  [Passed][0m
+[33m  [Run]: [0mSYSCALL publishes its continuation before entering the runtime [32m  [Passed][0m
+[33m  [Run]: [0mUnary MMI permutations read their source from rt [32m  [Passed][0m
+[33m  [Run]: [0mVU CFC2/CTC2 access VI registers directly [32m  [Passed][0m
+[33m  [Run]: [0mVU random helpers emit line comments on separate lines [32m  [Passed][0m
+[33m  [Run]: [0mVU special control registers use hardware indices [32m  [Passed][0m
+[33m  [Run]: [0mVU0 OPMULA and OPMSUB use cross-product lane permutations [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S1 q/i forms keep mask and use sa as destination [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S1 uses fd/fs/ft fields (sa/rd/rt) [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S2 VI memory ops use rd as VI base register [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S2 vector ops use rd as source and rt as destination [32m  [Passed][0m
+[33m  [Run]: [0mVU0 destination MADD and MSUB forms preserve ACC [32m  [Passed][0m
+[33m  [Run]: [0mVU0 macro mappings cover all S1/S2 enums [31m  [Failed][0m
+      - instructions.h should be readable from the test working directory
+      - VU0_S1 enum list should not be empty
+      - VU0_S2 enum list should not be empty
+[33m  [Run]: [0mbackward BEQ returns to the dispatcher through a resumable loop head [32m  [Passed][0m
+[33m  [Run]: [0mbackward internal JAL stays inline and does not return to dispatcher [32m  [Passed][0m
+[33m  [Run]: [0mbranch-likely places delay slot only in taken path [32m  [Passed][0m
+[33m  [Run]: [0mbranches outside function still set pc [32m  [Passed][0m
+[33m  [Run]: [0mconfigured internal guest handlers register to their owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mconfigured jump table addresses drive JR dispatch targets [32m  [Passed][0m
+[33m  [Run]: [0mconstant MMIO store emits direct runtime store [32m  [Passed][0m
+[33m  [Run]: [0mconstant RDRAM load and store emit fast memory access [32m  [Passed][0m
+[33m  [Run]: [0mcontrol-flow analysis keeps same-function JAL target internal and promotes only the return pc [32m  [Passed][0m
+[33m  [Run]: [0mcontrol-flow analysis promotes JALR fallthrough as a resumable entry [32m  [Passed][0m
+[33m  [Run]: [0mcontrol-flow analysis reports cross-function mid-function jumps as external entry candidates [32m  [Passed][0m
+[33m  [Run]: [0memits labels and gotos for internal branches [32m  [Passed][0m
+[33m  [Run]: [0mexternal mid-function entry can register to the owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mjump to unknown target sets pc [32m  [Passed][0m
+[33m  [Run]: [0mjumps to known symbols call by name [32m  [Passed][0m
+[33m  [Run]: [0mknown GIF DMA MMIO sequence emits native kick helper [32m  [Passed][0m
+[33m  [Run]: [0mlabels delay slot when it is a branch target [32m  [Passed][0m
+[33m  [Run]: [0mrenamed function used in jump table [32m  [Passed][0m
+[33m  [Run]: [0mreserved identifiers are sanitized and used in calls [32m  [Passed][0m
+[33m  [Run]: [0mresolveStubTarget allows leading underscore alias [32m  [Passed][0m
+[33m  [Run]: [0mresume entry targets emit a top-level pc switch in the owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mresume entry targets register to the owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mscalar logical immediates emit low64 operations [32m  [Passed][0m
+[33m  [Run]: [0mscalar logical register ops emit low64 operations [32m  [Passed][0m
+[33m  [Run]: [0mstale MMIO annotation does not replace the guest effective address [32m  [Passed][0m
+[33m  [Run]: [0msyscall marks the following instruction as a resume entry [32m  [Passed][0m
+[33m  [Run]: [0mtrailing JAL without decoded delay slot still emits call flow [32m  [Passed][0m
+[33m  [Run]: [0mtrailing JR $31 without decoded delay slot still emits return flow [32m  [Passed][0m
+[33m  [Run]: [0munresolved JALR marks internal labels as indirect fallback resume entries [32m  [Passed][0m
+[33m  [Run]: [0munresolved JALR uses runtime dispatch without broad local switch [32m  [Passed][0m
+[33m  [Run]: [0munresolved JR marks internal labels as indirect fallback resume entries [32m  [Passed][0m
+[33m  [Run]: [0munresolved JR non-RA uses dispatcher resume entries without broad local switch [32m  [Passed][0m
+[33m  [Run]: [0munsigned integer loads use explicit zero extension [32m  [Passed][0m
+
+[Suite]: ElfAnalyzerHeuristics
+[33m  [Run]: [0mentry-point mapping handles exact inside and fallback [32m  [Passed][0m
+[33m  [Run]: [0mjump-table detection finds canonical sltiu/bne/lw/jr pattern [32m  [Passed][0m
+[33m  [Run]: [0mlibrary-symbol classification table [32m  [Passed][0m
+[33m  [Run]: [0mreliable-symbol heuristic filters autogenerated names [32m  [Passed][0m
+[33m  [Run]: [0mrisk signal detection reports hardware io mmi and self modifying code [32m  [Passed][0m
+[33m  [Run]: [0mruntime handler filter keeps unsupported SDK names informational [32m  [Passed][0m
+
+[Suite]: PS2GS
+[33m  [Run]: [0mCT32 raster writes alias cleanly into later CT32 texture sampling [gs:reg] idx=0 reg=0x4c value=0x10000
+[gs:reg] idx=1 reg=0x40 value=0x1000000010000
+[gs:reg] idx=2 reg=0x18 value=0x0
+[gs:reg] idx=3 reg=0x47 value=0x30000
+[gs:reg] idx=4 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=5 reg=0x1 value=0x80665544
+[gs:reg] idx=6 reg=0x5 value=0x100000
+[gs:kick] idx=0 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=0 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1,1) test=0x30000 alpha=0x0 v0=(0,1) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(68,85,102,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:reg] idx=7 reg=0x4d value=0x10096
+[gs:copy-reg] reg=0x4d value=0x10096 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=8 reg=0x41 value=0x0
+[gs:copy-reg] reg=0x41 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=9 reg=0x19 value=0x0
+[gs:copy-reg] reg=0x19 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=10 reg=0x48 value=0x30000
+[gs:copy-reg] reg=0x48 value=0x30000 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=11 reg=0x7 value=0xc40004000
+[gs:copy-reg] reg=0x7 value=0xc40004000 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=12 reg=0x0 value=0x316
+[gs:copy-reg] reg=0x0 value=0x316 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=13 reg=0x1 value=0x80808080
+[gs:reg] idx=14 reg=0x3 value=0x100000
+[gs:reg] idx=15 reg=0x5 value=0x0
+[gs:kick] idx=1 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=16 reg=0x3 value=0x100000
+[gs:reg] idx=17 reg=0x5 value=0x0
+[gs:kick] idx=2 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=1 type=6 tme=1 abe=0 fst=1 ctxt=1 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=1 psm=0x0 tw=0 th=1 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,1) stq0=(0,0,1) v1=(0,0) uv1=(0,1) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:copy-prim] type=6 tme=1 abe=0 fst=1 ctxt=1 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=1 psm=0x0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mFBA forces the framebuffer alpha high bit on CT32 writes [gs:reg] idx=18 reg=0x4c value=0x10000
+[gs:reg] idx=19 reg=0x40 value=0x0
+[gs:reg] idx=20 reg=0x47 value=0x30000
+[gs:reg] idx=21 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=22 reg=0x1 value=0x1112233
+[gs:reg] idx=23 reg=0x5 value=0x0
+[gs:kick] idx=3 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=2 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(51,34,17,1) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:reg] idx=24 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=25 reg=0x1 value=0x1112233
+[gs:reg] idx=26 reg=0x5 value=0x0
+[gs:kick] idx=4 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=3 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(51,34,17,1) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mFST sprite 1:1 CT32 copies preserve source texels at the right and bottom edges [gs:reg] idx=27 reg=0x4c value=0x10096
+[gs:reg] idx=28 reg=0x40 value=0x3000000030000
+[gs:reg] idx=29 reg=0x18 value=0x0
+[gs:reg] idx=30 reg=0x47 value=0x30000
+[gs:reg] idx=31 reg=0x42 value=0x0
+[gs:reg] idx=32 reg=0x6 value=0x488004040
+[gs:reg] idx=33 reg=0x0 value=0x116
+[gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=150 ctx1fbp=0
+[gs:reg] idx=34 reg=0x1 value=0x80808080
+[gs:reg] idx=35 reg=0x3 value=0x0
+[gs:reg] idx=36 reg=0x5 value=0x0
+[gs:kick] idx=5 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=37 reg=0x3 value=0x400040
+[gs:reg] idx=38 reg=0x5 value=0x400040
+[gs:kick] idx=6 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=4 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,4) uv1=(4,4) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:copy-prim] type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF IMAGE packet writes host-to-local data into GS VRAM [gs:reg] idx=39 reg=0x50 value=0x1000000010000
+[gs:reg] idx=40 reg=0x51 value=0x0
+[gs:reg] idx=41 reg=0x52 value=0x200000002
+[gs:reg] idx=42 reg=0x53 value=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF PACKED A+D writes DISPFB1 and DISPLAY1 privileged registers [32m  [Passed][0m
+[33m  [Run]: [0mGIF PACKED A+D writes DISPFB2 and DISPLAY2 privileged registers [32m  [Passed][0m
+[33m  [Run]: [0mGIF REGLIST NREG=0 is treated as sixteen descriptors [gs:reg] idx=43 reg=0x50 value=0x1000000010000
+[gs:reg] idx=44 reg=0x51 value=0x0
+[gs:reg] idx=45 reg=0x52 value=0x100000004
+[gs:reg] idx=46 reg=0x53 value=0x0
+[gs:reg] idx=47 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=48 reg=0x0 value=0x1
+[gs:copy-reg] reg=0x0 value=0x1 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=49 reg=0x0 value=0x2
+[gs:copy-reg] reg=0x0 value=0x2 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=50 reg=0x0 value=0x3
+[gs:copy-reg] reg=0x0 value=0x3 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=51 reg=0x0 value=0x4
+[gs:copy-reg] reg=0x0 value=0x4 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=52 reg=0x0 value=0x5
+[gs:copy-reg] reg=0x0 value=0x5 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=53 reg=0x0 value=0x6
+[gs:copy-reg] reg=0x0 value=0x6 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=54 reg=0x0 value=0x7
+[gs:copy-reg] reg=0x0 value=0x7 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=55 reg=0x0 value=0x8
+[gs:copy-reg] reg=0x0 value=0x8 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=56 reg=0x0 value=0x9
+[gs:copy-reg] reg=0x0 value=0x9 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=57 reg=0x0 value=0xa
+[gs:copy-reg] reg=0x0 value=0xa primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=58 reg=0x0 value=0xb
+[gs:copy-reg] reg=0x0 value=0xb primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=59 reg=0x0 value=0xc
+[gs:copy-reg] reg=0x0 value=0xc primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=60 reg=0x0 value=0xd
+[gs:copy-reg] reg=0x0 value=0xd primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=61 reg=0x0 value=0xe
+[gs:copy-reg] reg=0x0 value=0xe primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=62 reg=0x0 value=0xf
+[gs:copy-reg] reg=0x0 value=0xf primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF REGLIST with odd register count consumes 128-bit padding before next tag [gs:reg] idx=63 reg=0x50 value=0x1000000010000
+[gs:reg] idx=64 reg=0x51 value=0x0
+[gs:reg] idx=65 reg=0x52 value=0x100000004
+[gs:reg] idx=66 reg=0x53 value=0x0
+[gs:reg] idx=67 reg=0x0 value=0x6
+[gs:copy-reg] reg=0x0 value=0x6 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF load-image packet uses native upload fast path [gs:reg] idx=68 reg=0x50 value=0x1000000010000
+[gs:reg] idx=69 reg=0x51 value=0x0
+[gs:reg] idx=70 reg=0x52 value=0x200000002
+[gs:reg] idx=71 reg=0x53 value=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mGS CLAMP modes transform texture coordinates before sampling [gs:reg] idx=72 reg=0x4c value=0x10000
+[gs:reg] idx=73 reg=0x40 value=0x3000000030000
+[gs:reg] idx=74 reg=0x18 value=0x0
+[gs:reg] idx=75 reg=0x47 value=0x30000
+[gs:reg] idx=76 reg=0x6 value=0xc88004040
+[gs:reg] idx=77 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=78 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=79 reg=0x3 value=0x40
+[gs:reg] idx=80 reg=0x5 value=0x0
+[gs:kick] idx=7 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=81 reg=0x3 value=0x40
+[gs:reg] idx=82 reg=0x5 value=0x20
+[gs:kick] idx=8 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=83 reg=0x3 value=0x40
+[gs:reg] idx=84 reg=0x5 value=0x200000
+[gs:kick] idx=9 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=5 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(4,0) stq0=(0,0,1) v1=(2,0) uv1=(4,0) stq1=(0,0,1) v2=(0,2) uv2=(4,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=85 reg=0x4c value=0x10000
+[gs:reg] idx=86 reg=0x40 value=0x3000000030000
+[gs:reg] idx=87 reg=0x18 value=0x0
+[gs:reg] idx=88 reg=0x47 value=0x30000
+[gs:reg] idx=89 reg=0x6 value=0xc88004040
+[gs:reg] idx=90 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=91 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=92 reg=0x3 value=0x400000
+[gs:reg] idx=93 reg=0x5 value=0x0
+[gs:kick] idx=10 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=94 reg=0x3 value=0x400000
+[gs:reg] idx=95 reg=0x5 value=0x20
+[gs:kick] idx=11 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=96 reg=0x3 value=0x400000
+[gs:reg] idx=97 reg=0x5 value=0x200000
+[gs:kick] idx=12 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=6 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,4) stq0=(0,0,1) v1=(2,0) uv1=(0,4) stq1=(0,0,1) v2=(0,2) uv2=(0,4) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=98 reg=0x4c value=0x10000
+[gs:reg] idx=99 reg=0x40 value=0x3000000030000
+[gs:reg] idx=100 reg=0x18 value=0x0
+[gs:reg] idx=101 reg=0x47 value=0x30000
+[gs:reg] idx=102 reg=0x6 value=0xc88004040
+[gs:reg] idx=103 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=104 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=105 reg=0x3 value=0x40
+[gs:reg] idx=106 reg=0x5 value=0x0
+[gs:kick] idx=13 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=107 reg=0x3 value=0x40
+[gs:reg] idx=108 reg=0x5 value=0x20
+[gs:kick] idx=14 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=109 reg=0x3 value=0x40
+[gs:reg] idx=110 reg=0x5 value=0x200000
+[gs:kick] idx=15 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=7 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(4,0) stq0=(0,0,1) v1=(2,0) uv1=(4,0) stq1=(0,0,1) v2=(0,2) uv2=(4,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=111 reg=0x4c value=0x10000
+[gs:reg] idx=112 reg=0x40 value=0x3000000030000
+[gs:reg] idx=113 reg=0x18 value=0x0
+[gs:reg] idx=114 reg=0x47 value=0x30000
+[gs:reg] idx=115 reg=0x6 value=0xc88004040
+[gs:reg] idx=116 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=117 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=118 reg=0x3 value=0x30
+[gs:reg] idx=119 reg=0x5 value=0x0
+[gs:kick] idx=16 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=120 reg=0x3 value=0x30
+[gs:reg] idx=121 reg=0x5 value=0x20
+[gs:kick] idx=17 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=122 reg=0x3 value=0x30
+[gs:reg] idx=123 reg=0x5 value=0x200000
+[gs:kick] idx=18 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=8 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(3,0) stq0=(0,0,1) v1=(2,0) uv1=(3,0) stq1=(0,0,1) v2=(0,2) uv2=(3,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=124 reg=0x4c value=0x10000
+[gs:reg] idx=125 reg=0x40 value=0x3000000030000
+[gs:reg] idx=126 reg=0x18 value=0x0
+[gs:reg] idx=127 reg=0x47 value=0x30000
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=19 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=20 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=21 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=9 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(4,0) stq0=(0,0,1) v1=(2,0) uv1=(4,0) stq1=(0,0,1) v2=(0,2) uv2=(4,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS CSR/IMR support coherent 64-bit and 32-bit access [32m  [Passed][0m
+[33m  [Run]: [0mGS CT24 host-local-host transfer preserves 24-bit RGB payload [32m  [Passed][0m
+[33m  [Run]: [0mGS CT32 upload aliases cleanly into later PSMT8 sampling [32m  [Passed][0m
+[33m  [Run]: [0mGS DATE and DATM inspect the framebuffer-format alpha bit [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=22 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=10 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=23 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=11 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=24 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=12 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3c000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=25 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=13 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=26 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=14 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=27 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=15 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3c000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=28 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=16 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x1 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=29 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=17 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x1 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3c000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS HIGHLIGHT adds vertex alpha into RGB and texture alpha into A [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=30 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=31 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=18 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=2 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,32) rgba1=(128,128,128,32) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS HIGHLIGHT2 keeps texture alpha while adding vertex alpha into RGB [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=32 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=33 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=19 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=3 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,32) rgba1=(128,128,128,32) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS PSMT4 host-local upload keeps position across split IMAGE packets [32m  [Passed][0m
+[33m  [Run]: [0mGS PSMT4 host-local-host keeps nibble packing stable [32m  [Passed][0m
+[33m  [Run]: [0mGS PSMT4 local-local copy respects swizzled page layout [32m  [Passed][0m
+[33m  [Run]: [0mGS RGB_ONLY falls back to FB_ONLY outside CT32 [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=34 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=20 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x1 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3380b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=35 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=21 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3380b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS SIGNAL and FINISH set CSR bits that clear by CSR write-one acknowledge [32m  [Passed][0m
+[33m  [Run]: [0mGS STQ triangle interpolation divides homogeneous coordinates after DDA [gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=36 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=37 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=38 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=22 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,0) uv1=(0,0) stq1=(2,0,2) v2=(0,4) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4 CSM1 CLUT cache survives source VRAM reuse [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=39 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=40 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=23 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4 CSM1 preserves CSA bit 4 for CT16 CLUTs [gs:texa] idx=0 value=0x8000000000 ta0=0x0 aem=0 ta1=0x80
+[gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=41 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=42 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=24 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x2 csm=0 csa=16) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4 triangle sampling reads manual-layout texels from a 512x512 atlas [gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=43 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=44 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=45 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=25 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.0102539,0.0102539,1) v1=(4,0) uv1=(0,0) stq1=(0.0102539,0.0102539,1) v2=(0,4) uv2=(0,0) stq2=(0.0102539,0.0102539,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=46 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=47 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=48 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=26 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.252441,0.0102539,1) v1=(4,0) uv1=(0,0) stq1=(0.252441,0.0102539,1) v2=(0,4) uv2=(0,0) stq2=(0.252441,0.0102539,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=49 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=50 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=51 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=27 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.502441,0.0102539,1) v1=(4,0) uv1=(0,0) stq1=(0.502441,0.0102539,1) v2=(0,4) uv2=(0,0) stq2=(0.502441,0.0102539,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=52 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=53 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=54 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=28 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.752441,0.252441,1) v1=(4,0) uv1=(0,0) stq1=(0.752441,0.252441,1) v2=(0,4) uv2=(0,0) stq2=(0.752441,0.252441,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4HL upload deactivates the transfer at total_pixels and discards excess bytes [32m  [Passed][0m
+[33m  [Run]: [0mGS T4HL/T4HH sampling reads only its own plane through independent CLUTs [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=55 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=56 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=29 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x24 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=57 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=58 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=30 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x2c tw=0 th=0 tcc=1 tfx=1 cbp=192 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4HL/T4HH shared-plane upload preserves both index planes via RMW [32m  [Passed][0m
+[33m  [Run]: [0mGS T8 CSM1 applies CSA and masks CSA bit 4 for CT32 CLUTs [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=59 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=60 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=31 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=17) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T8 CT32-uploaded CSM1 CLUT follows swizzled palette layout [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=61 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=62 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=32 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TCC=0 MODULATE uses texture RGB and keeps vertex alpha [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=63 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=64 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=33 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,68) rgba1=(128,128,128,68) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEX0 dimensions saturate at 1024 pixels [gs:copy-reg] reg=0x0 value=0x16 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=65 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=66 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=34 type=6 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=16 psm=0x0 tw=15 th=15 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.000976562,0,1) v1=(1,1) uv1=(0,0) stq1=(0.000976562,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEX1 linear filter blends T4 STQ triangle samples [gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=67 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=68 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=69 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=35 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=1 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,0) uv1=(0,0) stq1=(1,0,1) v2=(0,4) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=70 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=71 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=72 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=36 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=1 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,0) uv1=(0,0) stq1=(1,0,1) v2=(0,4) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEX2 updates CLUT state independently from TEX0 [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=73 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=74 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=37 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=192 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEXA expands CT24 alpha and honors AEM for black texels [gs:texa] idx=1 value=0xaa00008055 ta0=0x55 aem=1 ta1=0xaa
+[gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=75 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=76 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=38 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x1 tw=1 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=77 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=78 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=39 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x1 tw=1 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1,0) test=0x30000 alpha=0x0 v0=(1,0) uv0=(1,0) stq0=(0,0,1) v1=(2,1) uv1=(1,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEXCLUT offsets T8 CLUT fetch coordinates [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=79 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=80 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=40 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=1 cou=3 cov=2) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS ZMSK suppresses depth without suppressing framebuffer writes [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=81 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=41 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3080b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS alpha-test AFAIL independently masks framebuffer and depth [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=82 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=42 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3080b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=83 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=43 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3180b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=84 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=44 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3280b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=85 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=45 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3380b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS backend replacement preserves canonical local memory [32m  [Passed][0m
+[33m  [Run]: [0mGS fog blends the shaded color toward FOGCOL before framebuffer blending [gs:kick] idx=86 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=46 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=87 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=47 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=88 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=48 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=89 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=49 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS local-to-host transfer supports partial incremental reads [32m  [Passed][0m
+[33m  [Run]: [0mGS texture page buffer hides local-memory writes until TEXFLUSH [gs:kick] idx=90 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=91 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=50 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=32 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(2,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=92 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=93 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=51 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=32 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(2,0) test=0x30000 alpha=0x0 v0=(1,0) uv0=(0,0) stq0=(0,0,1) v1=(2,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=94 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=95 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=52 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=32 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(2,0) test=0x30000 alpha=0x0 v0=(2,0) uv0=(0,0) stq0=(0,0,1) v1=(3,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS triangle fan subpixel quad fills rows without interior holes [gs:prim] idx=53 type=5 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(31,31) test=0x30000 alpha=0x0 v0=(6.375,6.375) uv0=(0,0) stq0=(0,0,1) v1=(26.25,6.375) uv1=(0,0) stq1=(0,0,1) v2=(26.25,26.25) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(255,255,255,128) rgba2=(255,255,255,128)
+[gs:prim] idx=54 type=5 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(31,31) test=0x30000 alpha=0x0 v0=(6.375,6.375) uv0=(0,0) stq0=(0,0,1) v1=(26.25,26.25) uv1=(0,0) stq1=(0,0,1) v2=(6.375,26.25) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(255,255,255,128) rgba2=(255,255,255,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS writeIORegister increments GS write counter [32m  [Passed][0m
+[33m  [Run]: [0mGsPutIMR and GsGetIMR roundtrip old and new values PS2 GsPutIMR:  new=0x3689367578881368610 a0_64=0x3689367578881368610 a0_32=0x286335522 a1_32=0x0 pc=0x0 ra=0x0
+PS2 GsGetIMR: Returning IMR=0x3333444411112222 pc=0x0 ra=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mGsSetCrt updates SMODE2 for host presentation mode PS2 GsSetCrt: interlaced=1, videoMode=0, frameMode=0
+[32m  [Passed][0m
+[33m  [Run]: [0mPABE bypasses alpha blend for low-alpha source pixels [gs:prim] idx=55 type=0 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x6000000064 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,1) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:prim] idx=56 type=0 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x6000000064 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,1) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:prim] idx=57 type=0 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x6000000064 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mPRMODE supplies primitive attributes while PRMODECONT AC is clear [gs:prim] idx=58 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:prim] idx=59 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mPSMT4 address mapping matches GS manual layout [32m  [Passed][0m
+[33m  [Run]: [0mPSMT4 large atlases keep manual page layout across 512x512 textures [32m  [Passed][0m
+[33m  [Run]: [0mPSMT8 address mapping matches Veronica Conv8to32 layout [32m  [Passed][0m
+[33m  [Run]: [0mXYZ3 culls a triangle strip primitive without desynchronizing the vertex queue [gs:prim] idx=60 type=4 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(6,6) test=0x30000 alpha=0x0 v0=(6,0) uv0=(0,0) stq0=(0,0,1) v1=(0,6) uv1=(0,0) stq1=(0,0,1) v2=(6,6) uv2=(0,0) stq2=(0,0,1) rgba0=(255,0,0,255) rgba1=(255,0,0,255) rgba2=(255,0,0,255)
+[32m  [Passed][0m
+[33m  [Run]: [0mclearFramebufferContext clears the requested context even if another context is active [32m  [Passed][0m
+[33m  [Run]: [0mfullscreen display copy tracks the preferred presentation source frame [gs:prim] idx=61 type=6 tme=1 abe=1 fst=1 ctxt=1 fbp=150 fbw=10 psm=0x0 tex0=(tbp0=0 tbw=10 psm=0x0 tw=10 th=9 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1808 scissor=(0,0)-(639,479) test=0x30000 alpha=0x6000000064 v0=(1728,1808) uv0=(0,0) stq0=(0,0,1) v1=(2368,2288) uv1=(640,480) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:copy-prim] type=6 tme=1 abe=1 fst=1 ctxt=1 fbp=150 fbw=10 psm=0x0 tex0=(tbp0=0 tbw=10 psm=0x0 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1808 scissor=(0,0)-(639,479) test=0x30000 alpha=0x6000000064
+[gs:prim] idx=62 type=0 tme=0 abe=0 fst=0 ctxt=1 fbp=150 fbw=10 psm=0x0 tex0=(tbp0=0 tbw=10 psm=0x0 tw=10 th=9 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1808 scissor=(0,0)-(639,479) test=0x30000 alpha=0x6000000064 v0=(1728,1808) uv0=(640,480) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,255) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-prim] type=0 tme=0 abe=0 fst=0 ctxt=1 fbp=150 fbw=10 psm=0x0 tex0=(tbp0=0 tbw=10 psm=0x0 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1808 scissor=(0,0)-(639,479) test=0x30000 alpha=0x6000000064
+[32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation frame is returned tightly packed for narrower display widths [32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation frame stays stable until the next latch [gs:prim] idx=63 type=6 tme=1 abe=1 fst=1 ctxt=1 fbp=150 fbw=10 psm=0x0 tex0=(tbp0=0 tbw=10 psm=0x0 tw=10 th=9 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1808 scissor=(0,0)-(639,479) test=0x30000 alpha=0x6000000064 v0=(1728,1808) uv0=(0,0) stq0=(0,0,1) v1=(2368,2288) uv1=(640,480) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:copy-prim] type=6 tme=1 abe=1 fst=1 ctxt=1 fbp=150 fbw=10 psm=0x0 tex0=(tbp0=0 tbw=10 psm=0x0 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1808 scissor=(0,0)-(639,479) test=0x30000 alpha=0x6000000064
+[32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation line-doubles interlaced field output [32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation merges both enabled PMODE circuits [32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation normalizes alpha for single-circuit display [32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation preserves 480-line display height [32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation reads direct CT32 display frames with GS swizzle [32m  [Passed][0m
+[33m  [Run]: [0mlatched host presentation reads preferred CT32 source with GS swizzle [gs:copy-prim] type=6 tme=1 abe=1 fst=1 ctxt=1 fbp=150 fbw=10 psm=0x0 tex0=(tbp0=64 tbw=10 psm=0x0 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1808 scissor=(0,0)-(639,479) test=0x30000 alpha=0x6000000064
+[32m  [Passed][0m
+[33m  [Run]: [0mreserved PSM 0x3F uses null VRAM handlers [32m  [Passed][0m
+[33m  [Run]: [0msceGifPkRefLoadImage seeds A+D GIFtag nloop once (no double-count) [32m  [Passed][0m
+[33m  [Run]: [0msceGsExecLoadImage and sceGsExecStoreImage roundtrip and free guest packets [32m  [Passed][0m
+[33m  [Run]: [0msceGsResetGraph frees its temporary GIF packet [32m  [Passed][0m
+[33m  [Run]: [0msceGsSetDefDBuffDc accepts trailing args from the recompiler register ABI [gs:swapdbuff] which=0 env=0x5400 dispfb=0x1518 display=0x1bf27f0002027c pmode=0x8007 dispFbp=118 clearCtxt=0
+[32m  [Passed][0m
+[33m  [Run]: [0msceGsSetDefDBuffDc seeds a clear packet and swap clears the draw buffer [gs:swapdbuff] which=0 env=0x5000 dispfb=0x1518 display=0x1bf27f0002027c pmode=0x8007 dispFbp=118 clearCtxt=0
+[32m  [Passed][0m
+[33m  [Run]: [0msceGsSetDefDBuffDc seeds display envs and swap applies the selected page [gs:swapdbuff] which=1 env=0x4000 dispfb=0x1497 display=0x1bf27f0002027c pmode=0x8007 dispFbp=97 clearCtxt=0
+[32m  [Passed][0m
+[33m  [Run]: [0msceGsSyncV resumes through the scheduler with deterministic field parity [32m  [Passed][0m
+[33m  [Run]: [0msceGsSyncVCallback runs as a scheduler invocation on its callback stack [sceGsSyncVCallback:set] new=0x120000 old=0x0 callerPc=0x11f050 callerRa=0x0 gp=0x36a7f0 sp=0x123450
+[32m  [Passed][0m
+[33m  [Run]: [0munknown GS privileged offsets are no-op and read as zero [32m  [Passed][0m
+
+[Suite]: PS2IopSubsystem
+[33m  [Run]: [0mHLE services activate only after a recognized module load [32m  [Passed][0m
+[33m  [Run]: [0mPS2 path parsing is shared and normalizes ISO/module names [32m  [Passed][0m
+[33m  [Run]: [0munknown SID remains unhandled without a loaded IRX [32m  [Passed][0m
+
+[Suite]: PS2Memory
+[33m  [Run]: [0mDMA cyclic NEXT is diagnosed without submitting a partial stream [32m  [Passed][0m
+[33m  [Run]: [0mDMA revisits a CALL sublist with different return stacks [32m  [Passed][0m
+[33m  [Run]: [0mDMA walks a terminating VIF1 list longer than 4096 tags [32m  [Passed][0m
+[33m  [Run]: [0mDMAC D_CTRL DMAE gates GIF DMA start [32m  [Passed][0m
+[33m  [Run]: [0mDMAC D_STAT toggles masks and clears channel status on write-one [32m  [Passed][0m
+[33m  [Run]: [0mDMAC SPR_FROM copies scratchpad to RDRAM and completes channel 8 [32m  [Passed][0m
+[33m  [Run]: [0mDMAC SPR_TO copies RDRAM to scratchpad and completes channel 9 [32m  [Passed][0m
+[33m  [Run]: [0mEE Timer2 compare and overflow flags raise INTC_TIM2 and clear on write-one [32m  [Passed][0m
+[33m  [Run]: [0mEE timer zero-return clears COUNT on compare [32m  [Passed][0m
+[33m  [Run]: [0mEE timer0 count advances from scheduler cycles and can be reset [32m  [Passed][0m
+[33m  [Run]: [0mEE timers 0 through 3 expose independent COUNT MODE and COMP registers [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA can source from scratchpad [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA chain CALL sources payload from TADR+16 [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA chain IRQ stops only when TIE is set [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA chain REF keeps CT32 image data after paletted upload [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA chain RET transfers payload and resumes after CALL [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA chain can source tags and payload from 0xF000 scratchpad alias [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA mode0 copies RDRAM packet and clears channel [32m  [Passed][0m
+[33m  [Run]: [0mGIF arbiter prioritizes PATH1 then PATH2 then PATH3 [32m  [Passed][0m
+[33m  [Run]: [0mGIF_STAT exposes synchronously drained DMA occupancy for one EE quantum [32m  [Passed][0m
+[33m  [Run]: [0mPATH3 mask queues packets until unmask [32m  [Passed][0m
+[33m  [Run]: [0mVIF DIRECTHL stalls behind queued PATH3 IMAGE packets [32m  [Passed][0m
+[33m  [Run]: [0mVIF FBRST RST clears VIF1 command state [32m  [Passed][0m
+[33m  [Run]: [0mVIF MPG num zero uploads 256 instructions [32m  [Passed][0m
+[33m  [Run]: [0mVIF MSKPATH3 uses immediate bit15 [32m  [Passed][0m
+[33m  [Run]: [0mVIF STCYCL skip mode advances destination by CL when CL>=WL [32m  [Passed][0m
+[33m  [Run]: [0mVIF STMOD offset and difference modes apply to UNPACK data [32m  [Passed][0m
+[33m  [Run]: [0mVIF UNPACK V4-16 sign and zero extension follow immediate bit14 [32m  [Passed][0m
+[33m  [Run]: [0mVIF UNPACK bit15 adds TOPS to destination address [32m  [Passed][0m
+[33m  [Run]: [0mVIF UNPACK num zero uploads 256 vectors [32m  [Passed][0m
+[33m  [Run]: [0mVIF control commands update MARK MASK ROW and COL registers [32m  [Passed][0m
+[33m  [Run]: [0mVIF double-buffer OFFSET BASE and MSCAL update TOPS and ITOPS [32m  [Passed][0m
+[33m  [Run]: [0mVIF fill write uses STMASK and STROW when WL>CL [32m  [Passed][0m
+[33m  [Run]: [0mVIF irq command sets STAT.INT and CODE until FBRST.STC clears it [32m  [Passed][0m
+[33m  [Run]: [0mVIF masked UNPACK uses data row col and protect selectors [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DIRECT finds an image continuation after packed setup [gs:texa] idx=2 value=0x8000008000 ta0=0x0 aem=1 ta1=0x80
+[32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DIRECT image tag can continue with raw image qwords [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DMA DIRECT forwards payload to GIF callback and clears channel [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DMA DIRECT image packet reaches GS through arbiter [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DMA chain ignores tag high bytes when TTE is disabled [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DMA chain latches terminal tag bits in CHCR [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DMA chain preserves compact tag high bytes for DIRECT packets [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DMA chain preserves compact tag high bytes when qwc is zero [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 DMA chain transfers REF tag high bytes when TTE is enabled [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 FIFO MSKPATH3 is visible through GIF_STAT [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 packet builders keep chain qwc live before terminate [32m  [Passed][0m
+[33m  [Run]: [0mVIF1 reverse DMA reads real GS pixels and completes channel 1 [32m  [Passed][0m
+[33m  [Run]: [0mVU0 code and data windows map through EE addresses [32m  [Passed][0m
+[33m  [Run]: [0mfast memory helpers wrap safely at RAM boundary [32m  [Passed][0m
+[33m  [Run]: [0mnative GIF image upload recognizes canonical load-image chain [32m  [Passed][0m
+[33m  [Run]: [0mnative GIF packed chain matches generic packed primitive packet [gs:packed-xyzf] idx=0 x=0 y=0 z=0x0 fog=0 kick=1 prim=6
+[gs:packed-xyzf] idx=1 x=64 y=64 z=0x0 fog=0 kick=1 prim=6
+[gs:packed-xyzf] idx=2 x=0 y=0 z=0x0 fog=0 kick=1 prim=6
+[gs:packed-xyzf] idx=3 x=64 y=64 z=0x0 fog=0 kick=1 prim=6
+[32m  [Passed][0m
+[33m  [Run]: [0msceDmaReset re-enables DMAC DMAE [32m  [Passed][0m
+[33m  [Run]: [0msceDmaSend preserves guest-configured VIF1 TTE [sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x28500 chcr=0x1c5
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x0 id=0x7 irq=0x0 addr=0x0 w2=0x0 w3=0x4000066
+[32m  [Passed][0m
+[33m  [Run]: [0mscratchpad alias accesses the same bytes as base [32m  [Passed][0m
+[33m  [Run]: [0mtranslateAddress handles kseg and uncached aliases [32m  [Passed][0m
+[33m  [Run]: [0munaligned accesses throw [32m  [Passed][0m
+[33m  [Run]: [0muncached aliases map to same RDRAM bytes [32m  [Passed][0m
+
+[Suite]: PS2Recompiler
+[33m  [Run]: [0mJAL return addresses get resumable entry wrappers [32m  [Passed][0m
+[33m  [Run]: [0mJAL to an already-known function still discovers the return entry [32m  [Passed][0m
+[33m  [Run]: [0madditional entries split at nearest discovered boundary [32m  [Passed][0m
+[33m  [Run]: [0mconfig manager loads modern and legacy guest entry hints [32m  [Passed][0m
+[33m  [Run]: [0mconfig manager parses jump_tables table entries [32m  [Passed][0m
+[33m  [Run]: [0mconfigured entry hint synthesizes an omitted standalone function [recompiler] parsing config
+[recompiler] parsing ELF
+[recompiler] extracted 3 functions, 3 symbols, 5 sections, 0 relocations
+[recompiler] recompiling 3 functions
+[recompiler] synthesized 1 standalone configured guest entry point(s)
+[recompiler] recompilation pass completed
+[recompiler] generated function header file: "C:/Users/smmel/AppData/Local/Temp/ps2recomp-entry-synthesis-449166428401100/output\\ps2_recompiled_functions.h"
+[recompiler] generating function output with 15 worker(s)
+[recompiler] wrote individual function files to C:/Users/smmel/AppData/Local/Temp/ps2recomp-entry-synthesis-449166428401100/output
+[recompiler] generated function registration file: "C:/Users/smmel/AppData/Local/Temp/ps2recomp-entry-synthesis-449166428401100/output\\register_functions.cpp"
+[recompiler] generated stub header file: "C:/Users/smmel/AppData/Local/Temp/ps2recomp-entry-synthesis-449166428401100/output\\ps2_recompiled_stubs.h"
+[32m  [Passed][0m
+[33m  [Run]: [0mdiscovery ignores synthetic entry wrappers [32m  [Passed][0m
+[33m  [Run]: [0melf parser discovers address-taken callbacks in stripped ELFs [32m  [Passed][0m
+[33m  [Run]: [0melf parser ignores STT_FUNC symbols in non-executable sections [32m  [Passed][0m
+[33m  [Run]: [0melf parser keeps VU microprograms out of EE code discovery [32m  [Passed][0m
+[33m  [Run]: [0melf parser supplements partial DWARF with address-taken callbacks [32m  [Passed][0m
+[33m  [Run]: [0mentry reslice handles entries without containing function [32m  [Passed][0m
+[33m  [Run]: [0mentry reslice trims earlier entries after late discovery [32m  [Passed][0m
+[33m  [Run]: [0mentry starting at jr ra is capped to return thunk [32m  [Passed][0m
+[33m  [Run]: [0mgame helpers are not classified as runtime stubs [32m  [Passed][0m
+[33m  [Run]: [0mghidra map replaces JAL fallback-only auto starts [32m  [Passed][0m
+[33m  [Run]: [0minitializer skips fall back to guest recompilation [recompiler] parsing config
+[recompiler] parsing ELF
+[recompiler] extracted 1 functions, 1 symbols, 6 sections, 0 relocations
+[recompiler] recompiling 1 functions
+[recompiler] recompilation pass completed
+[32m  [Passed][0m
+[33m  [Run]: [0mmissing constructor-table targets fail recompilation [recompiler] parsing config
+[recompiler] parsing ELF
+[recompiler] extracted 1 functions, 1 symbols, 6 sections, 0 relocations
+[recompiler] recompiling 1 functions
+[recompiler] recompilation pass completed
+[recompiler] parsing config
+[recompiler] parsing ELF
+[recompiler] extracted 1 functions, 1 symbols, 6 sections, 0 relocations
+[recompiler] recompiling 1 functions
+[recompiler] recompilation pass completed
+[32m  [Passed][0m
+[33m  [Run]: [0mnon-executable section targets are ignored [32m  [Passed][0m
+[33m  [Run]: [0mrespect max length for .cpp filenames [32m  [Passed][0m
+[33m  [Run]: [0mruntime call resolution includes Veronica compatibility aliases [32m  [Passed][0m
+[33m  [Run]: [0msame-function JAL return addresses get entry wrappers but targets stay labels [32m  [Passed][0m
+
+[Suite]: PS2RuntimeExpansion
+[guest-branch:missing-target] kind=IndirectCall op=test-missing-unwind source=0x2000 target=0x3210 pc=0x3210 ra=0x0 sp=0x0 gp=0x0 a0=0x0 a1=0x0 a2=0x0 a3=0x0 s0=0x0 s1=0x0 v0=0x0 v1=0x0 a0Readable=no a0[0]=0x0 a0[4]=0x0 a0[8]=0x0 a0[c]=0x0 s0Readable=no s0[0]=0x0 s0[4]=0x0 s0[8]=0x0 s0[c]=0x0 recordReadable=no record[0]=0x0 record[4]=0x0 record[8]=0x0 record[c]=0x0 vtableReadable=no vtbl[0]=0x0 vtbl[4]=0x0 vtbl[8]=0x0 vtbl[c]=0x0 codeRegion=no policy=1 trace=0x11f000 -> 0x11f010 -> 0x11f020 -> 0x11f030 -> 0x11f040 -> 0x120000 -> 0x11f050
+[33m  [Run]: [0mContinueToTarget unwinds a missing call without skipping it [32m  [Passed][0m
+[33m  [Run]: [0mGS alpha blend uses ALPHA register FIX factor [32m  [Passed][0m
+[33m  [Run]: [0mGS sprite draw applies XYOFFSET and fully-outside scissor should not render [32m  [Passed][0m
+[33m  [Run]: [0mIPU init executes its guest helper as a scheduler invocation [32m  [Passed][0m
+[33m  [Run]: [0mIPU init skips missing optional helper instead of dispatching the default trap [32m  [Passed][0m
+[33m  [Run]: [0mMPEG init and callback stubs return success instead of TODO errors [32m  [Passed][0m
+[33m  [Run]: [0mSignalException marks EPC and BD for delay-slot exceptions [32m  [Passed][0m
+[33m  [Run]: [0mSignalException uses current pc without BD and honors BEV vector [32m  [Passed][0m
+[33m  [Run]: [0mVIF MSCAL and MSCNT toggle DBF and keep TOPS/ITOPS coherent [32m  [Passed][0m
+[33m  [Run]: [0mVU0 FBRST TE gates a T-bit microprogram stop [32m  [Passed][0m
+[33m  [Run]: [0mVU0 direct MicroMem writes invalidate the fixed decode cache [32m  [Passed][0m
+[33m  [Run]: [0mVU0 microprogram executes against VU0 code and data memory [32m  [Passed][0m
+[33m  [Run]: [0mVU0 microprogram preserves the architectural RNG state [32m  [Passed][0m
+[33m  [Run]: [0mdifferential decoder/codegen gpr-write contract for MULT and DIV families [32m  [Passed][0m
+[33m  [Run]: [0mdispatchGuestBranch call normalizes unchanged callee PC to fallthrough [32m  [Passed][0m
+[33m  [Run]: [0mdispatchGuestBranch call returns false when callee transfers elsewhere [32m  [Passed][0m
+[33m  [Run]: [0mdispatchGuestBranch jump returns to central dispatcher without nesting [32m  [Passed][0m
+[guest-branch:missing-target] kind=IndirectCall op=test-missing source=0x2000 target=0x3210 pc=0x3210 ra=0x0 sp=0x0 gp=0x0 a0=0x0 a1=0x0 a2=0x0 a3=0x0 s0=0x0 s1=0x0 v0=0x0 v1=0x0 a0Readable=no a0[0]=0x0 a0[4]=0x0 a0[8]=0x0 a0[c]=0x0 s0Readable=no s0[0]=0x0 s0[4]=0x0 s0[8]=0x0 s0[c]=0x0 recordReadable=no record[0]=0x0 record[4]=0x0 record[8]=0x0 record[c]=0x0 vtableReadable=no vtbl[0]=0x0 vtbl[4]=0x0 vtbl[8]=0x0 vtbl[c]=0x0 codeRegion=no policy=0 trace=0x11f000 -> 0x11f010 -> 0x11f020 -> 0x11f030 -> 0x11f040 -> 0x120000 -> 0x11f050 -> 0x125100 -> 0x126428 -> 0x125104 -> 0x3000 -> 0x3100
+[33m  [Run]: [0mdispatchGuestBranch rejects missing exact targets [32m  [Passed][0m
+[33m  [Run]: [0mhandleSyscall rejects invocation in delay slot [32m  [Passed][0m
+Error: No exact recompiled function for guest PC 0x2010 tableBase=0x0 tableEnd=0x2000000 codeRegion=yes trace=0x11f000 -> 0x11f010 -> 0x11f020 -> 0x11f030 -> 0x11f040 -> 0x120000 -> 0x11f050 -> 0x125100 -> 0x126428 -> 0x125104 -> 0x3000 -> 0x3100 -> 0x2010
+[guest-branch:missing-target] kind=IndirectJump op=dispatch source=0x0 target=0x2010 pc=0x2010 ra=0x0 sp=0x0 gp=0x0 a0=0x0 a1=0x0 a2=0x0 a3=0x0 s0=0x0 s1=0x0 v0=0x0 v1=0x0 a0Readable=no a0[0]=0x0 a0[4]=0x0 a0[8]=0x0 a0[c]=0x0 s0Readable=no s0[0]=0x0 s0[4]=0x0 s0[8]=0x0 s0[c]=0x0 recordReadable=no record[0]=0x0 record[4]=0x0 record[8]=0x0 record[c]=0x0 vtableReadable=no vtbl[0]=0x0 vtbl[4]=0x0 vtbl[8]=0x0 vtbl[c]=0x0 codeRegion=yes policy=0 trace=0x11f000 -> 0x11f010 -> 0x11f020 -> 0x11f030 -> 0x11f040 -> 0x120000 -> 0x11f050 -> 0x125100 -> 0x126428 -> 0x125104 -> 0x3000 -> 0x3100 -> 0x2010
+[33m  [Run]: [0mlookupFunction rejects final-function PCs inside code regions without exact registration Registered code region: 2000 - 2100[32m  [Passed][0m
+Error: No exact recompiled function for guest PC 0x1010 tableBase=0x0 tableEnd=0x2000000 codeRegion=no trace=0x11f000 -> 0x11f010 -> 0x11f020 -> 0x11f030 -> 0x11f040 -> 0x120000 -> 0x11f050 -> 0x125100 -> 0x126428 -> 0x125104 -> 0x3000 -> 0x3100 -> 0x2010 -> 0x1010
+[guest-branch:missing-target] kind=IndirectJump op=dispatch source=0x0 target=0x1010 pc=0x1010 ra=0x0 sp=0x0 gp=0x0 a0=0x0 a1=0x0 a2=0x0 a3=0x0 s0=0x0 s1=0x0 v0=0x0 v1=0x0 a0Readable=no a0[0]=0x0 a0[4]=0x0 a0[8]=0x0 a0[c]=0x0 s0Readable=no s0[0]=0x0 s0[4]=0x0 s0[8]=0x0 s0[c]=0x0 recordReadable=no record[0]=0x0 record[4]=0x0 record[8]=0x0 record[c]=0x0 vtableReadable=no vtbl[0]=0x0 vtbl[4]=0x0 vtbl[8]=0x0 vtbl[c]=0x0 codeRegion=no policy=0 trace=0x11f000 -> 0x11f010 -> 0x11f020 -> 0x11f030 -> 0x11f040 -> 0x120000 -> 0x11f050 -> 0x125100 -> 0x126428 -> 0x125104 -> 0x3000 -> 0x3100 -> 0x2010 -> 0x1010
+[33m  [Run]: [0mlookupFunction rejects internal resume PCs without exact registration [32m  [Passed][0m
+[33m  [Run]: [0mmultiply-add matrix writes rd only when R5900 requires it [32m  [Passed][0m
+[MPEG:DemuxPssRing:ENTER] call #0 pc=0x0 ra=0x0
+[MPEG:feedES] #0 size=8 first4=000001b3 decoderFailed=0 waitSeq=1
+[MPEG] runtime built without FFmpeg; MPEG video decode is disabled.
+[MPEG:DemuxPssRing] mpeg=0x123000 data=0x128000 ring=0x128000 avail=17 consumed=17 decoded=0 callbacks=1
+[MPEG:DemuxPssRing:ENTER] call #1 pc=0x0 ra=0x0
+[MPEG:DemuxPssRing] mpeg=0x123000 data=0x129000 ring=0x129000 avail=15 consumed=15 decoded=0 callbacks=1
+[MPEG:CdStreamEof] finalized active MPEG playback
+[MPEG:DemuxPssRing:ENTER] call #2 pc=0x0 ra=0x0
+[MPEG:DemuxPssRing] mpeg=0x123000 data=0x128000 ring=0x128000 avail=17 consumed=17 decoded=0 callbacks=0
+[MPEG:DemuxPssRing:ENTER] call #3 pc=0x0 ra=0x0
+[MPEG:DemuxPssRing] mpeg=0x123000 data=0x128000 ring=0x128000 avail=17 consumed=17 decoded=0 callbacks=0
+[MPEG:CdStreamStart] generation=1 reopened=1
+[MPEG:feedES] #0 size=8 first4=000001b3 decoderFailed=0 waitSeq=1
+[MPEG:DemuxPssRing] mpeg=0x123000 data=0x128000 ring=0x128000 avail=17 consumed=17 decoded=0 callbacks=1
+[MPEG:feedES] #1 size=8 first4=000001b3 decoderFailed=0 waitSeq=1
+[MPEG:DemuxPssRing] mpeg=0x123000 data=0x128000 ring=0x128000 avail=17 consumed=17 decoded=0 callbacks=1
+[33m  [Run]: [0msceMpegDemuxPssRing dispatches registered video and audio stream callbacks [32m  [Passed][0m
+[MPEG:CdStreamStart] generation=1 reopened=0
+[MPEG:GetPicture] waiting for frames, mpeg=0x123000 ended=0 failed=0 sawInput=0
+[33m  [Run]: [0msceMpegGetPicture blocks as a typed scheduler wait and resumes on EOF [32m  [Passed][0m
+[MPEG:CdStreamStart] generation=1 reopened=0
+[MPEG:GetPicture:FRAME] mpeg=0x124000 generation=1 frame=0 queued=0 size=16x16
+[MPEG:GetPicture] waiting for frames, mpeg=0x124000 ended=0 failed=0 sawInput=1
+[MPEG:CdStreamEof] finalized active MPEG playback
+[33m  [Run]: [0msceMpegGetPicture waits for new decoder output instead of duplicating the last frame [32m  [Passed][0m
+[Audio:BlockTrans] core=1 active=1 base=0x12340 size=0x3000 pause=0x12740 offset=0x400
+[Audio:BlockStatus] core=1 status=0x12b40 offset=0x800 size=0x3000
+[Audio:VoiceTrans] core=0 src=0x22000 dest=0x4000 size=0x800 mode=0x0 copied=1 physical=2048
+[Audio:BlockStatus] core=1 status=0x12f40 offset=0xc00 size=0x3000
+[33m  [Run]: [0msceSdRemote isolates voice transfers from block streaming state [32m  [Passed][0m
+[Audio:BlockTrans] core=0 active=1 base=0x10000 size=0x1000 pause=0x10000 offset=0x0
+[Audio:BlockTrans] core=1 active=1 base=0x20000 size=0x2000 pause=0x20800 offset=0x800
+[Audio:BlockStatus] core=0 status=0x10400 offset=0x400 size=0x1000
+[Audio:BlockStatus] core=1 status=0x20c00 offset=0xc00 size=0x2000
+[Audio:BlockStatus] core=0 status=0x1010800 offset=0x800 size=0x1000
+[Audio:BlockTrans] core=0 active=0 base=0x0 size=0x0 pause=0x0 offset=0x0
+[Audio:BlockStatus] core=1 status=0x1021000 offset=0x1000 size=0x2000
+[33m  [Run]: [0msceSdRemote keeps block cursors and loop banks isolated per core [32m  [Passed][0m
+[33m  [Run]: [0msceVif1PkCloseDirectCode encodes DIRECT length in qwords [32m  [Passed][0m
+[33m  [Run]: [0msceVif1PkReset preserves the packet base pointer and clears open tag state [32m  [Passed][0m
+[33m  [Run]: [0msceVu0ApplyMatrix uses libvux matrix math with the imported EE ABI [32m  [Passed][0m
+[33m  [Run]: [0msceVu0TransposeMatrix transposes a 4x4 matrix with dst/src ABI [32m  [Passed][0m
+[33m  [Run]: [0msprintf consumes EE varargs from a2 a3 t0 and preserves width formatting [32m  [Passed][0m
+[33m  [Run]: [0msprintf consumes one full register for a wide EE argument [32m  [Passed][0m
+[33m  [Run]: [0msprintf stack spill begins at incoming SP with eight-byte stride [32m  [Passed][0m
+[33m  [Run]: [0mvsprintf reads 64-bit saved EE argument slots [32m  [Passed][0m
+
+[Suite]: PS2RuntimeIO
+[33m  [Run]: [0mROM0 ROMVER is exposed as the 14-byte firmware pseudo-file [32m  [Passed][0m
+[33m  [Run]: [0mROM0 profiles can extend and override files without a BIOS [32m  [Passed][0m
+[33m  [Run]: [0mROM0 uses VFS stat and per-runtime descriptors [32m  [Passed][0m
+[33m  [Run]: [0mmc0 directory creation fioMkdir: Created directory 'C:\Users\smmel\AppData\Local\Temp\ps2recomp-mc0-449166935228300\mcroot\SAVEDATA'[32m  [Passed][0m
+[33m  [Run]: [0mmc0 file read operations fioMkdir: Created directory 'C:\Users\smmel\AppData\Local\Temp\ps2recomp-mc0-449166952488100\mcroot\SAVEDATA'[32m  [Passed][0m
+[33m  [Run]: [0mmc0 file write operations fioMkdir: Created directory 'C:\Users\smmel\AppData\Local\Temp\ps2recomp-mc0-449166980756000\mcroot\SAVEDATA'[32m  [Passed][0m
+[33m  [Run]: [0mmc0 paths isolated from cdRoot fioMkdir: Created directory 'C:\Users\smmel\AppData\Local\Temp\ps2recomp-mc0-449167007827800\mcroot\ISOLATED'[32m  [Passed][0m
+[33m  [Run]: [0msceCdRead reads from explicit cdImage path [32m  [Passed][0m
+[33m  [Run]: [0msceCdSearchFile resolves movie filenames with zero-padded host leaf [sceCdSearchFile] pc=0x0 ra=0x0 file=0x3a00 pathAddr=0x1a00 path="\MOVIE\MV_16.PSS;1"
+[sceCdSearchFile:ok] path="\MOVIE\MV_16.PSS;1" lsn=0x100000 size=0x3 sectors=0x1
+[32m  [Passed][0m
+[33m  [Run]: [0msceIoctl cmd1 updates wait flag state [32m  [Passed][0m
+[33m  [Run]: [0msceMc open write read and close roundtrip through sync [MC] Sync cmd=11 result=0[MC] Sync cmd=2 result=1[MC] Sync cmd=6 result=15[MC] Sync cmd=4 result=0[MC] Sync cmd=5 result=15[MC] Sync cmd=3 result=0[32m  [Passed][0m
+[33m  [Run]: [0msceMcEnd resets libmc state so sync reports no active command [MC] Sync cmd=11 result=0[32m  [Passed][0m
+[33m  [Run]: [0msceMcGetDir includes dot entries and file metadata [MC] GetDir port=0 '/SAVEDATA/*' maxent=8 -> result=3[MC] Sync cmd=13 result=3[32m  [Passed][0m
+[33m  [Run]: [0msceMcGetInfo reports formatted and unformatted states [MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[MC] Sync cmd=17 result=0[MC] GetInfo port=0 type=2 free=0 format=0 result=-2[MC] Sync cmd=1 result=-2[32m  [Passed][0m
+
+[Suite]: PS2RuntimeInterrupt
+[33m  [Run]: [0mEE Timer2 compare IRQ wakes a DelayThread-style semaphore wait [32m  [Passed][0m
+[33m  [Run]: [0mGS SIGNAL dispatches INTC_GS and honors IMR masking [32m  [Passed][0m
+[33m  [Run]: [0mIRQ callbacks use an isolated invocation stack [32m  [Passed][0m
+[33m  [Run]: [0mPollEventFlag WEF_CLEAR clears only matched bits [32m  [Passed][0m
+[33m  [Run]: [0mVBlank IRQ invocation completes before the resumed base context [32m  [Passed][0m
+[33m  [Run]: [0mVBlank deadline resumes the waiter and publishes flag tick and FIELD atomically [32m  [Passed][0m
+[33m  [Run]: [0mevent-flag completion writes observed bits before strict-priority resume [32m  [Passed][0m
+[33m  [Run]: [0miSignalSema defers selection until IRQ return [32m  [Passed][0m
+[33m  [Run]: [0mnegative interrupt-safe EE syscall ids dispatch [32m  [Passed][0m
+[33m  [Run]: [0mpending async callbacks execute sequentially on a reusable invocation stack [32m  [Passed][0m
+[33m  [Run]: [0mscheduler stop wakes an idle VSync wait without a timeout [32m  [Passed][0m
+
+[Suite]: PS2RuntimeKernel
+[33m  [Run]: [0mCopy syscall (0x5A) performs a memory copy [32m  [Passed][0m
+[33m  [Run]: [0mCreateThread and CreateSema decode the exact PS2SDK EE layouts [32m  [Passed][0m
+[33m  [Run]: [0mEE scheduler selects absolute priority then FIFO [32m  [Passed][0m
+[33m  [Run]: [0mGetEntryAddress syscall (0x5B) returns handler from guest table [32m  [Passed][0m
+[33m  [Run]: [0mOSD config2 syscalls round-trip extended config [32m  [Passed][0m
+[33m  [Run]: [0mReleaseAlarm aliases CancelAlarm and cache syscalls succeed [32m  [Passed][0m
+[33m  [Run]: [0mRotateThreadReadyQueue is the only same-priority rotation [32m  [Passed][0m
+[33m  [Run]: [0mSetSyscall honors signed kernel-table offsets [32m  [Passed][0m
+[FindAddress:hit] pc=0x0 start=0x80000000 end=0x80080000 alignedStart=0x80000000 alignedEnd=0x80080000 target=0x383548 targetNorm=0x383548 result=0x80012188 scannedWords=131072 allZero=false aborted=false
+  firstWords: [0x80000000]=0x0 [0x80000004]=0x0 [0x80000008]=0x0 [0x8000000c]=0x0 [0x80000010]=0x0 [0x80000014]=0x0 [0x80000018]=0x0 [0x8000001c]=0x0
+  nonZeroSample: [0x800002f0]=0x8001 [0x800002f8]=0x1f80 [0x80012188]=0x383548
+  matches: [0x80012188]=0x383548(exact)
+[33m  [Run]: [0mSetSyscall mirrors guest kernel table entries into low memory [32m  [Passed][0m
+[33m  [Run]: [0mSetSyscall override preserves KSEG argument sign extension [32m  [Passed][0m
+[33m  [Run]: [0mSetSyscall override preserves upper 64 bits when writing 32-bit args [32m  [Passed][0m
+[33m  [Run]: [0mSetSyscall override runs as a scheduler invocation [32m  [Passed][0m
+[33m  [Run]: [0mSetupThread exposes stable main stack metadata through ReferThreadStatus [32m  [Passed][0m
+[33m  [Run]: [0ma syscall invocation can block and resume without losing its base context [32m  [Passed][0m
+[33m  [Run]: [0mallocator compatibility stubs use the runtime guest heap [32m  [Passed][0m
+[33m  [Run]: [0man override that branches to an invalid PC completes without builtin fallback [32m  [Passed][0m
+[33m  [Run]: [0mevent waiters are FIFO and clear modes apply before testing the next waiter [32m  [Passed][0m
+[33m  [Run]: [0mexit handlers run as ordered invocation frames before the thread becomes dormant [32m  [Passed][0m
+[33m  [Run]: [0mguest kernel syscall overrides and mirrors are isolated per runtime [32m  [Passed][0m
+[33m  [Run]: [0mhigh-BSS ELF callback stacks and explicit upper heap do not overlap Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x8, memsz: 0x1df5390)
+Registered code region: 200000 - 200008[kernel:callback-arena] base=0x80000 end=0x100000
+[SetupHeap] base=0x1ff5390 alignedBase=0x1ff5390 size=0x8000 runtimeBase=0x1ff5390 runtimeEnd=0x1ff5390
+ELF file loaded successfully. Entry point: 0x200000[32m  [Passed][0m
+[33m  [Run]: [0mlibc helper stubs cover memclr and libgcc div [32m  [Passed][0m
+[33m  [Run]: [0mmemalign stubs allocate aligned guest memory [32m  [Passed][0m
+[FindAddress:hit] pc=0x0 start=0x2000 end=0x2010 alignedStart=0x2000 alignedEnd=0x2010 target=0x11223344 targetNorm=0x11223344 result=0x2004 scannedWords=4 allZero=false aborted=false
+  firstWords: [0x2000]=0x11111111 [0x2004]=0x11223344 [0x2008]=0x55555555 [0x200c]=0x89abcdef
+  nonZeroSample: [0x2000]=0x11111111 [0x2004]=0x11223344 [0x2008]=0x55555555 [0x200c]=0x89abcdef
+  matches: [0x2004]=0x11223344(exact)
+[33m  [Run]: [0mnumeric syscall 0x83 finds matching table entry [32m  [Passed][0m
+[FindAddress:miss] pc=0x0 start=0x4000 end=0x400c alignedStart=0x4000 alignedEnd=0x400c target=0xdeadbeef targetNorm=0xdeadbeef result=0x0 scannedWords=3 allZero=false aborted=false
+  firstWords: [0x4000]=0x1 [0x4004]=0x2 [0x4008]=0x3
+  nonZeroSample: [0x4000]=0x1 [0x4004]=0x2 [0x4008]=0x3
+  matches: none
+[33m  [Run]: [0mnumeric syscall 0x83 returns 0 when entry is absent [32m  [Passed][0m
+[FindAddress:hit] pc=0x0 start=0x80003000 end=0x80003008 alignedStart=0x80003000 alignedEnd=0x80003008 target=0x80123456 targetNorm=0x123456 result=0x80003000 scannedWords=2 allZero=false aborted=false
+  firstWords: [0x80003000]=0x123456 [0x80003004]=0x8000aaaa
+  nonZeroSample: [0x80003000]=0x123456 [0x80003004]=0x8000aaaa
+  matches: [0x80003000]=0x123456(alias)
+[33m  [Run]: [0mnumeric syscall 0x83 supports KSEG aliases [32m  [Passed][0m
+[FindAddress:hit] pc=0x200020 start=0x3000 end=0x300c alignedStart=0x3000 alignedEnd=0x300c target=0x11223344 targetNorm=0x11223344 result=0x3004 scannedWords=3 allZero=false aborted=false
+  firstWords: [0x3000]=0xcafebabe [0x3004]=0x11223344 [0x3008]=0x55667788
+  nonZeroSample: [0x3000]=0xcafebabe [0x3004]=0x11223344 [0x3008]=0x55667788
+  matches: [0x3004]=0x11223344(exact)
+[33m  [Run]: [0mreentrant override invokes the underlying builtin inside its invocation frame [32m  [Passed][0m
+[33m  [Run]: [0msemaphore signal, delete, and release complete blocked contexts with exact results [32m  [Passed][0m
+[33m  [Run]: [0msemaphore waiters are FIFO and signal transfers one token directly [32m  [Passed][0m
+[SetupHeap] base=0x180010 alignedBase=0x180010 size=0x1000 runtimeBase=0x180010 runtimeEnd=0x180010
+[33m  [Run]: [0msetup heap and allocator primitives track end-of-heap [32m  [Passed][0m
+[SetupHeap] base=0xffffffff alignedBase=0x0 size=0x0 runtimeBase=0x100000 runtimeEnd=0x100000
+[33m  [Run]: [0msetup heap and thread invalid ids use documented kernel errors [32m  [Passed][0m
+[33m  [Run]: [0mstarting a strictly higher-priority thread preempts immediately [32m  [Passed][0m
+[33m  [Run]: [0mthread lifecycle, nested suspend, WAIT-SUSPEND, and wakeup count are centralized [32m  [Passed][0m
+[33m  [Run]: [0munsigned loads and ABI word writes extend independently [32m  [Passed][0m
+
+[Suite]: PS2SifDma
+[sceSifSetDma:CALL] pc=0x0 ra=0x0 list=0x20040 count=1
+[sceSifSetDma:DESC] i=0 src=0x20140 dst=0x120000 size=0x20 attr=0x0 pc=0x0 ra=0x0
+Assertion failed: m_executorThread == std::this_thread::get_id(), file D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\EeScheduler.cpp, line 1569
+[33m  [Run]: [0mIOP heap DMA uses private backing instead of aliasing EE RDRAM 

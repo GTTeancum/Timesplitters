@@ -158,6 +158,39 @@ void register_pad_input_tests()
             t.IsFalse(pad.loadScriptText("# comments only\n\n", &error), "empty script should fail");
             t.IsTrue(error.find("no frames") != std::string::npos, "empty script should explain failure");
         });
+        tc.Run("pad script wait_u32 gates later read-count frames", [](TestCase &t)
+        {
+            PSPadBackend pad;
+            std::string error;
+            uint32_t observed = 0;
+            pad.setScriptU32Reader([&observed](uint32_t address) {
+                return address == 0x10u ? observed : 0u;
+            });
+            t.IsTrue(pad.loadScriptText("wait_u32 0x10 >= 2\n1 cross 128 128 128 128\n", &error), "wait script should parse");
+
+            uint8_t data[32]{};
+            t.IsTrue(pad.readState(0, 0, data, sizeof(data)), "blocked wait read should succeed");
+            t.Equals(static_cast<uint16_t>(data[2] | (data[3] << 8)), static_cast<uint16_t>(0xFFFFu), "blocked wait should leave neutral buttons");
+            t.IsFalse(pad.scriptExhausted(), "blocked wait should not exhaust script");
+
+            observed = 2;
+            t.IsTrue(pad.readState(0, 0, data, sizeof(data)), "unblocked wait read should succeed");
+            t.Equals(static_cast<uint16_t>(data[2] | (data[3] << 8)),
+                     static_cast<uint16_t>(0xFFFFu & ~kPadBtnCross),
+                     "satisfied wait should advance to next frame in the same read");
+            t.IsTrue(pad.scriptExhausted(), "single frame after wait should exhaust");
+        });
+        tc.Run("pad script wait_u32 rejects timed scripts and invalid comparisons", [](TestCase &t)
+        {
+            PSPadBackend pad;
+            std::string error;
+
+            t.IsFalse(pad.loadScriptText("at 0 none\nwait_u32 0x10 == 1\n", &error), "timed wait should fail");
+            t.IsTrue(error.find("read-count") != std::string::npos, "timed wait failure should explain mode");
+
+            t.IsFalse(pad.loadScriptText("wait_u32 0x10 approx 1\n1 none\n", &error), "unknown wait comparison should fail");
+            t.IsTrue(error.find("unknown wait_u32 comparison") != std::string::npos, "comparison failure should explain itself");
+        });
         tc.Run("timed pad script frames use elapsed seconds", [](TestCase &t)
         {
             PSPadBackend pad;

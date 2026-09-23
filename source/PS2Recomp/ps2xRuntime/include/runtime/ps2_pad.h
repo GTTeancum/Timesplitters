@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,16 @@ class PSPadBackend
 public:
     PSPadBackend() = default;
     ~PSPadBackend() = default;
+
+    enum class ScriptCompare
+    {
+        Equal,
+        NotEqual,
+        Less,
+        LessOrEqual,
+        Greater,
+        GreaterOrEqual,
+    };
 
     // Optional keyboard sticks for native PC games; D-pad remains on arrow keys.
     void setKeyboardAnalogEnabled(bool enabled) { m_keyboardAnalogEnabled = enabled; }
@@ -24,6 +35,7 @@ public:
     bool loadScriptFile(const std::string &path, std::string *error = nullptr);
     bool loadScriptText(const std::string &text, std::string *error = nullptr);
     void setScriptTimeScale(double scale);
+    void setScriptU32Reader(std::function<uint32_t(uint32_t)> reader);
     void clearScript();
     bool scriptActive() const { return !m_script.empty(); }
     bool scriptExhausted() const { return m_scriptExhausted; }
@@ -34,6 +46,13 @@ public:
 private:
     struct ScriptFrame
     {
+        enum class Kind
+        {
+            Frame,
+            WaitU32,
+        };
+
+        Kind kind = Kind::Frame;
         uint32_t reads = 0;
         double atSeconds = 0.0;
         uint16_t buttons = 0xFFFFu;
@@ -41,6 +60,9 @@ private:
         uint8_t ly = 0x80u;
         uint8_t rx = 0x80u;
         uint8_t ry = 0x80u;
+        uint32_t waitAddress = 0;
+        ScriptCompare waitCompare = ScriptCompare::Equal;
+        uint32_t waitValue = 0;
     };
 
     std::vector<ScriptFrame> m_script;
@@ -51,6 +73,7 @@ private:
     bool m_scriptTimed = false;
     double m_scriptTimeScale = 1.0;
     std::chrono::steady_clock::time_point m_scriptStartTime{};
+    std::function<uint32_t(uint32_t)> m_scriptU32Reader;
     bool m_keyboardAnalogEnabled = false;
 };
 

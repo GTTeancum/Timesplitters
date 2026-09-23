@@ -108,6 +108,56 @@ namespace
         return value;
     }
 
+    uint32_t parseU32Value(const std::string &text, size_t lineNumber, const char *label)
+    {
+        size_t consumed = 0;
+        const unsigned long value = std::stoul(text, &consumed, 0);
+        if (consumed != text.size() || value > 0xFFFFFFFFul)
+        {
+            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected " + label + " u32 value");
+        }
+        return static_cast<uint32_t>(value);
+    }
+
+    PSPadBackend::ScriptCompare parseCompare(std::string text, size_t lineNumber)
+    {
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c)
+                       { return static_cast<char>(std::tolower(c)); });
+        if (text == "==" || text == "=" || text == "eq")
+            return PSPadBackend::ScriptCompare::Equal;
+        if (text == "!=" || text == "<>" || text == "ne")
+            return PSPadBackend::ScriptCompare::NotEqual;
+        if (text == "<" || text == "lt")
+            return PSPadBackend::ScriptCompare::Less;
+        if (text == "<=" || text == "le")
+            return PSPadBackend::ScriptCompare::LessOrEqual;
+        if (text == ">" || text == "gt")
+            return PSPadBackend::ScriptCompare::Greater;
+        if (text == ">=" || text == "ge")
+            return PSPadBackend::ScriptCompare::GreaterOrEqual;
+        throw std::runtime_error("line " + std::to_string(lineNumber) + ": unknown wait_u32 comparison '" + text + "'");
+    }
+
+    bool compareU32(uint32_t left, PSPadBackend::ScriptCompare compare, uint32_t right)
+    {
+        switch (compare)
+        {
+        case PSPadBackend::ScriptCompare::Equal:
+            return left == right;
+        case PSPadBackend::ScriptCompare::NotEqual:
+            return left != right;
+        case PSPadBackend::ScriptCompare::Less:
+            return left < right;
+        case PSPadBackend::ScriptCompare::LessOrEqual:
+            return left <= right;
+        case PSPadBackend::ScriptCompare::Greater:
+            return left > right;
+        case PSPadBackend::ScriptCompare::GreaterOrEqual:
+            return left >= right;
+        }
+        return false;
+    }
+
     void clearButton(uint16_t &buttons, uint16_t mask)
     {
         buttons = static_cast<uint16_t>(buttons & ~mask);
@@ -243,14 +293,42 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
             std::transform(marker.begin(), marker.end(), marker.begin(), [](unsigned char c)
                            { return static_cast<char>(std::tolower(c)); });
             const bool lineTimed = marker == "at";
+            const bool lineWaitU32 = marker == "wait_u32";
             if (!modeKnown)
             {
                 modeKnown = true;
                 timed = lineTimed;
             }
-            else if (lineTimed != timed)
+            else if (!lineWaitU32 && lineTimed != timed)
             {
                 throw std::runtime_error("line " + std::to_string(lineNumber) + ": cannot mix timed and read-count pad script frames");
+            }
+            if (lineWaitU32 && timed)
+            {
+                throw std::runtime_error("line " + std::to_string(lineNumber) + ": wait_u32 is only supported in read-count pad scripts");
+            }
+
+            if (lineWaitU32)
+            {
+                std::string addressText;
+                std::string compareText;
+                std::string valueText;
+                if (!(tokens >> addressText >> compareText >> valueText))
+                {
+                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected wait_u32 address comparison value");
+                }
+                std::string extra;
+                if (tokens >> extra)
+                {
+                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields");
+                }
+                ScriptFrame frame{};
+                frame.kind = ScriptFrame::Kind::WaitU32;
+                frame.waitAddress = parseU32Value(addressText, lineNumber, "address");
+                frame.waitCompare = parseCompare(compareText, lineNumber);
+                frame.waitValue = parseU32Value(valueText, lineNumber, "comparison");
+                frames.push_back(frame);
+                continue;
             }
 
             std::string secondsText;
@@ -355,6 +433,11 @@ void PSPadBackend::setScriptTimeScale(double scale)
     m_scriptTimeScale = scale;
 }
 
+void PSPadBackend::setScriptU32Reader(std::function<uint32_t(uint32_t)> reader)
+{
+    m_scriptU32Reader = std::move(reader);
+}
+
 void PSPadBackend::clearScript()
 {
     m_script.clear();
@@ -365,6 +448,7 @@ void PSPadBackend::clearScript()
     m_scriptTimed = false;
     m_scriptTimeScale = 1.0;
     m_scriptStartTime = {};
+    m_scriptU32Reader = {};
 }
 
 uint8_t PSPadBackend::analogAxisFromUnit(float value)
@@ -437,7 +521,24 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
             return true;
         }
 
-        const ScriptFrame &frame = m_script[std::min(m_scriptIndex, m_script.size() - 1)];
+        while (m_scriptIndex < m_script.size() && m_script[m_scriptIndex].kind == ScriptFrame::Kind::WaitU32)
+        {
+            const ScriptFrame &wait = m_script[m_scriptIndex];
+            if (!m_scriptU32Reader || !compareU32(m_scriptU32Reader(wait.waitAddress), wait.waitCompare, wait.waitValue))
+            {
+                return true;
+            }
+            ++m_scriptIndex;
+            m_scriptFrameRead = 0;
+        }
+
+        if (m_scriptIndex >= m_script.size())
+        {
+            m_scriptExhausted = true;
+            return true;
+        }
+
+        const ScriptFrame &frame = m_script[m_scriptIndex];
         writeScriptFrame(frame);
         if (!m_scriptExhausted && ++m_scriptFrameRead >= frame.reads)
         {

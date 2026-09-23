@@ -65,6 +65,7 @@ int main(int argc, char** argv) {
                 std::memcpy(&value, rt.memory().getRDRAM() + addr, sizeof(value));
             return value;
         };
+        rt.padBackend().setScriptU32Reader(readU32);
         auto logOriginalState = [&](const char *tag, double elapsed) {
             const uint32_t player = readU32(0x003afa20u);
             uint32_t prop = 0;

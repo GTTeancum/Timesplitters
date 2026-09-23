@@ -1,0 +1,37 @@
+# Windows crash-hunt probe: read-count script with a frontend RAM gate.
+# This is process-local input only; wait_u32 observes guest RAM and does not mutate it.
+# Target gate observed in TS06 Windows Story replay:
+#   front0.f1c at 0x00352dbc changed from 0 to 1 while active_characters stayed 0.
+#
+# Format:
+#   <reads> <buttons> [lx ly rx ry]
+#   wait_u32 <guest-address> <comparison> <value>
+
+40 none
+2 start
+8 none
+2 cross
+10 none
+2 cross
+12 none
+2 cross
+6 none
+2 cross
+4 none
+2 up
+2 none
+2 cross
+10 none
+2 cross
+20 none
+2 cross
+20 none
+2 cross
+wait_u32 0x00352dbc == 1
+5 none
+4 cross
+40 none
+4 cross
+40 none
+4 cross
+120 none

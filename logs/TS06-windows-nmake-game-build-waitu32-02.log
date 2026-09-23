@@ -1,0 +1,2043 @@
+Warning: NMake does not support parallel builds. Ignoring parallel build command line option.
+[  1%] Built target ps2_iop
+[  1%] Built target glfw
+[  1%] Built target raylib
+[  2%] Built target ps2_runtime
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/packfileSeek_0x21a150.cpp.obj
+packfileSeek_0x21a150.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padAddTilePads_0x2650e8.cpp.obj
+padAddTilePads_0x2650e8.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padCheckLinks_0x265828.cpp.obj
+padCheckLinks_0x265828.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padDisplayPads_0x264df0.cpp.obj
+padDisplayPads_0x264df0.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padDrawLineGfx_0x2645e0.cpp.obj
+padDrawLineGfx_0x2645e0.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padEnd_0x2645a0.cpp.obj
+padEnd_0x2645a0.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padFileInName_0x264058.cpp.obj
+padFileInName_0x264058.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padFileOutName_0x2640e8.cpp.obj
+padFileOutName_0x2640e8.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padFlagsToString_0x264c38.cpp.obj
+padFlagsToString_0x264c38.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padGetLinkNum_0x264978.cpp.obj
+padGetLinkNum_0x264978.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padGfx_0x264df8.cpp.obj
+padGfx_0x264df8.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padInfoGfx_0x264d00.cpp.obj
+padInfoGfx_0x264d00.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padLinkTileSetPads_0x264fd0.cpp.obj
+padLinkTileSetPads_0x264fd0.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padLoad_0x265558.cpp.obj
+padLoad_0x265558.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padMake_0x264128.cpp.obj
+padMake_0x264128.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padNumFromExtref_0x264e00.cpp.obj
+padNumFromExtref_0x264e00.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padOneLinkGfx_0x2645e8.cpp.obj
+padOneLinkGfx_0x2645e8.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padOnePadGfx_0x2645d8.cpp.obj
+padOnePadGfx_0x2645d8.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padOnePadLabelExtrefGfx_0x2645c8.cpp.obj
+padOnePadLabelExtrefGfx_0x2645c8.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padOnePadLabelGfx_0x2645c0.cpp.obj
+padOnePadLabelGfx_0x2645c0.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padPadExtrefGfx_0x2645d0.cpp.obj
+padPadExtrefGfx_0x2645d0.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padPreload_0x264130.cpp.obj
+padPreload_0x264130.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padReset_0x264248.cpp.obj
+padReset_0x264248.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padRestart_0x264200.cpp.obj
+padRestart_0x264200.cpp
+[  2%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padSave_0x2658f0.cpp.obj
+padSave_0x2658f0.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padSetRoomNums_0x265790.cpp.obj
+padSetRoomNums_0x265790.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padTogglePadFlag_0x264cd8.cpp.obj
+padTogglePadFlag_0x264cd8.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padact_pageDraw_0x24f418.cpp.obj
+padact_pageDraw_0x24f418.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padact_pageTick_0x24f520.cpp.obj
+padact_pageTick_0x24f520.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/padvalid_0x264ac8.cpp.obj
+padvalid_0x264ac8.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pageIn_0x2301c0.cpp.obj
+pageIn_0x2301c0.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pageOut_0x230148.cpp.obj
+pageOut_0x230148.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pageRoot_0x230140.cpp.obj
+pageRoot_0x230140.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pageSetTitle_0x2301f8.cpp.obj
+pageSetTitle_0x2301f8.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pageSet_0x230218.cpp.obj
+pageSet_0x230218.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pagebackgroundGfx_0x230688.cpp.obj
+pagebackgroundGfx_0x230688.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pagebackgroundGfx_0x24c670.cpp.obj
+pagebackgroundGfx_0x24c670.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pagedrawbg_0x206578.cpp.obj
+pagedrawbg_0x206578.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/partColour_0x2604e0.cpp.obj
+partColour_0x2604e0.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/partGfx_0x260ae0.cpp.obj
+partGfx_0x260ae0.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/partPrecalcDmaData_0x25f408.cpp.obj
+partPrecalcDmaData_0x25f408.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/partPrecalcVifData_0x25eec0.cpp.obj
+partPrecalcVifData_0x25eec0.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/partRelocate_0x263078.cpp.obj
+partRelocate_0x263078.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/partSetTextureOffset_0x260128.cpp.obj
+partSetTextureOffset_0x260128.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/partTransform_0x260258.cpp.obj
+partTransform_0x260258.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleBurstGfx_0x29fe20.cpp.obj
+particleBurstGfx_0x29fe20.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleBurstTick_0x29b298.cpp.obj
+particleBurstTick_0x29b298.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleEnd_0x296a90.cpp.obj
+particleEnd_0x296a90.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleExplosionGfx_0x29d558.cpp.obj
+particleExplosionGfx_0x29d558.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleExplosionTick_0x29d530.cpp.obj
+particleExplosionTick_0x29d530.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleFree_0x296b08.cpp.obj
+particleFree_0x296b08.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGetClosestExplosion_0x2a1e98.cpp.obj
+particleGetClosestExplosion_0x2a1e98.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGetNum_0x2968a0.cpp.obj
+particleGetNum_0x2968a0.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGetScale_0x296838.cpp.obj
+particleGetScale_0x296838.cpp
+[  3%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGfx_0x2a1908.cpp.obj
+particleGfx_0x2a1908.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGlassGfx_0x2a1290.cpp.obj
+particleGlassGfx_0x2a1290.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGlassTick_0x29b890.cpp.obj
+particleGlassTick_0x29b890.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGroupIsVisible_0x2a18a0.cpp.obj
+particleGroupIsVisible_0x2a18a0.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleGunSparkGroupGfx_0x29c810.cpp.obj
+particleGunSparkGroupGfx_0x29c810.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleManualGfx_0x2a0728.cpp.obj
+particleManualGfx_0x2a0728.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleManualTick_0x29b290.cpp.obj
+particleManualTick_0x29b290.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewBurst_0x2983e0.cpp.obj
+particleNewBurst_0x2983e0.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewExplosion_0x2978c0.cpp.obj
+particleNewExplosion_0x2978c0.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewGlass_0x299970.cpp.obj
+particleNewGlass_0x299970.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewGunSparks_0x2971e0.cpp.obj
+particleNewGunSparks_0x2971e0.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewManual_0x298328.cpp.obj
+particleNewManual_0x298328.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewPulse_0x297fa8.cpp.obj
+particleNewPulse_0x297fa8.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewRay_0x298100.cpp.obj
+particleNewRay_0x298100.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewSmoke_0x297e30.cpp.obj
+particleNewSmoke_0x297e30.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewSparks_0x296ec0.cpp.obj
+particleNewSparks_0x296ec0.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewSpriteSparks_0x297598.cpp.obj
+particleNewSpriteSparks_0x297598.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewStream_0x298778.cpp.obj
+particleNewStream_0x298778.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewTracer_0x2981b0.cpp.obj
+particleNewTracer_0x2981b0.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleNewTrail_0x298260.cpp.obj
+particleNewTrail_0x298260.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particlePreload_0x2968d8.cpp.obj
+particlePreload_0x2968d8.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particlePulseGfx_0x29e968.cpp.obj
+particlePulseGfx_0x29e968.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleRayGfx_0x29efb8.cpp.obj
+particleRayGfx_0x29efb8.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleRender_0x2a0f68.cpp.obj
+particleRender_0x2a0f68.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleReset_0x296a68.cpp.obj
+particleReset_0x296a68.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleRestart_0x296928.cpp.obj
+particleRestart_0x296928.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleSetViewmask_0x296e40.cpp.obj
+particleSetViewmask_0x296e40.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleSmokeGfx_0x29dc40.cpp.obj
+particleSmokeGfx_0x29dc40.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleSparkGroupGfx_0x29c078.cpp.obj
+particleSparkGroupGfx_0x29c078.cpp
+[  4%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleSpriteSparkGroupGfx_0x29ce70.cpp.obj
+particleSpriteSparkGroupGfx_0x29ce70.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleStreamGfx_0x2a02d0.cpp.obj
+particleStreamGfx_0x2a02d0.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleStreamTick_0x29b410.cpp.obj
+particleStreamTick_0x29b410.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleTick_0x29bc58.cpp.obj
+particleTick_0x29bc58.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleTracerGfx_0x29e2c8.cpp.obj
+particleTracerGfx_0x29e2c8.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleTrailGfx_0x29f5e8.cpp.obj
+particleTrailGfx_0x29f5e8.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleTrailTick_0x29ae88.cpp.obj
+particleTrailTick_0x29ae88.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleUpdateGroundHeight_0x296eb0.cpp.obj
+particleUpdateGroundHeight_0x296eb0.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleUpdatePos_0x296e88.cpp.obj
+particleUpdatePos_0x296e88.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleUpdateRate_0x296e50.cpp.obj
+particleUpdateRate_0x296e50.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particledebug_0x296c40.cpp.obj
+particledebug_0x296c40.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleprintlist_0x296aa8.cpp.obj
+particleprintlist_0x296aa8.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/particleprintsizes_0x296ad8.cpp.obj
+particleprintsizes_0x296ad8.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pathPosUpdateAbs_0x2756d0.cpp.obj
+pathPosUpdateAbs_0x2756d0.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pathPosUpdateRel_0x275b88.cpp.obj
+pathPosUpdateRel_0x275b88.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pause_0x21a2f0.cpp.obj
+pause_0x21a2f0.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pause_pageGfx_0x2110c0.cpp.obj
+pause_pageGfx_0x2110c0.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pause_pageTick_0x2110c8.cpp.obj
+pause_pageTick_0x2110c8.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupGetExtraHeight_0x273038.cpp.obj
+pickupGetExtraHeight_0x273038.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupPropDelete_0x273618.cpp.obj
+pickupPropDelete_0x273618.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupPropTick_0x26a330.cpp.obj
+pickupPropTick_0x26a330.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupposAdd_0x272ac0.cpp.obj
+pickupposAdd_0x272ac0.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupposGfx_0x272cc8.cpp.obj
+pickupposGfx_0x272cc8.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupposPreload_0x272a78.cpp.obj
+pickupposPreload_0x272a78.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupposReset_0x272ab8.cpp.obj
+pickupposReset_0x272ab8.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pickupposRestart_0x272a88.cpp.obj
+pickupposRestart_0x272a88.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/planetspawn2PropTick_0x27bc00.cpp.obj
+planetspawn2PropTick_0x27bc00.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/planetspawnPropTick_0x27b9e0.cpp.obj
+planetspawnPropTick_0x27b9e0.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerAutoAimCalc_0x280780.cpp.obj
+playerAutoAimCalc_0x280780.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerAutoAimRestart_0x280770.cpp.obj
+playerAutoAimRestart_0x280770.cpp
+[  5%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerAutoAimTick_0x280858.cpp.obj
+playerAutoAimTick_0x280858.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerCampingDetection_0x2cd7f8.cpp.obj
+playerCampingDetection_0x2cd7f8.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerClearGuns_0x280018.cpp.obj
+playerClearGuns_0x280018.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerDeathMessage_0x2803c8.cpp.obj
+playerDeathMessage_0x2803c8.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerDeathView_0x280b60.cpp.obj
+playerDeathView_0x280b60.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerDie_0x280488.cpp.obj
+playerDie_0x280488.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerDirtyPosReset_0x280100.cpp.obj
+playerDirtyPosReset_0x280100.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerEnd_0x284e30.cpp.obj
+playerEnd_0x284e30.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerFireShots_0x28e360.cpp.obj
+playerFireShots_0x28e360.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerFrustrumGfx_0x283e80.cpp.obj
+playerFrustrumGfx_0x283e80.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerHitPosGfx_0x283e88.cpp.obj
+playerHitPosGfx_0x283e88.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerMessage_0x280690.cpp.obj
+playerMessage_0x280690.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerOnGroundDie_0x280588.cpp.obj
+playerOnGroundDie_0x280588.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerPreload_0x27f4d8.cpp.obj
+playerPreload_0x27f4d8.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerReset_0x27ff80.cpp.obj
+playerReset_0x27ff80.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerRespawn_0x280178.cpp.obj
+playerRespawn_0x280178.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerRestart_0x27f808.cpp.obj
+playerRestart_0x27f808.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerSetControls_0x27f5a8.cpp.obj
+playerSetControls_0x27f5a8.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerSetStartGun_0x27f098.cpp.obj
+playerSetStartGun_0x27f098.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerSetStartPos_0x27f138.cpp.obj
+playerSetStartPos_0x27f138.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerSetWindow_0x27efb0.cpp.obj
+playerSetWindow_0x27efb0.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerTick_0x281248.cpp.obj
+playerTick_0x281248.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerprefsNew_0x21fbf0.cpp.obj
+playerprefsNew_0x21fbf0.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerprintpos_0x27efa8.cpp.obj
+playerprintpos_0x27efa8.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/playerselectanim_0x283f60.cpp.obj
+playerselectanim_0x283f60.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/polePropTick_0x27a4d8.cpp.obj
+polePropTick_0x27a4d8.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pow_0x2d7628.cpp.obj
+pow_0x2d7628.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/powf_0x2d7e90.cpp.obj
+powf_0x2d7e90.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/prefs_pageGfx_0x20f988.cpp.obj
+prefs_pageGfx_0x20f988.cpp
+[  6%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/prefs_pageTick_0x20f990.cpp.obj
+prefs_pageTick_0x20f990.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/prefs_vars_0x20f8d8.cpp.obj
+prefs_vars_0x20f8d8.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadAddFile_0x21c2d8.cpp.obj
+preloadAddFile_0x21c2d8.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadAddOb_0x21c350.cpp.obj
+preloadAddOb_0x21c350.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadAddTexName_0x21c3e8.cpp.obj
+preloadAddTexName_0x21c3e8.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadAddTexNum_0x21c480.cpp.obj
+preloadAddTexNum_0x21c480.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadExec_0x21c728.cpp.obj
+preloadExec_0x21c728.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadGetFile_0x21c500.cpp.obj
+preloadGetFile_0x21c500.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadGetOb_0x21c598.cpp.obj
+preloadGetOb_0x21c598.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadGetTexName_0x21c630.cpp.obj
+preloadGetTexName_0x21c630.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadGetTexNum_0x21c6c8.cpp.obj
+preloadGetTexNum_0x21c6c8.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadInsert_0x21c240.cpp.obj
+preloadInsert_0x21c240.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadPass2AddTexNum_0x21c8d0.cpp.obj
+preloadPass2AddTexNum_0x21c8d0.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadPass2Exec_0x21c908.cpp.obj
+preloadPass2Exec_0x21c908.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadPass2Insert_0x21c840.cpp.obj
+preloadPass2Insert_0x21c840.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/preloadReset_0x21c1f8.cpp.obj
+preloadReset_0x21c1f8.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/print_0x2d04b0.cpp.obj
+print_0x2d04b0.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/printf_0x2e5720.cpp.obj
+printf_0x2e5720.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/printfloat_0x2d1640.cpp.obj
+printfloat_0x2d1640.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/printpadinfo_0x2645f0.cpp.obj
+printpadinfo_0x2645f0.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileEnd_0x2b6288.cpp.obj
+profileEnd_0x2b6288.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileFinish_0x2b6300.cpp.obj
+profileFinish_0x2b6300.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileGfx_0x2b6280.cpp.obj
+profileGfx_0x2b6280.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileMake_0x2b5fe0.cpp.obj
+profileMake_0x2b5fe0.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileReset_0x2b6020.cpp.obj
+profileReset_0x2b6020.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileRestart_0x2b5fe8.cpp.obj
+profileRestart_0x2b5fe8.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileSimpleTimeBar_0x2b6058.cpp.obj
+profileSimpleTimeBar_0x2b6058.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileStartTiming_0x2b6290.cpp.obj
+profileStartTiming_0x2b6290.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileStart_0x2b62c0.cpp.obj
+profileStart_0x2b62c0.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileStopTiming_0x2b6298.cpp.obj
+profileStopTiming_0x2b6298.cpp
+[  7%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileTick_0x2b6028.cpp.obj
+profileTick_0x2b6028.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileTimeBar_0x2b6460.cpp.obj
+profileTimeBar_0x2b6460.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileTimeEnd_0x2b63c8.cpp.obj
+profileTimeEnd_0x2b63c8.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileTimeGet_0x2b62a0.cpp.obj
+profileTimeGet_0x2b62a0.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/profileTimeStart_0x2b6320.cpp.obj
+profileTimeStart_0x2b6320.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propAddPreLoad_0x267220.cpp.obj
+propAddPreLoad_0x267220.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propAllBallelsBlownUp_0x2756b0.cpp.obj
+propAllBallelsBlownUp_0x2756b0.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propAllocWallMem_0x266da8.cpp.obj
+propAllocWallMem_0x266da8.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propAllocateWallsFloors_0x2682d0.cpp.obj
+propAllocateWallsFloors_0x2682d0.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propAttachUpdate_0x26ff10.cpp.obj
+propAttachUpdate_0x26ff10.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propCalcRooms_0x269b30.cpp.obj
+propCalcRooms_0x269b30.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propCalculateCentrePos_0x267f08.cpp.obj
+propCalculateCentrePos_0x267f08.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propCalculateFloors_0x2675b8.cpp.obj
+propCalculateFloors_0x2675b8.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propCalculateWallsFloorsOriginal_0x2677a8.cpp.obj
+propCalculateWallsFloorsOriginal_0x2677a8.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propCalculateWalls_0x267338.cpp.obj
+propCalculateWalls_0x267338.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propChrCanPickupBag_0x269f70.cpp.obj
+propChrCanPickupBag_0x269f70.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propControlPanelActivated_0x266d58.cpp.obj
+propControlPanelActivated_0x266d58.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDamage_0x271998.cpp.obj
+propDamage_0x271998.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDeleteCorpse_0x273a80.cpp.obj
+propDeleteCorpse_0x273a80.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDelete_0x269340.cpp.obj
+propDelete_0x269340.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDoCollisionsCanNotPush_0x2684f8.cpp.obj
+propDoCollisionsCanNotPush_0x2684f8.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDoCollisionsCanPush_0x268518.cpp.obj
+propDoCollisionsCanPush_0x268518.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDropBagOnDrop_0x26b0f0.cpp.obj
+propDropBagOnDrop_0x26b0f0.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDrop_0x26eee8.cpp.obj
+propDrop_0x26eee8.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propDump_0x266e98.cpp.obj
+propDump_0x266e98.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditChange_0x27c400.cpp.obj
+propEditChange_0x27c400.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditCreate_0x27c1c8.cpp.obj
+propEditCreate_0x27c1c8.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditDelete_0x27c1c0.cpp.obj
+propEditDelete_0x27c1c0.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditGfx_0x27c4a0.cpp.obj
+propEditGfx_0x27c4a0.cpp
+[  8%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditMove_0x27c2b0.cpp.obj
+propEditMove_0x27c2b0.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditSave_0x269078.cpp.obj
+propEditSave_0x269078.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditValidPropnum_0x27c180.cpp.obj
+propEditValidPropnum_0x27c180.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEditable_0x27c178.cpp.obj
+propEditable_0x27c178.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propEnd_0x267168.cpp.obj
+propEnd_0x267168.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propFileInName_0x27c138.cpp.obj
+propFileInName_0x27c138.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propFindFloorHeightRoom_0x2714e0.cpp.obj
+propFindFloorHeightRoom_0x2714e0.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGetAimProp_0x267240.cpp.obj
+propGetAimProp_0x267240.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGetName_0x2671a0.cpp.obj
+propGetName_0x2671a0.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGetNewExtref_0x2692f0.cpp.obj
+propGetNewExtref_0x2692f0.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGetNext_0x270358.cpp.obj
+propGetNext_0x270358.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGetNum_0x2703f8.cpp.obj
+propGetNum_0x2703f8.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGetOriginalFloors_0x266e70.cpp.obj
+propGetOriginalFloors_0x266e70.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGetOriginalWalls_0x266e48.cpp.obj
+propGetOriginalWalls_0x266e48.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGfxRoomPreproc_0x26fd40.cpp.obj
+propGfxRoomPreproc_0x26fd40.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propGfxRoom_0x26fe08.cpp.obj
+propGfxRoom_0x26fe08.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propInPropList_0x272918.cpp.obj
+propInPropList_0x272918.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propKill_0x2728d0.cpp.obj
+propKill_0x2728d0.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propLineTestRoom_0x270430.cpp.obj
+propLineTestRoom_0x270430.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propMakeVisible_0x273ac0.cpp.obj
+propMakeVisible_0x273ac0.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propMoveTestRoom_0x270e08.cpp.obj
+propMoveTestRoom_0x270e08.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propMovingPropInRange_0x274240.cpp.obj
+propMovingPropInRange_0x274240.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propNeedsBoundsCalculating_0x2684d8.cpp.obj
+propNeedsBoundsCalculating_0x2684d8.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propNeedsWallsFloorsCalculating_0x2684b8.cpp.obj
+propNeedsWallsFloorsCalculating_0x2684b8.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propNewCorpse_0x273658.cpp.obj
+propNewCorpse_0x273658.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propNewPickupOnPadExtref_0x272960.cpp.obj
+propNewPickupOnPadExtref_0x272960.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propNewPickup_0x2730e0.cpp.obj
+propNewPickup_0x2730e0.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propNew_0x2686f8.cpp.obj
+propNew_0x2686f8.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propNumBallelsNotBlownUp_0x275648.cpp.obj
+propNumBallelsNotBlownUp_0x275648.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propPutPropInCollisionList_0x268538.cpp.obj
+propPutPropInCollisionList_0x268538.cpp
+[  9%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propRemovePropFromCollisionList_0x2693c8.cpp.obj
+propRemovePropFromCollisionList_0x2693c8.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propResetWallMem_0x266d98.cpp.obj
+propResetWallMem_0x266d98.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propReset_0x267020.cpp.obj
+propReset_0x267020.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propRestartWallMem_0x266d60.cpp.obj
+propRestartWallMem_0x266d60.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propRestart_0x266ec0.cpp.obj
+propRestart_0x266ec0.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propSetAttached_0x2702d8.cpp.obj
+propSetAttached_0x2702d8.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propSetHandler_0x2671e0.cpp.obj
+propSetHandler_0x2671e0.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propSetMtxRoll_0x270318.cpp.obj
+propSetMtxRoll_0x270318.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propSetOb_0x2671c0.cpp.obj
+propSetOb_0x2671c0.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propSetRoom_0x269c88.cpp.obj
+propSetRoom_0x269c88.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propSwipeTest_0x271650.cpp.obj
+propSwipeTest_0x271650.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propTickAfter_0x26f9e8.cpp.obj
+propTickAfter_0x26f9e8.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propTickBefore_0x26f500.cpp.obj
+propTickBefore_0x26f500.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propTickPlayer_0x26fc20.cpp.obj
+propTickPlayer_0x26fc20.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propUnattach_0x26f460.cpp.obj
+propUnattach_0x26f460.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propUpdateRooms_0x269ef8.cpp.obj
+propUpdateRooms_0x269ef8.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/propUpdate_0x269d78.cpp.obj
+propUpdate_0x269d78.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__Balloc_0x2ebea0.cpp.obj
+ps2__Balloc_0x2ebea0.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__Bfree_0x2ebf48.cpp.obj
+ps2__Bfree_0x2ebf48.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__Cdvd_cbLoop_0x2ddf38.cpp.obj
+ps2__Cdvd_cbLoop_0x2ddf38.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__DisableDmac_0x2cfe90.cpp.obj
+ps2__DisableDmac_0x2cfe90.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__DisableIntc_0x2cfe70.cpp.obj
+ps2__DisableIntc_0x2cfe70.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__EnableDmac_0x2cfe80.cpp.obj
+ps2__EnableDmac_0x2cfe80.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__EnableIntc_0x2cfe60.cpp.obj
+ps2__EnableIntc_0x2cfe60.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__ReleaseAlarm_0x2cfeb0.cpp.obj
+ps2__ReleaseAlarm_0x2cfeb0.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2__SetAlarm_0x2cfea0.cpp.obj
+ps2__SetAlarm_0x2cfea0.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___assert_0x2e46a8.cpp.obj
+ps2___assert_0x2e46a8.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___divdi3_0x2e1350.cpp.obj
+ps2___divdi3_0x2e1350.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___do_global_ctors_0x2e1280.cpp.obj
+ps2___do_global_ctors_0x2e1280.cpp
+[ 10%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___do_global_dtors_0x2e1228.cpp.obj
+ps2___do_global_dtors_0x2e1228.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___errno_0x2e4718.cpp.obj
+ps2___errno_0x2e4718.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___fixdfdi_0x2eef88.cpp.obj
+ps2___fixdfdi_0x2eef88.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___fixunsdfdi_0x2e1a70.cpp.obj
+ps2___fixunsdfdi_0x2e1a70.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___floatdidf_0x2e1b60.cpp.obj
+ps2___floatdidf_0x2e1b60.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___fpcmp_parts_d_0x2e3650.cpp.obj
+ps2___fpcmp_parts_d_0x2e3650.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___fpcmp_parts_f_0x2e4258.cpp.obj
+ps2___fpcmp_parts_f_0x2e4258.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_acosf_0x2d9818.cpp.obj
+ps2___ieee754_acosf_0x2d9818.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_asinf_0x2d9c48.cpp.obj
+ps2___ieee754_asinf_0x2d9c48.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_atan2_0x2d84b0.cpp.obj
+ps2___ieee754_atan2_0x2d84b0.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_atan2f_0x2d9fe8.cpp.obj
+ps2___ieee754_atan2f_0x2d9fe8.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_pow_0x2d87e8.cpp.obj
+ps2___ieee754_pow_0x2d87e8.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_powf_0x2da2d0.cpp.obj
+ps2___ieee754_powf_0x2da2d0.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_rem_pio2f_0x2dab60.cpp.obj
+ps2___ieee754_rem_pio2f_0x2dab60.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_sqrt_0x2d9510.cpp.obj
+ps2___ieee754_sqrt_0x2d9510.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___ieee754_sqrtf_0x2daf40.cpp.obj
+ps2___ieee754_sqrtf_0x2daf40.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___kernel_cosf_0x2db078.cpp.obj
+ps2___kernel_cosf_0x2db078.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___kernel_rem_pio2f_0x2db1d0.cpp.obj
+ps2___kernel_rem_pio2f_0x2db1d0.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___kernel_sinf_0x2dbb20.cpp.obj
+ps2___kernel_sinf_0x2dbb20.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___kernel_tanf_0x2dbc28.cpp.obj
+ps2___kernel_tanf_0x2dbc28.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___main_0x2e1330.cpp.obj
+ps2___main_0x2e1330.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___make_dp_0x2e39e0.cpp.obj
+ps2___make_dp_0x2e39e0.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___make_fp_0x2e45d8.cpp.obj
+ps2___make_fp_0x2e45d8.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___malloc_lock_0x2e56d0.cpp.obj
+ps2___malloc_lock_0x2e56d0.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___malloc_unlock_0x2e56d8.cpp.obj
+ps2___malloc_unlock_0x2e56d8.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___mcmp_0x2ec800.cpp.obj
+ps2___mcmp_0x2ec800.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___mdiff_0x2ec868.cpp.obj
+ps2___mdiff_0x2ec868.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___moddi3_0x2e1bf8.cpp.obj
+ps2___moddi3_0x2e1bf8.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___muldi3_0x2e4648.cpp.obj
+ps2___muldi3_0x2e4648.cpp
+[ 11%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___negdf2_0x2e39a8.cpp.obj
+ps2___negdf2_0x2e39a8.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___negsf2_0x2e45a0.cpp.obj
+ps2___negsf2_0x2e45a0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___pack_d_0x2e2d70.cpp.obj
+ps2___pack_d_0x2e2d70.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___pack_f_0x2e3a68.cpp.obj
+ps2___pack_f_0x2e3a68.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sbprintf_0x2e67d8.cpp.obj
+ps2___sbprintf_0x2e67d8.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sbprintf_0x2e7520.cpp.obj
+ps2___sbprintf_0x2e7520.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sccl_0x2e9900.cpp.obj
+ps2___sccl_0x2e9900.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sclose_0x2e5a88.cpp.obj
+ps2___sclose_0x2e5a88.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sfmoreglue_0x2e4780.cpp.obj
+ps2___sfmoreglue_0x2e4780.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sfp_0x2e47f0.cpp.obj
+ps2___sfp_0x2e47f0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sfvwrite_0x2eb708.cpp.obj
+ps2___sfvwrite_0x2eb708.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sigtramp_0x2ed428.cpp.obj
+ps2___sigtramp_0x2ed428.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sigtramp_r_0x2ed2f0.cpp.obj
+ps2___sigtramp_r_0x2ed2f0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sinit_0x2e48f0.cpp.obj
+ps2___sinit_0x2e48f0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___smakebuf_0x2ebc30.cpp.obj
+ps2___smakebuf_0x2ebc30.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sprint_0x2e6790.cpp.obj
+ps2___sprint_0x2e6790.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sprint_0x2e74d8.cpp.obj
+ps2___sprint_0x2e74d8.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sread_0x2e5938.cpp.obj
+ps2___sread_0x2e5938.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___srefill_0x2ecf40.cpp.obj
+ps2___srefill_0x2ecf40.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___sseek_0x2e5a20.cpp.obj
+ps2___sseek_0x2e5a20.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___submore_0x2ee680.cpp.obj
+ps2___submore_0x2ee680.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___svfscanf_0x2e8df8.cpp.obj
+ps2___svfscanf_0x2e8df8.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___swrite_0x2e59a0.cpp.obj
+ps2___swrite_0x2e59a0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___swsetup_0x2e9ac0.cpp.obj
+ps2___swsetup_0x2e9ac0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___udivdi3_0x2e2260.cpp.obj
+ps2___udivdi3_0x2e2260.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___umoddi3_0x2e2830.cpp.obj
+ps2___umoddi3_0x2e2830.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___unpack_d_0x2e2ea0.cpp.obj
+ps2___unpack_d_0x2e2ea0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2___unpack_f_0x2e3b78.cpp.obj
+ps2___unpack_f_0x2e3b78.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ps2_main_0x2013b0.cpp.obj
+ps2_main_0x2013b0.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pubsignDamage_0x2796f8.cpp.obj
+pubsignDamage_0x2796f8.cpp
+[ 12%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/pubsignPropTick_0x279bf0.cpp.obj
+pubsignPropTick_0x279bf0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/putnum_0x2d08a0.cpp.obj
+putnum_0x2d08a0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quadRenderAligned_0x2aaff8.cpp.obj
+quadRenderAligned_0x2aaff8.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quaternionInvert_0x2b4780.cpp.obj
+quaternionInvert_0x2b4780.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quaternionLerp_0x2b4608.cpp.obj
+quaternionLerp_0x2b4608.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quaternionMul_0x2b4678.cpp.obj
+quaternionMul_0x2b4678.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quaternionNormalise_0x2b47b0.cpp.obj
+quaternionNormalise_0x2b47b0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quaternionSlerp2_0x2b4340.cpp.obj
+quaternionSlerp2_0x2b4340.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quaternionSlerp_0x2b4080.cpp.obj
+quaternionSlerp_0x2b4080.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quaternionToMatrix_0x2b3f90.cpp.obj
+quaternionToMatrix_0x2b3f90.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quitconfirmfunc_0x24ee50.cpp.obj
+quitconfirmfunc_0x24ee50.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/quorem_0x2e9c68.cpp.obj
+quorem_0x2e9c68.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/r_addnewroutes_0x266810.cpp.obj
+r_addnewroutes_0x266810.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/r_addroute_0x2665c8.cpp.obj
+r_addroute_0x2665c8.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/r_calcestcost_0x266768.cpp.obj
+r_calcestcost_0x266768.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/r_calclinkcost_0x2667f0.cpp.obj
+r_calclinkcost_0x2667f0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/r_deleteroute_0x2666c0.cpp.obj
+r_deleteroute_0x2666c0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/r_findroute_0x266680.cpp.obj
+r_findroute_0x266680.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/r_initroutes_0x266570.cpp.obj
+r_initroutes_0x266570.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/raise_0x2ed3a8.cpp.obj
+raise_0x2ed3a8.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/read_0x2d06a0.cpp.obj
+read_0x2d06a0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/reflectionsPropTick_0x278ef8.cpp.obj
+reflectionsPropTick_0x278ef8.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/register_functions.cpp.obj
+register_functions.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/relocateParts_0x262cc0.cpp.obj
+relocateParts_0x262cc0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/remoteGetPivoteOffset_0x2694c0.cpp.obj
+remoteGetPivoteOffset_0x2694c0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/remoteGetPivotePos_0x269508.cpp.obj
+remoteGetPivotePos_0x269508.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/remoteGetStandAngle_0x26c318.cpp.obj
+remoteGetStandAngle_0x26c318.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/remoteGetStandPos_0x26c1c8.cpp.obj
+remoteGetStandPos_0x26c1c8.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/remotePropNew_0x2695c0.cpp.obj
+remotePropNew_0x2695c0.cpp
+[ 13%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/remotePropTick_0x26c440.cpp.obj
+remotePropTick_0x26c440.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/replayReset_0x202d58.cpp.obj
+replayReset_0x202d58.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/replayTick_0x202d90.cpp.obj
+replayTick_0x202d90.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/resetPlayerGunReload_0x291070.cpp.obj
+resetPlayerGunReload_0x291070.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/resetPlayerGun_0x291138.cpp.obj
+resetPlayerGun_0x291138.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/resetchrprops_0x237510.cpp.obj
+resetchrprops_0x237510.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ricochetsfx_0x28a830.cpp.obj
+ricochetsfx_0x28a830.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ringspawnPropTick_0x27bd58.cpp.obj
+ringspawnPropTick_0x27bd58.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rint_0x2dbf40.cpp.obj
+rint_0x2dbf40.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/robotAI_0x2c70e8.cpp.obj
+robotAI_0x2c70e8.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rollmenumake_0x24f208.cpp.obj
+rollmenumake_0x24f208.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/roomlightEnd_0x2a7a38.cpp.obj
+roomlightEnd_0x2a7a38.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/roomlightGetRoomColourIntensity_0x2a7cc8.cpp.obj
+roomlightGetRoomColourIntensity_0x2a7cc8.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/roomlightReset_0x2a7998.cpp.obj
+roomlightReset_0x2a7998.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/roomlightRestart_0x2a7840.cpp.obj
+roomlightRestart_0x2a7840.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/roomlightSet_0x2a7fe8.cpp.obj
+roomlightSet_0x2a7fe8.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/roomlightTick_0x2a7d20.cpp.obj
+roomlightTick_0x2a7d20.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rot2fquat_0x2b3e88.cpp.obj
+rot2fquat_0x2b3e88.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rotateChar_0x236988.cpp.obj
+rotateChar_0x236988.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rotateChr_0x2bc5d0.cpp.obj
+rotateChr_0x2bc5d0.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rotateMiniTile_0x251068.cpp.obj
+rotateMiniTile_0x251068.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rotatespawnPropTick_0x27bc08.cpp.obj
+rotatespawnPropTick_0x27bc08.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rotx2fquat_0x2b3d80.cpp.obj
+rotx2fquat_0x2b3d80.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/roty2fquat_0x2b3dd8.cpp.obj
+roty2fquat_0x2b3dd8.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rotz2fquat_0x2b3e30.cpp.obj
+rotz2fquat_0x2b3e30.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/routeCalc_0x266a40.cpp.obj
+routeCalc_0x266a40.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rtcFormatTime_0x2b3c90.cpp.obj
+rtcFormatTime_0x2b3c90.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/rtcGetTime_0x2b3c50.cpp.obj
+rtcGetTime_0x2b3c50.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sbrk_0x2d0758.cpp.obj
+sbrk_0x2d0758.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scalbn_0x2dc140.cpp.obj
+scalbn_0x2dc140.cpp
+[ 15%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scalbnf_0x2dc610.cpp.obj
+scalbnf_0x2dc610.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scannerPropTick_0x279058.cpp.obj
+scannerPropTick_0x279058.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdBreak_0x2dfce0.cpp.obj
+sceCdBreak_0x2dfce0.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdCallback_0x2dde40.cpp.obj
+sceCdCallback_0x2dde40.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdDiskReady_0x2dfae8.cpp.obj
+sceCdDiskReady_0x2dfae8.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdGetDiskType_0x2dfd98.cpp.obj
+sceCdGetDiskType_0x2dfd98.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdGetError_0x2dfee8.cpp.obj
+sceCdGetError_0x2dfee8.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdGetReadPos_0x2de9f8.cpp.obj
+sceCdGetReadPos_0x2de9f8.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdGetToc_0x2df018.cpp.obj
+sceCdGetToc_0x2df018.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdInitEeCB_0x2de010.cpp.obj
+sceCdInitEeCB_0x2de010.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdInit_0x2df848.cpp.obj
+sceCdInit_0x2df848.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdIntToPos_0x2de268.cpp.obj
+sceCdIntToPos_0x2de268.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdMmode_0x2e0140.cpp.obj
+sceCdMmode_0x2e0140.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdNcmdDiskReady_0x2de960.cpp.obj
+sceCdNcmdDiskReady_0x2de960.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdPause_0x2df4f8.cpp.obj
+sceCdPause_0x2df4f8.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdPosToInt_0x2de330.cpp.obj
+sceCdPosToInt_0x2de330.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdReadChain_0x2dea28.cpp.obj
+sceCdReadChain_0x2dea28.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdReadClock_0x2e0200.cpp.obj
+sceCdReadClock_0x2e0200.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdReadIOPm_0x2deed0.cpp.obj
+sceCdReadIOPm_0x2deed0.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdRead_0x2ded00.cpp.obj
+sceCdRead_0x2ded00.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdSearchFile_0x2de4f0.cpp.obj
+sceCdSearchFile_0x2de4f0.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdSeek_0x2df288.cpp.obj
+sceCdSeek_0x2df288.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStInit_0x2e03e0.cpp.obj
+sceCdStInit_0x2e03e0.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStPause_0x2e0628.cpp.obj
+sceCdStPause_0x2e0628.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStRead_0x2e04b0.cpp.obj
+sceCdStRead_0x2e04b0.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStResume_0x2e0678.cpp.obj
+sceCdStResume_0x2e0678.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStSeek_0x2e0448.cpp.obj
+sceCdStSeek_0x2e0448.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStStart_0x2e0410.cpp.obj
+sceCdStStart_0x2e0410.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStStat_0x2e06d0.cpp.obj
+sceCdStStat_0x2e06d0.cpp
+[ 16%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStStop_0x2e0478.cpp.obj
+sceCdStStop_0x2e0478.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStandby_0x2df370.cpp.obj
+sceCdStandby_0x2df370.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStatus_0x2dfe30.cpp.obj
+sceCdStatus_0x2dfe30.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStop_0x2df430.cpp.obj
+sceCdStop_0x2df430.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdStream_0x2e0718.cpp.obj
+sceCdStream_0x2e0718.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdSyncS_0x2df660.cpp.obj
+sceCdSyncS_0x2df660.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdSync_0x2df5b8.cpp.obj
+sceCdSync_0x2df5b8.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceCdTrayReq_0x2e02f8.cpp.obj
+sceCdTrayReq_0x2e02f8.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceClose_0x2d3668.cpp.obj
+sceClose_0x2d3668.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2Close_0x2d4778.cpp.obj
+sceDeci2Close_0x2d4778.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2ExLock_0x2d4898.cpp.obj
+sceDeci2ExLock_0x2d4898.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2ExRecv_0x2d47f8.cpp.obj
+sceDeci2ExRecv_0x2d47f8.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2ExReqSend_0x2d4868.cpp.obj
+sceDeci2ExReqSend_0x2d4868.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2ExSend_0x2d4830.cpp.obj
+sceDeci2ExSend_0x2d4830.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2ExUnLock_0x2d48c0.cpp.obj
+sceDeci2ExUnLock_0x2d48c0.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2Open_0x2d4730.cpp.obj
+sceDeci2Open_0x2d4730.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2Poll_0x2d47d0.cpp.obj
+sceDeci2Poll_0x2d47d0.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDeci2ReqSend_0x2d47a0.cpp.obj
+sceDeci2ReqSend_0x2d47a0.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaCallback_0x2cfc10.cpp.obj
+sceDmaCallback_0x2cfc10.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaDebug_0x2cf258.cpp.obj
+sceDmaDebug_0x2cf258.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaGetChan_0x2cf150.cpp.obj
+sceDmaGetChan_0x2cf150.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaGetEnv_0x2cf440.cpp.obj
+sceDmaGetEnv_0x2cf440.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaLastSyncTime_0x2cfbc0.cpp.obj
+sceDmaLastSyncTime_0x2cfbc0.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaPause_0x2cfbd0.cpp.obj
+sceDmaPause_0x2cfbd0.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaPutEnv_0x2cf268.cpp.obj
+sceDmaPutEnv_0x2cf268.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaPutStallAddr_0x2cf478.cpp.obj
+sceDmaPutStallAddr_0x2cf478.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaRecvI_0x2cf900.cpp.obj
+sceDmaRecvI_0x2cf900.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaRecvN_0x2cf810.cpp.obj
+sceDmaRecvN_0x2cf810.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaRecv_0x2cf748.cpp.obj
+sceDmaRecv_0x2cf748.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaReset_0x2cf178.cpp.obj
+sceDmaReset_0x2cf178.cpp
+[ 17%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaRestart_0x2cfbf0.cpp.obj
+sceDmaRestart_0x2cfbf0.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaSendI_0x2cf660.cpp.obj
+sceDmaSendI_0x2cf660.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaSendM_0x2cf9f0.cpp.obj
+sceDmaSendM_0x2cf9f0.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaSendN_0x2cf578.cpp.obj
+sceDmaSendN_0x2cf578.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaSend_0x2cf4a0.cpp.obj
+sceDmaSend_0x2cf4a0.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaSyncN_0x2cfb98.cpp.obj
+sceDmaSyncN_0x2cfb98.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaSync_0x2cfa00.cpp.obj
+sceDmaSync_0x2cfa00.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceDmaWatch_0x2cfac8.cpp.obj
+sceDmaWatch_0x2cfac8.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceFsInit_0x2d3418.cpp.obj
+sceFsInit_0x2d3418.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceFsReset_0x2d3500.cpp.obj
+sceFsReset_0x2d3500.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGifPkAddGsData_0x2cfcd8.cpp.obj
+sceGifPkAddGsData_0x2cfcd8.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGifPkInit_0x2cfc38.cpp.obj
+sceGifPkInit_0x2cfc38.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGifPkReset_0x2cfc48.cpp.obj
+sceGifPkReset_0x2cfc48.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGifPkSize_0x2cfcc0.cpp.obj
+sceGifPkSize_0x2cfcc0.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGifPkTerminate_0x2cfc58.cpp.obj
+sceGifPkTerminate_0x2cfc58.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsGetGParam_0x2cdf50.cpp.obj
+sceGsGetGParam_0x2cdf50.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsGetIMR_0x2ce938.cpp.obj
+sceGsGetIMR_0x2ce938.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsPutDispEnv_0x2cebb8.cpp.obj
+sceGsPutDispEnv_0x2cebb8.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsPutDrawEnv_0x2cf030.cpp.obj
+sceGsPutDrawEnv_0x2cf030.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsPutIMR_0x2ce870.cpp.obj
+sceGsPutIMR_0x2ce870.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsResetGraph_0x2cde10.cpp.obj
+sceGsResetGraph_0x2cde10.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsResetPath_0x2cdf60.cpp.obj
+sceGsResetPath_0x2cdf60.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSetDefClear_0x2cef28.cpp.obj
+sceGsSetDefClear_0x2cef28.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSetDefDBuff_0x2cdfc8.cpp.obj
+sceGsSetDefDBuff_0x2cdfc8.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSetDefDispEnv_0x2ce958.cpp.obj
+sceGsSetDefDispEnv_0x2ce958.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSetDefDrawEnv_0x2ced40.cpp.obj
+sceGsSetDefDrawEnv_0x2ced40.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSetDefLoadImage_0x2ce688.cpp.obj
+sceGsSetDefLoadImage_0x2ce688.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSetHalfOffset_0x2ce8b0.cpp.obj
+sceGsSetHalfOffset_0x2ce8b0.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSwapDBuff_0x2ce278.cpp.obj
+sceGsSwapDBuff_0x2ce278.cpp
+[ 18%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSyncPath_0x2ce370.cpp.obj
+sceGsSyncPath_0x2ce370.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGsSyncV_0x2ce2d8.cpp.obj
+sceGsSyncV_0x2ce2d8.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceGszbufaddr_0x2cec78.cpp.obj
+sceGszbufaddr_0x2cec78.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceIoctl_0x2d3b40.cpp.obj
+sceIoctl_0x2d3b40.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceLseek_0x2d3720.cpp.obj
+sceLseek_0x2d3720.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcChdir_0x2dd248.cpp.obj
+sceMcChdir_0x2dd248.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcClose_0x2dca88.cpp.obj
+sceMcClose_0x2dca88.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcDelete_0x2dd3c0.cpp.obj
+sceMcDelete_0x2dd3c0.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcFlush_0x2dd498.cpp.obj
+sceMcFlush_0x2dd498.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcFormat_0x2dd330.cpp.obj
+sceMcFormat_0x2dd330.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcGetDir_0x2dd0d8.cpp.obj
+sceMcGetDir_0x2dd0d8.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcGetEntSpace_0x2dd810.cpp.obj
+sceMcGetEntSpace_0x2dd810.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcGetInfo_0x2dcf90.cpp.obj
+sceMcGetInfo_0x2dcf90.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcInit_0x2dc7e8.cpp.obj
+sceMcInit_0x2dc7e8.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcMkdir_0x2dca50.cpp.obj
+sceMcMkdir_0x2dca50.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcOpen_0x2dc968.cpp.obj
+sceMcOpen_0x2dc968.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcRead_0x2dcc38.cpp.obj
+sceMcRead_0x2dcc38.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcRename_0x2dd680.cpp.obj
+sceMcRename_0x2dd680.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcSeek_0x2dcb18.cpp.obj
+sceMcSeek_0x2dcb18.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcSetFileInfo_0x2dd528.cpp.obj
+sceMcSetFileInfo_0x2dd528.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcSync_0x2dce48.cpp.obj
+sceMcSync_0x2dce48.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcUnformat_0x2dd780.cpp.obj
+sceMcUnformat_0x2dd780.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMcWrite_0x2dcd10.cpp.obj
+sceMcWrite_0x2dcd10.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMtapChangeSlot_0x2d5df8.cpp.obj
+sceMtapChangeSlot_0x2d5df8.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMtapGetConnection_0x2d5d18.cpp.obj
+sceMtapGetConnection_0x2d5d18.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMtapGetSlotNumber_0x2d5d88.cpp.obj
+sceMtapGetSlotNumber_0x2d5d88.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMtapInit_0x2d59d8.cpp.obj
+sceMtapInit_0x2d59d8.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMtapPortClose_0x2d5ca8.cpp.obj
+sceMtapPortClose_0x2d5ca8.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceMtapPortOpen_0x2d5c38.cpp.obj
+sceMtapPortOpen_0x2d5c38.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceOpen_0x2d3510.cpp.obj
+sceOpen_0x2d3510.cpp
+[ 19%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadEnd_0x2d4b40.cpp.obj
+scePadEnd_0x2d4b40.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadEnterPressMode_0x2d56f0.cpp.obj
+scePadEnterPressMode_0x2d56f0.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadExitPressMode_0x2d5710.cpp.obj
+scePadExitPressMode_0x2d5710.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetButtonMask_0x2d55a0.cpp.obj
+scePadGetButtonMask_0x2d55a0.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetConnection_0x2d58c8.cpp.obj
+scePadGetConnection_0x2d58c8.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetDmaStr_0x2d4d90.cpp.obj
+scePadGetDmaStr_0x2d4d90.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetFrameCount_0x2d4df0.cpp.obj
+scePadGetFrameCount_0x2d4df0.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetModVersion_0x2d5938.cpp.obj
+scePadGetModVersion_0x2d5938.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetPortMax_0x2d57f8.cpp.obj
+scePadGetPortMax_0x2d57f8.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetReqState_0x2d5008.cpp.obj
+scePadGetReqState_0x2d5008.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetSlotMax_0x2d5860.cpp.obj
+scePadGetSlotMax_0x2d5860.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadGetState_0x2d4ea0.cpp.obj
+scePadGetState_0x2d4ea0.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadInfoAct_0x2d50a8.cpp.obj
+scePadInfoAct_0x2d50a8.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadInfoComb_0x2d5198.cpp.obj
+scePadInfoComb_0x2d5198.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadInfoMode_0x2d5280.cpp.obj
+scePadInfoMode_0x2d5280.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadInfoPressMode_0x2d56c0.cpp.obj
+scePadInfoPressMode_0x2d56c0.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadInit2_0x2d4aa8.cpp.obj
+scePadInit2_0x2d4aa8.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadInit_0x2d4998.cpp.obj
+scePadInit_0x2d4998.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadPortClose_0x2d4d18.cpp.obj
+scePadPortClose_0x2d4d18.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadPortOpen_0x2d4bc0.cpp.obj
+scePadPortOpen_0x2d4bc0.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadRead_0x2d4e10.cpp.obj
+scePadRead_0x2d4e10.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadReqIntToStr_0x2d5070.cpp.obj
+scePadReqIntToStr_0x2d5070.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadSetActAlign_0x2d54d0.cpp.obj
+scePadSetActAlign_0x2d54d0.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadSetActDirect_0x2d5438.cpp.obj
+scePadSetActDirect_0x2d5438.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadSetButtonInfo_0x2d5610.cpp.obj
+scePadSetButtonInfo_0x2d5610.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadSetMainMode_0x2d5388.cpp.obj
+scePadSetMainMode_0x2d5388.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadSetReqState_0x2d4f90.cpp.obj
+scePadSetReqState_0x2d4f90.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadSetVrefParam_0x2d5730.cpp.obj
+scePadSetVrefParam_0x2d5730.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePadStateIntToStr_0x2d4f58.cpp.obj
+scePadStateIntToStr_0x2d4f58.cpp
+[ 20%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scePrintf_0x2d1d80.cpp.obj
+scePrintf_0x2d1d80.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceRead_0x2d3890.cpp.obj
+sceRead_0x2d3890.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetAspect_0x2e09d8.cpp.obj
+sceScfGetAspect_0x2e09d8.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetDateNotation_0x2e0ac0.cpp.obj
+sceScfGetDateNotation_0x2e0ac0.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetGMTfromRTC_0x2e1178.cpp.obj
+sceScfGetGMTfromRTC_0x2e1178.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetLanguage_0x2e0958.cpp.obj
+sceScfGetLanguage_0x2e0958.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetLocalTimefromRTC_0x2e11c0.cpp.obj
+sceScfGetLocalTimefromRTC_0x2e11c0.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetSpdif_0x2e0a18.cpp.obj
+sceScfGetSpdif_0x2e0a18.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetSummerTime_0x2e0b40.cpp.obj
+sceScfGetSummerTime_0x2e0b40.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetTimeNotation_0x2e0bc0.cpp.obj
+sceScfGetTimeNotation_0x2e0bc0.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfGetTimeZone_0x2e0a58.cpp.obj
+sceScfGetTimeZone_0x2e0a58.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceScfSetT10kConfig_0x2e09b8.cpp.obj
+sceScfSetT10kConfig_0x2e09b8.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSdCallBack_0x2dda00.cpp.obj
+sceSdCallBack_0x2dda00.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSdRemoteCallbackInit_0x2ddc20.cpp.obj
+sceSdRemoteCallbackInit_0x2ddc20.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSdRemoteInit_0x2dd8c8.cpp.obj
+sceSdRemoteInit_0x2dd8c8.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSdRemote_0x2dda10.cpp.obj
+sceSdRemote_0x2dda10.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSdTransToIOP_0x2dd990.cpp.obj
+sceSdTransToIOP_0x2dd990.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifAddCmdHandler_0x2d2138.cpp.obj
+sceSifAddCmdHandler_0x2d2138.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifAllocIopHeap_0x2d3c68.cpp.obj
+sceSifAllocIopHeap_0x2d3c68.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifBindRpc_0x2d2b58.cpp.obj
+sceSifBindRpc_0x2d2b58.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifCallRpc_0x2d2d08.cpp.obj
+sceSifCallRpc_0x2d2d08.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifCheckStatRpc_0x2d2ec0.cpp.obj
+sceSifCheckStatRpc_0x2d2ec0.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifDmaStat_0x2d04c0.cpp.obj
+sceSifDmaStat_0x2d04c0.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifExecRequest_0x2d3160.cpp.obj
+sceSifExecRequest_0x2d3160.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifExitCmd_0x2d20e0.cpp.obj
+sceSifExitCmd_0x2d20e0.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifExitRpc_0x2d26b0.cpp.obj
+sceSifExitRpc_0x2d26b0.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifFreeIopHeap_0x2d3cd8.cpp.obj
+sceSifFreeIopHeap_0x2d3cd8.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifGetDataTable_0x2d1e58.cpp.obj
+sceSifGetDataTable_0x2d1e58.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifGetIopAddr_0x2d4228.cpp.obj
+sceSifGetIopAddr_0x2d4228.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifGetNextRequest_0x2d3110.cpp.obj
+sceSifGetNextRequest_0x2d3110.cpp
+[ 21%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifGetOtherData_0x2d2920.cpp.obj
+sceSifGetOtherData_0x2d2920.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifGetReg_0x2d0530.cpp.obj
+sceSifGetReg_0x2d0530.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifGetSreg_0x2d1e20.cpp.obj
+sceSifGetSreg_0x2d1e20.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifInitCmd_0x2d1e68.cpp.obj
+sceSifInitCmd_0x2d1e68.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifInitIopHeap_0x2d3bd8.cpp.obj
+sceSifInitIopHeap_0x2d3bd8.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifInitRpc_0x2d2520.cpp.obj
+sceSifInitRpc_0x2d2520.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifIsAliveIop_0x2d4528.cpp.obj
+sceSifIsAliveIop_0x2d4528.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifLoadElfPart_0x2d41e0.cpp.obj
+sceSifLoadElfPart_0x2d41e0.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifLoadElf_0x2d4200.cpp.obj
+sceSifLoadElf_0x2d4200.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifLoadFileReset_0x2d3ed8.cpp.obj
+sceSifLoadFileReset_0x2d3ed8.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifLoadIopHeap_0x2d3d50.cpp.obj
+sceSifLoadIopHeap_0x2d3d50.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifLoadModule_0x2d40d0.cpp.obj
+sceSifLoadModule_0x2d40d0.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifRebootIop_0x2d4598.cpp.obj
+sceSifRebootIop_0x2d4598.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifRegisterRpc_0x2d2f78.cpp.obj
+sceSifRegisterRpc_0x2d2f78.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifRemoveCmdHandler_0x2d2168.cpp.obj
+sceSifRemoveCmdHandler_0x2d2168.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifRemoveRpcQueue_0x2d3088.cpp.obj
+sceSifRemoveRpcQueue_0x2d3088.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifRemoveRpc_0x2d3008.cpp.obj
+sceSifRemoveRpc_0x2d3008.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifResetIop_0x2d43f8.cpp.obj
+sceSifResetIop_0x2d43f8.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifRpcLoop_0x2d3340.cpp.obj
+sceSifRpcLoop_0x2d3340.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSendCmd_0x2d22d0.cpp.obj
+sceSifSendCmd_0x2d22d0.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetCmdBuffer_0x2d2108.cpp.obj
+sceSifSetCmdBuffer_0x2d2108.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetDChain_0x2d0500.cpp.obj
+sceSifSetDChain_0x2d0500.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetDma_0x2d04e0.cpp.obj
+sceSifSetDma_0x2d04e0.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetIopAddr_0x2d4318.cpp.obj
+sceSifSetIopAddr_0x2d4318.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetReg_0x2d0520.cpp.obj
+sceSifSetReg_0x2d0520.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetRpcQueue_0x2d2f00.cpp.obj
+sceSifSetRpcQueue_0x2d2f00.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetSreg_0x2d1e38.cpp.obj
+sceSifSetSreg_0x2d1e38.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSetSysCmdBuffer_0x2d2120.cpp.obj
+sceSifSetSysCmdBuffer_0x2d2120.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifStopDma_0x2d03f0.cpp.obj
+sceSifStopDma_0x2d03f0.cpp
+[ 22%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifSyncIop_0x2d4550.cpp.obj
+sceSifSyncIop_0x2d4550.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceSifWriteBackDCache_0x2d2470.cpp.obj
+sceSifWriteBackDCache_0x2d2470.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceTtyHandler_0x2d0f60.cpp.obj
+sceTtyHandler_0x2d0f60.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceTtyInit_0x2d1308.cpp.obj
+sceTtyInit_0x2d1308.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceTtyRead_0x2d1230.cpp.obj
+sceTtyRead_0x2d1230.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceTtyWrite_0x2d10e0.cpp.obj
+sceTtyWrite_0x2d10e0.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVpu0Reset_0x2d6b48.cpp.obj
+sceVpu0Reset_0x2d6b48.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0AddVector_0x2d6080.cpp.obj
+sceVu0AddVector_0x2d6080.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ApplyMatrix_0x2d5e68.cpp.obj
+sceVu0ApplyMatrix_0x2d5e68.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0CameraMatrix_0x2d6498.cpp.obj
+sceVu0CameraMatrix_0x2d6498.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ClampVector_0x2d6470.cpp.obj
+sceVu0ClampVector_0x2d6470.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ClipAll_0x2d6ab8.cpp.obj
+sceVu0ClipAll_0x2d6ab8.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ClipScreen3_0x2d6a58.cpp.obj
+sceVu0ClipScreen3_0x2d6a58.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ClipScreen_0x2d6a10.cpp.obj
+sceVu0ClipScreen_0x2d6a10.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0CopyMatrix_0x2d6120.cpp.obj
+sceVu0CopyMatrix_0x2d6120.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0CopyVectorXYZ_0x2d69a8.cpp.obj
+sceVu0CopyVectorXYZ_0x2d69a8.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0CopyVector_0x2d6110.cpp.obj
+sceVu0CopyVector_0x2d6110.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0DivVectorXYZ_0x2d6038.cpp.obj
+sceVu0DivVectorXYZ_0x2d6038.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0DivVector_0x2d6018.cpp.obj
+sceVu0DivVector_0x2d6018.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0DropShadowMatrix_0x2d6778.cpp.obj
+sceVu0DropShadowMatrix_0x2d6778.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0FTOI0Vector_0x2d6158.cpp.obj
+sceVu0FTOI0Vector_0x2d6158.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0FTOI4Vector_0x2d6148.cpp.obj
+sceVu0FTOI4Vector_0x2d6148.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ITOF0Vector_0x2d6178.cpp.obj
+sceVu0ITOF0Vector_0x2d6178.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ITOF4Vector_0x2d6168.cpp.obj
+sceVu0ITOF4Vector_0x2d6168.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0InnerProduct_0x2d5f00.cpp.obj
+sceVu0InnerProduct_0x2d5f00.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0InterVectorXYZ_0x2d69c8.cpp.obj
+sceVu0InterVectorXYZ_0x2d69c8.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0InterVector_0x2d6058.cpp.obj
+sceVu0InterVector_0x2d6058.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0InversMatrix_0x2d5fa8.cpp.obj
+sceVu0InversMatrix_0x2d5fa8.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0LightColorMatrix_0x2d6608.cpp.obj
+sceVu0LightColorMatrix_0x2d6608.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0MulMatrix_0x2d5e98.cpp.obj
+sceVu0MulMatrix_0x2d5e98.cpp
+[ 23%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0MulVector_0x2d60b0.cpp.obj
+sceVu0MulVector_0x2d60b0.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0NormalLightMatrix_0x2d6548.cpp.obj
+sceVu0NormalLightMatrix_0x2d6548.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0Normalize_0x2d5f28.cpp.obj
+sceVu0Normalize_0x2d5f28.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0OuterProduct_0x2d5ee0.cpp.obj
+sceVu0OuterProduct_0x2d5ee0.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0RotMatrixX_0x2d62d0.cpp.obj
+sceVu0RotMatrixX_0x2d62d0.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0RotMatrixY_0x2d6378.cpp.obj
+sceVu0RotMatrixY_0x2d6378.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0RotMatrixZ_0x2d6228.cpp.obj
+sceVu0RotMatrixZ_0x2d6228.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0RotMatrix_0x2d6420.cpp.obj
+sceVu0RotMatrix_0x2d6420.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0RotTransPersN_0x2d6908.cpp.obj
+sceVu0RotTransPersN_0x2d6908.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0RotTransPers_0x2d6960.cpp.obj
+sceVu0RotTransPers_0x2d6960.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ScaleVectorXYZ_0x2d69f8.cpp.obj
+sceVu0ScaleVectorXYZ_0x2d69f8.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ScaleVector_0x2d60c8.cpp.obj
+sceVu0ScaleVector_0x2d60c8.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0SubVector_0x2d6098.cpp.obj
+sceVu0SubVector_0x2d6098.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0TransMatrix_0x2d60e0.cpp.obj
+sceVu0TransMatrix_0x2d60e0.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0TransposeMatrix_0x2d5f60.cpp.obj
+sceVu0TransposeMatrix_0x2d5f60.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0UnitMatrix_0x2d6188.cpp.obj
+sceVu0UnitMatrix_0x2d6188.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceVu0ViewScreenMatrix_0x2d6670.cpp.obj
+sceVu0ViewScreenMatrix_0x2d6670.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sceWrite_0x2d39c0.cpp.obj
+sceWrite_0x2d39c0.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scmd_prechk_0x2df6c8.cpp.obj
+scmd_prechk_0x2df6c8.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scores_pageGfx_0x212010.cpp.obj
+scores_pageGfx_0x212010.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/scores_pageTick_0x212078.cpp.obj
+scores_pageTick_0x212078.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/screenDumpGetFrame1_0x2b6910.cpp.obj
+screenDumpGetFrame1_0x2b6910.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/screenDumpGetFrame2_0x2b6918.cpp.obj
+screenDumpGetFrame2_0x2b6918.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/screenDumpSave_0x2b6920.cpp.obj
+screenDumpSave_0x2b6920.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/selectChar_0x2366b0.cpp.obj
+selectChar_0x2366b0.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/selectDrop_0x2c1408.cpp.obj
+selectDrop_0x2c1408.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/selectTarget_0x2c5380.cpp.obj
+selectTarget_0x2c5380.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/selectWeaponPad_0x2c4f98.cpp.obj
+selectWeaponPad_0x2c4f98.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/selectableTeam_0x235608.cpp.obj
+selectableTeam_0x235608.cpp
+[ 24%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/serialPutchar_0x2d14b0.cpp.obj
+serialPutchar_0x2d14b0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setAnimProp_0x214978.cpp.obj
+setAnimProp_0x214978.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setAnim_0x214d68.cpp.obj
+setAnim_0x214d68.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setAnimation_0x2bd008.cpp.obj
+setAnimation_0x2bd008.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setRootPages_0x212890.cpp.obj
+setRootPages_0x212890.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setStar_0x2a8670.cpp.obj
+setStar_0x2a8670.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setStates_0x2300a8.cpp.obj
+setStates_0x2300a8.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setStatsUpdatePage_0x240000.cpp.obj
+setStatsUpdatePage_0x240000.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setTimeSplitterAnimation_0x2bece0.cpp.obj
+setTimeSplitterAnimation_0x2bece0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setZombieAnimation_0x2be338.cpp.obj
+setZombieAnimation_0x2be338.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/set_cheat_0x203628.cpp.obj
+set_cheat_0x203628.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setcheat1_0x203688.cpp.obj
+setcheat1_0x203688.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setcheat2_0x203690.cpp.obj
+setcheat2_0x203690.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setcheat3_0x203698.cpp.obj
+setcheat3_0x203698.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setcheat4_0x2036a0.cpp.obj
+setcheat4_0x2036a0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setcheat5_0x2036a8.cpp.obj
+setcheat5_0x2036a8.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setcursound_0x206000.cpp.obj
+setcursound_0x206000.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setlastgamemodepage_0x23ff50.cpp.obj
+setlastgamemodepage_0x23ff50.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setlocale_0x2ebb78.cpp.obj
+setlocale_0x2ebb78.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/settingsGet_0x2201d8.cpp.obj
+settingsGet_0x2201d8.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/settingsNew_0x220208.cpp.obj
+settingsNew_0x220208.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/settingsToMenus_0x241558.cpp.obj
+settingsToMenus_0x241558.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/settings_pageTick_0x24cbf0.cpp.obj
+settings_pageTick_0x24cbf0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setupProp_0x228ce0.cpp.obj
+setupProp_0x228ce0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setup_pageGfx_0x20f5d8.cpp.obj
+setup_pageGfx_0x20f5d8.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setup_pageTick_0x20f5e0.cpp.obj
+setup_pageTick_0x20f5e0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setup_vars_0x20f570.cpp.obj
+setup_vars_0x20f570.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setupcontrols_pageGfx_0x20eef0.cpp.obj
+setupcontrols_pageGfx_0x20eef0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/setupcontrols_pageTick_0x20f270.cpp.obj
+setupcontrols_pageTick_0x20f270.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signal_0x2ed3d0.cpp.obj
+signal_0x2ed3d0.cpp
+[ 25%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonAddFile_0x2204f8.cpp.obj
+signonAddFile_0x2204f8.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonCheckSlot_0x220448.cpp.obj
+signonCheckSlot_0x220448.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonCount_0x220890.cpp.obj
+signonCount_0x220890.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonDeleteStart_0x2328c0.cpp.obj
+signonDeleteStart_0x2328c0.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonDeleteTick_0x2328e8.cpp.obj
+signonDeleteTick_0x2328e8.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonDelete_0x2207b0.cpp.obj
+signonDelete_0x2207b0.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonFileCount_0x220708.cpp.obj
+signonFileCount_0x220708.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonFileDelete_0x220738.cpp.obj
+signonFileDelete_0x220738.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonFileGetFree_0x220210.cpp.obj
+signonFileGetFree_0x220210.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonFileGetName_0x220360.cpp.obj
+signonFileGetName_0x220360.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonFileSize_0x220790.cpp.obj
+signonFileSize_0x220790.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonGetFree_0x220240.cpp.obj
+signonGetFree_0x220240.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonGetName_0x2203c8.cpp.obj
+signonGetName_0x2203c8.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonGet_0x220a30.cpp.obj
+signonGet_0x220a30.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonLoadRetry_0x2316c8.cpp.obj
+signonLoadRetry_0x2316c8.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonLoadStart_0x2317b0.cpp.obj
+signonLoadStart_0x2317b0.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonLoadTick_0x2318a0.cpp.obj
+signonLoadTick_0x2318a0.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonMakeFileId_0x220270.cpp.obj
+signonMakeFileId_0x220270.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonMake_0x220948.cpp.obj
+signonMake_0x220948.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonMemCount_0x2208c8.cpp.obj
+signonMemCount_0x2208c8.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonNew_0x2202c0.cpp.obj
+signonNew_0x2202c0.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonSet_0x220930.cpp.obj
+signonSet_0x220930.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonUpdateStart_0x231d18.cpp.obj
+signonUpdateStart_0x231d18.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonUpdateTick_0x231d50.cpp.obj
+signonUpdateTick_0x231d50.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signon_pageDrawAfter_0x23f380.cpp.obj
+signon_pageDrawAfter_0x23f380.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signon_pageDrawBefore_0x23f140.cpp.obj
+signon_pageDrawBefore_0x23f140.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signon_pageTick_0x23f438.cpp.obj
+signon_pageTick_0x23f438.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonplr_pageDraw_0x23e4b0.cpp.obj
+signonplr_pageDraw_0x23e4b0.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/signonplr_pageTick_0x23e9a0.cpp.obj
+signonplr_pageTick_0x23e9a0.cpp
+[ 26%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sinf_0x2d7398.cpp.obj
+sinf_0x2d7398.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sitofp_0x2e43c0.cpp.obj
+sitofp_0x2e43c0.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sjeGsExecLoadImage_0x2b7040.cpp.obj
+sjeGsExecLoadImage_0x2b7040.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sjeGsSetDefDBuff_0x200260.cpp.obj
+sjeGsSetDefDBuff_0x200260.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sjeGsSetHalfOffset_0x200300.cpp.obj
+sjeGsSetHalfOffset_0x200300.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sjeGsSwapDBuff_0x200330.cpp.obj
+sjeGsSwapDBuff_0x200330.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sjeStoreImage_0x2a62d8.cpp.obj
+sjeStoreImage_0x2a62d8.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soZoomGfx_0x23f288.cpp.obj
+soZoomGfx_0x23f288.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soZoomStart_0x23f190.cpp.obj
+soZoomStart_0x23f190.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundAddPreLoad_0x205a08.cpp.obj
+soundAddPreLoad_0x205a08.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundBatchAdd_0x204908.cpp.obj
+soundBatchAdd_0x204908.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundBatchExec_0x204950.cpp.obj
+soundBatchExec_0x204950.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundBatchReset_0x2049b8.cpp.obj
+soundBatchReset_0x2049b8.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundCalcVol_0x2049c0.cpp.obj
+soundCalcVol_0x2049c0.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundCreateBuffer_0x2044a0.cpp.obj
+soundCreateBuffer_0x2044a0.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundDelayStartEx_0x205808.cpp.obj
+soundDelayStartEx_0x205808.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundDelayStop_0x2054c0.cpp.obj
+soundDelayStop_0x2054c0.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundEnd_0x2048b8.cpp.obj
+soundEnd_0x2048b8.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundLoad_0x2052b8.cpp.obj
+soundLoad_0x2052b8.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundMake_0x2043e8.cpp.obj
+soundMake_0x2043e8.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundPreload_0x2047c8.cpp.obj
+soundPreload_0x2047c8.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundResetAfter_0x204750.cpp.obj
+soundResetAfter_0x204750.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundResetBuffer_0x204478.cpp.obj
+soundResetBuffer_0x204478.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundReset_0x204650.cpp.obj
+soundReset_0x204650.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundRestartAfter_0x204748.cpp.obj
+soundRestartAfter_0x204748.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundRestart_0x2044c0.cpp.obj
+soundRestart_0x2044c0.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundSelectBuffer_0x204460.cpp.obj
+soundSelectBuffer_0x204460.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundSetChannel_0x2048f8.cpp.obj
+soundSetChannel_0x2048f8.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundSetLoopPos_0x2059d0.cpp.obj
+soundSetLoopPos_0x2059d0.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundStartLoopRange_0x2058f0.cpp.obj
+soundStartLoopRange_0x2058f0.cpp
+[ 27%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundStartLoop_0x2058c8.cpp.obj
+soundStartLoop_0x2058c8.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundStartRange_0x205598.cpp.obj
+soundStartRange_0x205598.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundStart_0x205518.cpp.obj
+soundStart_0x205518.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundStop_0x2054a0.cpp.obj
+soundStop_0x2054a0.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundTick_0x204ec0.cpp.obj
+soundTick_0x204ec0.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sounddataSave_0x206028.cpp.obj
+sounddataSave_0x206028.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundselect_pageDraw_0x2067d0.cpp.obj
+soundselect_pageDraw_0x2067d0.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundselect_pageTick_0x206808.cpp.obj
+soundselect_pageTick_0x206808.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/soundtoolStart_0x207790.cpp.obj
+soundtoolStart_0x207790.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/spaceship1PropTick_0x27ab20.cpp.obj
+spaceship1PropTick_0x27ab20.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/spaceship2PropTick_0x27add8.cpp.obj
+spaceship2PropTick_0x27add8.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/spaceship3PropTick_0x27aeb0.cpp.obj
+spaceship3PropTick_0x27aeb0.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/spawn_0x2c4288.cpp.obj
+spawn_0x2c4288.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/spawnfxTick_0x2abea0.cpp.obj
+spawnfxTick_0x2abea0.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialEnd_0x277be0.cpp.obj
+specialEnd_0x277be0.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialParticlesGfx_0x2a8b48.cpp.obj
+specialParticlesGfx_0x2a8b48.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialPreload_0x277b00.cpp.obj
+specialPreload_0x277b00.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialPropDelete_0x2783c0.cpp.obj
+specialPropDelete_0x2783c0.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialPropNew_0x277bf8.cpp.obj
+specialPropNew_0x277bf8.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialPropTick_0x27bfc8.cpp.obj
+specialPropTick_0x27bfc8.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialReset_0x277ba8.cpp.obj
+specialReset_0x277ba8.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialRestart_0x277b70.cpp.obj
+specialRestart_0x277b70.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxBlastRadius_0x2abd08.cpp.obj
+specialfxBlastRadius_0x2abd08.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxBlastShardTick_0x2ac370.cpp.obj
+specialfxBlastShardTick_0x2ac370.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxBlastSpawnTick_0x2accd8.cpp.obj
+specialfxBlastSpawnTick_0x2accd8.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxCalcDistSqFromWall_0x2ae240.cpp.obj
+specialfxCalcDistSqFromWall_0x2ae240.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxCreate_0x2a9888.cpp.obj
+specialfxCreate_0x2a9888.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxEnd_0x2a9850.cpp.obj
+specialfxEnd_0x2a9850.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxFreePtr_0x2aae88.cpp.obj
+specialfxFreePtr_0x2aae88.cpp
+[ 29%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxFreeSpawn_0x2ae1c0.cpp.obj
+specialfxFreeSpawn_0x2ae1c0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxFree_0x2aaed8.cpp.obj
+specialfxFree_0x2aaed8.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxGetBestSpawnType_0x2ae400.cpp.obj
+specialfxGetBestSpawnType_0x2ae400.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxGfx_0x2abdf8.cpp.obj
+specialfxGfx_0x2abdf8.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxGroupsTick_0x2ad9f0.cpp.obj
+specialfxGroupsTick_0x2ad9f0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxIsOutdoors_0x2ae1d8.cpp.obj
+specialfxIsOutdoors_0x2ae1d8.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxIsSpace_0x2ae2e8.cpp.obj
+specialfxIsSpace_0x2ae2e8.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxNewSpawn_0x2adb70.cpp.obj
+specialfxNewSpawn_0x2adb70.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxNew_0x2aad90.cpp.obj
+specialfxNew_0x2aad90.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxOccasionalRocketSmokeTick_0x2ac510.cpp.obj
+specialfxOccasionalRocketSmokeTick_0x2ac510.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxPickupSpawnTick_0x2ad400.cpp.obj
+specialfxPickupSpawnTick_0x2ad400.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxPlanetSpawnGlowTick_0x2acac0.cpp.obj
+specialfxPlanetSpawnGlowTick_0x2acac0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxPlanetSpawnTick_0x2ac7b0.cpp.obj
+specialfxPlanetSpawnTick_0x2ac7b0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxPreload_0x2a96e0.cpp.obj
+specialfxPreload_0x2a96e0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxReset_0x2a9848.cpp.obj
+specialfxReset_0x2a9848.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxRestart_0x2a9780.cpp.obj
+specialfxRestart_0x2a9780.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxRingSpawnTick_0x2acef0.cpp.obj
+specialfxRingSpawnTick_0x2acef0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxRotateSpawnTick_0x2acb78.cpp.obj
+specialfxRotateSpawnTick_0x2acb78.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxSphereSpawnTick_0x2ad170.cpp.obj
+specialfxSphereSpawnTick_0x2ad170.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxTick_0x2adb50.cpp.obj
+specialfxTick_0x2adb50.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxTimeSplitterHandsGfx_0x2ab870.cpp.obj
+specialfxTimeSplitterHandsGfx_0x2ab870.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxTimeSplitterRadiusGfx_0x2ab340.cpp.obj
+specialfxTimeSplitterRadiusGfx_0x2ab340.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxTimesplitterHandsTick_0x2ad788.cpp.obj
+specialfxTimesplitterHandsTick_0x2ad788.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxTimesplitterRadiusTick_0x2ad520.cpp.obj
+specialfxTimesplitterRadiusTick_0x2ad520.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/specialfxUpdatePos_0x2ae570.cpp.obj
+specialfxUpdatePos_0x2ae570.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitMessageClear_0x230ae0.cpp.obj
+splitMessageClear_0x230ae0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitMessageDraw_0x230b00.cpp.obj
+splitMessageDraw_0x230b00.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitMessageStart_0x230a88.cpp.obj
+splitMessageStart_0x230a88.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitMessageTick_0x230bb0.cpp.obj
+splitMessageTick_0x230bb0.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitpageDraw_0x231028.cpp.obj
+splitpageDraw_0x231028.cpp
+[ 30%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitpageInit_0x2311a8.cpp.obj
+splitpageInit_0x2311a8.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitpageTick_0x2310d0.cpp.obj
+splitpageTick_0x2310d0.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/splitterdomePropTick_0x27be08.cpp.obj
+splitterdomePropTick_0x27be08.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sprintf_0x2e5838.cpp.obj
+sprintf_0x2e5838.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sqrt_0x2d7a58.cpp.obj
+sqrt_0x2d7a58.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sqrtf_0x2d8398.cpp.obj
+sqrtf_0x2d8398.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sscanf_0x2e58b0.cpp.obj
+sscanf_0x2e58b0.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/starfieldGfx_0x2a9068.cpp.obj
+starfieldGfx_0x2a9068.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/starfieldPreload_0x2a8628.cpp.obj
+starfieldPreload_0x2a8628.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/starfieldReset_0x2a8b38.cpp.obj
+starfieldReset_0x2a8b38.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/starfieldRestart_0x2a8778.cpp.obj
+starfieldRestart_0x2a8778.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/starfieldTick_0x2a8b40.cpp.obj
+starfieldTick_0x2a8b40.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/startMessage_0x206be8.cpp.obj
+startMessage_0x206be8.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/startgameview_0x20d560.cpp.obj
+startgameview_0x20d560.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/startmoveview_0x20d528.cpp.obj
+startmoveview_0x20d528.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/startthirdpersonview_0x20d590.cpp.obj
+startthirdpersonview_0x20d590.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/stat_0x2d0850.cpp.obj
+stat_0x2d0850.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statistics_pageDrawInfo_0x23cc38.cpp.obj
+statistics_pageDrawInfo_0x23cc38.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statistics_pageDraw_0x23c9c8.cpp.obj
+statistics_pageDraw_0x23c9c8.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statistics_pageTick_0x23db20.cpp.obj
+statistics_pageTick_0x23db20.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statsCombine_0x21fc88.cpp.obj
+statsCombine_0x21fc88.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statsDebug_0x220010.cpp.obj
+statsDebug_0x220010.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statsGetPlayer_0x21ffb8.cpp.obj
+statsGetPlayer_0x21ffb8.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statsGet_0x21ffb0.cpp.obj
+statsGet_0x21ffb0.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statsNew_0x220080.cpp.obj
+statsNew_0x220080.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statsupdate_pageDraw_0x2400b8.cpp.obj
+statsupdate_pageDraw_0x2400b8.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/statsupdate_pageTick_0x240100.cpp.obj
+statsupdate_pageTick_0x240100.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/std_0x2e4728.cpp.obj
+std_0x2e4728.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/std_drawmenuitemtext_0x22cf70.cpp.obj
+std_drawmenuitemtext_0x22cf70.cpp
+[ 31%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/std_menugetmargins_0x22d698.cpp.obj
+std_menugetmargins_0x22d698.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/std_menuitemmake_0x22d7c0.cpp.obj
+std_menuitemmake_0x22d7c0.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/std_menulistmake_0x22d988.cpp.obj
+std_menulistmake_0x22d988.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/std_menumake_0x22daf8.cpp.obj
+std_menumake_0x22daf8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/std_menutick_0x22df40.cpp.obj
+std_menutick_0x22df40.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/storeGameModeOptions_0x238fe8.cpp.obj
+storeGameModeOptions_0x238fe8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/storyDifficultyAvail_0x23be08.cpp.obj
+storyDifficultyAvail_0x23be08.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/story_pageDraw_0x23bb90.cpp.obj
+story_pageDraw_0x23bb90.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/story_pageGfx_0x211990.cpp.obj
+story_pageGfx_0x211990.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/story_pageTick_0x2119c8.cpp.obj
+story_pageTick_0x2119c8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/story_pageTick_0x23bee8.cpp.obj
+story_pageTick_0x23bee8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/storychr_pageDraw_0x23ba08.cpp.obj
+storychr_pageDraw_0x23ba08.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/storychr_pageTick_0x23ba38.cpp.obj
+storychr_pageTick_0x23ba38.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/storychrsel_pageDraw_0x23b550.cpp.obj
+storychrsel_pageDraw_0x23b550.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/storychrsel_pageTick_0x23b630.cpp.obj
+storychrsel_pageTick_0x23b630.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strcasecmp_0x2e5aa8.cpp.obj
+strcasecmp_0x2e5aa8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strcat_0x2e5b5c.cpp.obj
+strcat_0x2e5b5c.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strchr_0x2e5c88.cpp.obj
+strchr_0x2e5c88.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strcmp_0x2e5e18.cpp.obj
+strcmp_0x2e5e18.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strcpy_0x2e5f5c.cpp.obj
+strcpy_0x2e5f5c.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/stream_RPC_0x205de8.cpp.obj
+stream_RPC_0x205de8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/stream_RPCinit_0x205d88.cpp.obj
+stream_RPCinit_0x205d88.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/streamersPropTick_0x278d48.cpp.obj
+streamersPropTick_0x278d48.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/stringeditDraw_0x22f0f0.cpp.obj
+stringeditDraw_0x22f0f0.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/stringeditSet_0x22fed8.cpp.obj
+stringeditSet_0x22fed8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/stringeditStart_0x22fd98.cpp.obj
+stringeditStart_0x22fd98.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/stringeditTick_0x22f820.cpp.obj
+stringeditTick_0x22f820.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strlen_0x2e6070.cpp.obj
+strlen_0x2e6070.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strncmp_0x2e61a8.cpp.obj
+strncmp_0x2e61a8.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strncpy_0x2e6360.cpp.obj
+strncpy_0x2e6360.cpp
+[ 32%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strtod_0x2ee3d0.cpp.obj
+strtod_0x2ee3d0.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strtodf_0x2ee400.cpp.obj
+strtodf_0x2ee400.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strtol_0x2e6758.cpp.obj
+strtol_0x2e6758.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/strtoul_0x2ee648.cpp.obj
+strtoul_0x2ee648.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/sub_00280014_0x280014.cpp.obj
+sub_00280014_0x280014.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/subdate_0x2e0ef8.cpp.obj
+subdate_0x2e0ef8.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/subhour_0x2e1040.cpp.obj
+subhour_0x2e1040.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/suggestTarget_0x2c5e68.cpp.obj
+suggestTarget_0x2c5e68.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/swingProp_0x27a228.cpp.obj
+swingProp_0x27a228.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/tanf_0x2d7488.cpp.obj
+tanf_0x2d7488.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/taxiDamage_0x2775c0.cpp.obj
+taxiDamage_0x2775c0.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/teamGetScore_0x289078.cpp.obj
+teamGetScore_0x289078.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/testanims_0x283e90.cpp.obj
+testanims_0x283e90.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/testmap_pageDraw_0x24cea0.cpp.obj
+testmap_pageDraw_0x24cea0.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/testmap_pageTick_0x24cfd8.cpp.obj
+testmap_pageTick_0x24cfd8.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/testspecialfillets_0x264020.cpp.obj
+testspecialfillets_0x264020.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/texinfoRelocate_0x25eb30.cpp.obj
+texinfoRelocate_0x25eb30.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textEnd_0x202268.cpp.obj
+textEnd_0x202268.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textHeight_0x202a60.cpp.obj
+textHeight_0x202a60.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textOutline_0x2023b0.cpp.obj
+textOutline_0x2023b0.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textPreload_0x201fa8.cpp.obj
+textPreload_0x201fa8.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textPrint_0x2024f0.cpp.obj
+textPrint_0x2024f0.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textReset_0x2020b0.cpp.obj
+textReset_0x2020b0.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textRestart_0x202010.cpp.obj
+textRestart_0x202010.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textSelect_0x202270.cpp.obj
+textSelect_0x202270.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textSize_0x202a88.cpp.obj
+textSize_0x202a88.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/textWidth_0x202a38.cpp.obj
+textWidth_0x202a38.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/text_data_split_0x2cde08.cpp.obj
+text_data_split_0x2cde08.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/tickRetryQuit_0x2108b8.cpp.obj
+tickRetryQuit_0x2108b8.cpp
+[ 33%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/tileset_onchange_0x23ab28.cpp.obj
+tileset_onchange_0x23ab28.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timeGetPause_0x2b6850.cpp.obj
+timeGetPause_0x2b6850.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timeGet_0x2b6688.cpp.obj
+timeGet_0x2b6688.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timeMake_0x2b6630.cpp.obj
+timeMake_0x2b6630.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timePause_0x2b6818.cpp.obj
+timePause_0x2b6818.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timeTickEnd_0x2b6860.cpp.obj
+timeTickEnd_0x2b6860.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timeTickRetrace_0x2b6650.cpp.obj
+timeTickRetrace_0x2b6650.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timeTickStart_0x2b66e8.cpp.obj
+timeTickStart_0x2b66e8.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timerEnd_0x2cdd50.cpp.obj
+timerEnd_0x2cdd50.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timerNew_0x2cdb08.cpp.obj
+timerNew_0x2cdb08.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timerRelease_0x2cdd58.cpp.obj
+timerRelease_0x2cdd58.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timerReset_0x2cdb00.cpp.obj
+timerReset_0x2cdb00.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timerRestart_0x2cdaf8.cpp.obj
+timerRestart_0x2cdaf8.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/timerTick_0x2cdbc0.cpp.obj
+timerTick_0x2cdbc0.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/tlhAdjustChrPosition_0x2365b8.cpp.obj
+tlhAdjustChrPosition_0x2365b8.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/tobcd_0x2e0c40.cpp.obj
+tobcd_0x2e0c40.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/togglecollisions_0x20d7d0.cpp.obj
+togglecollisions_0x20d7d0.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggledebug_0x20c940.cpp.obj
+toggledebug_0x20c940.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggledisplayperfstats_0x20d828.cpp.obj
+toggledisplayperfstats_0x20d828.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggledisplaypos_0x20d6e0.cpp.obj
+toggledisplaypos_0x20d6e0.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggledisplayrooms_0x20d840.cpp.obj
+toggledisplayrooms_0x20d840.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggledisplayspeed_0x20d810.cpp.obj
+toggledisplayspeed_0x20d810.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleinvincible_0x20d750.cpp.obj
+toggleinvincible_0x20d750.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleinvisible_0x20d798.cpp.obj
+toggleinvisible_0x20d798.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/togglepadlinkedit_0x20da40.cpp.obj
+togglepadlinkedit_0x20da40.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/togglepropedit_0x20da78.cpp.obj
+togglepropedit_0x20da78.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleturtlecpu_0x20daf0.cpp.obj
+toggleturtlecpu_0x20daf0.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleturtlegs_0x20db08.cpp.obj
+toggleturtlegs_0x20db08.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleviewbg_0x20da08.cpp.obj
+toggleviewbg_0x20da08.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleviewfloors_0x20d928.cpp.obj
+toggleviewfloors_0x20d928.cpp
+[ 34%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleviewguns_0x20d9d0.cpp.obj
+toggleviewguns_0x20d9d0.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleviewportalrects_0x20d8f0.cpp.obj
+toggleviewportalrects_0x20d8f0.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleviewportals_0x20d8b8.cpp.obj
+toggleviewportals_0x20d8b8.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleviewvolumes_0x20d998.cpp.obj
+toggleviewvolumes_0x20d998.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/toggleviewwalls_0x20d960.cpp.obj
+toggleviewwalls_0x20d960.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/tombtorchPropTick_0x27beb0.cpp.obj
+tombtorchPropTick_0x27beb0.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/topmenuGfx_0x20dd58.cpp.obj
+topmenuGfx_0x20dd58.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/topmenuTick_0x20dc48.cpp.obj
+topmenuTick_0x20dc48.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/torchGfx_0x2a6b70.cpp.obj
+torchGfx_0x2a6b70.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/trackTarget_0x2c0510.cpp.obj
+trackTarget_0x2c0510.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/transformHead_0x2634c8.cpp.obj
+transformHead_0x2634c8.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/transformPart_0x263110.cpp.obj
+transformPart_0x263110.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/trigMake_0x2b6930.cpp.obj
+trigMake_0x2b6930.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/u322clock_0x2b3a88.cpp.obj
+u322clock_0x2b3a88.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/ungetc_0x2ee770.cpp.obj
+ungetc_0x2ee770.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/unlink_0x2d0878.cpp.obj
+unlink_0x2d0878.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/unlockedEx_0x2251a8.cpp.obj
+unlockedEx_0x2251a8.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/unlockedset_0x225138.cpp.obj
+unlockedset_0x225138.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updateData_0x276270.cpp.obj
+updateData_0x276270.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updateDir_0x24d2d8.cpp.obj
+updateDir_0x24d2d8.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updateFuse_0x292118.cpp.obj
+updateFuse_0x292118.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updateNPCPadPos_0x2bfc28.cpp.obj
+updateNPCPadPos_0x2bfc28.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updatePlayerPadPos_0x2bf830.cpp.obj
+updatePlayerPadPos_0x2bf830.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updatePos_0x2bbcf8.cpp.obj
+updatePos_0x2bbcf8.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updateProximityProps_0x289638.cpp.obj
+updateProximityProps_0x289638.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updateShotgunReload_0x291d38.cpp.obj
+updateShotgunReload_0x291d38.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/updateTeamFlags_0x288e40.cpp.obj
+updateTeamFlags_0x288e40.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/v3NormalizeFaster_0x25a668.cpp.obj
+v3NormalizeFaster_0x25a668.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/v3Normalize_0x25a5b8.cpp.obj
+v3Normalize_0x25a5b8.cpp
+[ 35%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vafmt_0x2b4868.cpp.obj
+vafmt_0x2b4868.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vblIntHandler_0x201198.cpp.obj
+vblIntHandler_0x201198.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vfiprintf_0x2e6890.cpp.obj
+vfiprintf_0x2e6890.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vfprintf_0x2e75d8.cpp.obj
+vfprintf_0x2e75d8.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vibmode_onchange_0x20f870.cpp.obj
+vibmode_onchange_0x20f870.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vibration_onchange_0x20f838.cpp.obj
+vibration_onchange_0x20f838.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/viewTick_0x20c100.cpp.obj
+viewTick_0x20c100.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vsprintf_0x2e9a08.cpp.obj
+vsprintf_0x2e9a08.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vtxlistWaterst_0x278998.cpp.obj
+vtxlistWaterst_0x278998.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vtxlistWaterxyzPre_0x278400.cpp.obj
+vtxlistWaterxyzPre_0x278400.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vtxlistWaterxyz_0x278888.cpp.obj
+vtxlistWaterxyz_0x278888.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/vtxlistcolour_0x2a7a50.cpp.obj
+vtxlistcolour_0x2a7a50.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/waterPropNew_0x278aa0.cpp.obj
+waterPropNew_0x278aa0.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/waterPropTick_0x278bb0.cpp.obj
+waterPropTick_0x278bb0.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/waterfallPropTick_0x27b0d0.cpp.obj
+waterfallPropTick_0x27b0d0.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weaponSetDec_0x232df0.cpp.obj
+weaponSetDec_0x232df0.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weaponSetInc_0x232e68.cpp.obj
+weaponSetInc_0x232e68.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weapons_pageDraw_0x232ed8.cpp.obj
+weapons_pageDraw_0x232ed8.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weapons_pageTick_0x2333f0.cpp.obj
+weapons_pageTick_0x2333f0.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weaponsetAvail_0x232d90.cpp.obj
+weaponsetAvail_0x232d90.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherCalcPositionalTime_0x2a8078.cpp.obj
+weatherCalcPositionalTime_0x2a8078.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherCalcWindAtTime_0x2a80c8.cpp.obj
+weatherCalcWindAtTime_0x2a80c8.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherCalcWindStrengthInDir_0x2a8488.cpp.obj
+weatherCalcWindStrengthInDir_0x2a8488.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherGetWindAtPosition_0x2a8450.cpp.obj
+weatherGetWindAtPosition_0x2a8450.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherGfx_0x2a8620.cpp.obj
+weatherGfx_0x2a8620.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherPreload_0x2a8010.cpp.obj
+weatherPreload_0x2a8010.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherReset_0x2a8030.cpp.obj
+weatherReset_0x2a8030.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherRestart_0x2a8018.cpp.obj
+weatherRestart_0x2a8018.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherSet_0x2a8038.cpp.obj
+weatherSet_0x2a8038.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/weatherTick_0x2a84f0.cpp.obj
+weatherTick_0x2a84f0.cpp
+[ 36%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowEnd_0x20c418.cpp.obj
+windowEnd_0x20c418.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowGfx_0x20c7e8.cpp.obj
+windowGfx_0x20c7e8.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowMake_0x20c328.cpp.obj
+windowMake_0x20c328.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowReset_0x20c410.cpp.obj
+windowReset_0x20c410.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowRestart_0x20c378.cpp.obj
+windowRestart_0x20c378.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowSave_0x20c518.cpp.obj
+windowSave_0x20c518.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowSet_0x20c420.cpp.obj
+windowSet_0x20c420.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowSwitch_0x20c5d0.cpp.obj
+windowSwitch_0x20c5d0.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/windowTick_0x20c7e0.cpp.obj
+windowTick_0x20c7e0.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/wpchange_onchange_0x20f820.cpp.obj
+wpchange_onchange_0x20f820.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/write_0x2d0620.cpp.obj
+write_0x2d0620.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbDump_0x2b6928.cpp.obj
+zbDump_0x2b6928.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestAddPoint_0x2a6e60.cpp.obj
+zbtestAddPoint_0x2a6e60.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestAdvanceAddPtr_0x2a7008.cpp.obj
+zbtestAdvanceAddPtr_0x2a7008.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestAdvanceDrawPtr_0x2a7058.cpp.obj
+zbtestAdvanceDrawPtr_0x2a7058.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestAdvanceTestPtr_0x2a7030.cpp.obj
+zbtestAdvanceTestPtr_0x2a7030.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestCopyZB_0x2a70a0.cpp.obj
+zbtestCopyZB_0x2a70a0.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestDoTest_0x2a7108.cpp.obj
+zbtestDoTest_0x2a7108.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestDrawFlareFx_0x2a6f50.cpp.obj
+zbtestDrawFlareFx_0x2a6f50.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestDrawGlow_0x2a6ef8.cpp.obj
+zbtestDrawGlow_0x2a6ef8.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestDrawTorch_0x2a6fa8.cpp.obj
+zbtestDrawTorch_0x2a6fa8.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestEndAddGlow_0x2a6e28.cpp.obj
+zbtestEndAddGlow_0x2a6e28.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestEnd_0x2a6790.cpp.obj
+zbtestEnd_0x2a6790.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestGetVisibleBias_0x2a7188.cpp.obj
+zbtestGetVisibleBias_0x2a7188.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestGfx_0x2a6b78.cpp.obj
+zbtestGfx_0x2a6b78.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestPreload_0x2a65b8.cpp.obj
+zbtestPreload_0x2a65b8.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestResetAfter_0x2a6730.cpp.obj
+zbtestResetAfter_0x2a6730.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestReset_0x2a6640.cpp.obj
+zbtestReset_0x2a6640.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestRestartAfter_0x2a6728.cpp.obj
+zbtestRestartAfter_0x2a6728.cpp
+[ 37%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestRestart_0x2a6608.cpp.obj
+zbtestRestart_0x2a6608.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zbtestStartAddGlow_0x2a6db0.cpp.obj
+zbtestStartAddGlow_0x2a6db0.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomboxDraw_0x22ed18.cpp.obj
+zoomboxDraw_0x22ed18.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomboxGfx_0x22f0a0.cpp.obj
+zoomboxGfx_0x22f0a0.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomboxInit_0x22ef10.cpp.obj
+zoomboxInit_0x22ef10.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomboxPreload_0x22ece0.cpp.obj
+zoomboxPreload_0x22ece0.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomboxReset_0x22ecf0.cpp.obj
+zoomboxReset_0x22ecf0.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomboxSet_0x22ef58.cpp.obj
+zoomboxSet_0x22ef58.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomboxTick_0x22efd0.cpp.obj
+zoomboxTick_0x22efd0.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileGfx_0x250d88.cpp.obj
+zoomtileGfx_0x250d88.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtilePreload_0x2500c8.cpp.obj
+zoomtilePreload_0x2500c8.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileReset_0x2501c8.cpp.obj
+zoomtileReset_0x2501c8.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileSizeToDist_0x250600.cpp.obj
+zoomtileSizeToDist_0x250600.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileTick_0x2506c0.cpp.obj
+zoomtileTick_0x2506c0.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileWindowDest_0x250538.cpp.obj
+zoomtileWindowDest_0x250538.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileWindowTick_0x250558.cpp.obj
+zoomtileWindowTick_0x250558.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileWindow_0x250500.cpp.obj
+zoomtileWindow_0x250500.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtileZoomed_0x2505f0.cpp.obj
+zoomtileZoomed_0x2505f0.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtile_pageDraw_0x253018.cpp.obj
+zoomtile_pageDraw_0x253018.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/D_/Programming/GitHub/Timesplitters/project/generated/zoomtile_pageTick_0x253220.cpp.obj
+zoomtile_pageTick_0x253220.cpp
+[ 38%] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/main.cpp.obj
+main.cpp
+[ 38%] Linking CXX executable timesplitters.exe
+[100%] Built target timesplitters

@@ -403,3 +403,44 @@ Note: final pass/fail evidence logs are committed with this file. Some early fai
   - Windows native replay coverage is broader and remained crash-free with zero original DMA failures, but it still has not reproduced the TS05 Linux in-level Story or Arcade state.
   - Combat, player damage, enemy hit confirmation, kills, deaths, respawn, and Story objective progression remain unproven on Windows.
   - The next crash-hunt harness should be state-gated rather than purely timed. The current evidence suggests the game is progressing through frontend/save-card paths, but timed input is still not a reliable way to enter match state on the slower Windows build.
+
+### 2026-09-23 state-gated pad script hook
+
+- Added a read-only `wait_u32 <address> <comparison> <value>` directive for read-count pad scripts.
+  - Supported comparisons: `==`, `!=`, `<`, `<=`, `>`, `>=` and short word aliases.
+  - A waiting script emits neutral pad state until the guest RAM condition is true, then advances to the next scripted frame in the same pad read.
+  - The game harness registers a guest-RAM `u32` reader after runtime initialization.
+  - `wait_u32` is intentionally rejected in timed scripts for now, keeping the first semantics simple and deterministic.
+- Added probe scripts:
+  - `scripts\pad\windows-story-front0-f1c-gated.pad`.
+  - `scripts\pad\windows-story-scale2-extra-confirm.pad`.
+- Regression coverage:
+  - Windows `ps2x_tests.exe`, run from `source\PS2Recomp`.
+  - Result: 475 total, 475 passed, 0 failed.
+  - Log: `logs/TS06-windows-tests-run-waitu32-01.log`.
+- Build:
+  - `ps2x_tests` NMake build passed.
+  - Game rebuild first hit a transient `cl.exe`/CMake dependency wrapper failure with return `0xffffffff` while compiling generated `packfileSeek_0x21a150.cpp`; no source diagnostic was emitted.
+  - Retried NMake game build passed.
+  - Passing build log: `logs/TS06-windows-nmake-game-build-waitu32-02.log`.
+- Gated read-count Story probe:
+  - Script: `scripts\pad\windows-story-front0-f1c-gated.pad`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Logs: `logs/TS06-windows-statewatch-story-420s-waitu32-01.log`, `logs/TS06-windows-statewatch-story-520s-waitu32-02.log`.
+  - Original `numdmafail=0`.
+  - `active_characters` remained 0 and no valid first-player prop/health was observed.
+  - The first version gated too early; the second version still did not reach `front0.f1c=1`, so its read-count timing does not match the timed route closely enough for this frontend path.
+- Timed Story probe with extra confirms:
+  - Script: `scripts\pad\windows-story-scale2-extra-confirm.pad`.
+  - `TS_PAD_TIME_SCALE=2`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Logs:
+    - `logs/TS06-windows-statewatch-story-520s-scale2-extra-confirm-01.log`.
+    - `logs/TS06-windows-statewatch-story-560s-scale2-extra-confirm-02.log`.
+  - Original `numdmafail=0`.
+  - `front0.f1c` reached 1, but repeated memory-card `GetInfo`/`Sync` polling continued and `active_characters` remained 0.
+  - No valid first-player prop/health was observed.
+- Interpretation:
+  - The new `wait_u32` hook is tested and useful for future state-gated probes, but the initial read-count gated Story route does not reproduce the timed menu path.
+  - The extra timed confirms show the Windows route is stuck around a frontend/memory-card polling state rather than crashing.
+  - The next targeted work should identify the exact original page/state for `front0.f1c=1` and the required input/state transition, likely by logging the current frontend pointer/page fields from original `frontSet`/`frontPageSet` state rather than guessing from `front0` fields alone.

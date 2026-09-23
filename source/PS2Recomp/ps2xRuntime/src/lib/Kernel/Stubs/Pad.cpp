@@ -1,6 +1,9 @@
 #include "Common.h"
 #include "Pad.h"
 
+#include <cstdlib>
+#include <string>
+
 namespace ps2_stubs
 {
     namespace
@@ -69,6 +72,13 @@ namespace ps2_stubs
         PadInputState g_padOverrideState{};
         PadPortState g_padPorts[kPadPortCount * kPadSlotCount]{};
         int g_padReadLogCount = 0;
+        int g_padTraceReadCount = 0;
+
+        bool padTraceReadsEnabled()
+        {
+            const char *enabled = std::getenv("TS_PAD_TRACE_READS");
+            return enabled && *enabled && std::string(enabled) != "0";
+        }
 
         uint8_t axisToByte(float axis)
         {
@@ -332,6 +342,24 @@ namespace ps2_stubs
                     sharedPortState->lastReadDataAddr = dataAddr;
                     ++sharedPortState->readCount;
                 }
+            }
+
+            if (padTraceReadsEnabled() && g_padTraceReadCount < 256)
+            {
+                std::printf("[padread:trace] n=%d port=%d slot=%d data=0x%08x ok=1 buttons=0x%04x rx=%u ry=%u lx=%u ly=%u mode=0x%02x override=%d backend=%d\n",
+                            g_padTraceReadCount,
+                            port,
+                            slot,
+                            dataAddr,
+                            state.buttons,
+                            state.rx,
+                            state.ry,
+                            state.lx,
+                            state.ly,
+                            outData[1],
+                            useOverride ? 1 : 0,
+                            usedBackend ? 1 : 0);
+                ++g_padTraceReadCount;
             }
 
             return true;
@@ -614,9 +642,9 @@ namespace ps2_stubs
         }
 
         portState->open = true;
-        // No multitap backend exists yet. Extra handles remain disconnected, never
-        // duplicate keyboard/gamepad input or claim a controller is attached.
-        portState->connected = (getRegU32(ctx, 5) == 0u);
+        // No multitap or multi-controller backend exists yet. Extra handles remain
+        // disconnected, never duplicate keyboard/gamepad input or claim a controller.
+        portState->connected = (getRegU32(ctx, 4) == 0u && getRegU32(ctx, 5) == 0u);
         std::cout << "[pad:open] port=" << getRegU32(ctx, 4)
                   << " slot=" << getRegU32(ctx, 5) << " dma=0x" << std::hex << dmaAddr
                   << std::dec << " connected=" << portState->connected << '\n';

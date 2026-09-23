@@ -486,3 +486,44 @@ Note: final pass/fail evidence logs are committed with this file. Some early fai
   - The current Windows replay is not blocked by an obvious failed memory-card HLE return; the backend reports formatted cards and successful `GetInfo` completions.
   - The route is looping in the original `mcseq_page`/frontend memory-card flow before match/story load. Combat correctness remains unproven on Windows.
   - Next target should trace the original `mcseq_pageTick` state transitions and the inputs or card-state branch that exits the `mcseq_state` 3/6/8 polling cycle, then convert that into a state-gated replay condition.
+
+### 2026-09-23 pad-slot and frontend transition tracing
+
+- Extended frontend/card diagnostics:
+  - `TS_WATCH_STATE_INTERVAL` now includes original memory-card globals (`mcardstate`, `mcardresult`, port/slot/checkcards fields), `mkdir_overwriteok`, the menu selection global, and the `mcseq_pageTick` globals near `0x003affbc..0x003affd8`.
+  - `TS_WATCH_MCSEQ_TRANSITIONS=1` adds read-only transition logging when `mcseq_state`, `mcardstate`, or `mcardresult` changes.
+  - `EeScheduler` now prints the active EE thread, PC, RA, SP, GP, and invocation depth when a host exception escapes a recompiled guest dispatch.
+  - `TS_PAD_TRACE_READS=1` adds capped `scePadRead` tracing with port/slot, active-low buttons, analog bytes, mode, and input source.
+- Added probe script:
+  - `scripts\pad\windows-story-menu-pulse-gated.pad`.
+  - This is a read-count, process-local input probe with a `front0.f14 >= 1` gate and repeated start/cross/circle pulses.
+- Fixed controller-slot connection state:
+  - The runtime previously marked both port 0 slot 0 and port 1 slot 0 connected even though the current backend only supplies one logical controller.
+  - Port 1 slot 0 could therefore appear as an attached controller with neutral or host-derived input during frontend polling.
+  - The runtime now connects only port 0 slot 0 until a real multi-controller backend exists; other logical handles still open and retain independent DMA state, but remain disconnected.
+- Regression coverage:
+  - Added a pad regression proving the second port does not duplicate primary override input.
+  - Windows `ps2x_tests.exe`, run from `source\PS2Recomp`.
+  - Result: 476 total, 476 passed, 0 failed.
+  - Log: `logs\TS06-windows-tests-run-padport-01.log`.
+- Rebuilds:
+  - `logs\TS06-windows-nmake-game-build-mcseqtrace-01.log`: passed.
+  - `logs\TS06-windows-nmake-game-build-eeexception-01.log`: passed.
+  - `logs\TS06-windows-nmake-game-build-padtrace-01.log`: passed.
+  - `logs\TS06-windows-nmake-tests-build-padport-01.log`: passed.
+  - `logs\TS06-windows-nmake-game-build-padport-01.log`: passed.
+- Crash-hunt evidence:
+  - `logs\TS06-windows-statewatch-story-260s-mcseqtrace-01.log` ended with a host `bad allocation` before the watchdog timeout, at the sustained frontend/GS semaphore path. The improved scheduler exception diagnostic was added afterward.
+  - The bad allocation did not reproduce in later 170s or 360s runs with the exception diagnostic.
+  - `logs\TS06-windows-statewatch-story-170s-eeexception-01.log`: exit 10, expected diagnostic timeout, `numdmafail=0`, no scheduler exception.
+  - `logs\TS06-windows-statewatch-story-360s-mcseqtrace-02.log`: exit 10, expected diagnostic timeout, `numdmafail=0`, no scheduler exception.
+  - `logs\TS06-windows-statewatch-story-240s-menupulse-01.log`: exit 10, expected diagnostic timeout, `numdmafail=0`.
+  - `logs\TS06-windows-statewatch-story-80s-padtrace-01.log` and `logs\TS06-windows-statewatch-story-150s-padtrace-02.log` proved scripted `start` (`0xfff7`), `cross` (`0xbfff`), and `circle` (`0xdfff`) reached `scePadRead` on port 0 slot 0 before the pad-slot fix.
+  - `logs\TS06-windows-statewatch-story-150s-padport-01.log` proved only port 0 slot 0 is connected after the fix; port 1 slot 0 opened with `connected=0` and emitted no `padread:trace` lines.
+- Current frontend result:
+  - Even with confirmed port 0 slot 0 `start`/`cross`/`circle` input, the Windows probe remains on frontend index 0 with `front0.f14=1`, `front0.f1c=0`, and `mcseq_state=1`.
+  - `active_characters=0`, no valid first-player prop/health, and combat correctness remain unproven on Windows.
+- Interpretation:
+  - XInput/scripted controller plumbing is now cleaner for single-player Windows bring-up: no phantom second controller is advertised.
+  - The current crash-hunt blocker is an original frontend transition/state issue rather than undelivered pad input.
+  - Next target should identify what page/state `front0.f14=1` represents and why the page record at `0x01fc01e0` is still empty while inputs are accepted.

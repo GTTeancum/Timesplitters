@@ -1,0 +1,10 @@
+Warning: NMake does not support parallel builds. Ignoring parallel build command line option.
+[  1%] Built target ps2_iop
+[  1%] Built target glfw
+[  1%] Built target raylib
+[  1%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Pad.cpp.obj
+Pad.cpp
+[  1%] Linking CXX static library ps2_runtime.lib
+[  2%] Built target ps2_runtime
+[  2%] Linking CXX executable timesplitters.exe
+[100%] Built target timesplitters

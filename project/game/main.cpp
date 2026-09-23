@@ -84,6 +84,17 @@ int main(int argc, char** argv) {
             const uint32_t player = readU32(0x003afa20u);
             const uint32_t currentFront = readU32(0x003ae7f4u);
             const uint32_t mcseqState = readU32(0x003ae898u);
+            const uint32_t mcardResult = readU32(0x003ae3d8u);
+            const uint32_t mcardState = readU32(0x003ae3dcu);
+            const uint32_t mcardPort = readU32(0x003ae3e0u);
+            const uint32_t mcardSlot = readU32(0x003ae3e4u);
+            const uint32_t checkcardsPort = readU32(0x003ae3e8u);
+            const uint32_t checkcardsSlot = readU32(0x003ae3ecu);
+            const uint32_t checkcardsType = readU32(0x003ae3f0u);
+            const uint32_t checkcardsFree = readU32(0x003ae3f4u);
+            const uint32_t checkcardsFormat = readU32(0x003ae3f8u);
+            const uint32_t mkdirOverwriteOk = readU32(0x003ae3fcu);
+            const uint32_t menuSelection = readU32(0x003adb44u);
             uint32_t prop = 0;
             float health = 0.0f;
             bool propValid = false;
@@ -102,6 +113,23 @@ int main(int argc, char** argv) {
                      <<" prop_valid="<<(propValid ? 1 : 0)
                      <<" health="<<health
                      <<" mcseq_state="<<mcseqState
+                     <<" mcard_state="<<mcardState
+                     <<" mcard_result="<<mcardResult
+                     <<" mcard_port="<<mcardPort
+                     <<" mcard_slot="<<mcardSlot
+                     <<" checkcards={port="<<checkcardsPort
+                     <<",slot="<<checkcardsSlot
+                     <<",type="<<checkcardsType
+                     <<",free="<<checkcardsFree
+                     <<",format="<<checkcardsFormat
+                     <<"}"
+                     <<" mkdir_overwriteok="<<mkdirOverwriteOk
+                     <<" menu_selection="<<menuSelection
+                     <<" mcseq_globals=[0x"<<std::hex<<readU32(0x003affbcu)
+                     <<",0x"<<readU32(0x003affc4u)
+                     <<",0x"<<readU32(0x003affc8u)
+                     <<",0x"<<readU32(0x003affd4u)
+                     <<",0x"<<readU32(0x003affd8u)<<std::dec<<"]"
                      <<" mc_last_cmd="<<mcSnapshot.lastCmd
                      <<" mc_last_result="<<mcSnapshot.lastResult
                      <<" mc_open_files="<<mcSnapshot.openFiles.size()
@@ -171,11 +199,29 @@ int main(int argc, char** argv) {
             const double intervalSeconds = std::stod(watchInterval);
             if (intervalSeconds <= 0.0 || intervalSeconds > 300.0)
                 throw std::runtime_error("TS_WATCH_STATE_INTERVAL must be 0..300 seconds");
+            const bool traceMcseqTransitions = [] {
+                const char* enabled = std::getenv("TS_WATCH_MCSEQ_TRANSITIONS");
+                return enabled && *enabled && std::string(enabled) != "0";
+            }();
             stateWatch = std::thread([&, intervalSeconds]{
                 const auto start=std::chrono::steady_clock::now();
                 auto next=start;
+                uint32_t lastMcseqState = readU32(0x003ae898u);
+                uint32_t lastMcardState = readU32(0x003ae3dcu);
+                uint32_t lastMcardResult = readU32(0x003ae3d8u);
                 while(!done.load()) {
                     const auto now=std::chrono::steady_clock::now();
+                    if (traceMcseqTransitions) {
+                        const uint32_t mcseqState = readU32(0x003ae898u);
+                        const uint32_t mcardState = readU32(0x003ae3dcu);
+                        const uint32_t mcardResult = readU32(0x003ae3d8u);
+                        if (mcseqState != lastMcseqState || mcardState != lastMcardState || mcardResult != lastMcardResult) {
+                            logOriginalState("mcseq-change", std::chrono::duration<double>(now-start).count());
+                            lastMcseqState = mcseqState;
+                            lastMcardState = mcardState;
+                            lastMcardResult = mcardResult;
+                        }
+                    }
                     if(now>=next) {
                         logOriginalState("watch", std::chrono::duration<double>(now-start).count());
                         next=now+std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(intervalSeconds));

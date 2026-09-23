@@ -1,0 +1,44 @@
+# Windows crash-hunt probe: read-count frontend pulses for slower native Windows runs.
+# This is process-local input only; wait_u32 observes guest RAM and does not mutate it.
+#
+# Target gate:
+#   front0.f14 at 0x00352db4 becomes nonzero once the initial frontend record advances.
+#
+# Format:
+#   <reads> <buttons> [lx ly rx ry]
+#   wait_u32 <guest-address> <comparison> <value>
+
+30 none
+4 start
+20 none
+wait_u32 0x00352db4 >= 1
+4 start
+12 none
+4 cross
+12 none
+4 cross
+12 none
+4 circle
+12 none
+4 cross
+12 none
+4 down
+8 none
+4 cross
+16 none
+4 up
+8 none
+4 cross
+24 none
+4 cross
+24 none
+4 cross
+24 none
+4 circle
+24 none
+4 cross
+40 none
+4 cross
+40 none
+4 cross
+80 none

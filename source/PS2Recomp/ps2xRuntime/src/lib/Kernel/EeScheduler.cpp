@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <stdexcept>
 
@@ -310,6 +311,14 @@ void EeScheduler::run()
             m_guestExecuting.store(false, std::memory_order_release);
             m_running.store(false, std::memory_order_release);
             publishSnapshot();
+            std::cerr << "[EeScheduler:exception] thread=" << running->id
+                      << " pc=0x" << std::hex << context.pc
+                      << " ra=0x" << getRegU32(&context, 31)
+                      << " sp=0x" << getRegU32(&context, 29)
+                      << " gp=0x" << getRegU32(&context, 28)
+                      << std::dec
+                      << " invocations=" << running->invocations.size()
+                      << '\n';
             throw;
         }
 

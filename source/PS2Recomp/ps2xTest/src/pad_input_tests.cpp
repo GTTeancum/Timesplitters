@@ -720,7 +720,7 @@ void register_pad_input_tests()
                 ps2_stubs::scePadPortOpen(ram.data(),&ctx,nullptr);
                 t.Equals(getRegU32(&ctx,2),1u,"all eight valid logical handles must open");
                 ps2_stubs::scePadGetState(ram.data(),&ctx,nullptr);
-                t.Equals(getRegU32(&ctx,2),slot==0?6u:0u,"unattached extra slots must be DISCONNECTED");
+                t.Equals(getRegU32(&ctx,2),(port==0 && slot==0)?6u:0u,"unattached extra ports and slots must be DISCONNECTED");
             }
             for (uint32_t port=0; port<2; ++port) for (uint32_t slot=0; slot<4; ++slot)
             {
@@ -746,6 +746,19 @@ void register_pad_input_tests()
             t.Equals(getRegU32(&ctx,2),0u,"disconnected slot must not return primary input");
             ps2_stubs::clearPadOverrideState();
             closePadPort(ctx,ram,0,1);
+        });
+        tc.Run("unattached second port does not duplicate primary override input", [](TestCase &t)
+        {
+            std::vector<uint8_t> ram(PS2_RAM_SIZE, 0);
+            R5900Context ctx;
+            ps2_stubs::scePadInit(ram.data(),&ctx,nullptr);
+            openPadPort(ctx,ram,1,0);
+            ps2_stubs::setPadOverrideState(0u,0u,255u,0u,255u);
+            setRegU32(ctx,4,1);setRegU32(ctx,5,0);setRegU32(ctx,6,kPadDataAddr);
+            ps2_stubs::scePadRead(ram.data(),&ctx,nullptr);
+            t.Equals(getRegU32(&ctx,2),0u,"disconnected second port must not return primary input");
+            ps2_stubs::clearPadOverrideState();
+            closePadPort(ctx,ram,1,0);
         });
         tc.Run("invalid logical pad slots remain rejected", [](TestCase &t)
         {

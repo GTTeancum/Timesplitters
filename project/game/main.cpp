@@ -16,6 +16,7 @@
 #include "native_matrix_test.h"
 #include "native_format_test.h"
 #include "native_audio_memory_test.h"
+#include "../../source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.h"
 
 int main(int argc, char** argv) {
     std::cout << std::unitbuf; std::cerr << std::unitbuf;
@@ -59,6 +60,18 @@ int main(int argc, char** argv) {
                 std::memcpy(&value, rt.memory().getRDRAM() + addr, sizeof(value));
             return value;
         };
+        auto validRamRange = [](uint32_t addr, uint32_t size) {
+            return size <= PS2_RAM_SIZE && addr <= PS2_RAM_SIZE - size;
+        };
+        auto logWords = [&](uint32_t addr, uint32_t bytes) {
+            std::cout<<"0x"<<std::hex<<addr<<"[";
+            for (uint32_t offset = 0; offset < bytes; offset += 4u) {
+                if (offset != 0)
+                    std::cout<<",";
+                std::cout<<"0x"<<readU32(addr + offset);
+            }
+            std::cout<<std::dec<<"]";
+        };
         auto readF32 = [&](uint32_t addr) {
             float value = 0.0f;
             if (addr <= PS2_RAM_SIZE - sizeof(value))
@@ -67,7 +80,10 @@ int main(int argc, char** argv) {
         };
         rt.padBackend().setScriptU32Reader(readU32);
         auto logOriginalState = [&](const char *tag, double elapsed) {
+            const auto mcSnapshot = ps2_stubs::getMemoryCardDebugSnapshot();
             const uint32_t player = readU32(0x003afa20u);
+            const uint32_t currentFront = readU32(0x003ae7f4u);
+            const uint32_t mcseqState = readU32(0x003ae898u);
             uint32_t prop = 0;
             float health = 0.0f;
             bool propValid = false;
@@ -85,12 +101,66 @@ int main(int argc, char** argv) {
                      <<" prop=0x"<<prop<<std::dec
                      <<" prop_valid="<<(propValid ? 1 : 0)
                      <<" health="<<health
+                     <<" mcseq_state="<<mcseqState
+                     <<" mc_last_cmd="<<mcSnapshot.lastCmd
+                     <<" mc_last_result="<<mcSnapshot.lastResult
+                     <<" mc_open_files="<<mcSnapshot.openFiles.size()
+                     <<" mc0={fmt="<<(mcSnapshot.ports[0].formatted ? 1 : 0)
+                     <<",cwd='"<<mcSnapshot.ports[0].currentDir<<"'}"
+                     <<" mc1={fmt="<<(mcSnapshot.ports[1].formatted ? 1 : 0)
+                     <<",cwd='"<<mcSnapshot.ports[1].currentDir<<"'}"
+                     <<" current_front=0x"<<std::hex<<currentFront<<std::dec;
+            if (currentFront >= 0x00352da0u && currentFront < 0x00352da0u + 4u * 0x2cu && ((currentFront - 0x00352da0u) % 0x2cu) == 0u) {
+                const uint32_t currentIndex = (currentFront - 0x00352da0u) / 0x2cu;
+                const uint32_t pageBase = readU32(currentFront + 0x4u);
+                const uint32_t boxBase = readU32(currentFront + 0x8u);
+                const uint32_t pageIndex = readU32(currentFront + 0x14u);
+                uint32_t pageBoxBase = 0;
+                std::cout<<" current_front_index="<<currentIndex
+                         <<" current_front_words=[";
+                for (uint32_t word = 0; word < 0x2cu; word += 4u) {
+                    if (word != 0)
+                        std::cout<<",";
+                    std::cout<<"0x"<<std::hex<<readU32(currentFront + word);
+                }
+                std::cout<<std::dec<<"]"
+                         <<" current_front_f14=0x"<<std::hex<<readU32(currentFront + 0x14u)
+                         <<" current_front_f18=0x"<<std::hex<<readU32(currentFront + 0x18u)
+                         <<" current_front_f1c=0x"<<readU32(currentFront + 0x1cu)<<std::dec;
+                if (validRamRange(pageBase, 0x10u) && pageIndex < 1024u) {
+                    const uint32_t pageAddr = pageBase + pageIndex * 0x10u;
+                    if (validRamRange(pageAddr, 0x10u)) {
+                        std::cout<<" current_page=";
+                        logWords(pageAddr, 0x10u);
+                        pageBoxBase = readU32(pageAddr + 0x8u);
+                        const uint32_t pageBoxCount = readU32(pageAddr + 0xcu);
+                        const uint32_t boxesToLog = pageBoxCount < 3u ? pageBoxCount : 3u;
+                        std::cout<<" current_page_boxbase=0x"<<std::hex<<pageBoxBase<<std::dec
+                                 <<" current_page_boxcount="<<pageBoxCount;
+                        if (validRamRange(pageBoxBase, boxesToLog * 0x18u) && boxesToLog > 0u) {
+                            std::cout<<" current_page_boxes=[";
+                            for (uint32_t box = 0; box < boxesToLog; ++box) {
+                                if (box != 0)
+                                    std::cout<<";";
+                                logWords(pageBoxBase + box * 0x18u, 0x18u);
+                            }
+                            std::cout<<"]";
+                        }
+                    }
+                }
+                if (boxBase != 0 && boxBase != pageBoxBase)
+                    std::cout<<" current_front_boxbase=0x"<<std::hex<<boxBase<<std::dec;
+            } else {
+                std::cout<<" current_front_index=-1";
+            }
+            std::cout
                      <<" dma="<<rt.memory().dmaStartCount()
                      <<" gif="<<rt.memory().gifCopyCount()
                      <<" vif="<<rt.memory().vifWriteCount();
             for (uint32_t i = 0; i < 4; ++i) {
                 const uint32_t front = 0x00352da0u + i * 0x2cu;
                 std::cout<<" front"<<i<<"={v0=0x"<<std::hex<<readU32(front)
+                         <<" f14=0x"<<readU32(front + 0x14u)
                          <<" f18=0x"<<readU32(front + 0x18u)
                          <<" f1c=0x"<<readU32(front + 0x1cu)<<std::dec<<"}";
             }

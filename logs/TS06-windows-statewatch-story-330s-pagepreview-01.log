@@ -1,0 +1,1156 @@
+[TS:native] original-EE AOT via PS2Recomp; missing functions STOP; no EE interpreter fallback
+INFO: Initializing raylib 5.5
+INFO: Platform backend: DESKTOP (GLFW)
+INFO: Supported raylib modules:
+INFO:     > rcore:..... loaded (mandatory)
+INFO:     > rlgl:...... loaded (mandatory)
+INFO:     > rshapes:... loaded (optional)
+INFO:     > rtextures:. loaded (optional)
+INFO:     > rtext:..... loaded (optional)
+INFO:     > rmodels:... loaded (optional)
+INFO:     > raudio:.... loaded (optional)
+INFO: DISPLAY: Device initialized successfully
+INFO:     > Display size: 1920 x 1080
+INFO:     > Screen size:  640 x 448
+INFO:     > Render size:  640 x 448
+INFO:     > Viewport offsets: 0, 0
+INFO: GLAD: OpenGL extensions loaded successfully
+INFO: GL: Supported extensions count: 296
+INFO: GL: OpenGL device information:
+INFO:     > Vendor:   ATI Technologies Inc.
+INFO:     > Renderer: AMD Radeon 780M Graphics
+INFO:     > Version:  3.3.0 Core Profile Context 26.3.1.260309
+INFO:     > GLSL:     4.60
+INFO: GL: VAO extension detected, VAO functions loaded successfully
+INFO: GL: NPOT textures extension detected, full NPOT textures supported
+INFO: GL: DXT compressed textures supported
+INFO: GL: ETC2/EAC compressed textures supported
+INFO: PLATFORM: DESKTOP (GLFW - Win32): Initialized successfully
+INFO: TEXTURE: [ID 1] Texture loaded successfully (1x1 | R8G8B8A8 | 1 mipmaps)
+INFO: TEXTURE: [ID 1] Default texture loaded successfully
+INFO: SHADER: [ID 1] Vertex shader compiled successfully
+INFO: SHADER: [ID 2] Fragment shader compiled successfully
+INFO: SHADER: [ID 3] Program shader loaded successfully
+INFO: SHADER: [ID 3] Default shader loaded successfully
+INFO: RLGL: Render batch vertex buffers loaded successfully in RAM (CPU)
+INFO: RLGL: Render batch vertex buffers loaded successfully in VRAM (GPU)
+INFO: RLGL: Default OpenGL state initialized successfully
+INFO: TEXTURE: [ID 2] Texture loaded successfully (128x128 | GRAY_ALPHA | 1 mipmaps)
+INFO: FONT: Default font loaded successfully (224 glyphs)
+INFO: SYSTEM: Working Directory: D:\Programming\GitHub\Timesplitters
+INFO: AUDIO: Device initialized successfully
+INFO:     > Backend:       miniaudio | WASAPI
+INFO:     > Format:        32-bit IEEE Floating Point -> 32-bit IEEE Floating Point
+INFO:     > Channels:      2 -> 2
+INFO:     > Sample rate:   48000 -> 48000
+INFO:     > Periods size:  1440
+INFO: TIMER: Target time per frame: 16.667 milliseconds
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008[TS:pad-script] D:\Programming\GitHub\Timesplitters\scripts\pad\windows-story-scale2-extra-confirm.pad
+[TS:state] tag=watch elapsed=4e-07 pc=0x200008 local_players=0 active_characters=0 player=0x0 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x0 current_front_index=-1 dma=0 gif=0 vif=0 front0={v0=0x0 f14=0x0 f18=0x0 f1c=0x0} front1={v0=0x0 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x0 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x0 f14=0x0 f18=0x0 f1c=0x0}
+Starting execution at address 0x200008INFO: TEXTURE: [ID 3] Texture loaded successfully (640x512 | R8G8B8A8 | 1 mipmaps)
+[SetupHeap] base=0x1ff5390 alignedBase=0x1ff5390 size=0x8000 runtimeBase=0x1ff5390 runtimeEnd=0x1ff5390
+[ps2xIOP] [IOP] loaded IRX id=1 entry=0x10abc base=0x10000 start=0
+[SifInitRpc] Initialized[SIF module] load-emulated id=1 ref=1 path="cdrom0:\MODULES\SIO2MAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=2 entry=0x11d54 base=0x11300 start=0
+[SIF module] load-emulated id=2 ref=1 path="cdrom0:\MODULES\MTAPMAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=3 entry=0x15e68 base=0x13000 start=0
+[SIF module] load-emulated id=3 ref=1 path="cdrom0:\MODULES\PADMAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=4 entry=0x1c458 base=0x1c300 start=0
+[SIF module] load-emulated id=4 ref=1 path="cdrom0:\MODULES\MCMAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=5 entry=0x3fb40 base=0x3fb00 start=0
+[SIF module] load-emulated id=5 ref=1 path="cdrom0:\MODULES\MCSERV.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=6 entry=0x46830 base=0x42e00 start=0
+[SIF module] load-emulated id=6 ref=1 path="cdrom0:\MODULES\LIBSD.IRX;1"
+[ps2xIOP] [IOP printf] sdr driver version 1.4.0 (C)SCEI
+
+[ps2xIOP] [IOP printf]  Exit rsd_main 
+
+[ps2xIOP] [IOP] loaded IRX id=7 entry=0x47500 base=0x47500 start=0
+[SIF module] load-emulated id=7 ref=1 path="cdrom0:\MODULES\SDRDRV.IRX;1"
+[ps2xIOP] [IOP printf] FRD Stream Driver v%d.%d
+
+[ps2xIOP] [IOP printf] Exit stream loader thread
+
+[ps2xIOP] [IOP] loaded IRX id=8 entry=0x48700 base=0x48700 start=0
+[SIF module] load-emulated id=8 ref=1 path="cdrom0:\MODULES\STREAM.IRX;1"
+[gs:reg] idx=0 reg=0x41 value=0x8005
+[gs:copy-reg] reg=0x41 value=0x8005 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=1 reg=0x42 value=0x3
+[gs:reg] idx=2 reg=0x4c value=0x100000
+[gs:reg] idx=3 reg=0x18 value=0x0
+[gs:reg] idx=4 reg=0x40 value=0x400000004000000
+[gs:reg] idx=5 reg=0x47 value=0x0
+[gs:reg] idx=6 reg=0x0 value=0x6
+[gs:copy-reg] reg=0x0 value=0x6 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=7 reg=0x1 value=0x3f80000000000000
+[gs:reg] idx=8 reg=0x4 value=0x0
+[gs:kick] idx=0 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=9 reg=0x4 value=0x40004000
+[gs:kick] idx=1 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=0 type=6 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=16 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1024,1024) test=0x0 alpha=0x3 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1024,1024) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[sceDmaSend] ch=0x1000a000 madr=0x3136b0 qwc=0xa tadr=0x3136b0 chcr=0x181
+[ps2xIOP] [IOP printf] goto stream cmd loop
+
+[gs:reg] idx=10 reg=0x4c value=0x20a0000
+[gs:reg] idx=11 reg=0x18 value=0x790800006c00
+[gs:reg] idx=12 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=13 reg=0x47 value=0x30000
+[gs:reg] idx=14 reg=0x4c value=0x20a0000
+[gs:reg] idx=15 reg=0x18 value=0x790000006c00
+[gs:reg] idx=16 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=17 reg=0x47 value=0x30000
+[gs:reg] idx=18 reg=0x4c value=0x20a0000
+[gs:reg] idx=19 reg=0x18 value=0x790800006c00
+[gs:reg] idx=20 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=21 reg=0x47 value=0x30000
+[gs:reg] idx=22 reg=0x4c value=0x20a0000
+[gs:reg] idx=23 reg=0x18 value=0x790000006c00
+[gs:reg] idx=24 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=25 reg=0x47 value=0x30000
+[run:tick] tick=120 pc=0x201a88 ra=0x201b90 sp=0x1ffff00 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=1 dma=2 gif=2 gsw=0 vif=0
+[gs:reg] idx=26 reg=0x4c value=0x20a0000
+[gs:reg] idx=27 reg=0x18 value=0x790800006c00
+[gs:reg] idx=28 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=29 reg=0x47 value=0x30000
+[gs:reg] idx=30 reg=0x4c value=0x20a0000
+[gs:reg] idx=31 reg=0x18 value=0x790000006c00
+[gs:reg] idx=32 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=33 reg=0x47 value=0x30000
+[gs:reg] idx=34 reg=0x4c value=0x20a0000
+[gs:reg] idx=35 reg=0x18 value=0x790800006c00
+[gs:reg] idx=36 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=37 reg=0x47 value=0x30000
+[gs:reg] idx=38 reg=0x4c value=0x20a0000
+[gs:reg] idx=39 reg=0x18 value=0x790000006c00
+[gs:reg] idx=40 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=41 reg=0x47 value=0x30000
+[gs:reg] idx=42 reg=0x4c value=0x20a0000
+[gs:reg] idx=43 reg=0x18 value=0x790800006c00
+[gs:reg] idx=44 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=45 reg=0x47 value=0x30000
+[gs:reg] idx=46 reg=0x4c value=0x20a0000
+[gs:reg] idx=47 reg=0x18 value=0x790000006c00
+[gs:reg] idx=48 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=49 reg=0x47 value=0x30000
+[gs:reg] idx=50 reg=0x4c value=0x20a0000
+[gs:reg] idx=51 reg=0x18 value=0x790800006c00
+[gs:reg] idx=52 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=53 reg=0x47 value=0x30000
+[gs:reg] idx=54 reg=0x4c value=0x20a0000
+[gs:reg] idx=55 reg=0x18 value=0x790000006c00
+[gs:reg] idx=56 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=57 reg=0x47 value=0x30000
+[gs:reg] idx=58 reg=0x4c value=0x20a0000
+[gs:reg] idx=59 reg=0x18 value=0x790800006c00
+[gs:reg] idx=60 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=61 reg=0x47 value=0x30000
+[gs:reg] idx=62 reg=0x4c value=0x20a0000
+[gs:reg] idx=63 reg=0x18 value=0x790000006c00
+[gs:reg] idx=64 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=65 reg=0x47 value=0x30000
+[gs:reg] idx=66 reg=0x4c value=0x20a0000
+[gs:reg] idx=67 reg=0x18 value=0x790800006c00
+[gs:reg] idx=68 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=69 reg=0x47 value=0x30000
+[run:tick] tick=240 pc=0x201a88 ra=0x2001f4 sp=0x1ffff10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=1 dma=2 gif=2 gsw=0 vif=0
+[gs:reg] idx=70 reg=0x4c value=0x20a0000
+[gs:reg] idx=71 reg=0x18 value=0x790000006c00
+[gs:reg] idx=72 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=73 reg=0x47 value=0x30000
+[gs:reg] idx=74 reg=0x4c value=0x20a0000
+[gs:reg] idx=75 reg=0x18 value=0x790800006c00
+[gs:reg] idx=76 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=77 reg=0x47 value=0x30000
+[gs:reg] idx=78 reg=0x4c value=0x20a0000
+[gs:reg] idx=79 reg=0x18 value=0x790000006c00
+[gs:reg] idx=80 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=81 reg=0x47 value=0x30000
+[gs:reg] idx=82 reg=0x4c value=0x20a0000
+[gs:reg] idx=83 reg=0x18 value=0x790800006c00
+[gs:reg] idx=84 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=85 reg=0x47 value=0x30000
+[gs:reg] idx=86 reg=0x4c value=0x20a0000
+[gs:reg] idx=87 reg=0x18 value=0x790000006c00
+[gs:reg] idx=88 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=89 reg=0x47 value=0x30000
+[gs:reg] idx=90 reg=0x4c value=0x20a0000
+[gs:reg] idx=91 reg=0x18 value=0x790800006c00
+[gs:reg] idx=92 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=93 reg=0x47 value=0x30000
+[gs:reg] idx=94 reg=0x4c value=0x20a0000
+[gs:reg] idx=95 reg=0x18 value=0x790000006c00
+[gs:reg] idx=96 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=97 reg=0x47 value=0x30000
+[gs:reg] idx=98 reg=0x4c value=0x20a0000
+[gs:reg] idx=99 reg=0x18 value=0x790800006c00
+[gs:reg] idx=100 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=101 reg=0x47 value=0x30000
+[pad:open] port=0 slot=0 dma=0x31c740 connected=1
+[pad:open] port=0 slot=1 dma=0x31c8c0 connected=0
+[pad:open] port=0 slot=2 dma=0x31ca40 connected=0
+[pad:open] port=0 slot=3 dma=0x31cbc0 connected=0
+[pad:open] port=1 slot=0 dma=0x31cd40 connected=1
+[pad:open] port=1 slot=1 dma=0x31cec0 connected=0
+[pad:open] port=1 slot=2 dma=0x31d040 connected=0
+[pad:open] port=1 slot=3 dma=0x31d1c0 connected=0
+PS2 printf: Timezone=-300
+PS2 printf: SummerTime=0
+PS2 GsGetIMR: Returning IMR=0x0 pc=0x2d0448 ra=0x2ce948
+PS2 GsGetIMR: Returning IMR=0x0 pc=0x2d0448 ra=0x2ce888
+PS2 GsPutIMR:  new=0x0 a0_64=0x0 a0_32=0x0 a1_32=0x0 pc=0x2950248 ra=0x2943124
+[gs:reg] idx=102 reg=0x4c value=0x20a0000
+[gs:reg] idx=103 reg=0x18 value=0x790000006c00
+[gs:reg] idx=104 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=105 reg=0x47 value=0x30000
+[run:tick] tick=360 pc=0x201a88 ra=0x201c04 sp=0x1eb1ed0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=2 gif=2 gsw=0 vif=0
+[gs:reg] idx=106 reg=0x4c value=0x20a0000
+[gs:reg] idx=107 reg=0x18 value=0x790800006c00
+[gs:reg] idx=108 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=109 reg=0x47 value=0x30000
+[gs:reg] idx=110 reg=0x4c value=0x20a0000
+[gs:reg] idx=111 reg=0x18 value=0x790000006c00
+[gs:reg] idx=112 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=113 reg=0x47 value=0x30000
+[gs:reg] idx=114 reg=0x4c value=0x20a0000
+[gs:reg] idx=115 reg=0x18 value=0x790800006c00
+[gs:reg] idx=116 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=117 reg=0x47 value=0x30000
+[gs:reg] idx=118 reg=0x4c value=0x20a0000
+[gs:reg] idx=119 reg=0x18 value=0x790000006c00
+[gs:reg] idx=120 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=121 reg=0x47 value=0x30000
+[gs:reg] idx=122 reg=0x4c value=0x20a0000
+[gs:reg] idx=123 reg=0x18 value=0x790800006c00
+[gs:reg] idx=124 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=125 reg=0x47 value=0x30000
+[gs:reg] idx=126 reg=0x4c value=0x20a0000
+[gs:reg] idx=127 reg=0x18 value=0x790000006c00
+[run:tick] tick=480 pc=0x201a88 ra=0x201c04 sp=0x1eb1ed0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=2 gif=2 gsw=0 vif=0
+[run:tick] tick=600 pc=0x201a88 ra=0x201c04 sp=0x1eb1ed0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=2 gif=2 gsw=0 vif=0
+[frame:upload] idx=0 tick=3 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:copy-reg] reg=0x0 value=0x4e primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=2 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=3 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=1 type=6 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x3 v0=(1728,1936) uv0=(0,0) stq0=(0,0,1) v1=(2369,2161) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,128) rgba1=(0,0,0,128) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x4c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyzf] idx=0 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=4 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyzf] idx=1 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=5 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyzf] idx=2 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=6 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=2 type=4 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5184 tbw=8 psm=0x13 tw=9 th=7 tcc=1 tfx=0 cbp=16356 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x50000 alpha=0x3 v0=(2048,2048) uv0=(0,0) stq0=(0,0,1) v1=(2048,2048) uv1=(0,0) stq1=(0,0,1) v2=(2048,2048) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,255) rgba1=(255,255,255,255) rgba2=(255,255,255,255)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=3 x=28672 y=31136 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=7 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=4 x=36864 y=32160 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=8 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=3 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5184 tbw=8 psm=0x13 tw=9 th=7 tcc=1 tfx=0 cbp=16356 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x3 v0=(1792,1946) uv0=(0,0) stq0=(0,0,1) v1=(2304,2010) uv1=(512,128) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x4c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyzf] idx=5 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=9 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyzf] idx=6 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=10 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyzf] idx=7 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=11 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=4 type=4 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5440 tbw=8 psm=0x13 tw=9 th=7 tcc=1 tfx=0 cbp=16360 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x50000 alpha=0x3 v0=(2048,2048) uv0=(512,128) stq0=(0,0,1) v1=(2048,2048) uv1=(512,128) stq1=(0,0,1) v2=(2048,2048) uv2=(512,128) stq2=(0,0,1) rgba0=(255,255,255,255) rgba1=(255,255,255,255) rgba2=(255,255,255,255)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=8 x=28672 y=32160 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=12 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=9 x=36864 y=33184 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=13 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=5 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5440 tbw=8 psm=0x13 tw=9 th=7 tcc=1 tfx=0 cbp=16360 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x3 v0=(1792,2010) uv0=(0,0) stq0=(0,0,1) v1=(2304,2074) uv1=(512,128) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x4c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyzf] idx=10 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=14 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyzf] idx=11 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=15 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyzf] idx=12 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=16 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=6 type=4 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5696 tbw=8 psm=0x13 tw=9 th=6 tcc=1 tfx=0 cbp=16364 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x50000 alpha=0x3 v0=(2048,2048) uv0=(512,128) stq0=(0,0,1) v1=(2048,2048) uv1=(512,128) stq1=(0,0,1) v2=(2048,2048) uv2=(512,128) stq2=(0,0,1) rgba0=(255,255,255,255) rgba1=(255,255,255,255) rgba2=(255,255,255,255)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=13 x=28672 y=33184 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=17 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=14 x=36864 y=33696 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=18 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=7 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5696 tbw=8 psm=0x13 tw=9 th=6 tcc=1 tfx=0 cbp=16364 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x3 v0=(1792,2074) uv0=(0,0) stq0=(0,0,1) v1=(2304,2106) uv1=(512,64) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x49 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:texa] idx=0 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:copy-reg] reg=0x0 value=0x4c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyzf] idx=15 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=19 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyzf] idx=16 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=20 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyzf] idx=17 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=21 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=8 type=4 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2048,2048) uv0=(512,64) stq0=(0,0,1) v1=(2048,2048) uv1=(512,64) stq1=(0,0,1) v2=(2048,2048) uv2=(512,64) stq2=(0,0,1) rgba0=(255,255,255,255) rgba1=(255,255,255,255) rgba2=(255,255,255,255)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=18 x=28592 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=22 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=19 x=28656 y=33936 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=23 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=9 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1787,2119) uv0=(5,0) stq0=(0,0,1) v1=(1791,2121) uv1=(14,4) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=20 x=28656 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=24 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=21 x=28784 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=25 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=10 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1791,2119) uv0=(103,49) stq0=(0,0,1) v1=(1799,2124) uv1=(119,58) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=22 x=28784 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=26 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=23 x=28816 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=27 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=11 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1799,2119) uv0=(116,73) stq0=(0,0,1) v1=(1801,2124) uv1=(121,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=24 x=28816 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=28 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=25 x=28960 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=29 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=12 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1801,2120) uv0=(25,87) stq0=(0,0,1) v1=(1810,2124) uv1=(44,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=26 x=28960 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=30 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=27 x=29056 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=31 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=13 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1810,2120) uv0=(70,75) stq0=(0,0,1) v1=(1816,2124) uv1=(82,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=28 x=29040 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=32 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=29 x=29136 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=33 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=14 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1815,2119) uv0=(91,49) stq0=(0,0,1) v1=(1821,2124) uv1=(103,58) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=30 x=29120 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=34 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=31 x=29216 y=34000 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=35 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=15 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1820,2120) uv0=(68,87) stq0=(0,0,1) v1=(1826,2125) uv1=(81,95) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=32 x=29216 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=36 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=33 x=29248 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=37 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=16 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1826,2119) uv0=(20,84) stq0=(0,0,1) v1=(1828,2124) uv1=(25,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=34 x=29248 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=38 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=35 x=29280 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=39 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=17 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1828,2119) uv0=(116,73) stq0=(0,0,1) v1=(1830,2124) uv1=(121,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=36 x=29280 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=40 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=37 x=29344 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=41 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=18 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1830,2120) uv0=(113,86) stq0=(0,0,1) v1=(1834,2124) uv1=(122,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=38 x=29344 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=42 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=39 x=29408 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=43 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=19 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1834,2120) uv0=(113,86) stq0=(0,0,1) v1=(1838,2124) uv1=(122,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=40 x=29392 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=44 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=41 x=29488 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=45 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=20 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1837,2120) uv0=(70,75) stq0=(0,0,1) v1=(1843,2124) uv1=(82,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=42 x=29472 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=46 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=43 x=29536 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=47 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=21 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1842,2120) uv0=(94,87) stq0=(0,0,1) v1=(1846,2124) uv1=(102,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=44 x=29520 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=48 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=45 x=29600 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=49 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=22 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1845,2120) uv0=(102,87) stq0=(0,0,1) v1=(1850,2124) uv1=(113,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=46 x=29600 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=50 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=47 x=29664 y=33936 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=51 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=23 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1850,2119) uv0=(5,0) stq0=(0,0,1) v1=(1854,2121) uv1=(14,4) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=48 x=29728 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=52 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=49 x=29824 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=53 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=24 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1858,2120) uv0=(19,75) stq0=(0,0,1) v1=(1864,2124) uv1=(32,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=50 x=29824 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=54 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=51 x=29904 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=55 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=25 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1864,2120) uv0=(44,87) stq0=(0,0,1) v1=(1869,2124) uv1=(55,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=52 x=29904 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=56 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=53 x=30000 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=57 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=26 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1869,2119) uv0=(57,72) stq0=(0,0,1) v1=(1875,2124) uv1=(70,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=54 x=30064 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=58 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=55 x=30128 y=33936 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=59 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=27 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1879,2119) uv0=(5,0) stq0=(0,0,1) v1=(1883,2121) uv1=(14,4) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=56 x=30128 y=33904 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=60 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=57 x=30208 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=61 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=28 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1883,2119) uv0=(43,37) stq0=(0,0,1) v1=(1888,2124) uv1=(54,46) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=58 x=30192 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=62 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=59 x=30256 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=63 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=29 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1887,2120) uv0=(94,87) stq0=(0,0,1) v1=(1891,2124) uv1=(102,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=60 x=30240 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=64 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=61 x=30336 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=65 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=30 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1890,2120) uv0=(70,75) stq0=(0,0,1) v1=(1896,2124) uv1=(82,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=62 x=30320 y=33920 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=66 drawing=1 prim=6 vtxCount=1
+[gs:packed-xyz] idx=63 x=30416 y=33984 z=0xffffffff kick=1 prim=6
+[gs:kick] idx=67 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=31 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1895,2120) uv0=(70,75) stq0=(0,0,1) v1=(1901,2124) uv1=(82,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=68 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=69 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=32 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1904,2119) uv0=(77,49) stq0=(0,0,1) v1=(1911,2124) uv1=(91,58) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=70 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=71 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=33 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1910,2120) uv0=(19,75) stq0=(0,0,1) v1=(1916,2124) uv1=(32,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=72 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=73 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=34 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1916,2119) uv0=(57,72) stq0=(0,0,1) v1=(1922,2124) uv1=(70,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=74 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=75 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=35 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1922,2119) uv0=(116,73) stq0=(0,0,1) v1=(1924,2124) uv1=(121,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=76 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=77 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=36 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1924,2120) uv0=(45,75) stq0=(0,0,1) v1=(1930,2124) uv1=(57,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=78 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=79 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=37 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1929,2120) uv0=(19,75) stq0=(0,0,1) v1=(1935,2124) uv1=(32,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=80 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=81 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=38 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1935,2119) uv0=(20,84) stq0=(0,0,1) v1=(1937,2124) uv1=(25,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=82 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=83 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=39 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1941,2119) uv0=(15,37) stq0=(0,0,1) v1=(1949,2124) uv1=(31,46) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=84 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=85 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=40 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1948,2120) uv0=(70,75) stq0=(0,0,1) v1=(1954,2124) uv1=(82,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=86 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=87 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=41 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1953,2120) uv0=(102,87) stq0=(0,0,1) v1=(1958,2124) uv1=(113,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=88 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=89 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=42 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1958,2119) uv0=(116,73) stq0=(0,0,1) v1=(1960,2124) uv1=(121,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=90 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=91 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=43 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1960,2120) uv0=(92,75) stq0=(0,0,1) v1=(1966,2125) uv1=(105,83) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=92 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=93 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=44 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1965,2120) uv0=(44,87) stq0=(0,0,1) v1=(1970,2124) uv1=(55,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=94 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=95 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=45 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1971,2119) uv0=(5,0) stq0=(0,0,1) v1=(1975,2121) uv1=(14,4) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=46 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1979,2120) uv0=(19,75) stq0=(0,0,1) v1=(1985,2124) uv1=(32,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=47 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1985,2120) uv0=(44,87) stq0=(0,0,1) v1=(1990,2124) uv1=(55,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=48 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(1990,2119) uv0=(57,72) stq0=(0,0,1) v1=(1996,2124) uv1=(70,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=49 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2000,2120) uv0=(19,75) stq0=(0,0,1) v1=(2006,2124) uv1=(32,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=50 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2006,2119) uv0=(20,84) stq0=(0,0,1) v1=(2008,2124) uv1=(25,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=51 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2008,2119) uv0=(20,84) stq0=(0,0,1) v1=(2010,2124) uv1=(25,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=52 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2014,2120) uv0=(19,75) stq0=(0,0,1) v1=(2020,2124) uv1=(32,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=53 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2020,2120) uv0=(102,87) stq0=(0,0,1) v1=(2025,2124) uv1=(113,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=54 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2024,2120) uv0=(102,87) stq0=(0,0,1) v1=(2029,2124) uv1=(113,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=55 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2029,2120) uv0=(55,87) stq0=(0,0,1) v1=(2035,2124) uv1=(68,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=56 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2035,2120) uv0=(45,75) stq0=(0,0,1) v1=(2041,2124) uv1=(57,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=57 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2040,2119) uv0=(116,73) stq0=(0,0,1) v1=(2042,2124) uv1=(121,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=58 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2042,2120) uv0=(19,75) stq0=(0,0,1) v1=(2048,2124) uv1=(32,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=59 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2048,2120) uv0=(113,86) stq0=(0,0,1) v1=(2052,2124) uv1=(122,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=60 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2051,2120) uv0=(70,75) stq0=(0,0,1) v1=(2057,2124) uv1=(82,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x156 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=61 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2056,2119) uv0=(57,72) stq0=(0,0,1) v1=(2062,2124) uv1=(70,82) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:prim] idx=62 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2066,2119) uv0=(20,84) stq0=(0,0,1) v1=(2068,2124) uv1=(25,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:prim] idx=63 type=6 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x2 tex0=(tbp0=5120 tbw=2 psm=0x13 tw=7 th=7 tcc=1 tfx=0 cbp=16352 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=1728 ofy=1936 scissor=(0,0)-(639,223) test=0x30000 alpha=0x44 v0=(2068,2120) uv0=(55,87) stq0=(0,0,1) v1=(2074,2124) uv1=(68,94) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(127,127,127,127) rgba1=(127,127,127,127) rgba2=(0,0,0,0)
+[gs:texa] idx=1 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=1 tick=4 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=2 tick=5 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:texa] idx=2 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=3 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=3 tick=6 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=4 tick=7 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:texa] idx=4 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=5 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=5 tick=8 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=720 pc=0x201a88 ra=0x201c04 sp=0x1eb1ed0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=35 gif=26 gsw=0 vif=6
+[run:tick] tick=840 pc=0x201a88 ra=0x201c04 sp=0x1eb1ed0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=35 gif=26 gsw=0 vif=6
+[TS:state] tag=watch elapsed=15.0116 pc=0x2d0048 local_players=1 active_characters=0 player=0xc85d40 prop=0x5f6d656d prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x0 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01d0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=35 gif=26 vif=6 front0={v0=0x0 f14=0x0 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=960 pc=0x200ce8 ra=0x200ce8 sp=0x1eb1ee0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=35 gif=26 gsw=0 vif=6
+[run:tick] tick=1080 pc=0x217918 ra=0x217918 sp=0x1eb1e30 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=35 gif=26 gsw=0 vif=6
+[run:tick] tick=1200 pc=0x219494 ra=0x219494 sp=0x1eb1e30 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=35 gif=26 gsw=0 vif=6
+[run:tick] tick=1320 pc=0x21c7e4 ra=0x21c7e4 sp=0x1eb1e90 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=43 gif=34 gsw=0 vif=6
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x2f2cc0 dst=0x12ab00 size=0x17c0 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[Audio:VoiceTrans] core=1 src=0x12ab00 dest=0x5010 size=0x17c0 mode=0x0 copied=1 physical=6080
+[run:tick] tick=1440 pc=0x205448 ra=0x204828 sp=0x1eb1e10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=221 gif=212 gsw=0 vif=6
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x2f2cc0 dst=0x12ab00 size=0x1880 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[Audio:VoiceTrans] core=1 src=0x12ab00 dest=0x67d0 size=0x1880 mode=0x0 copied=1 physical=6272
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x2f2cc0 dst=0x12ab00 size=0x1c80 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[Audio:VoiceTrans] core=1 src=0x12ab00 dest=0x8050 size=0x1c80 mode=0x0 copied=1 physical=7296
+[run:tick] tick=1560 pc=0x205448 ra=0x204828 sp=0x1eb1e10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=221 gif=212 gsw=0 vif=6
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x2f2cc0 dst=0x12ab00 size=0x2e00 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[Audio:VoiceTrans] core=1 src=0x12ab00 dest=0x9cd0 size=0x2e00 mode=0x0 copied=1 physical=11776
+[run:tick] tick=1680 pc=0x205448 ra=0x204828 sp=0x1eb1e10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=221 gif=212 gsw=0 vif=6
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x2f2cc0 dst=0x12ab00 size=0xec0 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[Audio:VoiceTrans] core=1 src=0x12ab00 dest=0xcad0 size=0xec0 mode=0x0 copied=1 physical=3776
+[run:tick] tick=1800 pc=0x205448 ra=0x204828 sp=0x1eb1e10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=221 gif=212 gsw=0 vif=6
+[TS:state] tag=watch elapsed=30.0155 pc=0x2d0048 local_players=1 active_characters=0 player=0xc85d40 prop=0xbd946456 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x0,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x0 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01d0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=221 gif=212 vif=6 front0={v0=0x0 f14=0x0 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x2f2cc0 dst=0x12ab00 size=0x4540 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[Audio:VoiceTrans] core=1 src=0x12ab00 dest=0xd990 size=0x4540 mode=0x0 copied=1 physical=17728
+[run:tick] tick=1920 pc=0x205448 ra=0x204828 sp=0x1eb1e10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=221 gif=212 gsw=0 vif=6
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x2f2cc0 dst=0x12ab00 size=0x1340 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[Audio:VoiceTrans] core=1 src=0x12ab00 dest=0x11ed0 size=0x1340 mode=0x0 copied=1 physical=4928
+[run:tick] tick=2040 pc=0x205448 ra=0x204828 sp=0x1eb1e10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=221 gif=212 gsw=0 vif=6
+[frame:upload] idx=6 tick=9 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:texa] idx=6 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=7 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=8 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=9 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=10 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=11 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=12 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=13 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=7 tick=10 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:texa] idx=14 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=15 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=16 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=17 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=18 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=19 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=20 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=21 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=8 tick=11 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=9 tick=12 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:texa] idx=22 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[run:tick] tick=2160 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=608 gif=592 gsw=0 vif=10
+[gs:texa] idx=23 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=10 tick=13 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=11 tick=14 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=12 tick=15 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=13 tick=16 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=14 tick=17 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=15 tick=18 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=16 tick=19 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=17 tick=20 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=2280 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=620 gif=592 gsw=0 vif=18
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=18 tick=21 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=19 tick=22 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=20 tick=23 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=21 tick=24 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=22 tick=25 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=23 tick=26 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=24 tick=27 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=25 tick=28 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=26 tick=29 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=2400 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=633 gif=592 gsw=0 vif=26
+[frame:upload] idx=27 tick=30 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=28 tick=31 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=29 tick=32 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=30 tick=33 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=31 tick=34 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=32 tick=35 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=33 tick=36 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=2520 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=644 gif=592 gsw=0 vif=34
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=34 tick=37 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=35 tick=38 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=36 tick=39 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=37 tick=40 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=38 tick=41 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=39 tick=42 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=2640 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=653 gif=592 gsw=0 vif=40
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=40 tick=43 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=41 tick=44 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[TS:state] tag=watch elapsed=45.0335 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=656 gif=592 vif=42 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=42 tick=45 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=43 tick=46 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=44 tick=47 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=45 tick=48 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=2760 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=662 gif=592 gsw=0 vif=46
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=46 tick=49 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=47 tick=50 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=48 tick=51 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=49 tick=52 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=2880 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=668 gif=592 gsw=0 vif=50
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=50 tick=53 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=51 tick=54 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=52 tick=55 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=53 tick=56 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3000 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=674 gif=592 gsw=0 vif=54
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=54 tick=57 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=55 tick=58 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3120 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=677 gif=592 gsw=0 vif=56
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=56 tick=59 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=57 tick=60 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=58 tick=61 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=59 tick=62 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3240 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=683 gif=592 gsw=0 vif=60
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=60 tick=63 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=61 tick=64 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3360 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=686 gif=592 gsw=0 vif=62
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=62 tick=65 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=63 tick=66 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3480 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=689 gif=592 gsw=0 vif=64
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=64 tick=67 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=65 tick=68 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=66 tick=69 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=67 tick=70 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3600 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=695 gif=592 gsw=0 vif=68
+[TS:state] tag=watch elapsed=60.0497 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=695 gif=592 vif=68 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=68 tick=71 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=69 tick=72 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3720 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=698 gif=592 gsw=0 vif=70
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=70 tick=73 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=71 tick=74 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3840 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=701 gif=592 gsw=0 vif=72
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=72 tick=75 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=73 tick=76 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=74 tick=77 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=75 tick=78 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=3960 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=707 gif=592 gsw=0 vif=76
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=76 tick=79 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=77 tick=80 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4080 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=710 gif=592 gsw=0 vif=78
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=78 tick=81 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=79 tick=82 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4200 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=713 gif=592 gsw=0 vif=80
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[padread] port=0 slot=0 data2=0xf7 data3=0xff guestButtons=0x0800 enter=0 gamepadStart=0
+[frame:upload] idx=80 tick=83 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=81 tick=84 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=82 tick=85 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=83 tick=86 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4320 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=719 gif=592 gsw=0 vif=84
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=84 tick=87 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=85 tick=88 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4440 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=722 gif=592 gsw=0 vif=86
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=86 tick=89 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=87 tick=90 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[TS:state] tag=watch elapsed=75.0643 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=725 gif=592 vif=88 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=88 tick=91 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=89 tick=92 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4560 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=728 gif=592 gsw=0 vif=90
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=90 tick=93 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=91 tick=94 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4680 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=731 gif=592 gsw=0 vif=92
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=92 tick=95 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=93 tick=96 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4800 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=734 gif=592 gsw=0 vif=94
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=94 tick=97 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=95 tick=98 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=4920 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=737 gif=592 gsw=0 vif=96
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=96 tick=99 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=97 tick=100 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=98 tick=101 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=99 tick=102 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5040 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=743 gif=592 gsw=0 vif=100
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=100 tick=103 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=101 tick=104 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5160 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=746 gif=592 gsw=0 vif=102
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=102 tick=105 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=103 tick=106 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5280 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=749 gif=592 gsw=0 vif=104
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[frame:upload] idx=104 tick=107 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=105 tick=108 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=106 tick=109 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=107 tick=110 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5400 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=755 gif=592 gsw=0 vif=108
+[TS:state] tag=watch elapsed=90.0682 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=755 gif=592 vif=108 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=108 tick=111 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=109 tick=112 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5520 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=758 gif=592 gsw=0 vif=110
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=110 tick=113 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=111 tick=114 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=112 tick=115 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=113 tick=116 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5640 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=764 gif=592 gsw=0 vif=114
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=114 tick=117 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=115 tick=118 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5760 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=767 gif=592 gsw=0 vif=116
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=116 tick=119 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=117 tick=120 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=118 tick=121 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=119 tick=122 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=5880 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=773 gif=592 gsw=0 vif=120
+[frame:upload] idx=120 tick=123[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+ displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=121 tick=124 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=6000 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=776 gif=592 gsw=0 vif=122
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x1ec1f80 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=122 tick=125 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=123 tick=126 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[sceDmaSend] ch=0x10009000 madr=0x0 qwc=0x0 tadr=0x100000 chcr=0x185
+[sceDmaSend:head] ch=0x10009000 tagQwc=0x3bd id=0x3 irq=0x0 addr=0x2eeff0 w2=0x0 w3=0x0
+[frame:upload] idx=124 tick=127 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=125 tick=128 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=6120 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=782 gif=592 gsw=0 vif=126
+[frame:upload] idx=126 tick=129 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[frame:upload] idx=127 tick=130 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[run:tick] tick=6240 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=788 gif=592 gsw=0 vif=130
+[TS:state] tag=watch elapsed=105.079 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=791 gif=592 vif=132 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=6360 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=791 gif=592 gsw=0 vif=132
+[run:tick] tick=6480 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=797 gif=592 gsw=0 vif=136
+[run:tick] tick=6600 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=801 gif=592 gsw=0 vif=138
+[run:tick] tick=6720 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=806 gif=592 gsw=0 vif=142
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[run:tick] tick=6840 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=812 gif=592 gsw=0 vif=146
+[run:tick] tick=6960 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=818 gif=592 gsw=0 vif=150
+[run:tick] tick=7080 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=824 gif=592 gsw=0 vif=154
+[run:tick] tick=7200 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=830 gif=592 gsw=0 vif=158
+[TS:state] tag=watch elapsed=120.089 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=830 gif=592 vif=158 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=7320 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=836 gif=592 gsw=0 vif=162
+[run:tick] tick=7440 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=842 gif=592 gsw=0 vif=166
+[run:tick] tick=7560 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=848 gif=592 gsw=0 vif=170
+[run:tick] tick=7680 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=854 gif=592 gsw=0 vif=174
+[run:tick] tick=7800 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=860 gif=592 gsw=0 vif=178
+[run:tick] tick=7920 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=866 gif=592 gsw=0 vif=182
+[run:tick] tick=8040 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=872 gif=592 gsw=0 vif=186
+[TS:state] tag=watch elapsed=135.099 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=875 gif=592 vif=188 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=8160 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=878 gif=592 gsw=0 vif=190
+[run:tick] tick=8280 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=884 gif=592 gsw=0 vif=194
+[run:tick] tick=8400 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=890 gif=592 gsw=0 vif=198
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[run:tick] tick=8520 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=896 gif=592 gsw=0 vif=202
+[run:tick] tick=8640 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=902 gif=592 gsw=0 vif=206
+[run:tick] tick=8760 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=908 gif=592 gsw=0 vif=210
+[run:tick] tick=8880 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=917 gif=592 gsw=0 vif=216
+[run:tick] tick=9000 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=923 gif=592 gsw=0 vif=220
+[TS:state] tag=watch elapsed=150.1 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=924 gif=592 vif=220 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=9120 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=932 gif=592 gsw=0 vif=226
+[run:tick] tick=9240 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=938 gif=592 gsw=0 vif=230
+[run:tick] tick=9360 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=944 gif=592 gsw=0 vif=234
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[run:tick] tick=9480 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=953 gif=592 gsw=0 vif=240
+[run:tick] tick=9600 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=959 gif=592 gsw=0 vif=244
+[run:tick] tick=9720 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=965 gif=592 gsw=0 vif=248
+[run:tick] tick=9840 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=971 gif=592 gsw=0 vif=252
+[TS:state] tag=watch elapsed=165.101 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=977 gif=592 vif=256 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=9960 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=980 gif=592 gsw=0 vif=258
+[run:tick] tick=10080 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=986 gif=592 gsw=0 vif=262
+[padread] port=0 slot=0 data2=0xef data3=0xff guestButtons=0x1000 enter=0 gamepadStart=0
+[run:tick] tick=10200 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=992 gif=592 gsw=0 vif=266
+[run:tick] tick=10320 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=998 gif=592 gsw=0 vif=270
+[run:tick] tick=10440 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1007 gif=592 gsw=0 vif=276
+[run:tick] tick=10560 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1013 gif=592 gsw=0 vif=280
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x1fb19c0 dst=0x16ab00 size=0x40 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[run:tick] tick=10680 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1019 gif=592 gsw=0 vif=284
+[run:tick] tick=10800 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1028 gif=592 gsw=0 vif=290
+[TS:state] tag=watch elapsed=180.115 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1031 gif=592 vif=292 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=10920 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1040 gif=592 gsw=0 vif=298
+[run:tick] tick=11040 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1052 gif=592 gsw=0 vif=306
+[run:tick] tick=11160 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1062 gif=592 gsw=0 vif=312
+[run:tick] tick=11280 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1076 gif=592 gsw=0 vif=322
+[run:tick] tick=11400 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1091 gif=592 gsw=0 vif=332
+[run:tick] tick=11520 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1103 gif=592 gsw=0 vif=340
+[run:tick] tick=11640 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1118 gif=592 gsw=0 vif=350
+[TS:state] tag=watch elapsed=195.133 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=1 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x0,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x0 current_page=0x1fc01e0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1124 gif=592 vif=354 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x0} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=11760 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1130 gif=592 gsw=0 vif=358
+[run:tick] tick=11880 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1145 gif=592 gsw=0 vif=368
+[run:tick] tick=12000 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1158 gif=592 gsw=0 vif=376
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x1fb19c0 dst=0x16ab00 size=0x40 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[run:tick] tick=12120 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1172 gif=592 gsw=0 vif=386
+[run:tick] tick=12240 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1184 gif=592 gsw=0 vif=394
+[run:tick] tick=12360 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1199 gif=592 gsw=0 vif=404
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=12480 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1211 gif=592 gsw=0 vif=412
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=12600 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1223 gif=592 gsw=0 vif=420
+[TS:state] tag=watch elapsed=210.14 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=5 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x2,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x2 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01f0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1223 gif=592 vif=420 front0={v0=0x0 f14=0x2 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=12720 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1235 gif=592 gsw=0 vif=428
+[run:tick] tick=12840 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1244 gif=592 gsw=0 vif=434
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=12960 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1256 gif=592 gsw=0 vif=442
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=13080 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1268 gif=592 gsw=0 vif=450
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=13200 pc=0x200e7c ra=0x200e7c sp=0x1eb1ee0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1277 gif=592 gsw=0 vif=456
+[run:tick] tick=13320 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1289 gif=592 gsw=0 vif=464
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=13440 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1301 gif=592 gsw=0 vif=472
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[TS:state] tag=watch elapsed=225.158 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=8 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x2,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x2 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01f0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1307 gif=592 vif=476 front0={v0=0x0 f14=0x2 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[MC] Sync cmd=1 result=0[run:tick] tick=13560 pc=0x200e7c ra=0x200e7c sp=0x1eb1ee0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1310 gif=592 gsw=0 vif=478
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=13680 pc=0x200e7c ra=0x200e7c sp=0x1eb1ee0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1322 gif=592 gsw=0 vif=486
+[run:tick] tick=13800 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1334 gif=592 gsw=0 vif=494
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=13920 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1346 gif=592 gsw=0 vif=502
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=14040 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1358 gif=592 gsw=0 vif=510
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=14160 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1370 gif=592 gsw=0 vif=518
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[run:tick] tick=14280 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1382 gif=592 gsw=0 vif=526
+[MC] Sync cmd=1 result=0[run:tick] tick=14400 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1394 gif=592 gsw=0 vif=534
+[TS:state] tag=watch elapsed=240.168 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=8 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x2,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x2 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01f0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1394 gif=592 vif=534 front0={v0=0x0 f14=0x2 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x1fb19c0 dst=0x16ab00 size=0x40 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[MC] Sync cmd=1 result=0[run:tick] tick=14520 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1406 gif=592 gsw=0 vif=542
+[MC] Sync cmd=2 result=-4[run:tick] tick=14640 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1418 gif=592 gsw=0 vif=550
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x1fb19c0 dst=0x16ab00 size=0x40 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[run:tick] tick=14760 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1430 gif=592 gsw=0 vif=558
+[run:tick] tick=14880 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1443 gif=592 gsw=0 vif=566
+[run:tick] tick=15000 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1457 gif=592 gsw=0 vif=576
+[run:tick] tick=15120 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1469 gif=592 gsw=0 vif=584
+[run:tick] tick=15240 pc=0x200e7c ra=0x200e7c sp=0x1eb1ee0 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1481 gif=592 gsw=0 vif=592
+[TS:state] tag=watch elapsed=255.174 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=3 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x2,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x2 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01f0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1490 gif=592 vif=598 front0={v0=0x0 f14=0x2 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=15360 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1496 gif=592 gsw=0 vif=602
+[run:tick] tick=15480 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1508 gif=592 gsw=0 vif=610
+[run:tick] tick=15600 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1520 gif=592 gsw=0 vif=618
+[run:tick] tick=15720 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1532 gif=592 gsw=0 vif=626
+[run:tick] tick=15840 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1545 gif=592 gsw=0 vif=634
+[run:tick] tick=15960 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1559 gif=592 gsw=0 vif=644
+[run:tick] tick=16080 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1571 gif=592 gsw=0 vif=652
+[run:tick] tick=16200 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1583 gif=592 gsw=0 vif=660
+[TS:state] tag=watch elapsed=270.176 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=3 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x2,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x2 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01f0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1583 gif=592 vif=660 front0={v0=0x0 f14=0x2 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=16320 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1595 gif=592 gsw=0 vif=668
+[run:tick] tick=16440 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1607 gif=592 gsw=0 vif=676
+[run:tick] tick=16560 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1617 gif=592 gsw=0 vif=682
+[run:tick] tick=16680 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1628 gif=592 gsw=0 vif=690
+[run:tick] tick=16800 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1640 gif=592 gsw=0 vif=698
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x1fb19c0 dst=0x16ab00 size=0x40 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[run:tick] tick=16920 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1655 gif=592 gsw=0 vif=708
+[run:tick] tick=17040 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1667 gif=592 gsw=0 vif=716
+[TS:state] tag=watch elapsed=285.179 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=3 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01e0[0x356578,0x29a,0x1fbd1d0,0x0] current_page_boxbase=0x1fbd1d0 current_page_boxcount=0 dma=1673 gif=592 vif=720 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=17160 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1679 gif=592 gsw=0 vif=724
+[run:tick] tick=17280 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1694 gif=592 gsw=0 vif=734
+[run:tick] tick=17400 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1706 gif=592 gsw=0 vif=742
+[run:tick] tick=17520 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1715 gif=592 gsw=0 vif=748
+[run:tick] tick=17640 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1728 gif=592 gsw=0 vif=756
+[run:tick] tick=17760 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1742 gif=592 gsw=0 vif=766
+[run:tick] tick=17880 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1757 gif=592 gsw=0 vif=776
+[run:tick] tick=18000 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1769 gif=592 gsw=0 vif=784
+[TS:state] tag=watch elapsed=300.193 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=3 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01e0[0x356578,0x29a,0x1fbd1d0,0x0] current_page_boxbase=0x1fbd1d0 current_page_boxcount=0 dma=1769 gif=592 vif=784 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=18120 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1781 gif=592 gsw=0 vif=792
+[run:tick] tick=18240 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1793 gif=592 gsw=0 vif=800
+[run:tick] tick=18360 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1805 gif=592 gsw=0 vif=808
+[run:tick] tick=18480 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1817 gif=592 gsw=0 vif=816
+[run:tick] tick=18600 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1829 gif=592 gsw=0 vif=824
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x1fb19c0 dst=0x16ab00 size=0x40 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[padread] port=0 slot=0 data2=0xff data3=0xbf guestButtons=0x0040 enter=0 gamepadStart=0
+[run:tick] tick=18720 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1841 gif=592 gsw=0 vif=832
+[run:tick] tick=18840 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1853 gif=592 gsw=0 vif=840
+[TS:state] tag=watch elapsed=315.208 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=3 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x1,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x1 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01e0[0x356578,0x29a,0x1fbd1d0,0x0] current_page_boxbase=0x1fbd1d0 current_page_boxcount=0 dma=1859 gif=592 vif=844 front0={v0=0x0 f14=0x1 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[run:tick] tick=18960 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1865 gif=592 gsw=0 vif=848
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=19080 pc=0x200f64 ra=0x200f64 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1875 gif=592 gsw=0 vif=854
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=19200 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1886 gif=592 gsw=0 vif=862
+[run:tick] tick=19320 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1898 gif=592 gsw=0 vif=870
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=19440 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1910 gif=592 gsw=0 vif=878
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[MC] Sync cmd=1 result=0[run:tick] tick=19560 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1919 gif=592 gsw=0 vif=884
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[run:tick] tick=19680 pc=0x201000 ra=0x201000 sp=0x1ec1f10 gp=0x3b47f0 dispfb1=0x11400 display1=0xdf27f000202a4 activeThreads=3 dma=1931 gif=592 gsw=0 vif=892
+[MC] Sync cmd=1 result=0[TS:state] tag=watch elapsed=330.211 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=8 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x2,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x2 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01f0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1943 gif=592 vif=900 front0={v0=0x0 f14=0x2 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+Game thread returned. PC=0x201000 RA=0x20184c
+INFO: TEXTURE: [ID 3] Unloaded texture data from VRAM (GPU)
+INFO: TEXTURE: [ID 2] Unloaded texture data from VRAM (GPU)
+INFO: SHADER: [ID 3] Default shader unloaded successfully
+INFO: TEXTURE: [ID 1] Default texture unloaded successfully
+INFO: Window closed successfully
+[run] exiting loop[TS:state] tag=stopped elapsed=330 pc=0x2d0048 local_players=1 active_characters=0 player=0x1de1850 prop=0x0 prop_valid=0 health=0 mcseq_state=8 current_front=0x352da0 current_front_index=0 current_front_words=[0x0,0x1fc01d0,0x1fbd1d0,0x0,0x0,0x2,0x0,0x1,0x0,0x0,0x0] current_front_f14=0x2 current_front_f18=0x0 current_front_f1c=0x1 current_page=0x1fc01f0[0x0,0x0,0x0,0x0] current_page_boxbase=0x0 current_page_boxcount=0 current_front_boxbase=0x1fbd1d0 dma=1943 gif=592 vif=900 front0={v0=0x0 f14=0x2 f18=0x0 f1c=0x1} front1={v0=0x1 f14=0x0 f18=0x0 f1c=0x0} front2={v0=0x2 f14=0x0 f18=0x0 f1c=0x0} front3={v0=0x3 f14=0x0 f18=0x0 f1c=0x0}
+[TS:stopped] timeout=1 pc=0x2d0048 dma=1943 gif=592 gs=0 vif=900 threads=3
+[TS:kernel] cycles=2939496490 running=3
+[TS:thread] id=1 status=2 wait=1 waitid=0 depth=0 pc=0x2d0048 ra=0x20184c sp=0x1ffff20 entry=0x200008
+[TS:thread] id=2 status=2 wait=2 waitid=4 depth=0 pc=0x2d0168 ra=0x200e7c sp=0x1eb1ee0 entry=0x200c48
+[TS:thread] id=3 status=0 wait=0 waitid=0 depth=0 pc=0x201064 ra=0x201064 sp=0x1ec1f10 entry=0x200f20
+[TS:semaphore] id=1 count=0 max=1 waiters=0
+[TS:semaphore] id=2 count=0 max=1 waiters=0
+[TS:semaphore] id=3 count=0 max=1 waiters=0
+[TS:semaphore] id=4 count=0 max=1 waiters=1
+[TS:registers] thread=1 pc=0x2d0048
+[TS:reg] t=1 n=0 lo=0x0 hi=0x0 fbits=0x3e800000 f=0.25
+[TS:reg] t=1 n=1 lo=0x3e800000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=2 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=3 lo=0x32 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=4 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=5 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=6 lo=0x10000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=7 lo=0x1 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=8 lo=0x2 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=9 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=10 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=11 lo=0x7fffffff hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=12 lo=0xfffffffff0000000 hi=0x0 fbits=0xbb491000 f=-0.00306797
+[TS:reg] t=1 n=13 lo=0xccccccc hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=14 lo=0xcccccccc hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=15 lo=0x7 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=16 lo=0x1eb0000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=17 lo=0x1ec0000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=18 lo=0x1e90000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=19 lo=0x200000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=20 lo=0x1eb0000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=21 lo=0x3b47f0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=22 lo=0x1fb0000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=23 lo=0x200000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=24 lo=0x1fffe20 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=25 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=26 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=27 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=28 lo=0x3b47f0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=29 lo=0x1ffff20 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=30 lo=0x2f2c30 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=1 n=31 lo=0x20184c hi=0x0 fbits=0x0 f=0
+[TS:registers] thread=2 pc=0x2d0168
+[TS:reg] t=2 n=0 lo=0x0 hi=0x0 fbits=0x4291e3b8 f=72.9448
+[TS:reg] t=2 n=1 lo=0x47000000 hi=0x0 fbits=0x46959800 f=19148
+[TS:reg] t=2 n=2 lo=0x0 hi=0x0 fbits=0x47000000 f=32768
+[TS:reg] t=2 n=3 lo=0x44 hi=0x0 fbits=0x44f20000 f=1936
+[TS:reg] t=2 n=4 lo=0x4 hi=0x0 fbits=0xc6fffe00 f=-32767
+[TS:reg] t=2 n=5 lo=0x0 hi=0x0 fbits=0x42e00000 f=112
+[TS:reg] t=2 n=6 lo=0x1ecb210 hi=0x0 fbits=0x43a00000 f=320
+[TS:reg] t=2 n=7 lo=0x10000000 hi=0x0 fbits=0x3fc1c6f9 f=1.51388
+[TS:reg] t=2 n=8 lo=0xe hi=0x0 fbits=0x3f000000 f=0.5
+[TS:reg] t=2 n=9 lo=0x11000000 hi=0x0 fbits=0x3f333333 f=0.7
+[TS:reg] t=2 n=10 lo=0x60 hi=0x0 fbits=0x3f800000 f=1
+[TS:reg] t=2 n=11 lo=0x5e8 hi=0x0 fbits=0x3f266666 f=0.65
+[TS:reg] t=2 n=12 lo=0x1ec3800 hi=0x0 fbits=0x43d074d2 f=416.913
+[TS:reg] t=2 n=13 lo=0x352a3c hi=0x0 fbits=0x41bce2e2 f=23.6108
+[TS:reg] t=2 n=14 lo=0x1 hi=0x0 fbits=0x43dd419e f=442.513
+[TS:reg] t=2 n=15 lo=0x3525c8 hi=0x0 fbits=0x4211a4a4 f=36.4108
+[TS:reg] t=2 n=16 lo=0xfffffff hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=17 lo=0x1 hi=0x0 fbits=0x3f0ccccd f=0.55
+[TS:reg] t=2 n=18 lo=0x2f2c00 hi=0x0 fbits=0x3f1b0594 f=0.605554
+[TS:reg] t=2 n=19 lo=0xc hi=0x0 fbits=0x3f666666 f=0.9
+[TS:reg] t=2 n=20 lo=0x2f0000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=21 lo=0x1 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=22 lo=0x380000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=23 lo=0x3adb00 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=24 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=25 lo=0x71 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=26 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=27 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=28 lo=0x3b47f0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=29 lo=0x1eb1ee0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=30 lo=0x380000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=2 n=31 lo=0x200e7c hi=0x0 fbits=0x0 f=0
+[TS:registers] thread=3 pc=0x201064
+[TS:reg] t=3 n=0 lo=0x0 hi=0x0 fbits=0x4293d8fe f=73.9238
+[TS:reg] t=3 n=1 lo=0x0 hi=0x0 fbits=0x46979a00 f=19405
+[TS:reg] t=3 n=2 lo=0x0 hi=0x0 fbits=0x4291d9f7 f=72.9257
+[TS:reg] t=3 n=3 lo=0x64 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=4 lo=0x10009000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=5 lo=0x100000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=6 lo=0x100000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=7 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=8 lo=0x1 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=9 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=10 lo=0x50 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=11 lo=0x51 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=12 lo=0x60 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=13 lo=0x1 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=14 lo=0x53 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=15 lo=0x52 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=16 lo=0x1c3 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=17 lo=0x1 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=18 lo=0x3adb00 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=19 lo=0x380000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=20 lo=0x200000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=21 lo=0x2f0000 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=22 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=23 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=24 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=25 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=26 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=27 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=28 lo=0x3b47f0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=29 lo=0x1ec1f10 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=30 lo=0x0 hi=0x0 fbits=0x0 f=0
+[TS:reg] t=3 n=31 lo=0x201064 hi=0x0 fbits=0x0 f=0
+[TS:DMA] ch=0 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=1 chcr=0x70000085 madr=0x0 qwc=0x0 tadr=0x109290 sadr=0x0
+[TS:DMA] ch=2 chcr=0x1 madr=0x1fedb00 qwc=0x0 tadr=0x3136b0 sadr=0x0
+[TS:DMA] ch=3 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=4 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=5 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=6 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=7 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=8 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:DMA] ch=9 chcr=0x0 madr=0x0 qwc=0x0 tadr=0x0 sadr=0x0
+[TS:original] numdmafail=0
+[TS:VIF] unit=0 stat=0x0 code=0x0 err=0x0 cycle=0x0 num=0x0 top=0x0 tops=0x0
+[TS:VIF] unit=1 stat=0x80 code=0x0 err=0x0 cycle=0x404 num=0x0 top=0x8c tops=0x246
+[TS:IOP] cycles=359933581 instructions=2209 modules=8 threads=12 rpcservers=10
+[TS:IOP-service] MCSERV active=1 unknown_rpc_logs=0
+[TS:IOP-service] dbcman active=0 reported_version=784 version_queries=0 failed_version_replies=0 unknown_rpc_logs=0
+[TS:IOP-service] libsd active=1
+[TS:sound-memory] writes=7 bytes_written=57856 reads=0 bytes_read=0 note=memory-transfers-not-mixed-audio
+[TS:pad-script] reads=458 exhausted=0 timed=1 time_scale=2
+INFO: AUDIO: Device closed successfully

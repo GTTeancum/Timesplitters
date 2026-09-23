@@ -444,3 +444,45 @@ Note: final pass/fail evidence logs are committed with this file. Some early fai
   - The new `wait_u32` hook is tested and useful for future state-gated probes, but the initial read-count gated Story route does not reproduce the timed menu path.
   - The extra timed confirms show the Windows route is stuck around a frontend/memory-card polling state rather than crashing.
   - The next targeted work should identify the exact original page/state for `front0.f1c=1` and the required input/state transition, likely by logging the current frontend pointer/page fields from original `frontSet`/`frontPageSet` state rather than guessing from `front0` fields alone.
+
+### 2026-09-23 frontend/card-sequence state diagnostics
+
+- Extended `TS_WATCH_STATE_INTERVAL` diagnostics in `project\game\main.cpp`.
+  - Logs the actual current frontend pointer from `gp-0x5ffc` (`0x003ae7f4`).
+  - Logs current frontend record words, selected page index, selected page words, capped box previews, and all four frontend records' `f14/f18/f1c` fields.
+  - Logs original `mcseq_state` from `gp-0x5f58` (`0x003ae898`) plus the runtime memory-card backend's last command/result, open-file count, and formatted/cwd state for card slots 0 and 1.
+  - This remains read-only observation; no guest state, semaphore, timer, or GS completion path is modified.
+- Rebuilds:
+  - `logs\TS06-windows-nmake-game-build-frontstate-01.log`: passed.
+  - `logs\TS06-windows-nmake-game-build-frontwords-01.log`: passed.
+  - `logs\TS06-windows-nmake-game-build-pagepreview-01.log`: passed.
+  - `logs\TS06-windows-nmake-game-build-mcsnapshot-02.log`: passed.
+  - `logs\TS06-windows-nmake-game-build-mcsnapshot-03.log`: passed after a small page-preview guard cleanup.
+- Regression coverage:
+  - Windows `ps2x_tests.exe`, run from `source\PS2Recomp`.
+  - Result: 475 total, 475 passed, 0 failed.
+  - Log: `logs\TS06-windows-tests-run-mcsnapshot-02.log`.
+- Story timed probe with frontend words:
+  - Script: `scripts\pad\windows-story-scale2-extra-confirm.pad`.
+  - `TS_PAD_TIME_SCALE=2`.
+  - Run: `logs\TS06-windows-statewatch-story-460s-frontwords-01.log`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Original `numdmafail=0`.
+  - `front0.f14` moved from 1 to 2 and `front0.f1c` became 1 around 300 seconds; `active_characters` remained 0 and no valid first-player prop/health was observed.
+- Story timed probe with selected page preview:
+  - Run: `logs\TS06-windows-statewatch-story-330s-pagepreview-01.log`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Original `numdmafail=0`.
+  - The current frontend record pointed to `pages` (`0x01fc01d0`) and `boxes` (`0x01fbd1d0`).
+  - Around 285-315 seconds, selected page words were `0x00356578, 0x0000029a, 0x01fbd1d0, 0x00000000`, identifying the `mcseq_page` record.
+  - The run stayed outside gameplay: `active_characters=0`, no valid player prop, and no combat counters changed.
+- Story timed probe with memory-card backend snapshot:
+  - Run: `logs\TS06-windows-statewatch-story-240s-mcsnapshot-01.log`.
+  - Result: exit 10, expected diagnostic timeout, not a crash.
+  - Original `numdmafail=0`.
+  - `mcseq_state` advanced into the memory-card sequence (`6` at 210 seconds, `8` by 225 seconds).
+  - Runtime card backend repeatedly completed `sceMcGetInfo`/`sceMcSync` successfully: `mc_last_cmd=1`, `mc_last_result=0`, `mc0={fmt=1,cwd='/'}`, `mc1={fmt=1,cwd='/'}`, `mc_open_files=0`.
+- Interpretation:
+  - The current Windows replay is not blocked by an obvious failed memory-card HLE return; the backend reports formatted cards and successful `GetInfo` completions.
+  - The route is looping in the original `mcseq_page`/frontend memory-card flow before match/story load. Combat correctness remains unproven on Windows.
+  - Next target should trace the original `mcseq_pageTick` state transitions and the inputs or card-state branch that exits the `mcseq_state` 3/6/8 polling cycle, then convert that into a state-gated replay condition.

@@ -1,0 +1,234 @@
+[0/2] Re-checking globbed directories...
+[1/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/control_flow_analyzer.cpp.o
+[2/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/code_generator.cpp.o
+[3/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/control_flow_emitter.cpp.o
+[4/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/cop0_translator.cpp.o
+[5/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/fpu_translator.cpp.o
+[6/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/function_emitter.cpp.o
+[7/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/function_table_emitter.cpp.o
+[8/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/gif_dma_kick_analyzer.cpp.o
+[9/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/elf_parser.cpp.o
+[10/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/jump_table_switch_emitter.cpp.o
+[11/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/instruction_translator.cpp.o
+[12/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/mmi_translation_helpers.cpp.o
+[13/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/mmi_translator.cpp.o
+[14/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/r5900_decoder.cpp.o
+[15/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/regimm_translator.cpp.o
+[16/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/special_translator.cpp.o
+[17/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/vu_translation_helpers.cpp.o
+[18/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/vu_translator.cpp.o
+[19/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp.dir/src/runner/main.cpp.o
+[20/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/config_manager.cpp.o
+[21/24] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/ps2_recompiler.cpp.o
+[22/24] Linking CXX static library ps2xRecomp/libps2_recomp_lib.a
+[23/24] Linking CXX executable ps2xRecomp/ps2_recomp
+[recompiler] parsing config
+[recompiler] parsing ELF
+[recompiler] extracted 2670 functions, 6214 symbols, 40 sections, 0 relocations
+[recompiler] recompiling 2670 functions
+[recompiler] collected 21805 resumable entry point(s) across 1763 owner function(s)
+[recompiler] recompilation pass completed
+[recompiler] generated function header file: "/mnt/data/TS01/generated-staging/ps2_recompiled_functions.h"
+[recompiler] wrote individual function files to /mnt/data/TS01/generated-staging
+[recompiler] generated function registration file: "/mnt/data/TS01/generated-staging/register_functions.cpp"
+[recompiler] generated stub header file: "/mnt/data/TS01/generated-staging/ps2_recompiled_stubs.h"
+
+========== PS2Recomp report ==========
+Functions discovered: 2670
+Symbols: 6214, sections: 40, relocations: 0
+Functions processed: 2670, recompiled: 2373, stubs: 297, skipped: 0, decode failures: 0
+Additional entrypoints: 21805
+Generated functions: 2670
+Indirect fallback promotions: 78 (16154 fallback entries)
+Unhandled instructions: 0
+Correctness-critical guest fallbacks: 0, failures: 0
+Warnings: 78, errors: 0
+
+Events:
+  [info] config - Parsing toml file: /mnt/data/TS01/config/timesplitters-staging.toml
+  [info] elf - ELF entry point: 0x200008
+  [info] elf - BSS range: 0x3afe00 - 0x1ff5390 (size 0x1c45590), gp=0x3b47f0
+  [warning] control-flow function=cheatTick addr=0x203790 - unresolved JR/JALR at 0x203790; promoted 82 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x206ba0 - unresolved JR/JALR at 0x206ba0; promoted 22 fallback entries
+  [warning] control-flow function=gettextfromfunction addr=0x20caac - unresolved JR/JALR at 0x20caac; promoted 8 fallback entries
+  [warning] control-flow function=menuTick addr=0x20ce98 - unresolved JR/JALR at 0x20ce98; promoted 57 fallback entries
+  [warning] control-flow function=debugmenuTick addr=0x20db7c - unresolved JR/JALR at 0x20db7c; promoted 12 fallback entries
+  [warning] control-flow function=main_pageGfx addr=0x212288 - unresolved JR/JALR at 0x212288 0x21229c; promoted 129 fallback entries
+  [warning] control-flow function=main_pageTick addr=0x2123b8 - unresolved JR/JALR at 0x2123b8; promoted 120 fallback entries
+  [warning] control-flow function=challengeTick addr=0x21f97c - unresolved JR/JALR at 0x21f97c 0x21fa90 0x21fabc; promoted 185 fallback entries
+  [warning] control-flow function=unlockedEx addr=0x2251fc - unresolved JR/JALR at 0x2251fc; promoted 216 fallback entries
+  [warning] control-flow function=gvSetValue addr=0x22c364 - unresolved JR/JALR at 0x22c364; promoted 28 fallback entries
+  [warning] control-flow function=frontTick addr=0x22cc6c - unresolved JR/JALR at 0x22cc6c; promoted 118 fallback entries
+  [warning] control-flow function=frontGfx addr=0x22cd7c - unresolved JR/JALR at 0x22cd7c 0x22cda4 0x22cdd8 0x22ce4c; promoted 81 fallback entries
+  [warning] control-flow function=splitpageDraw addr=0x2310b0 - unresolved JR/JALR at 0x2310b0; promoted 42 fallback entries
+  [warning] control-flow function=splitpageTick addr=0x231148 - unresolved JR/JALR at 0x231148; promoted 53 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x2313e4 - unresolved JR/JALR at 0x2313e4; promoted 42 fallback entries
+  [warning] control-flow function=gameoptionsMake addr=0x238ecc - unresolved JR/JALR at 0x238ecc; promoted 65 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x24c9ec - unresolved JR/JALR at 0x24c9ec; promoted 59 fallback entries
+  [warning] control-flow function=propTickAfter addr=0x26fa5c - unresolved JR/JALR at 0x26fa5c 0x26fb60; promoted 142 fallback entries
+  [warning] control-flow function=propTickPlayer addr=0x26fd00 - unresolved JR/JALR at 0x26fd00; promoted 72 fallback entries
+  [warning] control-flow function=propDamage addr=0x271d94 - unresolved JR/JALR at 0x271d94 0x272880; promoted 973 fallback entries
+  [warning] control-flow function=bulletTick addr=0x28aa88 - unresolved JR/JALR at 0x28aa88; promoted 2502 fallback entries
+  [warning] control-flow function=particleTick addr=0x29be28 - unresolved JR/JALR at 0x29be28; promoted 263 fallback entries
+  [warning] control-flow function=decalGetBulletTexScaleCol addr=0x2a47a4 - unresolved JR/JALR at 0x2a47a4 0x2a4854; promoted 119 fallback entries
+  [warning] control-flow function=spawnfxTick addr=0x2ac134 - unresolved JR/JALR at 0x2ac134; promoted 307 fallback entries
+  [warning] control-flow function=specialfxGroupsTick addr=0x2ada74 - unresolved JR/JALR at 0x2ada74; promoted 88 fallback entries
+  [warning] control-flow function=aiTickBefore addr=0x2baa28 - unresolved JR/JALR at 0x2baa28; promoted 682 fallback entries
+  [warning] control-flow function=timerTick addr=0x2cdc68 - unresolved JR/JALR at 0x2cdc68 0x2cdcbc; promoted 99 fallback entries
+  [warning] control-flow function=printfloat addr=0x2d1690 - unresolved JR/JALR at 0x2d1690; promoted 104 fallback entries
+  [warning] control-flow function=_request_end addr=0x2d2864 - unresolved JR/JALR at 0x2d2864; promoted 44 fallback entries
+  [warning] control-flow function=_sdrCB addr=0x2ddd8c - unresolved JR/JALR at 0x2ddd8c 0x2dddbc 0x2ddde0 0x2dde04 0x2dde28; promoted 56 fallback entries
+  [warning] control-flow function=_Cdvd_cbLoop addr=0x2ddfe4 - unresolved JR/JALR at 0x2ddfe4; promoted 53 fallback entries
+  [warning] control-flow function=__do_global_dtors addr=0x2e1254 - unresolved JR/JALR at 0x2e1254; promoted 21 fallback entries
+  [warning] control-flow function=__do_global_ctors addr=0x2e130c - unresolved JR/JALR at 0x2e130c; promoted 44 fallback entries
+  [warning] control-flow function=_fwalk addr=0x2e4a04 - unresolved JR/JALR at 0x2e4a04; promoted 37 fallback entries
+  [warning] control-flow function=__svfscanf addr=0x2e8f14 - unresolved JR/JALR at 0x2e8f14 0x2e91e8 0x2e94e4 0x2e9668 0x2e973c; promoted 706 fallback entries
+  [warning] control-flow function=__sfvwrite addr=0x2eb7c4 - unresolved JR/JALR at 0x2eb7c4 0x2eb8e4 0x2eba24; promoted 246 fallback entries
+  [warning] control-flow function=__srefill addr=0x2ed068 - unresolved JR/JALR at 0x2ed068; promoted 94 fallback entries
+  [warning] control-flow function=_raise_r addr=0x2ed2cc - unresolved JR/JALR at 0x2ed2cc; promoted 60 fallback entries
+  [warning] control-flow function=__sigtramp_r addr=0x2ed388 - unresolved JR/JALR at 0x2ed388; promoted 46 fallback entries
+  [warning] control-flow function=cheatTick addr=0x203790 - unresolved JR/JALR at 0x203790; promoted 82 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x206ba0 - unresolved JR/JALR at 0x206ba0; promoted 22 fallback entries
+  [warning] control-flow function=gettextfromfunction addr=0x20caac - unresolved JR/JALR at 0x20caac; promoted 8 fallback entries
+  [warning] control-flow function=menuTick addr=0x20ce98 - unresolved JR/JALR at 0x20ce98; promoted 57 fallback entries
+  [warning] control-flow function=debugmenuTick addr=0x20db7c - unresolved JR/JALR at 0x20db7c; promoted 12 fallback entries
+  [warning] control-flow function=main_pageGfx addr=0x212288 - unresolved JR/JALR at 0x212288 0x21229c; promoted 129 fallback entries
+  [warning] control-flow function=main_pageTick addr=0x2123b8 - unresolved JR/JALR at 0x2123b8; promoted 120 fallback entries
+  [warning] control-flow function=challengeTick addr=0x21f97c - unresolved JR/JALR at 0x21f97c 0x21fa90 0x21fabc; promoted 185 fallback entries
+  [warning] control-flow function=unlockedEx addr=0x2251fc - unresolved JR/JALR at 0x2251fc; promoted 216 fallback entries
+  [warning] control-flow function=gvSetValue addr=0x22c364 - unresolved JR/JALR at 0x22c364; promoted 28 fallback entries
+  [warning] control-flow function=frontTick addr=0x22cc6c - unresolved JR/JALR at 0x22cc6c; promoted 118 fallback entries
+  [warning] control-flow function=frontGfx addr=0x22cd7c - unresolved JR/JALR at 0x22cd7c 0x22cda4 0x22cdd8 0x22ce4c; promoted 81 fallback entries
+  [warning] control-flow function=splitpageDraw addr=0x2310b0 - unresolved JR/JALR at 0x2310b0; promoted 42 fallback entries
+  [warning] control-flow function=splitpageTick addr=0x231148 - unresolved JR/JALR at 0x231148; promoted 53 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x2313e4 - unresolved JR/JALR at 0x2313e4; promoted 42 fallback entries
+  [warning] control-flow function=gameoptionsMake addr=0x238ecc - unresolved JR/JALR at 0x238ecc; promoted 65 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x24c9ec - unresolved JR/JALR at 0x24c9ec; promoted 59 fallback entries
+  [warning] control-flow function=propTickAfter addr=0x26fa5c - unresolved JR/JALR at 0x26fa5c 0x26fb60; promoted 142 fallback entries
+  [warning] control-flow function=propTickPlayer addr=0x26fd00 - unresolved JR/JALR at 0x26fd00; promoted 72 fallback entries
+  [warning] control-flow function=propDamage addr=0x271d94 - unresolved JR/JALR at 0x271d94 0x272880; promoted 973 fallback entries
+  [warning] control-flow function=bulletTick addr=0x28aa88 - unresolved JR/JALR at 0x28aa88; promoted 2502 fallback entries
+  [warning] control-flow function=particleTick addr=0x29be28 - unresolved JR/JALR at 0x29be28; promoted 263 fallback entries
+  [warning] control-flow function=decalGetBulletTexScaleCol addr=0x2a47a4 - unresolved JR/JALR at 0x2a47a4 0x2a4854; promoted 119 fallback entries
+  [warning] control-flow function=spawnfxTick addr=0x2ac134 - unresolved JR/JALR at 0x2ac134; promoted 307 fallback entries
+  [warning] control-flow function=specialfxGroupsTick addr=0x2ada74 - unresolved JR/JALR at 0x2ada74; promoted 88 fallback entries
+  [warning] control-flow function=aiTickBefore addr=0x2baa28 - unresolved JR/JALR at 0x2baa28; promoted 682 fallback entries
+  [warning] control-flow function=timerTick addr=0x2cdc68 - unresolved JR/JALR at 0x2cdc68 0x2cdcbc; promoted 99 fallback entries
+  [warning] control-flow function=printfloat addr=0x2d1690 - unresolved JR/JALR at 0x2d1690; promoted 104 fallback entries
+  [warning] control-flow function=_request_end addr=0x2d2864 - unresolved JR/JALR at 0x2d2864; promoted 44 fallback entries
+  [warning] control-flow function=_sdrCB addr=0x2ddd8c - unresolved JR/JALR at 0x2ddd8c 0x2dddbc 0x2ddde0 0x2dde04 0x2dde28; promoted 56 fallback entries
+  [warning] control-flow function=_Cdvd_cbLoop addr=0x2ddfe4 - unresolved JR/JALR at 0x2ddfe4; promoted 53 fallback entries
+  [warning] control-flow function=__do_global_dtors addr=0x2e1254 - unresolved JR/JALR at 0x2e1254; promoted 21 fallback entries
+  [warning] control-flow function=__do_global_ctors addr=0x2e130c - unresolved JR/JALR at 0x2e130c; promoted 44 fallback entries
+  [warning] control-flow function=_fwalk addr=0x2e4a04 - unresolved JR/JALR at 0x2e4a04; promoted 37 fallback entries
+  [warning] control-flow function=__svfscanf addr=0x2e8f14 - unresolved JR/JALR at 0x2e8f14 0x2e91e8 0x2e94e4 0x2e9668 0x2e973c; promoted 706 fallback entries
+  [warning] control-flow function=__sfvwrite addr=0x2eb7c4 - unresolved JR/JALR at 0x2eb7c4 0x2eb8e4 0x2eba24; promoted 246 fallback entries
+  [warning] control-flow function=__srefill addr=0x2ed068 - unresolved JR/JALR at 0x2ed068; promoted 94 fallback entries
+  [warning] control-flow function=_raise_r addr=0x2ed2cc - unresolved JR/JALR at 0x2ed2cc; promoted 60 fallback entries
+  [warning] control-flow function=__sigtramp_r addr=0x2ed388 - unresolved JR/JALR at 0x2ed388; promoted 46 fallback entries
+======================================
+Recompilation completed successfully
+Changed generation files: 3 ['fread_0x2eb158.cpp', 'ps2_recompiled_stubs.h', 'register_functions.cpp']
+[0/2] Re-checking globbed directories...
+[1/103] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/analysis_passes.cpp.o
+[2/103] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/elf_analysis_context.cpp.o
+[3/103] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/System.cpp.o
+[4/103] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_runtime.cpp.o
+[5/103] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/toml_generator.cpp.o
+[6/103] Linking CXX static library ps2xRuntime/libps2_runtime.a
+[7/103] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/elf_analyzer.cpp.o
+[8/103] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/r5900_decoder_tests.cpp.o
+[9/103] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/sce_symbol_scanner.cpp.o
+[10/103] Linking CXX static library ps2xAnalyzer/libps2_analyzer_lib.a
+[11/103] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/elf_analyzer_tests.cpp.o
+[12/103] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_expansion_tests.cpp.o
+[13/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/cmake_pch.hxx.pch
+[14/103] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_recompiler_tests.cpp.o
+[15/103] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/code_generator_tests.cpp.o
+[16/103] Linking CXX static library ps2xTest/libps2_test_lib.a
+[17/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_82_cxx.cxx.o
+[18/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o
+[19/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_79_cxx.cxx.o
+[20/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_81_cxx.cxx.o
+[21/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_78_cxx.cxx.o
+[22/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_80_cxx.cxx.o
+[23/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_77_cxx.cxx.o
+[24/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_76_cxx.cxx.o
+[25/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_74_cxx.cxx.o
+[26/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_75_cxx.cxx.o
+[27/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_72_cxx.cxx.o
+[28/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_70_cxx.cxx.o
+[29/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_69_cxx.cxx.o
+[30/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_68_cxx.cxx.o
+[31/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_71_cxx.cxx.o
+[32/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_67_cxx.cxx.o
+[33/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_66_cxx.cxx.o
+[34/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_64_cxx.cxx.o
+[35/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_65_cxx.cxx.o
+[36/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_73_cxx.cxx.o
+[37/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_63_cxx.cxx.o
+[38/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_61_cxx.cxx.o
+[39/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_60_cxx.cxx.o
+[40/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_62_cxx.cxx.o
+[41/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_59_cxx.cxx.o
+[42/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_56_cxx.cxx.o
+[43/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_58_cxx.cxx.o
+[44/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_57_cxx.cxx.o
+[45/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_54_cxx.cxx.o
+[46/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_55_cxx.cxx.o
+[47/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_53_cxx.cxx.o
+[48/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_51_cxx.cxx.o
+[49/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_52_cxx.cxx.o
+[50/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_50_cxx.cxx.o
+[51/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_48_cxx.cxx.o
+[52/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_49_cxx.cxx.o
+[53/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_45_cxx.cxx.o
+[54/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_47_cxx.cxx.o
+[55/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_46_cxx.cxx.o
+[56/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_42_cxx.cxx.o
+[57/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_43_cxx.cxx.o
+[58/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_44_cxx.cxx.o
+[59/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_39_cxx.cxx.o
+[60/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_38_cxx.cxx.o
+[61/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_37_cxx.cxx.o
+[62/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_40_cxx.cxx.o
+[63/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_35_cxx.cxx.o
+[64/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_36_cxx.cxx.o
+[65/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_41_cxx.cxx.o
+[66/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_34_cxx.cxx.o
+[67/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_32_cxx.cxx.o
+[68/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_30_cxx.cxx.o
+[69/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_33_cxx.cxx.o
+[70/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_31_cxx.cxx.o
+[71/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_29_cxx.cxx.o
+[72/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_27_cxx.cxx.o
+[73/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_28_cxx.cxx.o
+[74/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_26_cxx.cxx.o
+[75/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_25_cxx.cxx.o
+[76/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_23_cxx.cxx.o
+[77/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_24_cxx.cxx.o
+[78/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_21_cxx.cxx.o
+[79/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_20_cxx.cxx.o
+[80/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_22_cxx.cxx.o
+[81/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_19_cxx.cxx.o
+[82/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_18_cxx.cxx.o
+[83/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_15_cxx.cxx.o
+[84/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_16_cxx.cxx.o
+[85/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_17_cxx.cxx.o
+[86/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_13_cxx.cxx.o
+[87/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_12_cxx.cxx.o
+[88/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_11_cxx.cxx.o
+[89/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_10_cxx.cxx.o
+[90/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_14_cxx.cxx.o
+[91/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_7_cxx.cxx.o
+[92/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_8_cxx.cxx.o
+[93/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_6_cxx.cxx.o
+[94/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_4_cxx.cxx.o
+[95/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_9_cxx.cxx.o
+[96/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_3_cxx.cxx.o
+[97/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_1_cxx.cxx.o
+[98/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_0_cxx.cxx.o
+[99/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_5_cxx.cxx.o
+[100/103] Linking CXX executable ps2xTest/ps2x_tests
+[101/103] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_2_cxx.cxx.o
+[102/103] Linking CXX executable timesplitters/timesplitters

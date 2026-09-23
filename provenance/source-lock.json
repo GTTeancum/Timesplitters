@@ -1,0 +1,170 @@
+[
+  {
+    "key": "be412158768b73530d99",
+    "url": "https://github.com/ran-j/PS2Recomp.git",
+    "requested_ref": "main",
+    "commit": "75d729ce40d7eed9649fd4bb05628dee520f3d0c",
+    "destination": "sources/PS2Recomp",
+    "archive": "sources/be412158768b73530d99.git.tar.gz"
+  },
+  {
+    "key": "97ca36d301770c63136b",
+    "url": "https://github.com/PCSX2/pcsx2.git",
+    "requested_ref": "master",
+    "commit": "650d7048561756cdbfea60ee65282074a38eefa1",
+    "destination": "sources/PCSX2",
+    "archive": "sources/97ca36d301770c63136b.git.tar.gz"
+  },
+  {
+    "key": "c8fac1a23cf0c7fd0d61",
+    "url": "https://github.com/ps2dev/ps2sdk.git",
+    "requested_ref": "master",
+    "commit": "d317f8f0a2a413db38c5ef2b46ba927996983e0a",
+    "destination": "sources/ps2sdk",
+    "archive": "sources/c8fac1a23cf0c7fd0d61.git.tar.gz"
+  },
+  {
+    "key": "19697d2868ca3225ab52",
+    "url": "https://github.com/chaoticgd/ghidra-emotionengine-reloaded.git",
+    "requested_ref": "v2.1.37",
+    "commit": "ae013ee1475dc970db4fdeba3ec88def6b933d43",
+    "destination": "sources/ghidra-emotionengine-reloaded",
+    "archive": "sources/19697d2868ca3225ab52.git.tar.gz"
+  },
+  {
+    "key": "c304e2412ea4e7a46292",
+    "url": "https://github.com/DLTcollab/sse2neon.git",
+    "requested_ref": "v1.9.1",
+    "commit": "92f6de174717aef09033ad21568d5bb9e5470404",
+    "destination": "sources/ps2-deps/sse2neon",
+    "archive": "sources/c304e2412ea4e7a46292.git.tar.gz"
+  },
+  {
+    "key": "c49df2ebe03b50d585ce",
+    "url": "https://github.com/serge1/ELFIO.git",
+    "requested_ref": "Release_3.12",
+    "commit": "8ae6cec5d60495822ecd57d736f66149da9b1830",
+    "destination": "sources/ps2-deps/elfio",
+    "archive": "sources/c49df2ebe03b50d585ce.git.tar.gz"
+  },
+  {
+    "key": "b04ab69937f13bc5f9cc",
+    "url": "https://github.com/ToruNiina/toml11.git",
+    "requested_ref": "v4.4.0",
+    "commit": "be08ba2be2a964edcdb3d3e3ea8d100abc26f286",
+    "destination": "sources/ps2-deps/toml11",
+    "archive": "sources/b04ab69937f13bc5f9cc.git.tar.gz"
+  },
+  {
+    "key": "df489997c3ba59560cbc",
+    "url": "https://github.com/alex-shpak/hugo-book.git",
+    "requested_ref": "2f64607bc9a4caa6ffc4ed7f614c8ad9a5b6611c",
+    "commit": "2f64607bc9a4caa6ffc4ed7f614c8ad9a5b6611c",
+    "destination": "sources/ps2-deps/toml11/docs/themes/hugo-book",
+    "archive": "sources/df489997c3ba59560cbc.git.tar.gz"
+  },
+  {
+    "key": "867f7249e058e2712997",
+    "url": "https://github.com/doctest/doctest.git",
+    "requested_ref": "ae7a13539fb71f270b87eb2e874fbac80bc8dda2",
+    "commit": "ae7a13539fb71f270b87eb2e874fbac80bc8dda2",
+    "destination": "sources/ps2-deps/toml11/tests/extlib/doctest",
+    "archive": "sources/867f7249e058e2712997.git.tar.gz"
+  },
+  {
+    "key": "4661f2e689a52962f924",
+    "url": "https://github.com/nlohmann/json.git",
+    "requested_ref": "8c391e04fe4195d8be862c97f38cfe10e2a3472e",
+    "commit": "8c391e04fe4195d8be862c97f38cfe10e2a3472e",
+    "destination": "sources/ps2-deps/toml11/tests/extlib/json",
+    "archive": "sources/4661f2e689a52962f924.git.tar.gz"
+  },
+  {
+    "key": "8bdf1b39fc8d88872dd4",
+    "url": "https://github.com/fmtlib/fmt.git",
+    "requested_ref": "12.1.0",
+    "commit": "407c905e45ad75fc29bf0f9bb7c5c2fd3475976f",
+    "destination": "sources/ps2-deps/fmt",
+    "archive": "sources/8bdf1b39fc8d88872dd4.git.tar.gz"
+  },
+  {
+    "key": "94787d94efd835f69419",
+    "url": "https://github.com/davea42/libdwarf-code.git",
+    "requested_ref": "v2.2.0",
+    "commit": "2e088b983562860f497b4fd789a3e61524eb857c",
+    "destination": "sources/ps2-deps/libdwarf",
+    "archive": "sources/94787d94efd835f69419.git.tar.gz"
+  },
+  {
+    "key": "bcc9a1befd37c10ab272",
+    "url": "https://github.com/Decompollaborate/rabbitizer.git",
+    "requested_ref": "1.14.3",
+    "commit": "d5804fa488474830a47fbf9f3693048ec1e45589",
+    "destination": "sources/ps2-deps/rabbitizer",
+    "archive": "sources/bcc9a1befd37c10ab272.git.tar.gz"
+  },
+  {
+    "key": "2cf1b19b1891e9daac45",
+    "url": "https://github.com/raysan5/raylib.git",
+    "requested_ref": "5.5",
+    "commit": "c1ab645ca298a2801097931d1079b10ff7eb9df8",
+    "destination": "sources/ps2-deps/raylib",
+    "archive": "sources/2cf1b19b1891e9daac45.git.tar.gz"
+  },
+  {
+    "key": "1d405db2aeee795ea8ac",
+    "url": "https://github.com/ocornut/imgui.git",
+    "requested_ref": "v1.92.7-docking",
+    "commit": "b1bcb12a624af7509894c8e77dd47416997777fa",
+    "destination": "sources/ps2-deps/imgui",
+    "archive": "sources/1d405db2aeee795ea8ac.git.tar.gz"
+  },
+  {
+    "key": "c06ff26f1820ea042762",
+    "url": "https://github.com/raylib-extras/rlImGui.git",
+    "requested_ref": "Raylib_5_5",
+    "commit": "118221c8a532501a3c2c236b62950877cbefc2b4",
+    "destination": "sources/ps2-deps/rlimgui",
+    "archive": "sources/c06ff26f1820ea042762.git.tar.gz"
+  },
+  {
+    "key": "fcd0f0152568b667d2b4",
+    "url": "https://github.com/nlohmann/json.git",
+    "requested_ref": "v3.11.3",
+    "commit": "9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03",
+    "destination": "sources/ps2-deps/nlohmann_json",
+    "archive": "sources/fcd0f0152568b667d2b4.git.tar.gz"
+  },
+  {
+    "key": "ab3a23552cbefc141f97",
+    "url": "https://github.com/BalazsJako/ImGuiColorTextEdit.git",
+    "requested_ref": "master",
+    "commit": "ca2f9f1462e3b60e56351bc466acda448c5ea50d",
+    "destination": "sources/ps2-deps/imgui_colortextedit",
+    "archive": "sources/ab3a23552cbefc141f97.git.tar.gz"
+  },
+  {
+    "key": "e86e5d059ed2a032ac4a",
+    "url": "https://github.com/ocornut/imgui_club.git",
+    "requested_ref": "main",
+    "commit": "b083116866e05e0d4bccb2c7f28d94a76ee4965e",
+    "destination": "sources/ps2-deps/imgui_club",
+    "archive": "sources/e86e5d059ed2a032ac4a.git.tar.gz"
+  },
+  {
+    "key": "05c13169eaac9023753e",
+    "url": "https://github.com/aiekick/ImGuiFileDialog.git",
+    "requested_ref": "master",
+    "commit": "d0e97b2adc3d3452d72c750c7305dc0291acd052",
+    "destination": "sources/ps2-deps/imgui_file_dialog",
+    "archive": "sources/05c13169eaac9023753e.git.tar.gz"
+  },
+  {
+    "key": "0a19a112d0434d783add",
+    "url": "https://github.com/libsdl-org/SDL.git",
+    "requested_ref": "release-2.32.10",
+    "commit": "5d249570393f7a37e037abf22cd6012a4cc56a71",
+    "destination": "sources/ps2-deps/sdl2",
+    "archive": "sources/0a19a112d0434d783add.git.tar.gz"
+  }
+]

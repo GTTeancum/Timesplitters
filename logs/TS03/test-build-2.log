@@ -1,0 +1,7 @@
+[0/2] Re-checking globbed directories...
+[1/7] Linking CXX static library ps2xRuntime/libps2_runtime.a
+[2/7] Linking CXX executable ps2xRuntime/ps2EntryRunner
+[3/7] Linking CXX executable timesplitters/timesplitters
+[4/7] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.o
+[5/7] Linking CXX static library ps2xTest/libps2_test_lib.a
+[6/7] Linking CXX executable ps2xTest/ps2x_tests

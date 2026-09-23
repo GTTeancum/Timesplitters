@@ -1,0 +1,156 @@
+[0/2] Re-checking globbed directories...
+[1/3] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o
+FAILED: timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o 
+/usr/bin/clang++-19 -DAGRESSIVE_LOGS=1 -DGRAPHICS_API_OPENGL_33 -DPLATFORM_DESKTOP -DPS2X_ENABLE_IOP_RPC_TRACE=1 -DPS2_FUNCTION_LOG_TRACKER=1 -DPS2_RUNTIME_LOGS=1 -I/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/../generated -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/Kernel -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/src -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/src/external/glfw/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xIOP/include -O2 -g -DNDEBUG -std=gnu++20 -O1 -g1 -msse4.1 -mavx2 -Winvalid-pch -Xclang -include-pch -Xclang /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/cmake_pch.hxx.pch -Xclang -include -Xclang /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/cmake_pch.hxx -MD -MT timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o -MF timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o.d -o timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o -c /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:19:32: error: member reference type 'R5900Context' is not a pointer; did you mean to use '.'?
+   19 |         if(c.pc!=0x12345678 || GPR_U32(&c,29)!=0x70000 || GPR_U32(&c,28)!=0x3b47f0)throw std::runtime_error("math original call budget/ABI");
+      |                                ^        ~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:736:107: note: expanded from macro 'GPR_U32'
+  736 | #define GPR_U32(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0U : static_cast<uint32_t>(PS2_EXTRACT_EPI32_0(ctx_ptr->r[reg_idx])))
+      |                                                                                                    ~~~~~~~^
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:80:49: note: expanded from macro 'PS2_EXTRACT_EPI32_0'
+   80 | #define PS2_EXTRACT_EPI32_0(v) Ps2ExtractEpi32((v), 0)
+      |                                                 ^
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:19:32: error: no matching function for call to 'Ps2ExtractEpi32'
+   19 |         if(c.pc!=0x12345678 || GPR_U32(&c,29)!=0x70000 || GPR_U32(&c,28)!=0x3b47f0)throw std::runtime_error("math original call budget/ABI");
+      |                                ^~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:736:80: note: expanded from macro 'GPR_U32'
+  736 | #define GPR_U32(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0U : static_cast<uint32_t>(PS2_EXTRACT_EPI32_0(ctx_ptr->r[reg_idx])))
+      |                                                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:80:32: note: expanded from macro 'PS2_EXTRACT_EPI32_0'
+   80 | #define PS2_EXTRACT_EPI32_0(v) Ps2ExtractEpi32((v), 0)
+      |                                ^~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:17:23: note: candidate function not viable: no known conversion from '__m128i *' to '__m128i' (vector of 2 'long long' values) for 1st argument; dereference the argument with *
+   17 | static inline int32_t Ps2ExtractEpi32(__m128i v, int index)
+      |                       ^               ~~~~~~~~~
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:19:59: error: member reference type 'R5900Context' is not a pointer; did you mean to use '.'?
+   19 |         if(c.pc!=0x12345678 || GPR_U32(&c,29)!=0x70000 || GPR_U32(&c,28)!=0x3b47f0)throw std::runtime_error("math original call budget/ABI");
+      |                                                           ^        ~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:736:107: note: expanded from macro 'GPR_U32'
+  736 | #define GPR_U32(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0U : static_cast<uint32_t>(PS2_EXTRACT_EPI32_0(ctx_ptr->r[reg_idx])))
+      |                                                                                                    ~~~~~~~^
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:80:49: note: expanded from macro 'PS2_EXTRACT_EPI32_0'
+   80 | #define PS2_EXTRACT_EPI32_0(v) Ps2ExtractEpi32((v), 0)
+      |                                                 ^
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:19:59: error: no matching function for call to 'Ps2ExtractEpi32'
+   19 |         if(c.pc!=0x12345678 || GPR_U32(&c,29)!=0x70000 || GPR_U32(&c,28)!=0x3b47f0)throw std::runtime_error("math original call budget/ABI");
+      |                                                           ^~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:736:80: note: expanded from macro 'GPR_U32'
+  736 | #define GPR_U32(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0U : static_cast<uint32_t>(PS2_EXTRACT_EPI32_0(ctx_ptr->r[reg_idx])))
+      |                                                                                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:80:32: note: expanded from macro 'PS2_EXTRACT_EPI32_0'
+   80 | #define PS2_EXTRACT_EPI32_0(v) Ps2ExtractEpi32((v), 0)
+      |                                ^~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:17:23: note: candidate function not viable: no known conversion from '__m128i *' to '__m128i' (vector of 2 'long long' values) for 1st argument; dereference the argument with *
+   17 | static inline int32_t Ps2ExtractEpi32(__m128i v, int index)
+      |                       ^               ~~~~~~~~~
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:24:12: error: member reference type 'R5900Context' is not a pointer; did you mean to use '.'?
+   24 |         if(GPR_U64(&c,2)!=expected){std::cerr<<"[TS:math] fptodp input="<<f<<" actual=0x"<<std::hex<<GPR_U64(&c,2)<<" expected=0x"<<expected<<std::dec<<'\n';throw std::runtime_error("original fptodp mismatch");}
+      |            ^        ~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:738:109: note: expanded from macro 'GPR_U64'
+  738 | #define GPR_U64(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0ULL : static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(ctx_ptr->r[reg_idx])))
+      |                                                                                                      ~~~~~~~^
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:85:49: note: expanded from macro 'PS2_EXTRACT_EPI64_0'
+   85 | #define PS2_EXTRACT_EPI64_0(v) Ps2ExtractEpi64((v), 0)
+      |                                                 ^
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:24:12: error: no matching function for call to 'Ps2ExtractEpi64'
+   24 |         if(GPR_U64(&c,2)!=expected){std::cerr<<"[TS:math] fptodp input="<<f<<" actual=0x"<<std::hex<<GPR_U64(&c,2)<<" expected=0x"<<expected<<std::dec<<'\n';throw std::runtime_error("original fptodp mismatch");}
+      |            ^~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:738:82: note: expanded from macro 'GPR_U64'
+  738 | #define GPR_U64(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0ULL : static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(ctx_ptr->r[reg_idx])))
+      |                                                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:85:32: note: expanded from macro 'PS2_EXTRACT_EPI64_0'
+   85 | #define PS2_EXTRACT_EPI64_0(v) Ps2ExtractEpi64((v), 0)
+      |                                ^~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:32:23: note: candidate function not viable: no known conversion from '__m128i *' to '__m128i' (vector of 2 'long long' values) for 1st argument; dereference the argument with *
+   32 | static inline int64_t Ps2ExtractEpi64(__m128i v, int index)
+      |                       ^               ~~~~~~~~~
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:24:102: error: member reference type 'R5900Context' is not a pointer; did you mean to use '.'?
+   24 |         if(GPR_U64(&c,2)!=expected){std::cerr<<"[TS:math] fptodp input="<<f<<" actual=0x"<<std::hex<<GPR_U64(&c,2)<<" expected=0x"<<expected<<std::dec<<'\n';throw std::runtime_error("original fptodp mismatch");}
+      |                                                                                                      ^        ~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:738:109: note: expanded from macro 'GPR_U64'
+  738 | #define GPR_U64(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0ULL : static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(ctx_ptr->r[reg_idx])))
+      |                                                                                                      ~~~~~~~^
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:85:49: note: expanded from macro 'PS2_EXTRACT_EPI64_0'
+   85 | #define PS2_EXTRACT_EPI64_0(v) Ps2ExtractEpi64((v), 0)
+      |                                                 ^
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:24:102: error: no matching function for call to 'Ps2ExtractEpi64'
+   24 |         if(GPR_U64(&c,2)!=expected){std::cerr<<"[TS:math] fptodp input="<<f<<" actual=0x"<<std::hex<<GPR_U64(&c,2)<<" expected=0x"<<expected<<std::dec<<'\n';throw std::runtime_error("original fptodp mismatch");}
+      |                                                                                                      ^~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:738:82: note: expanded from macro 'GPR_U64'
+  738 | #define GPR_U64(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0ULL : static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(ctx_ptr->r[reg_idx])))
+      |                                                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:85:32: note: expanded from macro 'PS2_EXTRACT_EPI64_0'
+   85 | #define PS2_EXTRACT_EPI64_0(v) Ps2ExtractEpi64((v), 0)
+      |                                ^~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:32:23: note: candidate function not viable: no known conversion from '__m128i *' to '__m128i' (vector of 2 'long long' values) for 1st argument; dereference the argument with *
+   32 | static inline int64_t Ps2ExtractEpi64(__m128i v, int index)
+      |                       ^               ~~~~~~~~~
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:32:12: error: member reference type 'R5900Context' is not a pointer; did you mean to use '.'?
+   32 |         if(GPR_U64(&c,2)!=std::bit_cast<uint64_t>(ab[0]-ab[1]))throw std::runtime_error("original dpsub mismatch");++passed;
+      |            ^        ~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:738:109: note: expanded from macro 'GPR_U64'
+  738 | #define GPR_U64(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0ULL : static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(ctx_ptr->r[reg_idx])))
+      |                                                                                                      ~~~~~~~^
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:85:49: note: expanded from macro 'PS2_EXTRACT_EPI64_0'
+   85 | #define PS2_EXTRACT_EPI64_0(v) Ps2ExtractEpi64((v), 0)
+      |                                                 ^
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:32:12: error: no matching function for call to 'Ps2ExtractEpi64'
+   32 |         if(GPR_U64(&c,2)!=std::bit_cast<uint64_t>(ab[0]-ab[1]))throw std::runtime_error("original dpsub mismatch");++passed;
+      |            ^~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:738:82: note: expanded from macro 'GPR_U64'
+  738 | #define GPR_U64(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0ULL : static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(ctx_ptr->r[reg_idx])))
+      |                                                                                  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:85:32: note: expanded from macro 'PS2_EXTRACT_EPI64_0'
+   85 | #define PS2_EXTRACT_EPI64_0(v) Ps2ExtractEpi64((v), 0)
+      |                                ^~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:32:23: note: candidate function not viable: no known conversion from '__m128i *' to '__m128i' (vector of 2 'long long' values) for 1st argument; dereference the argument with *
+   32 | static inline int64_t Ps2ExtractEpi64(__m128i v, int index)
+      |                       ^               ~~~~~~~~~
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:34:17: error: member reference type 'R5900Context' is not a pointer; did you mean to use '.'?
+   34 |         int cmp=GPR_S32(&c,2),wanted=(ab[0]>ab[1])-(ab[0]<ab[1]);
+      |                 ^        ~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:737:84: note: expanded from macro 'GPR_S32'
+  737 | #define GPR_S32(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0 : PS2_EXTRACT_EPI32_0(ctx_ptr->r[reg_idx]))
+      |                                                                             ~~~~~~~^
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:80:49: note: expanded from macro 'PS2_EXTRACT_EPI32_0'
+   80 | #define PS2_EXTRACT_EPI32_0(v) Ps2ExtractEpi32((v), 0)
+      |                                                 ^
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx:49:
+In file included from /mnt/data/TimeSplitters_TS03_Checkpoint/project/game/main.cpp:13:
+/mnt/data/TimeSplitters_TS03_Checkpoint/project/game/native_math_test.h:34:17: error: no matching function for call to 'Ps2ExtractEpi32'
+   34 |         int cmp=GPR_S32(&c,2),wanted=(ab[0]>ab[1])-(ab[0]<ab[1]);
+      |                 ^~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:737:57: note: expanded from macro 'GPR_S32'
+  737 | #define GPR_S32(ctx_ptr, reg_idx) ((reg_idx == 0) ? 0 : PS2_EXTRACT_EPI32_0(ctx_ptr->r[reg_idx]))
+      |                                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:80:32: note: expanded from macro 'PS2_EXTRACT_EPI32_0'
+   80 | #define PS2_EXTRACT_EPI32_0(v) Ps2ExtractEpi32((v), 0)
+      |                                ^~~~~~~~~~~~~~~
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include/ps2_runtime_macros.h:17:23: note: candidate function not viable: no known conversion from '__m128i *' to '__m128i' (vector of 2 'long long' values) for 1st argument; dereference the argument with *
+   17 | static inline int32_t Ps2ExtractEpi32(__m128i v, int index)
+      |                       ^               ~~~~~~~~~
+12 errors generated.
+ninja: build stopped: subcommand failed.

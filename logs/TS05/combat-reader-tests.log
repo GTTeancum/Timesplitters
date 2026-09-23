@@ -1,0 +1,9 @@
+test_exact_array_stride_not_pointer (test_stopped_combat.StoppedCombatTests.test_exact_array_stride_not_pointer) ... ok
+test_player_health_and_flags (test_stopped_combat.StoppedCombatTests.test_player_health_and_flags) ... ok
+test_reject_nonfinite_counter (test_stopped_combat.StoppedCombatTests.test_reject_nonfinite_counter) ... ok
+test_reject_truncated_and_invalid_pointer (test_stopped_combat.StoppedCombatTests.test_reject_truncated_and_invalid_pointer) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.209s
+
+OK

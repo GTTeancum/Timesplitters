@@ -1,0 +1,94 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/CMakeLists.txt:25 (cmake_policy):
+  The OLD behavior for policy CMP0127 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- {fmt} version: 12.1.0
+-- Build type: RelWithDebInfo
+-- Building dwarfgen    ... OFF
+-- Building dwarfexample... OFF
+-- Building api tests   ... 
+-- HAVE_UINTPTR_T 1: uintptr_t defined in stdint.h... YES
+-- uintptr_t value considered NO 
+-- HAVE_INTPTR_T 1: intptr_t defined in stdint.h... YES
+-- intptr_t value considered NO 
+-- ENABLE_DECOMPRESSION : ON
+-- Found libzstd           : TRUE
+-- Found zlib              : TRUE
+-- Build with zlib and zstd: TRUE
+-- CMAKE_SIZEOF_VOID_P ... : 8
+-- Compiler warning options... NO
+-- Install prefix ... /usr/local
+> Enabling optimization for: ps2_recomp_lib
+> Enabling optimization for: ps2_recomp
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Testing if -Werror=pointer-arith can be used -- compiles
+-- Testing if -Werror=implicit-function-declaration can be used -- compiles
+-- Testing if -fno-strict-aliasing can be used -- compiles
+-- Using raylib's GLFW
+-- Including X11 support
+-- Audio Backend: miniaudio
+-- Building raylib static library
+-- Generated build type: RelWithDebInfo
+-- Compiling with the flags:
+--   PLATFORM=PLATFORM_DESKTOP
+--   GRAPHICS=GRAPHICS_API_OPENGL_33
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(imgui) is deprecated, call
+  FetchContent_MakeAvailable(imgui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(imgui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:96 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(rlImGui) is deprecated, call
+  FetchContent_MakeAvailable(rlImGui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(rlImGui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:119 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+> Enabling optimization for: ps2_runtime
+> Enabling optimization for: ps2EntryRunner
+-- Using the multi-header code from /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json/include/
+> Enabling optimization for: ps2_analyzer_lib
+> Enabling optimization for: ps2_analyzer
+> Enabling optimization for: ps2_test_lib
+> Enabling optimization for: ps2x_tests
+-- Configuring done (1.7s)
+-- Generating done (0.3s)
+-- Build files have been written to: /mnt/data/TimeSplitters_TS03_Checkpoint/build
+[0/4] Re-checking globbed directories...
+[1/11] Building CXX object ps2xTest/CMakeFiles/ps2x_tests.dir/src/main.cpp.o
+[2/11] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.o
+FAILED: ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.o 
+/usr/bin/clang++-19 -DAGRESSIVE_LOGS=1 -DGRAPHICS_API_OPENGL_33 -DLIBDWARF_STATIC -DPLATFORM_DESKTOP -DPS2X_ENABLE_IOP_RPC_TRACE=1 -DPS2_FUNCTION_LOG_TRACKER=1 -DPS2_RUNTIME_LOGS=1 -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xTest/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRecomp/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xAnalyzer/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/elfio -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/libdwarf/src/lib/libdwarf -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/fmt/include -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/include -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/include -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/tables -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/tables/tables -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/Kernel -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/src -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/src/external/glfw/include -I/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xIOP/include -O2 -g -DNDEBUG -std=gnu++20 -MD -MT ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.o -MF ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.o.d -o ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.o -c /mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gif_stream_tests.cpp
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gif_stream_tests.cpp:37:306: error: no member named 'prim' in 'GSPrimReg'
+   37 |  tc.Run("odd REGLIST consumes padding before next tag",[](TestCase&t){Fixture f;Bytes b;tag(b,1,1,1,0);u64(b,6);u64(b,~0ull);tag(b,1,0,1,14);ad(b,1,GS_REG_DTHE);for(size_t i=0;i<b.size();i+=3)f.gs.processGIFPacket(b.data()+i,unsigned(std::min(size_t(3),b.size()-i)));t.Equals(f.gs.getDebugSnapshot().prim.prim,6u,"REGLIST PRIM");t.Equals(f.gs.getDebugSnapshot().dthe,1ull,"packet after odd padding");});
+      |                                                                                                                                                                                                                                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^
+/mnt/data/TimeSplitters_TS03_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gif_stream_tests.cpp:38:288: error: no member named 'prim' in 'GSPrimReg'
+   38 |  tc.Run("NREG zero is sixteen registers not empty",[](TestCase&t){Fixture f;Bytes b;tag(b,1,1,0,0x0000000000000000ull);for(unsigned i=0;i<16;++i)u64(b,i&7u);f.gs.processGIFPacket(b.data(),24);f.gs.processGIFPacket(b.data()+24,unsigned(b.size()-24));t.Equals(f.gs.getDebugSnapshot().prim.prim,7u,"all sixteen PRIM writes consumed");});
+      |                                                                                                                                                                                                                                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ^
+2 errors generated.
+[3/11] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/vu/ps2_vu1_core.cpp.o
+ninja: build stopped: subcommand failed.

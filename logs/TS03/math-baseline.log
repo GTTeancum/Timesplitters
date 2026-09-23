@@ -1,0 +1,3 @@
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008[TS:math] 24 original soft-double checks passed

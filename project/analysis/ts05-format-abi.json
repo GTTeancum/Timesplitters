@@ -1,0 +1,530 @@
+{
+  "original_elf_sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+  "vafmt_address": "0x002b4868",
+  "sd_argument_stride": 8,
+  "first_spilled_argument_offset": 0,
+  "static_direct_call_count": 128,
+  "calls": [
+    {
+      "caller": "main_pageDraw",
+      "instruction": "207054:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "main_pageDraw",
+      "instruction": "207174:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "main_pageDraw",
+      "instruction": "2071b8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "main_pageDraw",
+      "instruction": "2071d4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "main_pageDraw",
+      "instruction": "20725c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "main_pageDraw",
+      "instruction": "207278:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "main_pageDraw",
+      "instruction": "2072d8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "main_pageDraw",
+      "instruction": "20735c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawRankingsTable",
+      "instruction": "20ea58:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawRankingsTable",
+      "instruction": "20eb38:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "20fdf0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "20fe30:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "20fee8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "20ff24:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "20ffdc:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "210018:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "2100a4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "210144:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "2101c4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "210290:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "2102a4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawStats",
+      "instruction": "21036c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawAwards",
+      "instruction": "21058c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawAwards",
+      "instruction": "2106e8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "drawLastStand",
+      "instruction": "211f54:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gameGetTeamName",
+      "instruction": "21c9f8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gameFormatBagTagTime",
+      "instruction": "21ca98:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gameFormatTime",
+      "instruction": "21cb68:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gameFormatTime",
+      "instruction": "21cb9c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gameFormatTime",
+      "instruction": "21cbec:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gmDeathmatchTick",
+      "instruction": "21d514:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gmBagTagTick",
+      "instruction": "21d84c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gmLastStandTick",
+      "instruction": "21e2a4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gameLevelTick",
+      "instruction": "21e650:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeFormatScore",
+      "instruction": "21f1f8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeFormatScore",
+      "instruction": "21f254:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeFormatScore",
+      "instruction": "21f280:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeFormatScore",
+      "instruction": "21f290:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeGetDisplayScore",
+      "instruction": "21f468:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeGetDisplayScore",
+      "instruction": "21f518:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeGetDisplayFailed",
+      "instruction": "21f5d0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "challengeGetDisplayFailed",
+      "instruction": "21f6f0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "demoFileName",
+      "instruction": "225728:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gvGetStringValue",
+      "instruction": "22c270:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gvGetStringValue",
+      "instruction": "22c290:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gvGetStringValue",
+      "instruction": "22c2b0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "gvGetStringValue",
+      "instruction": "22c2e8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "draw_menuitem",
+      "instruction": "22d4dc:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "draw_menuitem",
+      "instruction": "22d4fc:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "GetPlayerDialogTitle",
+      "instruction": "231608:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "GetPlayerSignOnMessage",
+      "instruction": "231690:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "corruptLoadMessage",
+      "instruction": "231838:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonLoadTick",
+      "instruction": "231994:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonLoadTick",
+      "instruction": "231a5c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonUpdateTick",
+      "instruction": "2320b4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonUpdateTick",
+      "instruction": "232134:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonUpdateTick",
+      "instruction": "23266c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonDeleteTick",
+      "instruction": "232a74:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonDeleteTick",
+      "instruction": "232bb0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "arcade_mmload_pageTick",
+      "instruction": "23a2a0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23cd54:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23cd90:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23cdcc:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23ce04:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23ce90:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23cf00:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23cf70:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23cfe0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d050:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d0c0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d178:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d22c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d530:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d5f4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d604:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d6c4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d750:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d7c0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d830:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d8e8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23d9d0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "statistics_pageDrawInfo",
+      "instruction": "23daa0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signonplr_pageDraw",
+      "instruction": "23e648:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signon_pageTick",
+      "instruction": "23f7dc:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signon_pageTick",
+      "instruction": "23f894:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signon_pageTick",
+      "instruction": "23fa54:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "signon_pageTick",
+      "instruction": "23faa0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "frontmpgReset",
+      "instruction": "241284:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mcseqTick",
+      "instruction": "2439e4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mcseqGetMsg",
+      "instruction": "244f78:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mcseqGetMsg",
+      "instruction": "244fc8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mcseqGetMsg",
+      "instruction": "24505c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mcseqGetMsg",
+      "instruction": "245114:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mcseqGetMsg",
+      "instruction": "24518c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mcseqGetMsg",
+      "instruction": "2451ec:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapmakerTick",
+      "instruction": "247114:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapmakerGfx",
+      "instruction": "24b7b0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "draw_mi",
+      "instruction": "24be28:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "draw_mi",
+      "instruction": "24be48:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapfile_pageTick",
+      "instruction": "24d9d8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapfile_pageTick",
+      "instruction": "24db60:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapfile_pageTick",
+      "instruction": "24e1d0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapfile_pageTick",
+      "instruction": "24e4cc:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapfile_pageTick",
+      "instruction": "24ec3c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "padact_pageTick",
+      "instruction": "24f848:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapmakermain_pageDraw",
+      "instruction": "252724:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapmakermain_pageDraw",
+      "instruction": "2527d8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapmakermain_pageDraw",
+      "instruction": "25293c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapmakermain_pageDraw",
+      "instruction": "2529d4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "mapmakermain_pageDraw",
+      "instruction": "252acc:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "bgPreload",
+      "instruction": "256388:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "bgPreload",
+      "instruction": "2563b4:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "bgPreload",
+      "instruction": "2563d8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "pickupPropTick",
+      "instruction": "26ad88:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "propDropBagOnDrop",
+      "instruction": "26b240:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "propDamage",
+      "instruction": "2726e8:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "propDamage",
+      "instruction": "27271c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "playerDeathMessage",
+      "instruction": "28042c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudGetBagIconFileName",
+      "instruction": "2b0518:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudBaseGfx",
+      "instruction": "2b1278:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudScoreGfx",
+      "instruction": "2b1700:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudChallengeTimeLeftGfx",
+      "instruction": "2b17f0:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudLSScoreGfx",
+      "instruction": "2b1948:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudRankGfx",
+      "instruction": "2b1a4c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudAmmoGfx",
+      "instruction": "2b1d78:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "hudAmmoGfx",
+      "instruction": "2b1dec:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "enemyAIFutureLastStandHandler",
+      "instruction": "2ccb78:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    },
+    {
+      "caller": "enemyAIFutureLastStandHandler",
+      "instruction": "2ccf0c:\t0c0ad21a \tjal\t2b4868 <vafmt>"
+    }
+  ],
+  "native_comparison_before": {
+    "passed": 22,
+    "failed": 38
+  },
+  "native_comparison_after": {
+    "passed": 60,
+    "failed": 0
+  },
+  "scope": "20 original-vafmt cases plus 20 direct-va-list and 20 direct-register HLE cases; not all formatted-output semantics"
+}

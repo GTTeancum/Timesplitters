@@ -1,0 +1,27 @@
+{
+  "label": "ts05-final-arcade",
+  "transfers": 168,
+  "all_recorded_copies_succeeded": true,
+  "physical_bytes_sum": 1543488,
+  "stopped_backend_counters": {
+    "writes": 168,
+    "bytes_written": 1543488,
+    "reads": 0,
+    "bytes_read": 0
+  },
+  "spu_dump_sha256": "b161374930a94b3571df72da87b38050326e040ba75d320584591c1018fb44da",
+  "spu_nonzero_bytes": 1319044,
+  "mixing_or_output_verified": false,
+  "last_transfer": {
+    "core": 1,
+    "iop_address": 1223488,
+    "spu_address": 1736704,
+    "requested": 17136,
+    "mode": 0,
+    "copied": true,
+    "physical": 17152
+  },
+  "last_transfer_source_survives_and_matches_destination": true,
+  "last_transfer_iop_sha256": "9a3396e22f5002bb2bed6033b2d783a4416fb3a698af13b5f110b0e572f4db02",
+  "last_transfer_spu_sha256": "9a3396e22f5002bb2bed6033b2d783a4416fb3a698af13b5f110b0e572f4db02"
+}

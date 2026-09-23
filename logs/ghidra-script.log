@@ -1,0 +1,2 @@
+2026-09-22 11:16:43 INFO  TSAnalysisOptions.java> TimeSplitters analysis: original ELF retained; decompiler parameter inference disabled.  
+2026-09-22 11:18:01 INFO  TSExport.java> TS_EXPORT_COUNTS functions=2669 types=428 symbols=31716  

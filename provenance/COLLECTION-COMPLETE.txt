@@ -1,0 +1,3 @@
+TS-DEPS-01: collection and ZIP/hash validation completed.
+5 numbered ZIPs; 852 payload files.
+This is a dependency collection, NOT a compiled or running game.

@@ -1,0 +1,641 @@
+Prepared 14 verified offline source overrides
+loading initial cache file /mnt/data/TimeSplitters_TS05_Checkpoint/build-clean/offline-fetchcontent.cmake
+-- The C compiler identification is Clang 19.1.7
+-- The CXX compiler identification is Clang 19.1.7
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/clang-19 - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/clang++-19 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/CMakeLists.txt:25 (cmake_policy):
+  The OLD behavior for policy CMP0127 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- Performing Test TOML11_COMPILER_SUPPORTS_WALL
+-- Performing Test TOML11_COMPILER_SUPPORTS_WALL - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WEXTRA
+-- Performing Test TOML11_COMPILER_SUPPORTS_WEXTRA - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WPEDANTIC
+-- Performing Test TOML11_COMPILER_SUPPORTS_WPEDANTIC - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WERROR
+-- Performing Test TOML11_COMPILER_SUPPORTS_WERROR - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WSIGN_CONVERSION
+-- Performing Test TOML11_COMPILER_SUPPORTS_WSIGN_CONVERSION - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WCONVERSION
+-- Performing Test TOML11_COMPILER_SUPPORTS_WCONVERSION - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WDUPLICATED_COND
+-- Performing Test TOML11_COMPILER_SUPPORTS_WDUPLICATED_COND - Failed
+-- Performing Test TOML11_COMPILER_SUPPORTS_WDUPLICATED_BRANCHES
+-- Performing Test TOML11_COMPILER_SUPPORTS_WDUPLICATED_BRANCHES - Failed
+-- Performing Test TOML11_COMPILER_SUPPORTS_WLOGICAL_OP
+-- Performing Test TOML11_COMPILER_SUPPORTS_WLOGICAL_OP - Failed
+-- Performing Test TOML11_COMPILER_SUPPORTS_WDOUBLE_PROMOTION
+-- Performing Test TOML11_COMPILER_SUPPORTS_WDOUBLE_PROMOTION - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WRANGE_LOOP_ANALYSIS
+-- Performing Test TOML11_COMPILER_SUPPORTS_WRANGE_LOOP_ANALYSIS - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WUNDEF
+-- Performing Test TOML11_COMPILER_SUPPORTS_WUNDEF - Success
+-- Performing Test TOML11_COMPILER_SUPPORTS_WSHADOW
+-- Performing Test TOML11_COMPILER_SUPPORTS_WSHADOW - Success
+-- {fmt} version: 12.1.0
+-- Build type: RelWithDebInfo
+-- Performing Test HAS_NULLPTR_WARNING
+-- Performing Test HAS_NULLPTR_WARNING - Success
+-- Building dwarfgen    ... OFF
+-- Building dwarfexample... OFF
+-- Building api tests   ... 
+-- Looking for unistd.h
+-- Looking for unistd.h - found
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for malloc.h
+-- Looking for malloc.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for inttypes.h
+-- Looking for inttypes.h - found
+-- Looking for stddef.h
+-- Looking for stddef.h - found
+-- Looking for fcntl.h
+-- Looking for fcntl.h - found
+-- Looking for sys/stat.h
+-- Looking for sys/stat.h - found
+-- Looking for stdafx.h
+-- Looking for stdafx.h - not found
+-- Looking for sys/mman.h
+-- Looking for sys/mman.h - found
+-- Performing Test HAVE_UINTPTR_T
+-- Performing Test HAVE_UINTPTR_T - Success
+-- Performing Test HAVE_INTPTR_T
+-- Performing Test HAVE_INTPTR_T - Success
+-- Performing Test HAVE_FULL_MMAP
+-- Performing Test HAVE_FULL_MMAP - Success
+-- HAVE_UINTPTR_T 1: uintptr_t defined in stdint.h... YES
+-- uintptr_t value considered NO 
+-- HAVE_INTPTR_T 1: intptr_t defined in stdint.h... YES
+-- intptr_t value considered NO 
+-- ENABLE_DECOMPRESSION : ON
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.3.1")
+-- Found zstd: /usr/lib/x86_64-linux-gnu/libzstd.so (found version "1.5.7")
+-- Found libzstd           : TRUE
+-- Found zlib              : TRUE
+-- Build with zlib and zstd: TRUE
+-- CMAKE_SIZEOF_VOID_P ... : 8
+-- Compiler warning options... NO
+-- Install prefix ... /usr/local
+> Enabling optimization for: ps2_recomp_lib
+> Enabling optimization for: ps2_recomp
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Performing Test COMPILER_HAS_THOSE_TOGGLES
+-- Performing Test COMPILER_HAS_THOSE_TOGGLES - Success
+-- Testing if -Werror=pointer-arith can be used -- compiles
+-- Testing if -Werror=implicit-function-declaration can be used -- compiles
+-- Testing if -fno-strict-aliasing can be used -- compiles
+-- Using raylib's GLFW
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Including X11 support
+-- Found X11: /usr/include
+-- Looking for XOpenDisplay in /usr/lib/x86_64-linux-gnu/libX11.so;/usr/lib/x86_64-linux-gnu/libXext.so
+-- Looking for XOpenDisplay in /usr/lib/x86_64-linux-gnu/libX11.so;/usr/lib/x86_64-linux-gnu/libXext.so - found
+-- Looking for gethostbyname
+-- Looking for gethostbyname - found
+-- Looking for connect
+-- Looking for connect - found
+-- Looking for remove
+-- Looking for remove - found
+-- Looking for shmat
+-- Looking for shmat - found
+-- Looking for IceConnectionNumber in ICE
+-- Looking for IceConnectionNumber in ICE - found
+-- Audio Backend: miniaudio
+-- Building raylib static library
+-- Generated build type: RelWithDebInfo
+-- Compiling with the flags:
+--   PLATFORM=PLATFORM_DESKTOP
+--   GRAPHICS=GRAPHICS_API_OPENGL_33
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(imgui) is deprecated, call
+  FetchContent_MakeAvailable(imgui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(imgui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:96 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(rlImGui) is deprecated, call
+  FetchContent_MakeAvailable(rlImGui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(rlImGui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:119 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Found PkgConfig: /usr/bin/pkg-config (found version "1.8.1")
+-- Checking for modules 'libavcodec;libavformat;libavutil;libswresample;libswscale'
+--   Found libavcodec, version 61.19.101
+--   Found libavformat, version 61.7.103
+--   Found libavutil, version 59.39.100
+--   Found libswresample, version 5.3.100
+--   Found libswscale, version 8.3.100
+> Enabling optimization for: ps2_runtime
+> Enabling optimization for: ps2EntryRunner
+-- Using the multi-header code from /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json/include/
+> Enabling optimization for: ps2_analyzer_lib
+> Enabling optimization for: ps2_analyzer
+> Enabling optimization for: ps2_test_lib
+> Enabling optimization for: ps2x_tests
+-- Configuring done (6.4s)
+-- Generating done (0.3s)
+-- Build files have been written to: /mnt/data/TimeSplitters_TS05_Checkpoint/build-clean
+[0/2] Re-checking globbed directories...
+[1/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/analysis/RabbitizerLoPairingInfo.c.o
+[2/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/analysis/RabbitizerJrRegData.c.o
+[3/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/analysis/RabbitizerTrackedRegisterState.c.o
+[4/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/common/RabbitizerVersion.c.o
+[5/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/common/RabbitizerConfig.c.o
+[6/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/analysis/RabbitizerRegistersTracker.c.o
+[7/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstrCategory.c.o
+[8/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/common/Utils.c.o
+[9/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstrId.c.o
+[10/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstrIdType.c.o
+[11/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstrSuffix.c.o
+[12/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstrDescriptor.c.o
+[13/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstruction/RabbitizerInstruction_Disassemble.c.o
+[14/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstruction/RabbitizerInstruction.c.o
+[15/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstruction/RabbitizerInstruction_Examination.c.o
+[16/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstruction/RabbitizerInstruction_Operand.c.o
+[17/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR3000GTE/RabbitizerInstructionR3000GTE.c.o
+[18/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionCpu/RabbitizerInstructionCpu_OperandType.c.o
+[19/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstruction/RabbitizerInstruction_ProcessUniqueId.c.o
+[20/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR3000GTE/RabbitizerInstructionR3000GTE_OperandType.c.o
+[21/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR4000Allegrex/RabbitizerInstructionR4000Allegrex.c.o
+[22/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR3000GTE/RabbitizerInstructionR3000GTE_ProcessUniqueId.c.o
+[23/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR5900/RabbitizerInstructionR5900.c.o
+[24/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR5900/RabbitizerInstructionR5900_OperandType.c.o
+[25/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR4000Allegrex/RabbitizerInstructionR4000Allegrex_OperandType.c.o
+[26/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR5900/RabbitizerInstructionR5900_ProcessUniqueId.c.o
+[27/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionRsp/RabbitizerInstructionRsp.c.o
+[28/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionR4000Allegrex/RabbitizerInstructionR4000Allegrex_ProcessUniqueId.c.o
+[29/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionRsp/RabbitizerInstructionRsp_OperandType.c.o
+[30/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerInstructionRsp/RabbitizerInstructionRsp_ProcessUniqueId.c.o
+[31/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerRegisterDescriptor.c.o
+[32/372] Building C object ps2xRecomp/CMakeFiles/rabbitizer.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/src/instructions/RabbitizerRegister.c.o
+[33/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_abbrev.c.o
+[34/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_crc.c.o
+[35/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_alloc.c.o
+[36/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_crc32.c.o
+[37/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_arange.c.o
+[38/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debug_sup.c.o
+[39/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debugaddr.c.o
+[40/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debuglink.c.o
+[41/372] Building CXX object _deps/fmt-build/CMakeFiles/fmt.dir/src/os.cc.o
+[42/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_debugnames.c.o
+[43/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_dsc.c.o
+[44/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_die_deliv.c.o
+[45/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_elf_rel_detector.c.o
+[46/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_error.c.o
+[47/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_elfread.c.o
+[48/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_fill_in_attr_form.c.o
+[49/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_find_sigref.c.o
+[50/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_fission_to_cu.c.o
+[51/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_form_class_names.c.o
+[52/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_elf_load_headers.c.o
+[53/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_form.c.o
+[54/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_gdbindex.c.o
+[55/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_frame2.c.o
+[56/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_gnu_index.c.o
+[57/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_global.c.o
+[58/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_groups.c.o
+[59/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_generic_init.c.o
+[60/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_harmless.c.o
+[61/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_frame.c.o
+[62/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_leb.c.o
+[63/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_init_finish.c.o
+[64/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_loc.c.o
+[65/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_locationop_read.c.o
+[66/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_local_malloc.c.o
+[67/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_loclists.c.o
+[68/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_lvn_name.c.o
+[69/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_64machoread.c.o
+[70/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_macro.c.o
+[71/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_machoread.c.o
+[72/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_memcpy_swap.c.o
+[73/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_line.c.o
+[74/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_object_read_common.c.o
+[75/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_macro5.c.o
+[76/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_names.c.o
+[77/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_object_detector.c.o
+[78/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_peread.c.o
+[79/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_ranges.c.o
+[80/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_safe_arithmetic.c.o
+[81/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_query.c.o
+[82/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_safe_strcpy.c.o
+[83/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_secname_ck.c.o
+[84/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_seekr.c.o
+[85/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_rnglists.c.o
+[86/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_setup_sections.c.o
+[87/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_stringsection.c.o
+[88/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_tied.c.o
+[89/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_str_offsets.c.o
+[90/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_tsearchhash.c.o
+[91/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_string.c.o
+[92/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_util.c.o
+[93/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_xu_index.c.o
+[94/372] Linking C static library ps2xRecomp/librabbitizer.a
+[95/372] Building C object _deps/libdwarf-build/src/lib/libdwarf/CMakeFiles/dwarf.dir/dwarf_print_lines.c.o
+[96/372] Building CXX object _deps/fmt-build/CMakeFiles/fmt.dir/src/format.cc.o
+[97/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/control_flow_analyzer.cpp.o
+[98/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/control_flow_emitter.cpp.o
+[99/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/code_generator.cpp.o
+[100/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/cop0_translator.cpp.o
+[101/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/fpu_translator.cpp.o
+[102/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/function_emitter.cpp.o
+[103/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/gif_dma_kick_analyzer.cpp.o
+[104/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/function_table_emitter.cpp.o
+[105/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/jump_table_switch_emitter.cpp.o
+[106/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/instruction_translator.cpp.o
+[107/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/mmi_translation_helpers.cpp.o
+[108/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/mmi_translator.cpp.o
+[109/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/elf_parser.cpp.o
+[110/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/r5900_decoder.cpp.o
+[111/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/recompiler_reporter.cpp.o
+[112/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/regimm_translator.cpp.o
+[113/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/special_translator.cpp.o
+[114/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/vu_translation_helpers.cpp.o
+[115/372] Linking CXX static library _deps/fmt-build/libfmt.a
+[116/372] Linking C static library _deps/libdwarf-build/src/lib/libdwarf/libdwarf.a
+[117/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/vu_translator.cpp.o
+[118/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/ps2_path.cpp.o
+[119/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/iop_module_manager.cpp.o
+[120/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/iop_subsystem.cpp.o
+[121/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/core/iop_cpu.cpp.o
+[122/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/iop_emulator.cpp.o
+[123/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/core/iop_kernel.cpp.o
+[124/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/core/iop_memory.cpp.o
+[125/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/ps2_recompiler.cpp.o
+[126/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/services/iop_rpc.cpp.o
+[127/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/services/iop_module_loader.cpp.o
+[128/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_heaplib.cpp.o
+[129/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_imports.cpp.o
+[130/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_intrman.cpp.o
+[131/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_cdvd.cpp.o
+[132/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_loadcore.cpp.o
+[133/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_stdio.cpp.o
+[134/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_ioman.cpp.o
+[135/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_sysmem.cpp.o
+[136/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_sysclib.cpp.o
+[137/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_timrman.cpp.o
+[138/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/emulator/imports/iop_vblank.cpp.o
+[139/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp_lib.dir/src/lib/config_manager.cpp.o
+[140/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/modules/dbcman.cpp.o
+[141/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/modules/libsd.cpp.o
+[142/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop.dir/src/modules/mcserv.cpp.o
+[143/372] Building C object _deps/raylib-build/raylib/CMakeFiles/raylib.dir/rshapes.c.o
+[144/372] Building C object _deps/raylib-build/raylib/CMakeFiles/raylib.dir/rtext.c.o
+[145/372] Building C object _deps/raylib-build/raylib/CMakeFiles/raylib.dir/rcore.c.o
+[146/372] Building C object _deps/raylib-build/raylib/CMakeFiles/raylib.dir/utils.c.o
+[147/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/context.c.o
+[148/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/init.c.o
+[149/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/input.c.o
+[150/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/monitor.c.o
+[151/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/platform.c.o
+[152/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/vulkan.c.o
+[153/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/window.c.o
+[154/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/egl_context.c.o
+[155/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/osmesa_context.c.o
+[156/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_init.c.o
+[157/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_monitor.c.o
+[158/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_window.c.o
+[159/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/null_joystick.c.o
+[160/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/posix_module.c.o
+[161/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/posix_time.c.o
+[162/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/posix_thread.c.o
+[163/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/x11_init.c.o
+[164/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/x11_monitor.c.o
+[165/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/x11_window.c.o
+[166/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/xkb_unicode.c.o
+[167/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/glx_context.c.o
+[168/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/linux_joystick.c.o
+[169/372] Building C object _deps/raylib-build/raylib/external/glfw/src/CMakeFiles/glfw.dir/posix_poll.c.o
+[170/372] Linking CXX static library ps2xRecomp/libps2_recomp_lib.a
+[171/372] Linking CXX static library ps2xIOP/libps2_iop.a
+[172/372] Building C object _deps/raylib-build/raylib/CMakeFiles/raylib.dir/rmodels.c.o
+[173/372] Building C object _deps/raylib-build/raylib/CMakeFiles/raylib.dir/rtextures.c.o
+[174/372] Building C object _deps/raylib-build/raylib/CMakeFiles/raylib.dir/raudio.c.o
+[175/372] Building CXX object ps2xRuntime/CMakeFiles/imgui.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui/imgui_tables.cpp.o
+[176/372] Building CXX object ps2xRuntime/CMakeFiles/imgui.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui/imgui_draw.cpp.o
+[177/372] Building CXX object ps2xRuntime/CMakeFiles/imgui.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui/imgui_demo.cpp.o
+[178/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/gs/ps2_gif_arbiter.cpp.o
+[179/372] Building CXX object ps2xRuntime/CMakeFiles/imgui.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui/imgui_widgets.cpp.o
+[180/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/game_overrides.cpp.o
+[181/372] Building CXX object ps2xRuntime/CMakeFiles/imgui.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui/imgui.cpp.o
+[182/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/gs/ps2_gs_memory.cpp.o
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/gs/ps2_gs_memory.cpp:3:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:326:11: warning: no case matching constant switch condition '49'
+  326 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:237:47: note: in instantiation of member function 'GSMem::PixelStorageTraits<GSMem::PixelStorageMode::Z24>::ColumnExtent' requested here
+  237 |                 using ColumnLookupTableT = LookupTable<u16, ColumnExtent().x, ColumnExtent().y>;
+      |                                                             ^
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/gs/ps2_gs_memory.cpp:248:20: note: in instantiation of template class 'GSMem::PixelStorageTraits<GSMem::PixelStorageMode::Z24>' requested here
+  248 |             return PixelStorageTraits<Z24>::Read(PageTableZ32, data, bp, bw, x, y, &cache);
+      |                    ^
+4 warnings generated.
+[183/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_audio.cpp.o
+[184/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_audio_vag.cpp.o
+[185/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/gs/gs_cpu_backend.cpp.o
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/gs/gs_cpu_backend.cpp:7:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+3 warnings generated.
+[186/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_pad.cpp.o
+[187/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/gs/gs_frontend.cpp.o
+[188/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_rom_device.cpp.o
+[189/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_iop_host.cpp.o
+[190/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_memory.cpp.o
+[191/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_vif1_interpreter.cpp.o
+[192/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_vfs.cpp.o
+[193/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/vu/ps2_vu1_upper.cpp.o
+[194/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/vu/ps2_vu1_core.cpp.o
+[195/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/vu/ps2_vu1_lower.cpp.o
+[196/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/games_database.cpp.o
+[197/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Audio.cpp.o
+[198/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_runtime.cpp.o
+[199/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/DMA.cpp.o
+[200/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/CD.cpp.o
+[201/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Compatibility.cpp.o
+[202/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/EeScheduler.cpp.o
+[203/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Deci2.cpp.o
+[204/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/FileIO.cpp.o
+[205/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Font.cpp.o
+[206/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/IPU.cpp.o
+[207/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/GS.cpp.o
+[208/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/LibC.cpp.o
+[209/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MPEG.cpp.o
+[210/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/RPC.cpp.o
+[211/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Pad.cpp.o
+[212/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MemoryCard.cpp.o
+[213/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/System.cpp.o
+[214/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/SIF.cpp.o
+[215/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/TTY.cpp.o
+[216/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Unimplemented.cpp.o
+[217/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/VU.cpp.o
+[218/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Deci2.cpp.o
+[219/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Dispatcher.cpp.o
+[220/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Interrupt.cpp.o
+[221/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Sync.cpp.o
+[222/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/FileIO.cpp.o
+[223/372] Linking C static library _deps/raylib-build/raylib/libraylib.a
+[224/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/RPC.cpp.o
+[225/372] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/elf_analysis_context.cpp.o
+[226/372] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/analysis_passes.cpp.o
+[227/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/System.cpp.o
+[228/372] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Syscalls/Thread.cpp.o
+[229/372] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/toml_generator.cpp.o
+[230/372] Linking CXX static library ps2xRuntime/libimgui.a
+[231/372] Building CXX object ps2xRuntime/CMakeFiles/rlImGui.dir/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rlimgui/rlImGui.cpp.o
+[232/372] Linking CXX static library ps2xRuntime/libps2_runtime.a
+[233/372] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/function_classifier.cpp.o
+[234/372] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/elf_analyzer.cpp.o
+[235/372] Building CXX object ps2xRuntime/CMakeFiles/ps2EntryRunner.dir/cmake_pch.hxx.pch
+[236/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/r5900_decoder_tests.cpp.o
+[237/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/elf_analyzer_tests.cpp.o
+[238/372] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer_lib.dir/src/sce_symbol_scanner.cpp.o
+[239/372] Linking CXX static library ps2xAnalyzer/libps2_analyzer_lib.a
+[240/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/pad_input_tests.cpp.o
+[241/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_io_tests.cpp.o
+[242/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_interrupt_tests.cpp.o
+[243/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_kernel_tests.cpp.o
+[244/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_vu_tests.cpp.o
+[245/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_vu1_tests.cpp.o
+[246/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/code_generator_tests.cpp.o
+[247/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_memory_tests.cpp.o
+[248/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gif_stream_tests.cpp.o
+[249/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_iop_tests.cpp.o
+[250/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_sif_dma_tests.cpp.o
+[251/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_sif_rpc_tests.cpp.o
+[252/372] Building CXX object ps2xTest/gs_cache/CMakeFiles/ps2_gs_cache_backend_under_test.dir/__/__/ps2xRuntime/src/lib/gs/gs_cpu_backend.cpp.o
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/gs/gs_cpu_backend.cpp:7:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+3 warnings generated.
+[253/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.o
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gs_tests.cpp:8:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+3 warnings generated.
+[254/372] Building CXX object ps2xTest/gs_cache/CMakeFiles/ps2_gs_cache_backend_under_test.dir/__/__/ps2xRuntime/src/lib/gs/gs_frontend.cpp.o
+[255/372] Building CXX object ps2xTest/gs_cache/CMakeFiles/ps2_gs_cache_backend_under_test.dir/__/__/ps2xRuntime/src/lib/gs/ps2_gs_memory.cpp.o
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/gs/ps2_gs_memory.cpp:3:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:326:11: warning: no case matching constant switch condition '49'
+  326 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:237:47: note: in instantiation of member function 'GSMem::PixelStorageTraits<GSMem::PixelStorageMode::Z24>::ColumnExtent' requested here
+  237 |                 using ColumnLookupTableT = LookupTable<u16, ColumnExtent().x, ColumnExtent().y>;
+      |                                                             ^
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/gs/ps2_gs_memory.cpp:248:20: note: in instantiation of template class 'GSMem::PixelStorageTraits<GSMem::PixelStorageMode::Z24>' requested here
+  248 |             return PixelStorageTraits<Z24>::Read(PageTableZ32, data, bp, bw, x, y, &cache);
+      |                    ^
+4 warnings generated.
+[256/372] Building CXX object ps2xRecomp/CMakeFiles/ps2_recomp.dir/src/runner/main.cpp.o
+[257/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_expansion_tests.cpp.o
+[258/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/cmake_pch.hxx.pch
+[259/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_recompiler_tests.cpp.o
+[260/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop_compatibility_tests.dir/tests/iop_compatibility_tests.cpp.o
+[261/372] Linking CXX static library ps2xRuntime/librlImGui.a
+[262/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop_import_tests.dir/tests/iop_import_tests.cpp.o
+[263/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop_emulator_tests.dir/tests/iop_emulator_tests.cpp.o
+[264/372] Building CXX object ps2xIOP/CMakeFiles/ps2_iop_import_version_tests.dir/tests/iop_import_version_tests.cpp.o
+[265/372] Linking CXX static library ps2xTest/libps2_test_lib.a
+[266/372] Building CXX object ps2xAnalyzer/CMakeFiles/ps2_analyzer.dir/src/analyzer_main.cpp.o
+[267/372] Linking CXX static library ps2xTest/gs_cache/libps2_gs_cache_backend_under_test.a
+[268/372] Building CXX object ps2xTest/CMakeFiles/ps2x_tests.dir/src/main.cpp.o
+[269/372] Building CXX object ps2xTest/CMakeFiles/ps2_test_function_table.dir/src/test_function_table.cpp.o
+[270/372] Building CXX object ps2xTest/gs_cache/CMakeFiles/ps2_gs_texture_cache_tests.dir/gs_texture_cache_tests.cpp.o
+[271/372] Building CXX object ps2xTest/gs_cache/CMakeFiles/ps2_gs_clut_cache_tests.dir/gs_clut_cache_tests.cpp.o
+[272/372] Building CXX object ps2xRuntime/CMakeFiles/ps2EntryRunner.dir/Unity/unity_0_cxx.cxx.o
+[273/372] Building CXX object ps2xTest/gs_cache/CMakeFiles/ps2_gs_memory_cache_tests.dir/gs_memory_cache_tests.cpp.o
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/gs_cache/gs_memory_cache_tests.cpp:2:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:326:11: warning: no case matching constant switch condition '49'
+  326 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:237:47: note: in instantiation of member function 'GSMem::PixelStorageTraits<GSMem::PixelStorageMode::Z24>::ColumnExtent' requested here
+  237 |                 using ColumnLookupTableT = LookupTable<u16, ColumnExtent().x, ColumnExtent().y>;
+      |                                                             ^
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/gs_cache/gs_memory_cache_tests.cpp:22:40: note: in instantiation of template class 'GSMem::PixelStorageTraits<GSMem::PixelStorageMode::Z24>' requested here
+   22 |         constexpr auto extent = GSMem::PixelStorageTraits<mode>::PageExtent();
+      |                                        ^
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/gs_cache/gs_memory_cache_tests.cpp:95:17: note: in instantiation of function template specialization '(anonymous namespace)::addressCoverage<(unsigned char)'1'>' requested here
+   95 |         {"z24", addressCoverage<GS_PSM_Z24>}, {"z16", addressCoverage<GS_PSM_Z16>},
+      |                 ^
+4 warnings generated.
+[274/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_82_cxx.cxx.o
+[275/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_79_cxx.cxx.o
+[276/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o
+[277/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_81_cxx.cxx.o
+[278/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_77_cxx.cxx.o
+[279/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_78_cxx.cxx.o
+[280/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_80_cxx.cxx.o
+[281/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_76_cxx.cxx.o
+[282/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_74_cxx.cxx.o
+[283/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_75_cxx.cxx.o
+[284/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_70_cxx.cxx.o
+[285/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_69_cxx.cxx.o
+[286/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_72_cxx.cxx.o
+[287/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_67_cxx.cxx.o
+[288/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_68_cxx.cxx.o
+[289/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_66_cxx.cxx.o
+[290/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_64_cxx.cxx.o
+[291/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_65_cxx.cxx.o
+[292/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_73_cxx.cxx.o
+[293/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_71_cxx.cxx.o
+[294/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_63_cxx.cxx.o
+[295/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_59_cxx.cxx.o
+[296/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_60_cxx.cxx.o
+[297/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_61_cxx.cxx.o
+[298/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_62_cxx.cxx.o
+[299/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_56_cxx.cxx.o
+[300/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_58_cxx.cxx.o
+[301/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_57_cxx.cxx.o
+[302/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_53_cxx.cxx.o
+[303/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_54_cxx.cxx.o
+[304/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_55_cxx.cxx.o
+[305/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_52_cxx.cxx.o
+[306/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_49_cxx.cxx.o
+[307/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_51_cxx.cxx.o
+[308/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_48_cxx.cxx.o
+[309/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_50_cxx.cxx.o
+[310/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_45_cxx.cxx.o
+[311/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_46_cxx.cxx.o
+[312/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_44_cxx.cxx.o
+[313/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_47_cxx.cxx.o
+[314/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_42_cxx.cxx.o
+[315/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_43_cxx.cxx.o
+[316/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_39_cxx.cxx.o
+[317/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_38_cxx.cxx.o
+[318/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_37_cxx.cxx.o
+[319/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_36_cxx.cxx.o
+[320/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_40_cxx.cxx.o
+[321/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_35_cxx.cxx.o
+[322/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_41_cxx.cxx.o
+[323/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_34_cxx.cxx.o
+[324/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_32_cxx.cxx.o
+[325/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_30_cxx.cxx.o
+[326/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_31_cxx.cxx.o
+[327/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_33_cxx.cxx.o
+[328/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_27_cxx.cxx.o
+[329/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_29_cxx.cxx.o
+[330/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_28_cxx.cxx.o
+[331/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_26_cxx.cxx.o
+[332/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_25_cxx.cxx.o
+[333/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_23_cxx.cxx.o
+[334/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_24_cxx.cxx.o
+[335/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_21_cxx.cxx.o
+[336/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_20_cxx.cxx.o
+[337/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_22_cxx.cxx.o
+[338/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_18_cxx.cxx.o
+[339/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_19_cxx.cxx.o
+[340/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_16_cxx.cxx.o
+[341/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_15_cxx.cxx.o
+[342/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_13_cxx.cxx.o
+[343/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_17_cxx.cxx.o
+[344/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_12_cxx.cxx.o
+[345/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_11_cxx.cxx.o
+[346/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_10_cxx.cxx.o
+[347/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_7_cxx.cxx.o
+[348/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_6_cxx.cxx.o
+[349/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_8_cxx.cxx.o
+[350/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_4_cxx.cxx.o
+[351/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_14_cxx.cxx.o
+[352/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_5_cxx.cxx.o
+[353/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_3_cxx.cxx.o
+[354/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_0_cxx.cxx.o
+[355/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_1_cxx.cxx.o
+[356/372] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay.dir/dma_replay.cpp.o
+[357/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_9_cxx.cxx.o
+[358/372] Linking CXX executable ps2xIOP/ps2_iop_emulator_tests
+[359/372] Linking CXX executable ps2xRecomp/ps2_recomp
+[360/372] Linking CXX executable ps2xIOP/ps2_iop_import_tests
+[361/372] Linking CXX executable ps2xIOP/ps2_iop_compatibility_tests
+[362/372] Linking CXX executable ps2xIOP/ps2_iop_import_version_tests
+[363/372] Linking CXX executable ps2xAnalyzer/ps2_analyzer
+[364/372] Linking CXX executable ps2xTest/gs_cache/ps2_gs_texture_cache_tests
+[365/372] Linking CXX executable ps2xTest/gs_cache/ps2_gs_clut_cache_tests
+[366/372] Linking CXX executable ps2xRuntime/ps2EntryRunner
+[367/372] Linking CXX executable ps2xTest/gs_cache/ps2_gs_memory_cache_tests
+[368/372] Linking CXX executable timesplitters/timesplitters_dma_replay
+[369/372] Linking CXX executable ps2xTest/ps2x_tests
+[370/372] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_2_cxx.cxx.o
+[371/372] Linking CXX executable timesplitters/timesplitters

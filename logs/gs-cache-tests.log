@@ -1,0 +1,100 @@
+Internal ctest changing into directory: /mnt/data/TimeSplitters-Dependencies/build/PS2Recomp/ps2xTest
+Test project /mnt/data/TimeSplitters-Dependencies/build/PS2Recomp/ps2xTest
+      Start  1: gs_cache.texture.unaligned_texture
+ 1/45 Test  #1: gs_cache.texture.unaligned_texture .......   Passed    0.01 sec
+      Start  2: gs_cache.texture.unaligned_wrap
+ 2/45 Test  #2: gs_cache.texture.unaligned_wrap ..........   Passed    0.00 sec
+      Start  3: gs_cache.texture.stale_mirror
+ 3/45 Test  #3: gs_cache.texture.stale_mirror ............   Passed    0.00 sec
+      Start  4: gs_cache.texture.page_alternation
+ 4/45 Test  #4: gs_cache.texture.page_alternation ........   Passed    0.00 sec
+      Start  5: gs_cache.texture.flush_visibility
+ 5/45 Test  #5: gs_cache.texture.flush_visibility ........   Passed    0.00 sec
+      Start  6: gs_cache.texture.upload_visibility
+ 6/45 Test  #6: gs_cache.texture.upload_visibility .......   Passed    0.00 sec
+      Start  7: gs_cache.texture.local_copy_visibility
+ 7/45 Test  #7: gs_cache.texture.local_copy_visibility ...   Passed    0.00 sec
+      Start  8: gs_cache.texture.raster_visibility
+ 8/45 Test  #8: gs_cache.texture.raster_visibility .......   Passed    0.00 sec
+      Start  9: gs_cache.texture.reset_and_rebind
+ 9/45 Test  #9: gs_cache.texture.reset_and_rebind ........   Passed    0.01 sec
+      Start 10: gs_cache.texture.invalid_vram_size
+10/45 Test #10: gs_cache.texture.invalid_vram_size .......   Passed    0.00 sec
+      Start 11: gs_cache.texture.reserved_psm
+11/45 Test #11: gs_cache.texture.reserved_psm ............   Passed    0.00 sec
+      Start 12: gs_cache.clut.unaligned_csm1_ct32
+12/45 Test #12: gs_cache.clut.unaligned_csm1_ct32 ........   Passed    0.00 sec
+      Start 13: gs_cache.clut.unaligned_csm1_ct16
+13/45 Test #13: gs_cache.clut.unaligned_csm1_ct16 ........   Passed    0.00 sec
+      Start 14: gs_cache.clut.unaligned_csm1_ct16s
+14/45 Test #14: gs_cache.clut.unaligned_csm1_ct16s .......   Passed    0.01 sec
+      Start 15: gs_cache.clut.wrapped_clut
+15/45 Test #15: gs_cache.clut.wrapped_clut ...............   Passed    0.00 sec
+      Start 16: gs_cache.clut.unaligned_csm2
+16/45 Test #16: gs_cache.clut.unaligned_csm2 .............   Passed    0.00 sec
+      Start 17: gs_cache.clut.retained_palette
+17/45 Test #17: gs_cache.clut.retained_palette ...........   Passed    0.00 sec
+      Start 18: gs_cache.clut.clut_uses_page_cache
+18/45 Test #18: gs_cache.clut.clut_uses_page_cache .......   Passed    0.00 sec
+      Start 19: gs_cache.clut.cbp0_conditional
+19/45 Test #19: gs_cache.clut.cbp0_conditional ...........   Passed    0.00 sec
+      Start 20: gs_cache.clut.cbp1_conditional
+20/45 Test #20: gs_cache.clut.cbp1_conditional ...........   Passed    0.00 sec
+      Start 21: gs_cache.clut.reserved_cld
+21/45 Test #21: gs_cache.clut.reserved_cld ...............   Passed    0.00 sec
+      Start 22: gs_cache.clut.nonindexed_cld
+22/45 Test #22: gs_cache.clut.nonindexed_cld .............   Passed    0.00 sec
+      Start 23: gs_cache.clut.tex2_reload
+23/45 Test #23: gs_cache.clut.tex2_reload ................   Passed    0.00 sec
+      Start 24: gs_cache.clut.shared_contexts
+24/45 Test #24: gs_cache.clut.shared_contexts ............   Passed    0.00 sec
+      Start 25: gs_cache.clut.csa_ct32
+25/45 Test #25: gs_cache.clut.csa_ct32 ...................   Passed    0.00 sec
+      Start 26: gs_cache.clut.csa_ct16
+26/45 Test #26: gs_cache.clut.csa_ct16 ...................   Passed    0.01 sec
+      Start 27: gs_cache.clut.csa_ct16s
+27/45 Test #27: gs_cache.clut.csa_ct16s ..................   Passed    0.00 sec
+      Start 28: gs_cache.clut.texa_without_reload
+28/45 Test #28: gs_cache.clut.texa_without_reload ........   Passed    0.00 sec
+      Start 29: gs_cache.clut.palette_before_filtering
+29/45 Test #29: gs_cache.clut.palette_before_filtering ...   Passed    0.00 sec
+      Start 30: gs_cache.clut.high_planes
+30/45 Test #30: gs_cache.clut.high_planes ................   Passed    0.00 sec
+      Start 31: gs_cache.memory.ct32
+31/45 Test #31: gs_cache.memory.ct32 .....................   Passed    0.01 sec
+      Start 32: gs_cache.memory.ct24
+32/45 Test #32: gs_cache.memory.ct24 .....................   Passed    0.01 sec
+      Start 33: gs_cache.memory.ct16
+33/45 Test #33: gs_cache.memory.ct16 .....................   Passed    0.02 sec
+      Start 34: gs_cache.memory.ct16s
+34/45 Test #34: gs_cache.memory.ct16s ....................   Passed    0.01 sec
+      Start 35: gs_cache.memory.t8
+35/45 Test #35: gs_cache.memory.t8 .......................   Passed    0.02 sec
+      Start 36: gs_cache.memory.t4
+36/45 Test #36: gs_cache.memory.t4 .......................   Passed    0.02 sec
+      Start 37: gs_cache.memory.t8h
+37/45 Test #37: gs_cache.memory.t8h ......................   Passed    0.01 sec
+      Start 38: gs_cache.memory.t4hl
+38/45 Test #38: gs_cache.memory.t4hl .....................   Passed    0.02 sec
+      Start 39: gs_cache.memory.t4hh
+39/45 Test #39: gs_cache.memory.t4hh .....................   Passed    0.01 sec
+      Start 40: gs_cache.memory.z32
+40/45 Test #40: gs_cache.memory.z32 ......................   Passed    0.01 sec
+      Start 41: gs_cache.memory.z24
+41/45 Test #41: gs_cache.memory.z24 ......................   Passed    0.01 sec
+      Start 42: gs_cache.memory.z16
+42/45 Test #42: gs_cache.memory.z16 ......................   Passed    0.02 sec
+      Start 43: gs_cache.memory.z16s
+43/45 Test #43: gs_cache.memory.z16s .....................   Passed    0.02 sec
+      Start 44: gs_cache.memory.alias_lanes
+44/45 Test #44: gs_cache.memory.alias_lanes ..............   Passed    0.01 sec
+      Start 45: gs_cache.memory.physical_tag_aliases
+45/45 Test #45: gs_cache.memory.physical_tag_aliases .....   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 45
+
+Label Time Summary:
+cache    =   0.35 sec*proc (45 tests)
+gs       =   0.35 sec*proc (45 tests)
+
+Total Test time (real) =   0.36 sec

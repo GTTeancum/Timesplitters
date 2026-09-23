@@ -1,0 +1,13 @@
+{
+  "original_elf_sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+  "native_07_ram_sha256": "84f3e4905cec433e92b46ff7747efd652a17c90872748a29f4331b98d549ba64",
+  "static_dmalists_pointers": [
+    "0x100000",
+    "0x1ec1f80"
+  ],
+  "runtime_callback_arena": {
+    "base": "0x00080000",
+    "exclusive_end": "0x00100000"
+  },
+  "note": "The unloaded 1\u20132 MiB range is not free kernel storage: the original ELF initializes dmalists[0] to 0x00100000. Earlier native-03..06 experiments used an incorrect callback arena; native-07 corrects this."
+}

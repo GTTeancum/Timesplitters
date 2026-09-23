@@ -1,0 +1,464 @@
+
+[Suite]: CodeGenerator
+[33m  [Run]: [0mCOP0 MFC0/MTC0 translate to COP0 register access [32m  [Passed][0m
+[33m  [Run]: [0mFCR access uses CFC1/CTC1 [32m  [Passed][0m
+[33m  [Run]: [0mGIF DMA kick coalesces when CHCR store is a return delay slot [32m  [Passed][0m
+[33m  [Run]: [0mGenerated sources cannot be shadowed by stale local declaration headers [32m  [Passed][0m
+[33m  [Run]: [0mJAL to a resolved syscall publishes fallthrough before the handler [32m  [Passed][0m
+[33m  [Run]: [0mJAL to internal target becomes goto [32m  [Passed][0m
+[33m  [Run]: [0mJAL to known function emits call and check [32m  [Passed][0m
+[33m  [Run]: [0mJALR emits indirect call [32m  [Passed][0m
+[33m  [Run]: [0mJALR fallback should not expose epilogue tail-jump labels [32m  [Passed][0m
+[33m  [Run]: [0mJR $31 returns through dynamic target without broad local switch [32m  [Passed][0m
+[33m  [Run]: [0mPCPYLD uses runtime helper macro [32m  [Passed][0m
+[33m  [Run]: [0mQFSRV translation uses runtime helper macro [32m  [Passed][0m
+[33m  [Run]: [0mR5900 MMI MULT1 writes rd when rd is non-zero [32m  [Passed][0m
+[33m  [Run]: [0mR5900 MULT writes rd when rd is non-zero [32m  [Passed][0m
+[33m  [Run]: [0mR5900 SQRT.S reads FT, not reserved FS [32m  [Passed][0m
+[33m  [Run]: [0mSC requires matching LL reservation address [32m  [Passed][0m
+[33m  [Run]: [0mSYSCALL fallthrough is a resumable entry [32m  [Passed][0m
+[33m  [Run]: [0mSYSCALL publishes its continuation before entering the runtime [32m  [Passed][0m
+[33m  [Run]: [0mUnary MMI permutations read their source from rt [32m  [Passed][0m
+[33m  [Run]: [0mVU CFC2/CTC2 access VI registers directly [32m  [Passed][0m
+[33m  [Run]: [0mVU random helpers emit line comments on separate lines [32m  [Passed][0m
+[33m  [Run]: [0mVU special control registers use hardware indices [32m  [Passed][0m
+[33m  [Run]: [0mVU0 OPMULA and OPMSUB use cross-product lane permutations [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S1 q/i forms keep mask and use sa as destination [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S1 uses fd/fs/ft fields (sa/rd/rt) [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S2 VI memory ops use rd as VI base register [32m  [Passed][0m
+[33m  [Run]: [0mVU0 S2 vector ops use rd as source and rt as destination [32m  [Passed][0m
+[33m  [Run]: [0mVU0 destination MADD and MSUB forms preserve ACC [32m  [Passed][0m
+[33m  [Run]: [0mVU0 macro mappings cover all S1/S2 enums [32m  [Passed][0m
+[33m  [Run]: [0mbackward BEQ returns to the dispatcher through a resumable loop head [32m  [Passed][0m
+[33m  [Run]: [0mbackward internal JAL stays inline and does not return to dispatcher [32m  [Passed][0m
+[33m  [Run]: [0mbranch-likely places delay slot only in taken path [32m  [Passed][0m
+[33m  [Run]: [0mbranches outside function still set pc [32m  [Passed][0m
+[33m  [Run]: [0mconfigured internal guest handlers register to their owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mconfigured jump table addresses drive JR dispatch targets [32m  [Passed][0m
+[33m  [Run]: [0mconstant MMIO store emits direct runtime store [32m  [Passed][0m
+[33m  [Run]: [0mconstant RDRAM load and store emit fast memory access [32m  [Passed][0m
+[33m  [Run]: [0mcontrol-flow analysis keeps same-function JAL target internal and promotes only the return pc [32m  [Passed][0m
+[33m  [Run]: [0mcontrol-flow analysis promotes JALR fallthrough as a resumable entry [32m  [Passed][0m
+[33m  [Run]: [0mcontrol-flow analysis reports cross-function mid-function jumps as external entry candidates [32m  [Passed][0m
+[33m  [Run]: [0memits labels and gotos for internal branches [32m  [Passed][0m
+[33m  [Run]: [0mexternal mid-function entry can register to the owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mjump to unknown target sets pc [32m  [Passed][0m
+[33m  [Run]: [0mjumps to known symbols call by name [32m  [Passed][0m
+[33m  [Run]: [0mknown GIF DMA MMIO sequence emits native kick helper [32m  [Passed][0m
+[33m  [Run]: [0mlabels delay slot when it is a branch target [32m  [Passed][0m
+[33m  [Run]: [0mrenamed function used in jump table [32m  [Passed][0m
+[33m  [Run]: [0mreserved identifiers are sanitized and used in calls [32m  [Passed][0m
+[33m  [Run]: [0mresolveStubTarget allows leading underscore alias [32m  [Passed][0m
+[33m  [Run]: [0mresume entry targets emit a top-level pc switch in the owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mresume entry targets register to the owner wrapper [32m  [Passed][0m
+[33m  [Run]: [0mscalar logical immediates emit low64 operations [32m  [Passed][0m
+[33m  [Run]: [0mscalar logical register ops emit low64 operations [32m  [Passed][0m
+[33m  [Run]: [0mstale MMIO annotation does not replace the guest effective address [32m  [Passed][0m
+[33m  [Run]: [0msyscall marks the following instruction as a resume entry [32m  [Passed][0m
+[33m  [Run]: [0mtrailing JAL without decoded delay slot still emits call flow [32m  [Passed][0m
+[33m  [Run]: [0mtrailing JR $31 without decoded delay slot still emits return flow [32m  [Passed][0m
+[33m  [Run]: [0munresolved JALR marks internal labels as indirect fallback resume entries [32m  [Passed][0m
+[33m  [Run]: [0munresolved JALR uses runtime dispatch without broad local switch [32m  [Passed][0m
+[33m  [Run]: [0munresolved JR marks internal labels as indirect fallback resume entries [32m  [Passed][0m
+[33m  [Run]: [0munresolved JR non-RA uses dispatcher resume entries without broad local switch [32m  [Passed][0m
+[33m  [Run]: [0munsigned integer loads use explicit zero extension [32m  [Passed][0m
+
+[Suite]: ElfAnalyzerHeuristics
+[33m  [Run]: [0mentry-point mapping handles exact inside and fallback [32m  [Passed][0m
+[33m  [Run]: [0mjump-table detection finds canonical sltiu/bne/lw/jr pattern [32m  [Passed][0m
+[33m  [Run]: [0mlibrary-symbol classification table [32m  [Passed][0m
+[33m  [Run]: [0mreliable-symbol heuristic filters autogenerated names [32m  [Passed][0m
+[33m  [Run]: [0mrisk signal detection reports hardware io mmi and self modifying code [32m  [Passed][0m
+[33m  [Run]: [0mruntime handler filter keeps unsupported SDK names informational [32m  [Passed][0m
+
+[Suite]: PS2GS
+[33m  [Run]: [0mCT32 raster writes alias cleanly into later CT32 texture sampling [gs:reg] idx=0 reg=0x4c value=0x10000
+[gs:reg] idx=1 reg=0x40 value=0x1000000010000
+[gs:reg] idx=2 reg=0x18 value=0x0
+[gs:reg] idx=3 reg=0x47 value=0x30000
+[gs:reg] idx=4 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=5 reg=0x1 value=0x80665544
+[gs:reg] idx=6 reg=0x5 value=0x100000
+[gs:kick] idx=0 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=0 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1,1) test=0x30000 alpha=0x0 v0=(0,1) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(68,85,102,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:reg] idx=7 reg=0x4d value=0x10096
+[gs:copy-reg] reg=0x4d value=0x10096 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=8 reg=0x41 value=0x0
+[gs:copy-reg] reg=0x41 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=9 reg=0x19 value=0x0
+[gs:copy-reg] reg=0x19 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=10 reg=0x48 value=0x30000
+[gs:copy-reg] reg=0x48 value=0x30000 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=11 reg=0x7 value=0xc40004000
+[gs:copy-reg] reg=0x7 value=0xc40004000 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=12 reg=0x0 value=0x316
+[gs:copy-reg] reg=0x0 value=0x316 primCtxt=0 ctx0fbp=0 ctx1fbp=150
+[gs:reg] idx=13 reg=0x1 value=0x80808080
+[gs:reg] idx=14 reg=0x3 value=0x100000
+[gs:reg] idx=15 reg=0x5 value=0x0
+[gs:kick] idx=1 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=16 reg=0x3 value=0x100000
+[gs:reg] idx=17 reg=0x5 value=0x0
+[gs:kick] idx=2 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=1 type=6 tme=1 abe=0 fst=1 ctxt=1 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=1 psm=0x0 tw=0 th=1 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,1) stq0=(0,0,1) v1=(0,0) uv1=(0,1) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:copy-prim] type=6 tme=1 abe=0 fst=1 ctxt=1 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=1 psm=0x0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mFBA forces the framebuffer alpha high bit on CT32 writes [gs:reg] idx=18 reg=0x4c value=0x10000
+[gs:reg] idx=19 reg=0x40 value=0x0
+[gs:reg] idx=20 reg=0x47 value=0x30000
+[gs:reg] idx=21 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=22 reg=0x1 value=0x1112233
+[gs:reg] idx=23 reg=0x5 value=0x0
+[gs:kick] idx=3 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=2 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(51,34,17,1) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:reg] idx=24 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=25 reg=0x1 value=0x1112233
+[gs:reg] idx=26 reg=0x5 value=0x0
+[gs:kick] idx=4 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=3 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(51,34,17,1) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mFST sprite 1:1 CT32 copies preserve source texels at the right and bottom edges [gs:reg] idx=27 reg=0x4c value=0x10096
+[gs:reg] idx=28 reg=0x40 value=0x3000000030000
+[gs:reg] idx=29 reg=0x18 value=0x0
+[gs:reg] idx=30 reg=0x47 value=0x30000
+[gs:reg] idx=31 reg=0x42 value=0x0
+[gs:reg] idx=32 reg=0x6 value=0x488004040
+[gs:reg] idx=33 reg=0x0 value=0x116
+[gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=150 ctx1fbp=0
+[gs:reg] idx=34 reg=0x1 value=0x80808080
+[gs:reg] idx=35 reg=0x3 value=0x0
+[gs:reg] idx=36 reg=0x5 value=0x0
+[gs:kick] idx=5 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=37 reg=0x3 value=0x400040
+[gs:reg] idx=38 reg=0x5 value=0x400040
+[gs:kick] idx=6 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=4 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,4) uv1=(4,4) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:copy-prim] type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=150 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tcc=1 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF IMAGE packet writes host-to-local data into GS VRAM [gs:reg] idx=39 reg=0x50 value=0x1000000010000
+[gs:reg] idx=40 reg=0x51 value=0x0
+[gs:reg] idx=41 reg=0x52 value=0x200000002
+[gs:reg] idx=42 reg=0x53 value=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF PACKED A+D writes DISPFB1 and DISPLAY1 privileged registers [32m  [Passed][0m
+[33m  [Run]: [0mGIF PACKED A+D writes DISPFB2 and DISPLAY2 privileged registers [32m  [Passed][0m
+[33m  [Run]: [0mGIF REGLIST NREG=0 is treated as sixteen descriptors [gs:reg] idx=43 reg=0x50 value=0x1000000010000
+[gs:reg] idx=44 reg=0x51 value=0x0
+[gs:reg] idx=45 reg=0x52 value=0x100000004
+[gs:reg] idx=46 reg=0x53 value=0x0
+[gs:reg] idx=47 reg=0x0 value=0x0
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=48 reg=0x0 value=0x1
+[gs:copy-reg] reg=0x0 value=0x1 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=49 reg=0x0 value=0x2
+[gs:copy-reg] reg=0x0 value=0x2 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=50 reg=0x0 value=0x3
+[gs:copy-reg] reg=0x0 value=0x3 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=51 reg=0x0 value=0x4
+[gs:copy-reg] reg=0x0 value=0x4 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=52 reg=0x0 value=0x5
+[gs:copy-reg] reg=0x0 value=0x5 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=53 reg=0x0 value=0x6
+[gs:copy-reg] reg=0x0 value=0x6 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=54 reg=0x0 value=0x7
+[gs:copy-reg] reg=0x0 value=0x7 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=55 reg=0x0 value=0x8
+[gs:copy-reg] reg=0x0 value=0x8 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=56 reg=0x0 value=0x9
+[gs:copy-reg] reg=0x0 value=0x9 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=57 reg=0x0 value=0xa
+[gs:copy-reg] reg=0x0 value=0xa primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=58 reg=0x0 value=0xb
+[gs:copy-reg] reg=0x0 value=0xb primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=59 reg=0x0 value=0xc
+[gs:copy-reg] reg=0x0 value=0xc primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=60 reg=0x0 value=0xd
+[gs:copy-reg] reg=0x0 value=0xd primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=61 reg=0x0 value=0xe
+[gs:copy-reg] reg=0x0 value=0xe primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=62 reg=0x0 value=0xf
+[gs:copy-reg] reg=0x0 value=0xf primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF REGLIST with odd register count consumes 128-bit padding before next tag [gs:reg] idx=63 reg=0x50 value=0x1000000010000
+[gs:reg] idx=64 reg=0x51 value=0x0
+[gs:reg] idx=65 reg=0x52 value=0x100000004
+[gs:reg] idx=66 reg=0x53 value=0x0
+[gs:reg] idx=67 reg=0x0 value=0x6
+[gs:copy-reg] reg=0x0 value=0x6 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[32m  [Passed][0m
+[33m  [Run]: [0mGIF load-image packet uses native upload fast path [gs:reg] idx=68 reg=0x50 value=0x1000000010000
+[gs:reg] idx=69 reg=0x51 value=0x0
+[gs:reg] idx=70 reg=0x52 value=0x200000002
+[gs:reg] idx=71 reg=0x53 value=0x0
+[32m  [Passed][0m
+[33m  [Run]: [0mGS CLAMP modes transform texture coordinates before sampling [gs:reg] idx=72 reg=0x4c value=0x10000
+[gs:reg] idx=73 reg=0x40 value=0x3000000030000
+[gs:reg] idx=74 reg=0x18 value=0x0
+[gs:reg] idx=75 reg=0x47 value=0x30000
+[gs:reg] idx=76 reg=0x6 value=0xc88004040
+[gs:reg] idx=77 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=78 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=79 reg=0x3 value=0x40
+[gs:reg] idx=80 reg=0x5 value=0x0
+[gs:kick] idx=7 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=81 reg=0x3 value=0x40
+[gs:reg] idx=82 reg=0x5 value=0x20
+[gs:kick] idx=8 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=83 reg=0x3 value=0x40
+[gs:reg] idx=84 reg=0x5 value=0x200000
+[gs:kick] idx=9 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=5 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(4,0) stq0=(0,0,1) v1=(2,0) uv1=(4,0) stq1=(0,0,1) v2=(0,2) uv2=(4,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=85 reg=0x4c value=0x10000
+[gs:reg] idx=86 reg=0x40 value=0x3000000030000
+[gs:reg] idx=87 reg=0x18 value=0x0
+[gs:reg] idx=88 reg=0x47 value=0x30000
+[gs:reg] idx=89 reg=0x6 value=0xc88004040
+[gs:reg] idx=90 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=91 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=92 reg=0x3 value=0x400000
+[gs:reg] idx=93 reg=0x5 value=0x0
+[gs:kick] idx=10 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=94 reg=0x3 value=0x400000
+[gs:reg] idx=95 reg=0x5 value=0x20
+[gs:kick] idx=11 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=96 reg=0x3 value=0x400000
+[gs:reg] idx=97 reg=0x5 value=0x200000
+[gs:kick] idx=12 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=6 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,4) stq0=(0,0,1) v1=(2,0) uv1=(0,4) stq1=(0,0,1) v2=(0,2) uv2=(0,4) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=98 reg=0x4c value=0x10000
+[gs:reg] idx=99 reg=0x40 value=0x3000000030000
+[gs:reg] idx=100 reg=0x18 value=0x0
+[gs:reg] idx=101 reg=0x47 value=0x30000
+[gs:reg] idx=102 reg=0x6 value=0xc88004040
+[gs:reg] idx=103 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=104 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=105 reg=0x3 value=0x40
+[gs:reg] idx=106 reg=0x5 value=0x0
+[gs:kick] idx=13 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=107 reg=0x3 value=0x40
+[gs:reg] idx=108 reg=0x5 value=0x20
+[gs:kick] idx=14 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=109 reg=0x3 value=0x40
+[gs:reg] idx=110 reg=0x5 value=0x200000
+[gs:kick] idx=15 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=7 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(4,0) stq0=(0,0,1) v1=(2,0) uv1=(4,0) stq1=(0,0,1) v2=(0,2) uv2=(4,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=111 reg=0x4c value=0x10000
+[gs:reg] idx=112 reg=0x40 value=0x3000000030000
+[gs:reg] idx=113 reg=0x18 value=0x0
+[gs:reg] idx=114 reg=0x47 value=0x30000
+[gs:reg] idx=115 reg=0x6 value=0xc88004040
+[gs:reg] idx=116 reg=0x0 value=0x113
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=117 reg=0x1 value=0x3f80000080808080
+[gs:reg] idx=118 reg=0x3 value=0x30
+[gs:reg] idx=119 reg=0x5 value=0x0
+[gs:kick] idx=16 drawing=1 prim=3 vtxCount=1
+[gs:reg] idx=120 reg=0x3 value=0x30
+[gs:reg] idx=121 reg=0x5 value=0x20
+[gs:kick] idx=17 drawing=1 prim=3 vtxCount=2
+[gs:reg] idx=122 reg=0x3 value=0x30
+[gs:reg] idx=123 reg=0x5 value=0x200000
+[gs:kick] idx=18 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=8 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(3,0) stq0=(0,0,1) v1=(2,0) uv1=(3,0) stq1=(0,0,1) v2=(0,2) uv2=(3,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:reg] idx=124 reg=0x4c value=0x10000
+[gs:reg] idx=125 reg=0x40 value=0x3000000030000
+[gs:reg] idx=126 reg=0x18 value=0x0
+[gs:reg] idx=127 reg=0x47 value=0x30000
+[gs:copy-reg] reg=0x0 value=0x113 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=19 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=20 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=21 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=9 type=3 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=2 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(3,3) test=0x30000 alpha=0x0 v0=(0,0) uv0=(4,0) stq0=(0,0,1) v1=(2,0) uv1=(4,0) stq1=(0,0,1) v2=(0,2) uv2=(4,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS CSR/IMR support coherent 64-bit and 32-bit access [32m  [Passed][0m
+[33m  [Run]: [0mGS CT24 host-local-host transfer preserves 24-bit RGB payload [32m  [Passed][0m
+[33m  [Run]: [0mGS CT32 upload aliases cleanly into later PSMT8 sampling [32m  [Passed][0m
+[33m  [Run]: [0mGS DATE and DATM inspect the framebuffer-format alpha bit [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=22 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=10 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=23 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=11 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=24 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=12 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3c000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=25 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=13 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=26 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=14 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=27 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=15 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3c000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=28 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=16 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x1 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x34000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=29 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=17 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x1 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3c000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS HIGHLIGHT adds vertex alpha into RGB and texture alpha into A [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=30 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=31 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=18 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=2 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,32) rgba1=(128,128,128,32) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS HIGHLIGHT2 keeps texture alpha while adding vertex alpha into RGB [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=32 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=33 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=19 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=3 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,32) rgba1=(128,128,128,32) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS PSMT4 host-local upload keeps position across split IMAGE packets [32m  [Passed][0m
+[33m  [Run]: [0mGS PSMT4 host-local-host keeps nibble packing stable [32m  [Passed][0m
+[33m  [Run]: [0mGS PSMT4 local-local copy respects swizzled page layout [32m  [Passed][0m
+[33m  [Run]: [0mGS RGB_ONLY falls back to FB_ONLY outside CT32 [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=34 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=20 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x1 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3380b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=35 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=21 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x2 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3380b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS SIGNAL and FINISH set CSR bits that clear by CSR write-one acknowledge [32m  [Passed][0m
+[33m  [Run]: [0mGS STQ triangle interpolation divides homogeneous coordinates after DDA [gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=36 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=37 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=38 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=22 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=2 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,0) uv1=(0,0) stq1=(2,0,2) v2=(0,4) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4 CSM1 CLUT cache survives source VRAM reuse [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=39 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=40 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=23 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4 CSM1 preserves CSA bit 4 for CT16 CLUTs [gs:texa] idx=0 value=0x8000000000 ta0=0x0 aem=0 ta1=0x80
+[gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=41 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=42 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=24 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x2 csm=0 csa=16) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4 triangle sampling reads manual-layout texels from a 512x512 atlas [gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=43 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=44 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=45 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=25 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.0102539,0.0102539,1) v1=(4,0) uv1=(0,0) stq1=(0.0102539,0.0102539,1) v2=(0,4) uv2=(0,0) stq2=(0.0102539,0.0102539,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=46 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=47 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=48 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=26 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.252441,0.0102539,1) v1=(4,0) uv1=(0,0) stq1=(0.252441,0.0102539,1) v2=(0,4) uv2=(0,0) stq2=(0.252441,0.0102539,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=49 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=50 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=51 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=27 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.502441,0.0102539,1) v1=(4,0) uv1=(0,0) stq1=(0.502441,0.0102539,1) v2=(0,4) uv2=(0,0) stq2=(0.502441,0.0102539,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=52 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=53 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=54 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=28 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=8 psm=0x14 tw=9 th=9 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.752441,0.252441,1) v1=(4,0) uv1=(0,0) stq1=(0.752441,0.252441,1) v2=(0,4) uv2=(0,0) stq2=(0.752441,0.252441,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4HL upload deactivates the transfer at total_pixels and discards excess bytes [32m  [Passed][0m
+[33m  [Run]: [0mGS T4HL/T4HH sampling reads only its own plane through independent CLUTs [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=55 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=56 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=29 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x24 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=57 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=58 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=30 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x2c tw=0 th=0 tcc=1 tfx=1 cbp=192 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T4HL/T4HH shared-plane upload preserves both index planes via RMW [32m  [Passed][0m
+[33m  [Run]: [0mGS T8 CSM1 applies CSA and masks CSA bit 4 for CT32 CLUTs [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=59 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=60 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=31 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=17) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS T8 CT32-uploaded CSM1 CLUT follows swizzled palette layout [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=61 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=62 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=32 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TCC=0 MODULATE uses texture RGB and keeps vertex alpha [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=63 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=64 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=33 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,68) rgba1=(128,128,128,68) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEX0 dimensions saturate at 1024 pixels [gs:copy-reg] reg=0x0 value=0x16 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=65 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=66 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=34 type=6 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=16 psm=0x0 tw=15 th=15 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0.000976562,0,1) v1=(1,1) uv1=(0,0) stq1=(0.000976562,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEX1 linear filter blends T4 STQ triangle samples [gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=67 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=68 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=69 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=35 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=1 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,0) uv1=(0,0) stq1=(1,0,1) v2=(0,4) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[gs:copy-reg] reg=0x0 value=0x13 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=70 drawing=1 prim=3 vtxCount=1
+[gs:kick] idx=71 drawing=1 prim=3 vtxCount=2
+[gs:kick] idx=72 drawing=1 prim=3 vtxCount=3
+[gs:prim] idx=36 type=3 tme=1 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x14 tw=1 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(4,4) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(4,0) uv1=(0,0) stq1=(1,0,1) v2=(0,4) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(128,128,128,128)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEX2 updates CLUT state independently from TEX0 [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=73 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=74 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=37 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=192 cpsm=0x0 csm=1 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEXA expands CT24 alpha and honors AEM for black texels [gs:texa] idx=1 value=0xaa00008055 ta0=0x55 aem=1 ta1=0xaa
+[gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=75 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=76 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=38 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x1 tw=1 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=77 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=78 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=39 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x1 tw=1 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1,0) test=0x30000 alpha=0x0 v0=(1,0) uv0=(1,0) stq0=(0,0,1) v1=(2,1) uv1=(1,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS TEXCLUT offsets T8 CLUT fetch coordinates [gs:copy-reg] reg=0x0 value=0x116 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=79 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=80 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=40 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=64 tbw=1 psm=0x13 tw=0 th=0 tcc=1 tfx=1 cbp=128 cpsm=0x0 csm=1 csa=0) texclut=(cbw=1 cou=3 cov=2) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS ZMSK suppresses depth without suppressing framebuffer writes [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=81 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=41 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3080b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS alpha-test AFAIL independently masks framebuffer and depth [gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=82 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=42 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3080b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:copy-reg] reg=0x0 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=83 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=43 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3180b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=84 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=44 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3280b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=85 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=45 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x3380b alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(18,52,86,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS backend replacement preserves canonical local memory [32m  [Passed][0m
+[33m  [Run]: [0mGS fog blends the shaded color toward FOGCOL before framebuffer blending [gs:kick] idx=86 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=46 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=87 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=47 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=88 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=48 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[gs:kick] idx=89 drawing=1 prim=0 vtxCount=1
+[gs:prim] idx=49 type=0 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(0,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(0,0) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS local-to-host transfer supports partial incremental reads [32m  [Passed][0m
+[33m  [Run]: [0mGS texture page buffer hides local-memory writes until TEXFLUSH [gs:kick] idx=90 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=91 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=50 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=32 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(2,0) test=0x30000 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=92 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=93 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=51 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=32 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(2,0) test=0x30000 alpha=0x0 v0=(1,0) uv0=(0,0) stq0=(0,0,1) v1=(2,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[gs:kick] idx=94 drawing=1 prim=6 vtxCount=1
+[gs:kick] idx=95 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=52 type=6 tme=1 abe=0 fst=1 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=32 tbw=1 psm=0x0 tw=0 th=0 tcc=1 tfx=1 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(2,0) test=0x30000 alpha=0x0 v0=(2,0) uv0=(0,0) stq0=(0,0,1) v1=(3,1) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(128,128,128,128) rgba1=(128,128,128,128) rgba2=(0,0,0,0)
+[32m  [Passed][0m
+[33m  [Run]: [0mGS triangle fan subpixel quad fills rows without interior holes [gs:prim] idx=53 type=5 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(31,31) test=0x30000 alpha=0x0 v0=(6.375,6.375) uv0=(0,0) stq0=(0,0,1) v1=(26.25,6.375) uv1=(0,0) stq1=(0,0,1) v2=(26.25,26.25) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(255,255,255,128) rgba2=(255,255,255,128)
+[gs:prim] idx=54 type=5 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=1 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(31,31) test=0x30000 alpha=0x0 v0=(6.375,6.375) uv0=(0,0) stq0=(0,0,1) v1=(26.25,26.25) uv1=(0,0) stq1=(0,0,1) v2=(6.375,26.25) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,128) rgba1=(255,255,255,128) rgba2=(255,255,255,128)
+[32m  [Passed][0m

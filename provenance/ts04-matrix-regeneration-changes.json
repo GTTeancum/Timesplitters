@@ -1,0 +1,17 @@
+[
+  {
+    "path": "ps2_recompiled_stubs.h",
+    "before_sha256": "4e410e854fd1ff64eb2eee4750d20e76a8cf29cfd39653ac046a668762c5dc83",
+    "after_sha256": "903cf6d86c33331ba80689037dc26da7b576b73d8c49a1208a22ce0ff2550454"
+  },
+  {
+    "path": "register_functions.cpp",
+    "before_sha256": "120092e5657b1c5b504cd0a2ed94231d423db65b4a77aa8b232db1e84acf39a4",
+    "after_sha256": "19f5554d2aee10c95729728fea80d0f8d0edd4a9bfc2a7cc27394a433eb42221"
+  },
+  {
+    "path": "sceVu0MulMatrix_0x2d5e98.cpp",
+    "before_sha256": "8c2263ac688a6ceb37a284f075b0fcfdcbce76e983586753ca39f3ff7aa2e770",
+    "after_sha256": "82781665fd341c15f181cef1b3bc5ac26e62c92283fbc542a869f30827e2c23f"
+  }
+]

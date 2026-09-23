@@ -1,0 +1,146 @@
+2026-09-22 11:16:33 INFO  (LoggingInitialization) Using log config file: jar:file:/mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Framework/Generic/lib/Generic.jar!/generic.log4j.xml  
+2026-09-22 11:16:33 INFO  (LoggingInitialization) Using log file: /mnt/data/TS01/logs/ghidra-application.log  
+2026-09-22 11:16:33 DEBUG (GhidraObjectInputFilter) Including serial input filter: FileSystem/data/client.rmi.serial.filter  
+2026-09-22 11:16:33 INFO  (Preferences) Loading user preferences: /home/oai/.config/root-ghidra/ghidra_12.1.3_PUBLIC/preferences  
+2026-09-22 11:16:33 INFO  (ClassSearcher) Searching for classes...  
+2026-09-22 11:16:34 INFO  (ClassSearcher) Class search complete (892 ms)  
+2026-09-22 11:16:34 INFO  (DefaultSSLContextInitializer) Initializing SSL Context  
+2026-09-22 11:16:34 INFO  (SecureRandomFactory) Initializing Random Number Generator...  
+2026-09-22 11:16:34 INFO  (SecureRandomFactory) Random Number Generator initialization complete: NativePRNGNonBlocking  
+2026-09-22 11:16:34 INFO  (DefaultTrustManagerFactory) Trust manager disabled, cacerts have not been set  
+2026-09-22 11:16:34 INFO  (FileCacheMaintenanceDaemon) Starting cache cleanup: /var/tmp/root-ghidra/fscache2  
+2026-09-22 11:16:34 INFO  (FileCacheMaintenanceDaemon) Finished cache cleanup, estimated storage used: 0  
+2026-09-22 11:16:35 DEBUG (SleighLanguage) Sleigh compile: /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Extensions/ghidra-emotionengine-reloaded/data/languages/r5900.slaspec /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Extensions/ghidra-emotionengine-reloaded/data/languages/r5900.sla   
+2026-09-22 11:16:36 WARN  (SleighCompile) 8 NOP constructors found  
+2026-09-22 11:16:36 WARN  (SleighCompile) Use -n switch to list each individually  
+2026-09-22 11:16:37 INFO  (AnalyzeHeadless) Headless startup complete (4743 ms)  
+2026-09-22 11:16:37 INFO  (ClassSearcher) Class searcher loaded 59 extension points (20 false positives)  
+2026-09-22 11:16:37 INFO  (HeadlessAnalyzer) HEADLESS Script Paths:
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Extensions/ghidra-emotionengine-reloaded/ghidra_scripts
+    /mnt/data/TS01/ghidra-scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/BSim/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/PDB/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Debug/Debugger-rmi-trace/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/MicrosoftCodeAnalyzer/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/JVM/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/Base/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/Atmel/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/FileFormats/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/BytePatterns/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/Decompiler/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/GnuDemangler/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/DecompilerDependent/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/PIC/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/SwiftDemangler/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Debug/Debugger/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/SystemEmulation/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/8051/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/DATA/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/PyGhidra/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/WildcardAssembler/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/VersionTracking/ghidra_scripts
+    /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/FunctionID/ghidra_scripts  
+2026-09-22 11:16:37 INFO  (HeadlessAnalyzer) HEADLESS: execution starts  
+2026-09-22 11:16:37 INFO  (HeadlessAnalyzer) Creating project: /mnt/data/TS01/ghidra-project/TS  
+2026-09-22 11:16:37 DEBUG (DefaultProjectManager) No tools found; Installing default tools  
+2026-09-22 11:16:37 DEBUG (DefaultProjectManager) 	no recent project directories found  
+2026-09-22 11:16:37 INFO  (DefaultProject) Creating project: /mnt/data/TS01/ghidra-project/TS  
+2026-09-22 11:16:37 INFO  (HeadlessAnalyzer) REPORT: Processing input files:   
+2026-09-22 11:16:37 INFO  (HeadlessAnalyzer)      project: /mnt/data/TS01/ghidra-project/TS  
+2026-09-22 11:16:37 INFO  (HeadlessAnalyzer) IMPORTING: file:///mnt/data/TS01/analysis/extracted/SLUS_200.90  
+2026-09-22 11:16:38 INFO  (ProgramLoader) Using Loader: Executable and Linking Format (ELF)  
+2026-09-22 11:16:38 INFO  (ProgramLoader) Using Language/Compiler: r5900:LE:32:default:default  
+2026-09-22 11:16:38 INFO  (ProgramLoader) Using Library Search Path: [., /bin, /lib, /lib64, /lib/x86_64-linux-gnu, /lib/aarch64-linux-gnu, /usr/bin, /usr/lib, /usr/X11R6/bin, /usr/X11R6/lib, /usr/java/packages/lib, /usr/lib/x86_64-linux-gnu/jni, /usr/lib/x86_64-linux-gnu, /usr/lib/jni]  
+2026-09-22 11:16:38 DEBUG (ElfHeader) Elf symbol table section .symtab linked to string table section .strtab  
+2026-09-22 11:16:38 DEBUG (ElfProgramBuilder) Discarding 4-byte alignment/filler segment_0.2 at 002eefec  
+2026-09-22 11:16:38 DEBUG (ElfProgramBuilder) Discarding 64-byte alignment/filler segment_0.4 at 002f2bc0  
+2026-09-22 11:16:38 DEBUG (ElfProgramBuilder) Discarding 48-byte alignment/filler segment_0.7 at 003ac7d0  
+2026-09-22 11:16:38 DEBUG (ElfProgramBuilder) Discarding 112-byte alignment/filler segment_0.9 at 003ada90  
+2026-09-22 11:16:41 INFO  (ProgramLoader) Additional info:
+Loading file:///mnt/data/TS01/analysis/extracted/SLUS_200.90?MD5=def10de30dfca6e136dee09196cdc503...
+Skipping section [.vudata] with invalid size 0x0
+Skipping section [.vubss] with invalid size 0x0
+_mips_gp0_value=0x3b47f0
+Failed to add language defined memory block due to conflict: rom0: start_address=0x1FC00000, uninitialized, length=0x4000000
+------------------------------------------------
+
+  
+2026-09-22 11:16:41 INFO  (HeadlessAnalyzer) IMPORTING: Loaded 0 additional files  
+2026-09-22 11:16:42 INFO  (HeadlessAnalyzer) REPORT: Execute script: TSAnalysisOptions.java   
+2026-09-22 11:16:43 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/data/TS01/ghidra-scripts/TSAnalysisOptions.java  
+2026-09-22 11:16:43 INFO  (GhidraScript) TSAnalysisOptions.java> TimeSplitters analysis: original ELF retained; decompiler parameter inference disabled.  
+2026-09-22 11:16:43 INFO  (HeadlessAnalyzer) ANALYZING all memory and code: file:///mnt/data/TS01/analysis/extracted/SLUS_200.90  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x0.57137523.13.0' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x1ae0.57137523.23.4' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x2800.57137523.27.6' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3520.57137523.31.8' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3af8.57137523.55.16' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3b50.57137523.58.17' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3ba8.57137523.61.18' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3c00.57137523.64.19' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3c58.57137523.49.14' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3cb0.57137523.52.15' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3ce8.57137523.37.10' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3d40.57137523.40.11' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3e20.57137523.43.12' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3f00.57137523.46.13' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0x3fe0.57137523.34.9' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..0xd20.57137523.20.2' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..unknvma.130012283.354.5' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..unknvma.130012699.355.1' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..unknvma.2080204667.355.3' is not byte-mapped, skipping  
+2026-09-22 11:16:45 WARN  (DvpOverlayLabelSyncAnalyzer) DVP overlay block '.DVP.overlay..unknvma.4025849467.358.7' is not byte-mapped, skipping  
+2026-09-22 11:16:45 INFO  (DvpOverlayLabelSyncAnalyzer) DVP Overlay Label Sync: No overlay blocks found to process  
+2026-09-22 11:17:32 DEBUG (FidAnalyzer) No FID Libraries apply for language r5900:LE:32:default  
+2026-09-22 11:17:32 INFO  (PackedDatabaseCache) Packed database cache: /var/tmp/root-ghidra/packed-db-cache  
+2026-09-22 11:17:32 DEBUG (PackedDatabaseCache) Caching packed database: /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/Base/data/typeinfo/generic/generic_clib.gdt  
+2026-09-22 11:17:32 DEBUG (PackedDatabase) Unpacking database /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/Base/data/typeinfo/generic/generic_clib.gdt -> /var/tmp/root-ghidra/packed-db-cache/pdbB3E598E3/db.1.gbf  
+2026-09-22 11:17:32 DEBUG (PackedDatabaseCache) Cache update completed: /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Features/Base/data/typeinfo/generic/generic_clib.gdt  
+2026-09-22 11:17:32 DEBUG (SleighLanguage) Sleigh compile: -DBaseDir=/mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/ -i /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/x86/data/sleighArgs.txt /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/x86/data/languages/x86.slaspec /mnt/data/TimeSplitters-Dependencies/tools/ghidra/extracted/ghidra_12.1.3_PUBLIC/Ghidra/Processors/x86/data/languages/x86.sla   
+2026-09-22 11:17:34 WARN  (SleighCompile) 373 NOP constructors found  
+2026-09-22 11:17:34 WARN  (SleighCompile) Use -n switch to list each individually  
+2026-09-22 11:17:34 WARN  (SleighCompile) 663 unnecessary extensions/truncations were converted to copies  
+2026-09-22 11:17:34 WARN  (SleighCompile) Use -u switch to list each individually  
+2026-09-22 11:17:34 WARN  (SleighCompile) 14 operations wrote to temporaries that were not read  
+2026-09-22 11:17:34 WARN  (SleighCompile) Use -t switch to list each individually  
+2026-09-22 11:17:35 WARN  (SleighCompile) ia.sinc:1028: Unreferenced table: 'pcRelSimm32'  
+2026-09-22 11:17:36 INFO  (ApplyDataArchiveAnalyzer) Applied data type archive: generic_clib  
+2026-09-22 11:18:00 INFO  (AutoAnalysisManager) -----------------------------------------------------
+    ASCII Strings                              2.471 secs
+    Apply Data Archives                        4.627 secs
+    Call Convention ID                         3.093 secs
+    Call-Fixup Installer                       0.021 secs
+    Create Address Tables                      0.227 secs
+    Create Address Tables - One Time           2.080 secs
+    Create Function                            0.000 secs
+    DVP Overlay Label Sync                     0.005 secs
+    Data Reference                             0.572 secs
+    Decompiler Switch Analysis                23.553 secs
+    Demangler GNU                              0.514 secs
+    Disassemble Entry Points                   7.124 secs
+    Embedded Media                             0.109 secs
+    External Entry References                  0.015 secs
+    Function ID                                0.032 secs
+    Function Start Search                      0.159 secs
+    MIPS-R5900 Constant Reference Analyzer    16.508 secs
+    MIPS-R5900 Unaligned Instruction Fix       0.721 secs
+    Non-Returning Functions - Discovered       0.614 secs
+    Non-Returning Functions - Known            0.025 secs
+    Reference                                  0.937 secs
+    STABS                                      1.394 secs
+    Shared Return Calls                        0.524 secs
+    Stack                                      9.887 secs
+    Subroutine References                      0.905 secs
+-----------------------------------------------------
+     Total Time   76 secs
+-----------------------------------------------------
+  
+2026-09-22 11:18:00 INFO  (HeadlessAnalyzer) REPORT: Analysis succeeded for file: file:///mnt/data/TS01/analysis/extracted/SLUS_200.90  
+2026-09-22 11:18:00 INFO  (HeadlessAnalyzer) REPORT: Execute script: TSExport.java '/mnt/data/TS01/analysis'   
+2026-09-22 11:18:00 INFO  (HeadlessAnalyzer) SCRIPT: /mnt/data/TS01/ghidra-scripts/TSExport.java  
+2026-09-22 11:18:01 INFO  (GhidraScript) TSExport.java> TS_EXPORT_COUNTS functions=2669 types=428 symbols=31716  
+2026-09-22 11:18:01 INFO  (HeadlessAnalyzer) ANALYZING changes made by post scripts: file:///mnt/data/TS01/analysis/extracted/SLUS_200.90  
+2026-09-22 11:18:01 INFO  (HeadlessAnalyzer) REPORT: Post-analysis succeeded for file: file:///mnt/data/TS01/analysis/extracted/SLUS_200.90  
+2026-09-22 11:18:01 INFO  (LocalFileSystem) /SLUS_200.90: file created (root)  
+2026-09-22 11:18:01 INFO  (HeadlessAnalyzer) REPORT: Save succeeded for: /SLUS_200.90 (TS:/SLUS_200.90)  
+2026-09-22 11:18:01 INFO  (HeadlessAnalyzer) REPORT: Import succeeded  

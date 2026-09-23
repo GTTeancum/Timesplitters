@@ -1,0 +1,27 @@
+{
+  "label": "ts05-final-story",
+  "transfers": 164,
+  "all_recorded_copies_succeeded": true,
+  "physical_bytes_sum": 1507072,
+  "stopped_backend_counters": {
+    "writes": 164,
+    "bytes_written": 1507072,
+    "reads": 0,
+    "bytes_read": 0
+  },
+  "spu_dump_sha256": "4227e9e1a0b47f83164fb1f7018b3a11c279628d663bcee4e010599f01a06401",
+  "spu_nonzero_bytes": 1293211,
+  "mixing_or_output_verified": false,
+  "last_transfer": {
+    "core": 1,
+    "iop_address": 1223424,
+    "spu_address": 1365840,
+    "requested": 64,
+    "mode": 0,
+    "copied": true,
+    "physical": 64
+  },
+  "last_transfer_source_survives_and_matches_destination": true,
+  "last_transfer_iop_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4",
+  "last_transfer_spu_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4"
+}

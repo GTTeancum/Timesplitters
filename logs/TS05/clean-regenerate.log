@@ -1,0 +1,106 @@
+[recompiler] parsing config
+[recompiler] parsing ELF
+[recompiler] extracted 2670 functions, 6214 symbols, 40 sections, 0 relocations
+[recompiler] recompiling 2670 functions
+[recompiler] collected 21810 resumable entry point(s) across 1766 owner function(s)
+[recompiler] recompilation pass completed
+[recompiler] generated function header file: "/mnt/data/ts05-regenerated/ps2_recompiled_functions.h"
+[recompiler] wrote individual function files to /mnt/data/ts05-regenerated
+[recompiler] generated function registration file: "/mnt/data/ts05-regenerated/register_functions.cpp"
+[recompiler] generated stub header file: "/mnt/data/ts05-regenerated/ps2_recompiled_stubs.h"
+
+========== PS2Recomp report ==========
+Functions discovered: 2670
+Symbols: 6214, sections: 40, relocations: 0
+Functions processed: 2670, recompiled: 2376, stubs: 294, skipped: 0, decode failures: 0
+Additional entrypoints: 21810
+Generated functions: 2670
+Indirect fallback promotions: 78 (16154 fallback entries)
+Unhandled instructions: 0
+Correctness-critical guest fallbacks: 0, failures: 0
+Warnings: 78, errors: 0
+
+Events:
+  [info] config - Parsing toml file: /mnt/data/TimeSplitters_TS05_Checkpoint/project/config/runtime-paths.toml
+  [info] elf - ELF entry point: 0x200008
+  [info] elf - BSS range: 0x3afe00 - 0x1ff5390 (size 0x1c45590), gp=0x3b47f0
+  [warning] control-flow function=cheatTick addr=0x203790 - unresolved JR/JALR at 0x203790; promoted 82 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x206ba0 - unresolved JR/JALR at 0x206ba0; promoted 22 fallback entries
+  [warning] control-flow function=gettextfromfunction addr=0x20caac - unresolved JR/JALR at 0x20caac; promoted 8 fallback entries
+  [warning] control-flow function=menuTick addr=0x20ce98 - unresolved JR/JALR at 0x20ce98; promoted 57 fallback entries
+  [warning] control-flow function=debugmenuTick addr=0x20db7c - unresolved JR/JALR at 0x20db7c; promoted 12 fallback entries
+  [warning] control-flow function=main_pageGfx addr=0x212288 - unresolved JR/JALR at 0x212288 0x21229c; promoted 129 fallback entries
+  [warning] control-flow function=main_pageTick addr=0x2123b8 - unresolved JR/JALR at 0x2123b8; promoted 120 fallback entries
+  [warning] control-flow function=challengeTick addr=0x21f97c - unresolved JR/JALR at 0x21f97c 0x21fa90 0x21fabc; promoted 185 fallback entries
+  [warning] control-flow function=unlockedEx addr=0x2251fc - unresolved JR/JALR at 0x2251fc; promoted 216 fallback entries
+  [warning] control-flow function=gvSetValue addr=0x22c364 - unresolved JR/JALR at 0x22c364; promoted 28 fallback entries
+  [warning] control-flow function=frontTick addr=0x22cc6c - unresolved JR/JALR at 0x22cc6c; promoted 118 fallback entries
+  [warning] control-flow function=frontGfx addr=0x22cd7c - unresolved JR/JALR at 0x22cd7c 0x22cda4 0x22cdd8 0x22ce4c; promoted 81 fallback entries
+  [warning] control-flow function=splitpageDraw addr=0x2310b0 - unresolved JR/JALR at 0x2310b0; promoted 42 fallback entries
+  [warning] control-flow function=splitpageTick addr=0x231148 - unresolved JR/JALR at 0x231148; promoted 53 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x2313e4 - unresolved JR/JALR at 0x2313e4; promoted 42 fallback entries
+  [warning] control-flow function=gameoptionsMake addr=0x238ecc - unresolved JR/JALR at 0x238ecc; promoted 65 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x24c9ec - unresolved JR/JALR at 0x24c9ec; promoted 59 fallback entries
+  [warning] control-flow function=propTickAfter addr=0x26fa5c - unresolved JR/JALR at 0x26fa5c 0x26fb60; promoted 142 fallback entries
+  [warning] control-flow function=propTickPlayer addr=0x26fd00 - unresolved JR/JALR at 0x26fd00; promoted 72 fallback entries
+  [warning] control-flow function=propDamage addr=0x271d94 - unresolved JR/JALR at 0x271d94 0x272880; promoted 973 fallback entries
+  [warning] control-flow function=bulletTick addr=0x28aa88 - unresolved JR/JALR at 0x28aa88; promoted 2502 fallback entries
+  [warning] control-flow function=particleTick addr=0x29be28 - unresolved JR/JALR at 0x29be28; promoted 263 fallback entries
+  [warning] control-flow function=decalGetBulletTexScaleCol addr=0x2a47a4 - unresolved JR/JALR at 0x2a47a4 0x2a4854; promoted 119 fallback entries
+  [warning] control-flow function=spawnfxTick addr=0x2ac134 - unresolved JR/JALR at 0x2ac134; promoted 307 fallback entries
+  [warning] control-flow function=specialfxGroupsTick addr=0x2ada74 - unresolved JR/JALR at 0x2ada74; promoted 88 fallback entries
+  [warning] control-flow function=aiTickBefore addr=0x2baa28 - unresolved JR/JALR at 0x2baa28; promoted 682 fallback entries
+  [warning] control-flow function=timerTick addr=0x2cdc68 - unresolved JR/JALR at 0x2cdc68 0x2cdcbc; promoted 99 fallback entries
+  [warning] control-flow function=printfloat addr=0x2d1690 - unresolved JR/JALR at 0x2d1690; promoted 104 fallback entries
+  [warning] control-flow function=_request_end addr=0x2d2864 - unresolved JR/JALR at 0x2d2864; promoted 44 fallback entries
+  [warning] control-flow function=_sdrCB addr=0x2ddd8c - unresolved JR/JALR at 0x2ddd8c 0x2dddbc 0x2ddde0 0x2dde04 0x2dde28; promoted 56 fallback entries
+  [warning] control-flow function=_Cdvd_cbLoop addr=0x2ddfe4 - unresolved JR/JALR at 0x2ddfe4; promoted 53 fallback entries
+  [warning] control-flow function=__do_global_dtors addr=0x2e1254 - unresolved JR/JALR at 0x2e1254; promoted 21 fallback entries
+  [warning] control-flow function=__do_global_ctors addr=0x2e130c - unresolved JR/JALR at 0x2e130c; promoted 44 fallback entries
+  [warning] control-flow function=_fwalk addr=0x2e4a04 - unresolved JR/JALR at 0x2e4a04; promoted 37 fallback entries
+  [warning] control-flow function=__svfscanf addr=0x2e8f14 - unresolved JR/JALR at 0x2e8f14 0x2e91e8 0x2e94e4 0x2e9668 0x2e973c; promoted 706 fallback entries
+  [warning] control-flow function=__sfvwrite addr=0x2eb7c4 - unresolved JR/JALR at 0x2eb7c4 0x2eb8e4 0x2eba24; promoted 246 fallback entries
+  [warning] control-flow function=__srefill addr=0x2ed068 - unresolved JR/JALR at 0x2ed068; promoted 94 fallback entries
+  [warning] control-flow function=_raise_r addr=0x2ed2cc - unresolved JR/JALR at 0x2ed2cc; promoted 60 fallback entries
+  [warning] control-flow function=__sigtramp_r addr=0x2ed388 - unresolved JR/JALR at 0x2ed388; promoted 46 fallback entries
+  [warning] control-flow function=cheatTick addr=0x203790 - unresolved JR/JALR at 0x203790; promoted 82 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x206ba0 - unresolved JR/JALR at 0x206ba0; promoted 22 fallback entries
+  [warning] control-flow function=gettextfromfunction addr=0x20caac - unresolved JR/JALR at 0x20caac; promoted 8 fallback entries
+  [warning] control-flow function=menuTick addr=0x20ce98 - unresolved JR/JALR at 0x20ce98; promoted 57 fallback entries
+  [warning] control-flow function=debugmenuTick addr=0x20db7c - unresolved JR/JALR at 0x20db7c; promoted 12 fallback entries
+  [warning] control-flow function=main_pageGfx addr=0x212288 - unresolved JR/JALR at 0x212288 0x21229c; promoted 129 fallback entries
+  [warning] control-flow function=main_pageTick addr=0x2123b8 - unresolved JR/JALR at 0x2123b8; promoted 120 fallback entries
+  [warning] control-flow function=challengeTick addr=0x21f97c - unresolved JR/JALR at 0x21f97c 0x21fa90 0x21fabc; promoted 185 fallback entries
+  [warning] control-flow function=unlockedEx addr=0x2251fc - unresolved JR/JALR at 0x2251fc; promoted 216 fallback entries
+  [warning] control-flow function=gvSetValue addr=0x22c364 - unresolved JR/JALR at 0x22c364; promoted 28 fallback entries
+  [warning] control-flow function=frontTick addr=0x22cc6c - unresolved JR/JALR at 0x22cc6c; promoted 118 fallback entries
+  [warning] control-flow function=frontGfx addr=0x22cd7c - unresolved JR/JALR at 0x22cd7c 0x22cda4 0x22cdd8 0x22ce4c; promoted 81 fallback entries
+  [warning] control-flow function=splitpageDraw addr=0x2310b0 - unresolved JR/JALR at 0x2310b0; promoted 42 fallback entries
+  [warning] control-flow function=splitpageTick addr=0x231148 - unresolved JR/JALR at 0x231148; promoted 53 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x2313e4 - unresolved JR/JALR at 0x2313e4; promoted 42 fallback entries
+  [warning] control-flow function=gameoptionsMake addr=0x238ecc - unresolved JR/JALR at 0x238ecc; promoted 65 fallback entries
+  [warning] control-flow function=message_pageTick addr=0x24c9ec - unresolved JR/JALR at 0x24c9ec; promoted 59 fallback entries
+  [warning] control-flow function=propTickAfter addr=0x26fa5c - unresolved JR/JALR at 0x26fa5c 0x26fb60; promoted 142 fallback entries
+  [warning] control-flow function=propTickPlayer addr=0x26fd00 - unresolved JR/JALR at 0x26fd00; promoted 72 fallback entries
+  [warning] control-flow function=propDamage addr=0x271d94 - unresolved JR/JALR at 0x271d94 0x272880; promoted 973 fallback entries
+  [warning] control-flow function=bulletTick addr=0x28aa88 - unresolved JR/JALR at 0x28aa88; promoted 2502 fallback entries
+  [warning] control-flow function=particleTick addr=0x29be28 - unresolved JR/JALR at 0x29be28; promoted 263 fallback entries
+  [warning] control-flow function=decalGetBulletTexScaleCol addr=0x2a47a4 - unresolved JR/JALR at 0x2a47a4 0x2a4854; promoted 119 fallback entries
+  [warning] control-flow function=spawnfxTick addr=0x2ac134 - unresolved JR/JALR at 0x2ac134; promoted 307 fallback entries
+  [warning] control-flow function=specialfxGroupsTick addr=0x2ada74 - unresolved JR/JALR at 0x2ada74; promoted 88 fallback entries
+  [warning] control-flow function=aiTickBefore addr=0x2baa28 - unresolved JR/JALR at 0x2baa28; promoted 682 fallback entries
+  [warning] control-flow function=timerTick addr=0x2cdc68 - unresolved JR/JALR at 0x2cdc68 0x2cdcbc; promoted 99 fallback entries
+  [warning] control-flow function=printfloat addr=0x2d1690 - unresolved JR/JALR at 0x2d1690; promoted 104 fallback entries
+  [warning] control-flow function=_request_end addr=0x2d2864 - unresolved JR/JALR at 0x2d2864; promoted 44 fallback entries
+  [warning] control-flow function=_sdrCB addr=0x2ddd8c - unresolved JR/JALR at 0x2ddd8c 0x2dddbc 0x2ddde0 0x2dde04 0x2dde28; promoted 56 fallback entries
+  [warning] control-flow function=_Cdvd_cbLoop addr=0x2ddfe4 - unresolved JR/JALR at 0x2ddfe4; promoted 53 fallback entries
+  [warning] control-flow function=__do_global_dtors addr=0x2e1254 - unresolved JR/JALR at 0x2e1254; promoted 21 fallback entries
+  [warning] control-flow function=__do_global_ctors addr=0x2e130c - unresolved JR/JALR at 0x2e130c; promoted 44 fallback entries
+  [warning] control-flow function=_fwalk addr=0x2e4a04 - unresolved JR/JALR at 0x2e4a04; promoted 37 fallback entries
+  [warning] control-flow function=__svfscanf addr=0x2e8f14 - unresolved JR/JALR at 0x2e8f14 0x2e91e8 0x2e94e4 0x2e9668 0x2e973c; promoted 706 fallback entries
+  [warning] control-flow function=__sfvwrite addr=0x2eb7c4 - unresolved JR/JALR at 0x2eb7c4 0x2eb8e4 0x2eba24; promoted 246 fallback entries
+  [warning] control-flow function=__srefill addr=0x2ed068 - unresolved JR/JALR at 0x2ed068; promoted 94 fallback entries
+  [warning] control-flow function=_raise_r addr=0x2ed2cc - unresolved JR/JALR at 0x2ed2cc; promoted 60 fallback entries
+  [warning] control-flow function=__sigtramp_r addr=0x2ed388 - unresolved JR/JALR at 0x2ed388; promoted 46 fallback entries
+======================================
+Recompilation completed successfully

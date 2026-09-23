@@ -1,0 +1,62 @@
+{
+  "implementation": "synchronous IOP/SPU RAM transfer HLE, not voice mixer, streaming clock, DMA interrupt timing, or device output",
+  "reference_files": [
+    {
+      "path": "ps2sdk/iop/sound/libsd/src/voice.c",
+      "size": 3703,
+      "sha256": "8532d8400f315178bad94eaf3fb29d5dcd185afd0e15e02c81976ebbb0761f2f"
+    },
+    {
+      "path": "ps2sdk/iop/sound/sdrdrv/src/sdd_com.c",
+      "size": 12305,
+      "sha256": "0d8cd46270abfb7a122a70cfc6de6543169df1cb98cc1d151e03914a1d1147c3"
+    },
+    {
+      "path": "ps2sdk/common/include/libsdr-common.h",
+      "size": 2750,
+      "sha256": "dc4ed9ccfcf54a13a1e2b8d351ef28e85b83e67b36c18843b4b4001375478302"
+    },
+    {
+      "path": "ps2sdk/common/include/libsd-common.h",
+      "size": 10059,
+      "sha256": "7fbc2ac53a4f6663ecc487ac65ba38c3f2179ceae466dfa7b7f5511e5a127171"
+    },
+    {
+      "path": "PCSX2/pcsx2/SPU2/spu2sys.cpp",
+      "size": 48690,
+      "sha256": "f6b3a5d337e9df0e251c4f0da90770e9d7521fc8c3ef364106c0ac8b26b8292f"
+    }
+  ],
+  "original_elf": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+  "ee_remote_original": {
+    "address": "0x002dda10",
+    "frame_size": 208,
+    "sd_saved_argument_offsets": [
+      152,
+      160,
+      168,
+      176,
+      184,
+      192,
+      200
+    ],
+    "load_stride": 8,
+    "code_evidence": "ee-disassembly.txt, original sceSdRemote 0x2dda20..0x2dda90"
+  },
+  "before_tests": {
+    "passed": 7,
+    "failed": 18
+  },
+  "limits": [
+    "No PCM produced or audible audio verified",
+    "No full libsd batch/key-on/register mixer or accurate block streaming",
+    "DMA synchronous HLE completion does not reproduce retail interrupt timing",
+    "Unsupported IO read returns failure instead of fabricated transfer success",
+    "Defensive bounds errors are not a claim of exact malformed-address hardware behavior"
+  ],
+  "after_tests": {
+    "passed": 25,
+    "failed": 0
+  },
+  "native_candidate_memory_evidence": "TS05/ts05-story-candidate-sound-memory.json"
+}

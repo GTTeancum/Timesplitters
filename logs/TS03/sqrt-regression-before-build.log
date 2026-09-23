@@ -1,0 +1,6 @@
+[0/2] Re-checking globbed directories...
+[1/6] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o
+[2/6] Linking CXX executable timesplitters/timesplitters
+[3/6] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/code_generator_tests.cpp.o
+[4/6] Linking CXX static library ps2xTest/libps2_test_lib.a
+[5/6] Linking CXX executable ps2xTest/ps2x_tests

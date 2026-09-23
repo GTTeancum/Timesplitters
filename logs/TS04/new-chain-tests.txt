@@ -1,0 +1,60 @@
+        tc.Run("DMA walks a terminating VIF1 list longer than 4096 tags", [](TestCase &t)
+        {
+            PS2Memory mem;
+            t.IsTrue(mem.initialize(), "memory initialization");
+            auto* ram = mem.getRDRAM();
+            constexpr uint32_t base = 0x40000u, count = 8193u, channel = 0x10009000u;
+            // More than one old 4096-tag budget, then an actual END payload.
+            // The MARK is ordinary VIF data and must be processed, not fabricated.
+            for (uint32_t i = 0; i < count - 1; ++i)
+                writeDmaTag(ram, base + i * 16u, makeDmaTag(0, 1, 0));
+            writeDmaTag(ram, base + (count - 1) * 16u, makeDmaTag(1, 7, 0));
+            const uint32_t mark = makeVifCmd(0x07, 0, 0x4a31);
+            std::memcpy(ram + base + count * 16u, &mark, 4);
+            mem.writeIORegister(channel + 0x30u, base);
+            mem.writeIORegister(channel, 0x105u);
+            mem.processPendingTransfers();
+            t.Equals(mem.vif1_regs.mark, 0x4a31u, "must reach actual END payload after tag 8192");
+            t.Equals(mem.readIORegister(channel) & 0x100u, 0u, "STR clears only after transfer");
+            t.Equals((mem.readIORegister(channel) >> 28u) & 7u, 7u, "END must be terminal tag");
+        });
+
+        tc.Run("DMA revisits a CALL sublist with different return stacks", [](TestCase &t)
+        {
+            PS2Memory mem;
+            t.IsTrue(mem.initialize(), "memory initialization");
+            auto* ram = mem.getRDRAM();
+            constexpr uint32_t base = 0x40000u, sub = 0x50000u, channel = 0x10009000u;
+            writeDmaTag(ram, base, makeDmaTag(0, 5, sub));
+            writeDmaTag(ram, base + 16, makeDmaTag(0, 5, sub));
+            writeDmaTag(ram, base + 32, makeDmaTag(1, 7, 0));
+            writeDmaTag(ram, sub, makeDmaTag(1, 6, 0));
+            const uint32_t first = makeVifCmd(0x07, 0, 0x1111);
+            const uint32_t last = makeVifCmd(0x07, 0, 0x2222);
+            std::memcpy(ram + sub + 16, &first, 4);
+            std::memcpy(ram + base + 48, &last, 4);
+            mem.writeIORegister(channel + 0x30u, base);
+            mem.writeIORegister(channel, 0x105u);
+            mem.processPendingTransfers();
+            t.Equals(mem.vif1_regs.mark, 0x2222u, "legal sublist reuse must not be classified as a cycle");
+        });
+
+        tc.Run("DMA cyclic NEXT is diagnosed without submitting a partial stream", [](TestCase &t)
+        {
+            PS2Memory mem;
+            t.IsTrue(mem.initialize(), "memory initialization");
+            auto* ram = mem.getRDRAM();
+            constexpr uint32_t base = 0x40000u, channel = 0x10009000u;
+            writeDmaTag(ram, base, makeDmaTag(1, 2, base));
+            const uint32_t mark = makeVifCmd(0x07, 0, 0x5555);
+            std::memcpy(ram + base + 16, &mark, 4);
+            mem.writeIORegister(channel + 0x30u, base);
+            bool rejected = false;
+            try { mem.writeIORegister(channel, 0x105u); }
+            catch (const std::runtime_error& e) { rejected = std::string(e.what()).find("cyclic DMA") != std::string::npos; }
+            mem.processPendingTransfers();
+            t.IsTrue(rejected, "cycle must report an error rather than reaching an arbitrary budget");
+            t.Equals(mem.vif1_regs.mark, 0u, "partial cyclic data must not be submitted");
+            t.Equals(mem.readIORegister(0x1000E010u) & 2u, 0u, "no successful DMA completion for cyclic input");
+        });
+

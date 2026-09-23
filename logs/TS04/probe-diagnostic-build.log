@@ -1,0 +1,7 @@
+[0/2] Re-checking globbed directories...
+[1/7] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay_before.dir/dma_replay.cpp.o
+[2/7] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay.dir/dma_replay.cpp.o
+[3/7] Linking CXX executable timesplitters/timesplitters_dma_replay_before
+[4/7] Linking CXX executable timesplitters/timesplitters_dma_replay
+[5/7] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o
+[6/7] Linking CXX executable timesplitters/timesplitters

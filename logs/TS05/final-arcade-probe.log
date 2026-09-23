@@ -1,0 +1,649 @@
+Original game files and ISO verified
+{
+  "requested_seconds": 300,
+  "requested_input": [
+    {
+      "at": 35,
+      "key": "Return"
+    },
+    {
+      "at": 44,
+      "key": "x"
+    },
+    {
+      "at": 56,
+      "key": "x"
+    },
+    {
+      "at": 70,
+      "key": "x"
+    },
+    {
+      "at": 78,
+      "key": "x"
+    },
+    {
+      "at": 88,
+      "key": "x"
+    },
+    {
+      "at": 98,
+      "key": "x"
+    },
+    {
+      "at": 104,
+      "key": "Down",
+      "hold": 0.25
+    },
+    {
+      "at": 105,
+      "key": "Down",
+      "hold": 0.25
+    },
+    {
+      "at": 106,
+      "key": "Down",
+      "hold": 0.25
+    },
+    {
+      "at": 107,
+      "key": "Right",
+      "hold": 0.25
+    },
+    {
+      "at": 110,
+      "key": "Up",
+      "hold": 0.25
+    },
+    {
+      "at": 111,
+      "key": "Up",
+      "hold": 0.25
+    },
+    {
+      "at": 112,
+      "key": "Up",
+      "hold": 0.25
+    },
+    {
+      "at": 115,
+      "key": "x",
+      "hold": 0.25
+    },
+    {
+      "at": 125,
+      "key": "x",
+      "hold": 0.25
+    },
+    {
+      "at": 135,
+      "key": "x",
+      "hold": 0.25
+    },
+    {
+      "at": 231.92,
+      "key": "l",
+      "hold": 1.0
+    },
+    {
+      "at": 234.92,
+      "key": "w",
+      "hold": 5.0
+    },
+    {
+      "at": 235.92,
+      "key": "e",
+      "hold": 0.3
+    },
+    {
+      "at": 237.92,
+      "key": "e",
+      "hold": 0.3
+    },
+    {
+      "at": 239.92,
+      "key": "e",
+      "hold": 0.3
+    },
+    {
+      "at": 241.92,
+      "key": "e",
+      "hold": 0.3
+    },
+    {
+      "at": 243.92,
+      "key": "e",
+      "hold": 0.3
+    },
+    {
+      "at": 245.92,
+      "key": "e",
+      "hold": 0.3
+    }
+  ],
+  "live_input": false,
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 300.34907889999977,
+  "screenshots": [
+    "ts05-final-arcade-002.png",
+    "ts05-final-arcade-007.png",
+    "ts05-final-arcade-012.png",
+    "ts05-final-arcade-017.png",
+    "ts05-final-arcade-022.png",
+    "ts05-final-arcade-027.png",
+    "ts05-final-arcade-032.png",
+    "ts05-final-arcade-037.png",
+    "ts05-final-arcade-042.png",
+    "ts05-final-arcade-047.png",
+    "ts05-final-arcade-052.png",
+    "ts05-final-arcade-057.png",
+    "ts05-final-arcade-062.png",
+    "ts05-final-arcade-067.png",
+    "ts05-final-arcade-072.png",
+    "ts05-final-arcade-077.png",
+    "ts05-final-arcade-082.png",
+    "ts05-final-arcade-087.png",
+    "ts05-final-arcade-092.png",
+    "ts05-final-arcade-097.png",
+    "ts05-final-arcade-102.png",
+    "ts05-final-arcade-107.png",
+    "ts05-final-arcade-112.png",
+    "ts05-final-arcade-117.png",
+    "ts05-final-arcade-122.png",
+    "ts05-final-arcade-127.png",
+    "ts05-final-arcade-132.png",
+    "ts05-final-arcade-137.png",
+    "ts05-final-arcade-142.png",
+    "ts05-final-arcade-147.png",
+    "ts05-final-arcade-152.png",
+    "ts05-final-arcade-157.png",
+    "ts05-final-arcade-162.png",
+    "ts05-final-arcade-167.png",
+    "ts05-final-arcade-172.png",
+    "ts05-final-arcade-177.png",
+    "ts05-final-arcade-182.png",
+    "ts05-final-arcade-187.png",
+    "ts05-final-arcade-192.png",
+    "ts05-final-arcade-197.png",
+    "ts05-final-arcade-202.png",
+    "ts05-final-arcade-207.png",
+    "ts05-final-arcade-212.png",
+    "ts05-final-arcade-217.png",
+    "ts05-final-arcade-222.png",
+    "ts05-final-arcade-227.png",
+    "ts05-final-arcade-232.png",
+    "ts05-final-arcade-237.png",
+    "ts05-final-arcade-242.png",
+    "ts05-final-arcade-247.png",
+    "ts05-final-arcade-252.png",
+    "ts05-final-arcade-257.png",
+    "ts05-final-arcade-262.png",
+    "ts05-final-arcade-267.png",
+    "ts05-final-arcade-272.png",
+    "ts05-final-arcade-277.png",
+    "ts05-final-arcade-282.png",
+    "ts05-final-arcade-287.png",
+    "ts05-final-arcade-292.png",
+    "ts05-final-arcade-297.png"
+  ],
+  "binary": "/mnt/data/TimeSplitters_TS05_Checkpoint/bin/timesplitters",
+  "binary_sha256": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+  "binary_sha256_after": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+  "binary_unchanged_during_run": true,
+  "input": [
+    {
+      "requested": 35.0,
+      "actual": 35.033162489000006,
+      "action": "keydown",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 35.35,
+      "actual": 35.370162462999815,
+      "action": "keyup",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.0,
+      "actual": 44.045115149999674,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.35,
+      "actual": 44.381859781,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.0,
+      "actual": 56.044542612999976,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.35,
+      "actual": 56.38345713999979,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.0,
+      "actual": 70.03292158899967,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.35,
+      "actual": 70.36907070100006,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.0,
+      "actual": 78.03140085999985,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.35,
+      "actual": 78.36809757999981,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.0,
+      "actual": 88.03736551699967,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.35,
+      "actual": 88.37399157499976,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.0,
+      "actual": 98.02361208499997,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.35,
+      "actual": 98.40022134499986,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 104.0,
+      "actual": 104.04647751099992,
+      "action": "keydown",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 104.25,
+      "actual": 104.30395982299979,
+      "action": "keyup",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 105.0,
+      "actual": 105.04270889700001,
+      "action": "keydown",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 105.25,
+      "actual": 105.29927206000002,
+      "action": "keyup",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 106.0,
+      "actual": 106.04023319399994,
+      "action": "keydown",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 106.25,
+      "actual": 106.29650781300006,
+      "action": "keyup",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 107.0,
+      "actual": 107.03768019399968,
+      "action": "keydown",
+      "key": "Right",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 107.25,
+      "actual": 107.27984236999964,
+      "action": "keyup",
+      "key": "Right",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 110.0,
+      "actual": 110.02684097699967,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 110.25,
+      "actual": 110.28280339899993,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 111.0,
+      "actual": 111.0252774139999,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 111.25,
+      "actual": 111.28120877399988,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 112.0,
+      "actual": 112.01884785799984,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 112.25,
+      "actual": 112.3008795589999,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 115.0,
+      "actual": 115.01896790699993,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 115.25,
+      "actual": 115.2747210829998,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 125.0,
+      "actual": 125.04605335199994,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 125.25,
+      "actual": 125.30258450599968,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 135.0,
+      "actual": 135.0351533119997,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 135.25,
+      "actual": 135.29116848600006,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 231.92,
+      "actual": 231.96363379900004,
+      "action": "keydown",
+      "key": "l",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 232.92,
+      "actual": 232.94120478299965,
+      "action": "keyup",
+      "key": "l",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 234.92,
+      "actual": 234.96360590999984,
+      "action": "keydown",
+      "key": "w",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 235.92,
+      "actual": 235.9426724509999,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 236.22,
+      "actual": 236.23858285100005,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 237.92,
+      "actual": 237.9693165489998,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 238.22,
+      "actual": 238.26541442500002,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 239.92,
+      "actual": 239.96709150399965,
+      "action": "keyup",
+      "key": "w",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 239.92,
+      "actual": 239.98181001800003,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 240.22,
+      "actual": 240.23748499299973,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 241.92,
+      "actual": 241.9431224959999,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 242.22,
+      "actual": 242.26126852699963,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 243.92,
+      "actual": 243.96353254999985,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 244.22,
+      "actual": 244.26013675299964,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 245.92,
+      "actual": 245.96219793499995,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 246.22,
+      "actual": 246.25826715899984,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "undelivered": [],
+  "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+  "reference_pcsx2_run": false
+}

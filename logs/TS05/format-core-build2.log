@@ -1,0 +1,36 @@
+[0/2] Re-checking globbed directories...
+[1/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Audio.cpp.o
+[2/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Compatibility.cpp.o
+[3/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/DMA.cpp.o
+[4/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/CD.cpp.o
+[5/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Deci2.cpp.o
+[6/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/FileIO.cpp.o
+[7/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Font.cpp.o
+[8/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/GS.cpp.o
+[9/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/IPU.cpp.o
+[10/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/LibC.cpp.o
+[11/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Pad.cpp.o
+[12/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MemoryCard.cpp.o
+[13/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MPEG.cpp.o
+[14/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/RPC.cpp.o
+[15/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/System.cpp.o
+[16/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/SIF.cpp.o
+[17/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Unimplemented.cpp.o
+[18/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/TTY.cpp.o
+[19/25] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/VU.cpp.o
+[20/25] Linking CXX static library ps2xRuntime/libps2_runtime.a
+[21/25] Linking CXX executable timesplitters/timesplitters
+[22/25] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.o
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gs_tests.cpp:8:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+3 warnings generated.
+[23/25] Linking CXX static library ps2xTest/libps2_test_lib.a
+[24/25] Linking CXX executable ps2xTest/ps2x_tests

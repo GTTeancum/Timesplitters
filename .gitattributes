@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.bin binary
+*.elf binary
+*.iso binary
+*.suprx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.bmp binary
+*.tga binary
+*.ico binary
+*.wav binary
+*.pcm binary
+*.mp4 binary
+*.mkv binary
+*.avi binary
+*.zip binary
+*.7z binary
+*.rar binary

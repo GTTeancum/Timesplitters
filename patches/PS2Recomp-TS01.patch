@@ -1,0 +1,726 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c7c7af5..0e0acef 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -99,3 +99,8 @@ endif()
+ if(PS2X_BUILD_STUDIO)
+     add_subdirectory("ps2xStudio")
+ endif()
++
++# Optional external, build-scoped game target.
++if(TS_GAME_SOURCE_DIR)
++    add_subdirectory("${TS_GAME_SOURCE_DIR}" "timesplitters")
++endif()
+diff --git a/ps2xRecomp/include/ps2recomp/types.h b/ps2xRecomp/include/ps2recomp/types.h
+index 9bd687d..a46505b 100644
+--- a/ps2xRecomp/include/ps2recomp/types.h
++++ b/ps2xRecomp/include/ps2recomp/types.h
+@@ -185,6 +185,7 @@ namespace ps2recomp
+         bool patchCop0 = true;
+         bool patchCache = true;
+         std::vector<std::string> skipFunctions;
++        std::vector<std::string> recompileFunctions; // use original EE instead of automatic SDK HLE
+         std::unordered_map<uint32_t, std::string> patches;
+         std::vector<std::string> stubImplementations;
+         std::vector<std::string> entryPointHints;
+diff --git a/ps2xRecomp/src/lib/config_manager.cpp b/ps2xRecomp/src/lib/config_manager.cpp
+index 97dc2dd..a887a9b 100644
+--- a/ps2xRecomp/src/lib/config_manager.cpp
++++ b/ps2xRecomp/src/lib/config_manager.cpp
+@@ -74,6 +74,9 @@ namespace ps2recomp
+                 config.stubImplementations = toml::find<std::vector<std::string>>(data, "stubs");
+             }
+ 
++            if (general.contains("recompile"))
++                config.recompileFunctions = toml::find<std::vector<std::string>>(general, "recompile");
++
+             auto appendEntryPointHints = [&](const toml::value &table, const char *key)
+             {
+                 if (!table.contains(key) || !table.at(key).is_array())
+@@ -296,6 +299,7 @@ namespace ps2recomp
+         general["patch_cop0"] = config.patchCop0;
+         general["patch_cache"] = config.patchCache;
+         general["skip"] = config.skipFunctions;
++        general["recompile"] = config.recompileFunctions;
+         general["stubs"] = config.stubImplementations;
+         general["entry_points"] = config.entryPointHints;
+         data["general"] = general;
+diff --git a/ps2xRecomp/src/lib/ps2_recompiler.cpp b/ps2xRecomp/src/lib/ps2_recompiler.cpp
+index bb35a7a..0302f7e 100644
+--- a/ps2xRecomp/src/lib/ps2_recompiler.cpp
++++ b/ps2xRecomp/src/lib/ps2_recompiler.cpp
+@@ -2189,6 +2189,18 @@ namespace ps2recomp
+ 
+     bool PS2Recompiler::isStubFunction(const Function &function) const
+     {
++        for (const auto &name : m_config.recompileFunctions)
++        {
++            const FunctionSelector selector = parseFunctionSelector(name);
++            if ((!selector.name.empty() && selector.name == function.name) ||
++                (selector.start.has_value() && *selector.start == function.start))
++            {
++                if (m_stubFunctionStarts.contains(function.start) || m_stubFunctions.contains(function.name) ||
++                    shouldSkipFunction(function))
++                    throw std::runtime_error("Function cannot be both recompiled and stubbed/skipped: " + function.name);
++                return false;
++            }
++        }
+         if (m_stubFunctionStarts.contains(function.start))
+         {
+             return true;
+diff --git a/ps2xRuntime/include/runtime/ps2_memory.h b/ps2xRuntime/include/runtime/ps2_memory.h
+index ea86a9c..11deaa1 100644
+--- a/ps2xRuntime/include/runtime/ps2_memory.h
++++ b/ps2xRuntime/include/runtime/ps2_memory.h
+@@ -316,6 +316,9 @@ public:
+     using GifPacketCallback = std::function<void(const uint8_t *, uint32_t)>;
+     void setGifPacketCallback(GifPacketCallback cb) { m_gifPacketCallback = std::move(cb); }
+     void setGifArbiter(GifArbiter *arbiter) { m_gifArbiter = arbiter; }
++    using GsReadbackCallback = std::function<uint32_t(uint8_t *, uint32_t)>;
++    void setGsReadbackCallback(GsReadbackCallback cb) { m_gsReadbackCallback = std::move(cb); }
++
+ 
+     using Vu1MscalCallback = std::function<void(uint32_t startPC, uint32_t top, uint32_t itop)>;
+     void setVu1MscalCallback(Vu1MscalCallback cb) { m_vu1MscalCallback = std::move(cb); }
+@@ -398,6 +401,7 @@ public:
+     std::vector<TLBEntry> m_tlbEntries;
+ 
+     GifPacketCallback m_gifPacketCallback;
++    GsReadbackCallback m_gsReadbackCallback;
+     GifArbiter *m_gifArbiter = nullptr;
+     Vu1MscalCallback m_vu1MscalCallback;
+     Vu1MscntCallback m_vu1MscntCallback;
+diff --git a/ps2xRuntime/src/lib/Kernel/EeScheduler.cpp b/ps2xRuntime/src/lib/Kernel/EeScheduler.cpp
+index c5e31c4..c2a1514 100644
+--- a/ps2xRuntime/src/lib/Kernel/EeScheduler.cpp
++++ b/ps2xRuntime/src/lib/Kernel/EeScheduler.cpp
+@@ -1275,8 +1275,25 @@ void EeScheduler::dispatchIrq(bool dmac, uint32_t cause)
+               { return left.order < right.order; });
+     for (const EeIrqHandler &handler : matching)
+     {
++        // GS CSR is level-triggered. A still-pending SIGNAL must not queue
++        // another copy of the same handler while its previous invocation runs.
++        const uint64_t gsTag = 0x4753495200000000ull | static_cast<uint32_t>(handler.id);
++        const bool gsCause = !dmac && cause == 0u;
++        if (gsCause)
++        {
++            const auto matches = [gsTag](const GuestInvocation &invocation)
++            { return invocation.kind == GuestInvocationKind::Interrupt && invocation.tag == gsTag; };
++            bool queued = std::any_of(m_pendingInvocations.begin(), m_pendingInvocations.end(), matches);
++            for (const auto &[id, item] : m_threads)
++            {
++                (void)id;
++                queued |= std::any_of(item.invocations.begin(), item.invocations.end(), matches);
++            }
++            if (queued) continue;
++        }
+         GuestInvocation invocation{};
+         invocation.kind = GuestInvocationKind::Interrupt;
++        if (gsCause) invocation.tag = gsTag;
+         invocation.context.pc = handler.handler;
+         SET_GPR_U32(&invocation.context, 4, cause);
+         SET_GPR_U32(&invocation.context, 5, handler.argument);
+@@ -1744,6 +1761,13 @@ void EeScheduler::processPendingEvents()
+ {
+     assertExecutor();
+     processDueDeadlines();
++    // GS SIGNAL/FINISH and the other CSR interrupt flags feed INTC_GS (0).
++    // IMR bits 8..12 mask CSR bits 0..4. The guest handler acknowledges CSR;
++    // never synthesize completion or clear its flags here.
++    const auto &gs = m_runtime.memory().gs();
++    const uint32_t pendingGs = static_cast<uint32_t>(gs.csr.load(std::memory_order_acquire)) &
++                               ~static_cast<uint32_t>(gs.imr >> 8u) & 0x1Fu;
++    if (pendingGs != 0u) dispatchIrq(false, 0u);
+     const uint32_t timerInterrupts = m_pendingEeTimerInterrupts;
+     m_pendingEeTimerInterrupts = 0u;
+     for (uint32_t timer = 0u; timer < 4u; ++timer)
+diff --git a/ps2xRuntime/src/lib/Kernel/Stubs/Pad.cpp b/ps2xRuntime/src/lib/Kernel/Stubs/Pad.cpp
+index b50a4cf..910484c 100644
+--- a/ps2xRuntime/src/lib/Kernel/Stubs/Pad.cpp
++++ b/ps2xRuntime/src/lib/Kernel/Stubs/Pad.cpp
+@@ -14,7 +14,9 @@ namespace ps2_stubs
+         constexpr int32_t kPadStateExecCmd = 5;
+         constexpr int32_t kPadStateStable = 6;
+         constexpr size_t kPadPortCount = 2;
+-        constexpr size_t kPadSlotCount = 1;
++        // Logical PADMAN handles can be opened before a multitap/controller is present.
++        // See ps2sdk iop/input/padman/src/padPortOpen.c (XPADMAN: 2 ports x 4 slots).
++        constexpr size_t kPadSlotCount = 4;
+ 
+         constexpr uint16_t kPadBtnSelect = 1u << 0;
+         constexpr uint16_t kPadBtnL3 = 1u << 1;
+@@ -45,6 +47,7 @@ namespace ps2_stubs
+         struct PadPortState
+         {
+             bool open = false;
++            bool connected = false;
+             bool analogMode = false;  // real pads power up DIGITAL (CURID=4, mode 0x41)
+             bool pressureEnabled = false;
+             bool lastUsedOverride = false;
+@@ -64,7 +67,7 @@ namespace ps2_stubs
+         std::mutex g_padStateMutex;
+         bool g_padOverrideEnabled = false;
+         PadInputState g_padOverrideState{};
+-        PadPortState g_padPorts[kPadPortCount]{};
++        PadPortState g_padPorts[kPadPortCount * kPadSlotCount]{};
+         int g_padReadLogCount = 0;
+ 
+         uint8_t axisToByte(float axis)
+@@ -210,7 +213,7 @@ namespace ps2_stubs
+             {
+                 return nullptr;
+             }
+-            return &g_padPorts[port];
++            return &g_padPorts[port * kPadSlotCount + slot];
+         }
+ 
+         void initializePadPortLocked(PadPortState &portState, uint32_t dmaAddr)
+@@ -277,7 +280,7 @@ namespace ps2_stubs
+             {
+                 std::lock_guard<std::mutex> lock(g_padStateMutex);
+                 const PadPortState *sharedPortState = lookupPadPortStateLocked(port, slot);
+-                if (!sharedPortState || !sharedPortState->open)
++                if (!sharedPortState || !sharedPortState->open || !sharedPortState->connected)
+                 {
+                     return false;
+                 }
+@@ -357,7 +360,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                            static_cast<int>(getRegU32(ctx, 5)));
+-        if (!portState || !portState->open)
++        if (!portState || !portState->open || !portState->connected)
+         {
+             setReturnS32(ctx, 0);
+             return;
+@@ -375,7 +378,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                            static_cast<int>(getRegU32(ctx, 5)));
+-        if (!portState || !portState->open)
++        if (!portState || !portState->open || !portState->connected)
+         {
+             setReturnS32(ctx, 0);
+             return;
+@@ -458,7 +461,7 @@ namespace ps2_stubs
+         PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                            static_cast<int>(getRegU32(ctx, 5)));
+         int32_t state = kPadStateDisconnected;
+-        if (portState && portState->open)
++        if (portState && portState->open && portState->connected)
+         {
+             if (portState->transientState != 0u)
+             {
+@@ -479,7 +482,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         const PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                                  static_cast<int>(getRegU32(ctx, 5)));
+-        if (!portState || !portState->open)
++        if (!portState || !portState->open || !portState->connected)
+         {
+             setReturnS32(ctx, 0);
+             return;
+@@ -511,7 +514,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         const PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                                  static_cast<int>(getRegU32(ctx, 5)));
+-        if (!portState || !portState->open)
++        if (!portState || !portState->open || !portState->connected)
+         {
+             setReturnS32(ctx, 0);
+             return;
+@@ -556,7 +559,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         const PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                                  static_cast<int>(getRegU32(ctx, 5)));
+-        setReturnS32(ctx, (portState && portState->open) ? 1 : 0);
++        setReturnS32(ctx, (portState && portState->open && portState->connected) ? 1 : 0);
+     }
+ 
+     void scePadInit(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+@@ -589,6 +592,7 @@ namespace ps2_stubs
+         }
+ 
+         portState->open = false;
++        portState->connected = false;
+         portState->pressureEnabled = false;
+         portState->reqState = 0u;
+         portState->transientState = 0u;
+@@ -610,6 +614,12 @@ namespace ps2_stubs
+         }
+ 
+         portState->open = true;
++        // No multitap backend exists yet. Extra handles remain disconnected, never
++        // duplicate keyboard/gamepad input or claim a controller is attached.
++        portState->connected = (getRegU32(ctx, 5) == 0u);
++        std::cout << "[pad:open] port=" << getRegU32(ctx, 4)
++                  << " slot=" << getRegU32(ctx, 5) << " dma=0x" << std::hex << dmaAddr
++                  << std::dec << " connected=" << portState->connected << '\n';
+         portState->analogMode = false;     // real pads open DIGITAL
+         portState->pressureEnabled = false;
+         portState->buttonMask = 0xFFFFu;
+@@ -706,7 +716,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                            static_cast<int>(getRegU32(ctx, 5)));
+-        if (portState && portState->open)
++        if (portState && portState->open && portState->connected)
+         {
+             portState->buttonMask = static_cast<uint16_t>(getRegU32(ctx, 6));
+             portState->reqState = 0u;
+@@ -722,7 +732,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                            static_cast<int>(getRegU32(ctx, 5)));
+-        if (!portState || !portState->open)
++        if (!portState || !portState->open || !portState->connected)
+         {
+             setReturnS32(ctx, 0);
+             return;
+@@ -741,7 +751,7 @@ namespace ps2_stubs
+         std::lock_guard<std::mutex> lock(g_padStateMutex);
+         PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
+                                                            static_cast<int>(getRegU32(ctx, 5)));
+-        if (portState && portState->open)
++        if (portState && portState->open && portState->connected)
+         {
+             portState->reqState = static_cast<uint32_t>(getRegU32(ctx, 6) ? 1u : 0u);
+             queueExecCmdStateLocked(*portState);
+@@ -818,7 +828,7 @@ namespace ps2_stubs
+             {
+                 for (size_t slot = 0; slot < kPadDebugSlotCount; ++slot)
+                 {
+-                    const PadPortState &src = g_padPorts[port];
++                    const PadPortState &src = g_padPorts[port * kPadSlotCount + slot];
+                     PadDebugPortSnapshot &dst = snapshot.ports[port][slot];
+                     dst.open = src.open;
+                     dst.analogMode = src.analogMode;
+diff --git a/ps2xRuntime/src/lib/Kernel/Stubs/System.cpp b/ps2xRuntime/src/lib/Kernel/Stubs/System.cpp
+index e2df2b5..bdb9acc 100644
+--- a/ps2xRuntime/src/lib/Kernel/Stubs/System.cpp
++++ b/ps2xRuntime/src/lib/Kernel/Stubs/System.cpp
+@@ -26,6 +26,8 @@ namespace ps2_stubs
+ 
+     void exit(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+     {
++        std::cerr << "[guest:exit] status=" << static_cast<int32_t>(getRegU32(ctx, 4))
++                  << " caller=0x" << std::hex << getRegU32(ctx, 31) << std::dec << '\n';
+         if (runtime)
+         {
+             runtime->requestStop();
+diff --git a/ps2xRuntime/src/lib/Kernel/Syscalls/System.cpp b/ps2xRuntime/src/lib/Kernel/Syscalls/System.cpp
+index 9614016..fac3337 100644
+--- a/ps2xRuntime/src/lib/Kernel/Syscalls/System.cpp
++++ b/ps2xRuntime/src/lib/Kernel/Syscalls/System.cpp
+@@ -549,7 +549,7 @@ namespace ps2_syscalls
+         if (heapSize != 0u && heapSize != 0xFFFFFFFFu)
+         {
+             const uint64_t candidate = static_cast<uint64_t>(heapBase) + static_cast<uint64_t>(heapSize);
+-            heapLimit = static_cast<uint32_t>(std::min<uint64_t>(candidate, kDefaultGuestHeapEnd));
++            heapLimit = static_cast<uint32_t>(std::min<uint64_t>(candidate, PS2_RAM_SIZE));
+         }
+ 
+         if (heapLimit <= heapBase)
+diff --git a/ps2xRuntime/src/lib/ps2_memory.cpp b/ps2xRuntime/src/lib/ps2_memory.cpp
+index 37b6a4d..ee70100 100644
+--- a/ps2xRuntime/src/lib/ps2_memory.cpp
++++ b/ps2xRuntime/src/lib/ps2_memory.cpp
+@@ -1224,6 +1224,9 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
+ 
+         switch (address)
+         {
++        case 0x10003C00u: // VIF1_STAT: FDR is writable; keep hardware status flags.
++            vif1_regs.stat = (vif1_regs.stat & ~(1u << 23)) | (value & (1u << 23));
++            break;
+         case 0x10003C10u:     // VIF1_FBRST
+             if (value & 0x1u) // RST
+             {
+@@ -1306,6 +1309,39 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
+             const uint32_t qwc = m_ioRegisters[channelBase + 0x20];
+             m_dmaStartCount.fetch_add(1, std::memory_order_relaxed);
+ 
++            if (channelBase == 0x10009000u && (value & 1u) == 0u &&
++                (vif1_regs.stat & (1u << 23)) != 0u)
++            {
++                // VIF1 reverse DMA consumes GS local-to-host pixels. Never run
++                // the destination RAM through the forward VIF command decoder.
++                if (((value >> 2u) & 3u) != 0u || (gs_regs.busdir & 1u) == 0u)
++                    throw std::runtime_error("Unsupported VIF1 reverse DMA mode or GS BUSDIR");
++                if (!m_gsReadbackCallback)
++                    throw std::runtime_error("VIF1 reverse DMA has no GS readback backend");
++                processPendingTransfers(); // commit preceding GIF/VIF setup first
++                const uint64_t bytes64 = static_cast<uint64_t>(qwc) * 16ull;
++                const uint32_t offset = translateAddress(madr);
++                const bool scratch = isScratchpad(madr);
++                uint8_t *destination = scratch ? m_scratchpad : m_rdram;
++                const uint32_t limit = scratch ? PS2_SCRATCHPAD_SIZE : PS2_RAM_SIZE;
++                if (!destination || offset >= limit || bytes64 > limit - offset)
++                    throw std::runtime_error("VIF1 reverse DMA destination exceeds guest memory");
++                const uint32_t bytes = static_cast<uint32_t>(bytes64);
++                const uint32_t received = m_gsReadbackCallback(destination + offset, bytes);
++                if (received != bytes)
++                    throw std::runtime_error("VIF1 reverse DMA GS readback was shorter than QWC");
++                m_ioRegisters[channelBase + 0x10u] = madr + bytes;
++                m_ioRegisters[channelBase + 0x20u] = 0u;
++                m_ioRegisters[channelBase] = value & ~0x100u;
++                uint32_t &dstat = m_ioRegisters[0x1000E010u];
++                dstat |= 2u;
++                if (((dstat & 0x3FFu) & ((dstat >> 16u) & 0x3FFu)) != 0u)
++                    dstat |= 0x80000000u;
++                else dstat &= ~0x80000000u;
++                queueCompletedDmacCause(1u);
++                return true;
++            }
++
+             if (tryProcessScratchpadDma(channelBase, value))
+             {
+                 return true;
+diff --git a/ps2xRuntime/src/lib/ps2_runtime.cpp b/ps2xRuntime/src/lib/ps2_runtime.cpp
+index 45cb9d2..2c3f379 100644
+--- a/ps2xRuntime/src/lib/ps2_runtime.cpp
++++ b/ps2xRuntime/src/lib/ps2_runtime.cpp
+@@ -668,6 +668,8 @@ bool PS2Runtime::syncCoreSubsystems()
+     m_gifArbiter.setProcessPacketFn([this](const uint8_t *data, uint32_t size)
+                                     { m_gs.processGIFPacket(data, size); });
+     m_memory.setGifArbiter(&m_gifArbiter);
++    m_memory.setGsReadbackCallback([this](uint8_t *dst, uint32_t bytes)
++                                 { return m_gs.consumeLocalToHostBytes(dst, bytes); });
+     m_memory.setVu1MscalCallback([this](uint32_t startPC, uint32_t top, uint32_t itop)
+                                  {
+                                      R5900Context *cpuContext = m_eeScheduler ? m_eeScheduler->currentContext() : nullptr;
+@@ -821,6 +823,7 @@ bool PS2Runtime::loadELF(const std::string &elfPath)
+     m_debugPc.store(m_cpuContext.pc, std::memory_order_relaxed);
+ 
+     uint32_t maxLoadedRdramEnd = kGuestHeapDefaultBase;
++    uint32_t minLoadedRdramBase = PS2_RAM_SIZE;
+     uint32_t moduleBase = std::numeric_limits<uint32_t>::max();
+     uint32_t moduleEnd = 0u;
+     bool loadedAnySegment = false;
+@@ -922,6 +925,7 @@ bool PS2Runtime::loadELF(const std::string &elfPath)
+         if (!scratch)
+         {
+             maxLoadedRdramEnd = std::max(maxLoadedRdramEnd, static_cast<uint32_t>(segmentMemEnd));
++            minLoadedRdramBase = std::min(minLoadedRdramBase, physAddr);
+         }
+ 
+         if (ph.flags & 0x1u) // PF_X
+@@ -967,6 +971,15 @@ bool PS2Runtime::loadELF(const std::string &elfPath)
+             m_guestHeapBase = m_guestHeapSuggestedBase;
+             m_guestHeapEnd = m_guestHeapSuggestedBase;
+             m_guestHeapLimit = hardLimit;
++            if (suggestedHeapBase >= hardLimit)
++            {
++                // No implicit heap is safe above this PT_LOAD. Do not fall back
++                // into loaded BSS. A later explicit SetupHeap can supply its
++                // genuinely reserved range (as TimeSplitters does).
++                m_guestHeapBlocks.clear();
++                m_guestHeapBase = m_guestHeapEnd = m_guestHeapLimit = 0u;
++                m_guestHeapConfigured = true;
++            }
+         }
+     }
+     {
+@@ -974,6 +987,19 @@ bool PS2Runtime::loadELF(const std::string &elfPath)
+         const uint32_t hardLimit = std::min(kGuestHeapHardLimit, PS2_RAM_SIZE);
+         m_asyncCallbackStackFloor = std::min(std::max(hardLimit, suggestedHeapBase), PS2_RAM_SIZE);
+         m_asyncCallbackStackTop = PS2_RAM_SIZE;
++        // High-BSS titles leave no upper-RAM callback arena. Reserve only the
++        // HLE kernel window ABOVE its <512-KiB syscall mirrors and BELOW 1 MiB.
++        // An unloaded PT_LOAD gap is NOT necessarily free user memory: e.g.
++        // TimeSplitters' dmalists[0] explicitly points at 0x00100000.
++        constexpr uint32_t kKernelArenaBase = 0x00080000u;
++        constexpr uint32_t kKernelArenaEnd = 0x00100000u;
++        if (maxLoadedRdramEnd >= hardLimit && minLoadedRdramBase >= kKernelArenaEnd)
++        {
++            m_asyncCallbackStackFloor = kKernelArenaBase;
++            m_asyncCallbackStackTop = kKernelArenaEnd;
++            std::cout << "[kernel:callback-arena] base=0x" << std::hex << m_asyncCallbackStackFloor
++                      << " end=0x" << m_asyncCallbackStackTop << std::dec << '\n';
++        }
+     }
+ 
+     LoadedModule module;
+@@ -1622,13 +1648,13 @@ uint32_t PS2Runtime::clampGuestHeapBase(uint32_t guestBase) const
+     {
+         normalized &= PS2_RAM_MASK;
+     }
+-    const uint32_t hardLimit = std::min(kGuestHeapHardLimit, PS2_RAM_SIZE);
++    const uint32_t hardLimit = (m_asyncCallbackStackFloor < kGuestHeapHardLimit) ? PS2_RAM_SIZE : std::min(kGuestHeapHardLimit, PS2_RAM_SIZE);
+     return std::min(normalized, hardLimit);
+ }
+ 
+ uint32_t PS2Runtime::clampGuestHeapLimit(uint32_t guestLimit) const
+ {
+-    const uint32_t hardLimit = std::min(kGuestHeapHardLimit, PS2_RAM_SIZE);
++    const uint32_t hardLimit = (m_asyncCallbackStackFloor < kGuestHeapHardLimit) ? PS2_RAM_SIZE : std::min(kGuestHeapHardLimit, PS2_RAM_SIZE);
+     if (guestLimit == 0u || guestLimit > hardLimit)
+     {
+         return hardLimit;
+@@ -2363,6 +2389,7 @@ void PS2Runtime::run()
+     UnloadImage(blank);
+ 
+     std::atomic<bool> gameThreadFinished{false};
++    std::exception_ptr gameFailure; // published by joining gameThread
+ 
+     std::thread gameThread([&]()
+                            {
+@@ -2377,10 +2404,12 @@ void PS2Runtime::run()
+         }
+         catch (const std::exception &e)
+         {
++            gameFailure = std::current_exception();
+             std::cerr << "Error during program execution: " << e.what() << std::endl;
+         }
+         catch (...)
+         {
++            gameFailure = std::current_exception();
+             std::cerr << "Error during program execution: unknown exception" << std::endl;
+         }
+         gameThreadFinished.store(true, std::memory_order_release); });
+@@ -2469,4 +2498,7 @@ void PS2Runtime::run()
+     CloseWindow();
+ 
+     RUNTIME_LOG("[run] exiting loop");
++    if (gameFailure) std::rethrow_exception(gameFailure);
++    if (m_missingFunctionReported.load() && missingFunctionPolicy() == MissingFunctionPolicy::Stop)
++        throw std::runtime_error("Native EE stopped on an unresolved function; see preceding guest context");
+ }
+diff --git a/ps2xTest/src/pad_input_tests.cpp b/ps2xTest/src/pad_input_tests.cpp
+index 07f9b7a..ba2a392 100644
+--- a/ps2xTest/src/pad_input_tests.cpp
++++ b/ps2xTest/src/pad_input_tests.cpp
+@@ -529,5 +529,61 @@ void register_pad_input_tests()
+             const char *reqStr = reinterpret_cast<const char *>(rdram.data() + kPadDataAddr + 64);
+             t.IsTrue(std::string(reqStr).find("COMPLETE") != std::string::npos, "req string should include COMPLETE");
+         });
++
++        tc.Run("logical multitap slots open independently without invented controllers", [](TestCase &t)
++        {
++            std::vector<uint8_t> ram(PS2_RAM_SIZE, 0);
++            R5900Context ctx;
++            ps2_stubs::scePadInit(ram.data(), &ctx, nullptr);
++            for (uint32_t port=0; port<2; ++port) for (uint32_t slot=0; slot<4; ++slot)
++            {
++                const uint32_t dma=0x4000u+(port*4+slot)*0x100u;
++                setRegU32(ctx,4,port);setRegU32(ctx,5,slot);setRegU32(ctx,6,dma);
++                ps2_stubs::scePadPortOpen(ram.data(),&ctx,nullptr);
++                t.Equals(getRegU32(&ctx,2),1u,"all eight valid logical handles must open");
++                ps2_stubs::scePadGetState(ram.data(),&ctx,nullptr);
++                t.Equals(getRegU32(&ctx,2),slot==0?6u:0u,"unattached extra slots must be DISCONNECTED");
++            }
++            for (uint32_t port=0; port<2; ++port) for (uint32_t slot=0; slot<4; ++slot)
++            {
++                setRegU32(ctx,4,port);setRegU32(ctx,5,slot);
++                ps2_stubs::scePadGetDmaStr(ram.data(),&ctx,nullptr);
++                t.Equals(getRegU32(&ctx,2),0x4000u+(port*4+slot)*0x100u,"per-slot DMA handles must not alias");
++            }
++            closePadPort(ctx,ram,0,1);
++            setRegU32(ctx,4,0);setRegU32(ctx,5,0);
++            ps2_stubs::scePadGetState(ram.data(),&ctx,nullptr);
++            t.Equals(getRegU32(&ctx,2),6u,"closing extra slot must not close primary controller");
++            ps2_stubs::scePadEnd(ram.data(),&ctx,nullptr);
++        });
++        tc.Run("unattached slots do not duplicate primary override input", [](TestCase &t)
++        {
++            std::vector<uint8_t> ram(PS2_RAM_SIZE, 0);
++            R5900Context ctx;
++            ps2_stubs::scePadInit(ram.data(),&ctx,nullptr);
++            openPadPort(ctx,ram,0,1);
++            ps2_stubs::setPadOverrideState(0u,0u,255u,0u,255u);
++            setRegU32(ctx,4,0);setRegU32(ctx,5,1);setRegU32(ctx,6,kPadDataAddr);
++            ps2_stubs::scePadRead(ram.data(),&ctx,nullptr);
++            t.Equals(getRegU32(&ctx,2),0u,"disconnected slot must not return primary input");
++            ps2_stubs::clearPadOverrideState();
++            closePadPort(ctx,ram,0,1);
++        });
++        tc.Run("invalid logical pad slots remain rejected", [](TestCase &t)
++        {
++            std::vector<uint8_t> ram(PS2_RAM_SIZE, 0);
++            R5900Context ctx;
++            ps2_stubs::scePadInit(ram.data(),&ctx,nullptr);
++            for (uint32_t bad : {2u,0xffffffffu})
++            {
++                openPadPort(ctx,ram,bad,0);
++                t.Equals(getRegU32(&ctx,2),0u,"invalid port must fail");
++            }
++            for (uint32_t bad : {4u,0xffffffffu})
++            {
++                openPadPort(ctx,ram,0,bad);
++                t.Equals(getRegU32(&ctx,2),0u,"invalid slot must fail");
++            }
++        });
+     });
+ }
+diff --git a/ps2xTest/src/ps2_memory_tests.cpp b/ps2xTest/src/ps2_memory_tests.cpp
+index 0b22fe0..5db841b 100644
+--- a/ps2xTest/src/ps2_memory_tests.cpp
++++ b/ps2xTest/src/ps2_memory_tests.cpp
+@@ -2112,6 +2112,36 @@ void register_ps2_memory_tests()
+             t.IsTrue(imageOk, "VIF1 DIRECT image should update GS VRAM through GIF path2");
+         });
+ 
++        tc.Run("VIF1 reverse DMA reads real GS pixels and completes channel 1", [](TestCase &t)
++        {
++            PS2Runtime rt;
++            t.IsTrue(rt.memory().initialize(), "reverse DMA memory initializes");
++            t.IsTrue(rt.syncCoreSubsystems(), "reverse DMA binds GS backend");
++            auto &mem = rt.memory();
++            auto &gs = rt.gs();
++            for (uint32_t x=0; x<4u; ++x) {
++                const uint32_t value=0x10203040u+x;
++                std::memcpy(mem.getGSVRAM()+GSPSMCT32::addrPSMCT32(0u,1u,x,0u), &value, 4u);
++            }
++            gs.writeRegister(GS_REG_BITBLTBUF, 1ull << 16u); // PSMCT32 source, SBW 1
++            gs.writeRegister(GS_REG_TRXPOS, 0u);
++            gs.writeRegister(GS_REG_TRXREG, 4ull | (1ull << 32u));
++            gs.writeRegister(GS_REG_TRXDIR, 1u);
++            mem.writeIORegister(0x10003C00u, 1u << 23u);
++            mem.write64(0x12001040u, 1u);
++            mem.writeIORegister(0x10009010u, 0x28000u);
++            mem.writeIORegister(0x10009020u, 1u);
++            mem.writeIORegister(0x10009000u, 0x100u);
++            for (uint32_t x=0; x<4u; ++x)
++                t.Equals(mem.read32(0x28000u+x*4u), 0x10203040u+x, "reverse DMA preserves GS pixel values");
++            t.Equals(mem.readIORegister(0x10009010u), 0x28010u, "reverse DMA advances MADR");
++            t.Equals(mem.readIORegister(0x10009020u), 0u, "reverse DMA drains QWC");
++            t.Equals(mem.readIORegister(0x10009000u) & 0x100u, 0u, "reverse DMA clears STR");
++            t.IsTrue((mem.readIORegister(0x1000E010u)&2u)!=0u, "reverse DMA raises channel 1 completion");
++            mem.writeIORegister(0x10003C00u, 0u);
++            t.Equals(mem.vif1_regs.stat & (1u << 23u), 0u, "guest can restore forward VIF FIFO direction");
++        });
++
+         tc.Run("VIF1 DIRECT image tag can continue with raw image qwords", [](TestCase &t)
+         {
+             PS2Memory mem;
+diff --git a/ps2xTest/src/ps2_runtime_interrupt_tests.cpp b/ps2xTest/src/ps2_runtime_interrupt_tests.cpp
+index 4261bfa..64ed41a 100644
+--- a/ps2xTest/src/ps2_runtime_interrupt_tests.cpp
++++ b/ps2xTest/src/ps2_runtime_interrupt_tests.cpp
+@@ -302,6 +302,33 @@ namespace
+         runtime->requestStop();
+     }
+ 
++    constexpr uint32_t kGsWaitPc = 0x00160600u, kGsHandlerPc = 0x00160610u, kGsResumePc = 0x00160620u;
++    uint32_t g_gsIrqRuns = 0u;
++    bool g_gsMaskAtStart = false;
++    void schedulerGsWait(uint8_t *, R5900Context *ctx, PS2Runtime *runtime)
++    {
++        auto &scheduler = runtime->eeScheduler();
++        g_testSemaphoreId = scheduler.createSemaphore(0, 1, 0u, 0u);
++        scheduler.addIrqHandler(false, 0u, kGsHandlerPc, true, 0u, 0u, 0u);
++        runtime->memory().gs().imr = g_gsMaskAtStart ? 0x7F00u : 0x7E00u;
++        runtime->memory().gs().csr.fetch_or(1u);
++        ctx->pc = kGsResumePc;
++        if (g_gsMaskAtStart) scheduler.waitVSync(scheduler.currentVSyncTick());
++        else scheduler.waitSemaphore(g_testSemaphoreId);
++    }
++    void schedulerGsHandler(uint8_t *, R5900Context *ctx, PS2Runtime *runtime)
++    {
++        ++g_gsIrqRuns;
++        runtime->memory().writeIORegister(0x12001000u, 1u); // W1C SIGNAL
++        runtime->eeScheduler().signalSemaphore(g_testSemaphoreId, true);
++        ctx->pc = 0u;
++    }
++    void schedulerGsResume(uint8_t *, R5900Context *ctx, PS2Runtime *runtime)
++    {
++        ctx->pc = 0u;
++        runtime->requestStop();
++    }
++
+     void schedulerTimer2Handler(uint8_t *, R5900Context *ctx, PS2Runtime *runtime)
+     {
+         g_dispatchTrace.push_back(2);
+@@ -706,6 +733,34 @@ void register_ps2_runtime_interrupt_tests()
+                      "the Timer2 handler should hand the semaphore directly to the waiter");
+         });
+ 
++        tc.Run("GS SIGNAL dispatches INTC_GS and honors IMR masking", [](TestCase &t)
++        {
++            for (bool masked : {false, true})
++            {
++                TestEnv env;
++                t.IsTrue(env.runtime.memory().initialize(), "GS IRQ test memory initializes");
++                env.runtime.registerFunction(kGsWaitPc, schedulerGsWait);
++                env.runtime.registerFunction(kGsHandlerPc, schedulerGsHandler);
++                env.runtime.registerFunction(kGsResumePc, schedulerGsResume);
++                g_gsIrqRuns = 0u; g_gsMaskAtStart = masked;
++                R5900Context main{}; main.pc = kGsWaitPc;
++                std::atomic<bool> done{false}, threw{false};
++                std::thread executor([&] {
++                    try {env.runtime.eeScheduler().reset(env.rdram.data(), main);env.runtime.eeScheduler().run();}
++                    catch (...) {threw = true;}
++                    done = true;
++                });
++                bool completed = waitUntil([&] {return done.load();}, std::chrono::milliseconds(250));
++                if (!completed) env.runtime.requestStop();
++                executor.join();
++                t.IsTrue(completed, "GS IRQ waiter must resume, or masked case finish its VSync wait");
++                t.IsFalse(threw.load(), "GS IRQ execution must not throw");
++                t.Equals(g_gsIrqRuns, masked ? 0u : 1u, "masked GS SIGNAL stays pending; unmasked runs once");
++                t.Equals(static_cast<uint32_t>(env.runtime.memory().gs().csr.load()) & 1u,
++                         masked ? 1u : 0u, "only the guest IRQ handler acknowledges SIGNAL");
++            }
++        });
++
+         tc.Run("scheduler stop wakes an idle VSync wait without a timeout", [](TestCase &t)
+         {
+             TestEnv env;
+diff --git a/ps2xTest/src/ps2_runtime_kernel_tests.cpp b/ps2xTest/src/ps2_runtime_kernel_tests.cpp
+index 63b12d9..3d39103 100644
+--- a/ps2xTest/src/ps2_runtime_kernel_tests.cpp
++++ b/ps2xTest/src/ps2_runtime_kernel_tests.cpp
+@@ -12,6 +12,8 @@
+ #include <sstream>
+ #include <thread>
+ #include <vector>
++#include <filesystem>
++#include <fstream>
+ 
+ using namespace ps2_syscalls;
+ 
+@@ -1563,5 +1565,45 @@ void register_ps2_runtime_kernel_tests()
+                      kExpectedHandler,
+                      "GetEntryAddress should read and return the handler address from the table");
+         });
++
++        tc.Run("high-BSS ELF callback stacks and explicit upper heap do not overlap", [](TestCase &t)
++        {
++            // Synthetic minimal ELF has TimeSplitters' PT_LOAD layout, no game bytes.
++            std::vector<uint8_t> elf(0x1008u,0);
++            auto w16=[&](size_t p,uint16_t x){std::memcpy(elf.data()+p,&x,2);};
++            auto w32=[&](size_t p,uint32_t x){std::memcpy(elf.data()+p,&x,4);};
++            elf[0]=0x7f;elf[1]='E';elf[2]='L';elf[3]='F';elf[4]=1;elf[5]=1;elf[6]=1;
++            w16(16,2);w16(18,8);w32(20,1);w32(24,0x200000u);w32(28,52);
++            w32(36,0x20924001u);w16(40,52);w16(42,32);w16(44,1);w16(46,40);
++            w32(52,1);w32(56,0x1000);w32(60,0x200000);w32(64,0x200000);
++            w32(68,8);w32(72,0x1df5390u);w32(76,7);w32(80,0x1000);w32(0x1000,0x03e00008u);
++            const auto path=std::filesystem::temp_directory_path()/"ps2x-high-bss-regression.elf";
++            struct Cleanup {std::filesystem::path p;~Cleanup(){std::error_code ec;std::filesystem::remove(p,ec);}} cleanup{path};
++            {std::ofstream f(path,std::ios::binary);f.write(reinterpret_cast<const char*>(elf.data()),elf.size());}
++            PS2Runtime runtime;
++            t.IsTrue(runtime.memory().initialize(PS2_RAM_SIZE),"memory initialization");
++            t.IsTrue(runtime.loadELF(path.string()),"synthetic high-BSS ELF should load");
++            uint8_t *ram=runtime.memory().getRDRAM();
++            t.Equals(runtime.guestMalloc(16u),0u,"implicit heap must not allocate inside high BSS");
++            R5900Context ctx;
++            setRegU32(ctx,4,0x1ff5390u);setRegU32(ctx,5,0x8000u);
++            t.IsTrue(callSyscall(0x3Du,ram,&ctx,&runtime),"explicit high heap syscall should dispatch");
++            t.Equals(runtime.guestHeapBase(),0x1ff5390u,"explicit heap must not clamp below loaded BSS");
++            t.Equals(runtime.guestHeapLimit(),0x1ffd390u,"explicit 32-KiB upper-RAM heap size");
++            const uint32_t a=runtime.guestMalloc(0x8000u);
++            t.Equals(a,0x1ff5390u,"allocation stays after BSS");
++            t.Equals(runtime.guestMalloc(16u),0u,"heap exhaustion must fail without wraparound");
++            for(uint32_t i=0;i<32u;++i)
++            {
++                const uint32_t sp=runtime.reserveAsyncCallbackStack(0x4000u,16u);
++                t.Equals(sp,0xffff0u-i*0x4000u,"callback stack stays inside kernel-reserved storage");
++                t.IsTrue(sp>=0x80000u && sp<0x100000u,"callback stack cannot overlap low user DMA buffers, image, or heap");
++            }
++            t.Equals(runtime.reserveAsyncCallbackStack(0x4000u,16u),0u,"callback pool exhaustion must fail");
++            uint32_t code=0;std::memcpy(&code,ram+0x200000u,4);
++            t.Equals(code,0x03e00008u,"original loaded bytes must remain intact");
++            runtime.guestFree(a);
++            t.Equals(runtime.guestMalloc(0x8000u),a,"heap block can be reclaimed without touching callback stacks");
++        });
+     });
+ }

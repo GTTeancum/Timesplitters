@@ -1,0 +1,10 @@
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008[TS:MC-unit] tick=0 state=3 result=0 port=0 slot=0 type=4294967295 format=4294967295 cards=1,0,0,0,1,0,0,0,
+[MC] GetInfo port=0 type=2 free=8192 format=1 result=0[TS:MC-unit] tick=1 state=4 result=0 port=0 slot=0 type=2 format=1 cards=1,0,0,0,1,0,0,0,
+[MC] Sync cmd=1 result=0[TS:MC-unit] tick=2 state=5 result=0 port=0 slot=0 type=2 format=1 cards=4,0,0,0,1,0,0,0,
+[TS:MC-unit] tick=3 state=3 result=0 port=1 slot=0 type=2 format=1 cards=4,0,0,0,1,0,0,0,
+[MC] GetInfo port=1 type=2 free=8192 format=1 result=0[TS:MC-unit] tick=4 state=4 result=0 port=1 slot=0 type=2 format=1 cards=4,0,0,0,1,0,0,0,
+[MC] Sync cmd=1 result=0[TS:MC-unit] tick=5 state=5 result=0 port=1 slot=0 type=2 format=1 cards=4,0,0,0,4,0,0,0,
+[TS:MC-unit] tick=6 state=0 result=1 port=2 slot=0 type=2 format=1 cards=4,0,0,0,4,0,0,0,
+[TS:MC-unit] original card scan PASS in 7 ticks

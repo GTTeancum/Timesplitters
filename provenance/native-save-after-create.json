@@ -1,0 +1,14 @@
+{
+  "mc0/BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT": {
+    "size": 47000,
+    "sha256": "c67f1bc6cdcb6c09ea4ff1c865ff253e9846c3ffe193d44cfe5b167e4f52c192"
+  },
+  "mc0/BASLUS-20090-TS1-OPT/icon.sys": {
+    "size": 964,
+    "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+  },
+  "mc0/BASLUS-20090-TS1-OPT/tssave.ico": {
+    "size": 65720,
+    "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+  }
+}

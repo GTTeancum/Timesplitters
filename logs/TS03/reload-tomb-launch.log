@@ -1,0 +1,246 @@
+Original game files and ISO verified
+{
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 165.30829110500008,
+  "screenshots": [
+    "ts03-reload-tomb-002.png",
+    "ts03-reload-tomb-007.png",
+    "ts03-reload-tomb-012.png",
+    "ts03-reload-tomb-017.png",
+    "ts03-reload-tomb-022.png",
+    "ts03-reload-tomb-027.png",
+    "ts03-reload-tomb-032.png",
+    "ts03-reload-tomb-037.png",
+    "ts03-reload-tomb-042.png",
+    "ts03-reload-tomb-047.png",
+    "ts03-reload-tomb-052.png",
+    "ts03-reload-tomb-057.png",
+    "ts03-reload-tomb-062.png",
+    "ts03-reload-tomb-067.png",
+    "ts03-reload-tomb-072.png",
+    "ts03-reload-tomb-077.png",
+    "ts03-reload-tomb-082.png",
+    "ts03-reload-tomb-087.png",
+    "ts03-reload-tomb-092.png",
+    "ts03-reload-tomb-097.png",
+    "ts03-reload-tomb-102.png",
+    "ts03-reload-tomb-107.png",
+    "ts03-reload-tomb-112.png",
+    "ts03-reload-tomb-117.png",
+    "ts03-reload-tomb-122.png",
+    "ts03-reload-tomb-127.png",
+    "ts03-reload-tomb-132.png",
+    "ts03-reload-tomb-137.png",
+    "ts03-reload-tomb-142.png",
+    "ts03-reload-tomb-147.png",
+    "ts03-reload-tomb-152.png",
+    "ts03-reload-tomb-157.png",
+    "ts03-reload-tomb-162.png"
+  ],
+  "binary": "/mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/timesplitters",
+  "binary_sha256": "94259af10bc8a36bcd5953db9b774703f80597b199bec92ce504fbbd8d304e24",
+  "input": [
+    {
+      "requested": 35.0,
+      "actual": 35.02488074500002,
+      "action": "keydown",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 35.35,
+      "actual": 35.402452840000024,
+      "action": "keyup",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.0,
+      "actual": 44.018913310000016,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.35,
+      "actual": 44.39584960100001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.0,
+      "actual": 56.025042570000096,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.35,
+      "actual": 56.402386348000164,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.0,
+      "actual": 70.05404774000021,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.35,
+      "actual": 70.39130415300019,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.0,
+      "actual": 78.01857428400012,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.35,
+      "actual": 78.3989343090002,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.0,
+      "actual": 88.0215307410001,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.35,
+      "actual": 88.3999760170002,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.0,
+      "actual": 98.01982720600017,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.35,
+      "actual": 98.39735354800018,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 108.0,
+      "actual": 108.04743797300011,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 108.35,
+      "actual": 108.38371226100003,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 118.0,
+      "actual": 118.04215910700009,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 118.35,
+      "actual": 118.37911044700013,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 128.0,
+      "actual": 128.02863285700005,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 128.35,
+      "actual": 128.36708569500001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 138.0,
+      "actual": 138.0432182720001,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 138.35,
+      "actual": 138.3828060950002,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "undelivered": [],
+  "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+  "reference_pcsx2_run": false
+}

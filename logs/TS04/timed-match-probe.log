@@ -1,0 +1,801 @@
+Original game files and ISO verified
+{
+  "requested_seconds": 600,
+  "requested_input": [
+    {
+      "at": 35,
+      "key": "Return"
+    },
+    {
+      "at": 44,
+      "key": "x"
+    },
+    {
+      "at": 56,
+      "key": "x"
+    },
+    {
+      "at": 70,
+      "key": "x"
+    },
+    {
+      "at": 78,
+      "key": "x"
+    },
+    {
+      "at": 88,
+      "key": "x"
+    },
+    {
+      "at": 98,
+      "key": "x"
+    },
+    {
+      "at": 105,
+      "key": "Down",
+      "hold": 0.2
+    },
+    {
+      "at": 144.99,
+      "key": "Down",
+      "hold": 0.15
+    },
+    {
+      "at": 145.99,
+      "key": "Down",
+      "hold": 0.15
+    },
+    {
+      "at": 146.99,
+      "key": "Right",
+      "hold": 0.15
+    },
+    {
+      "at": 206.49,
+      "key": "Up",
+      "hold": 0.15
+    },
+    {
+      "at": 207.49,
+      "key": "Up",
+      "hold": 0.15
+    },
+    {
+      "at": 208.49,
+      "key": "Up",
+      "hold": 0.15
+    },
+    {
+      "at": 211.49,
+      "key": "x",
+      "hold": 0.35
+    },
+    {
+      "at": 220.49,
+      "key": "x",
+      "hold": 0.35
+    },
+    {
+      "at": 230.49,
+      "key": "x",
+      "hold": 0.35
+    },
+    {
+      "at": 356.23,
+      "key": "l",
+      "hold": 3.3
+    },
+    {
+      "at": 361.23,
+      "key": "w",
+      "hold": 8
+    },
+    {
+      "at": 362.23,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 363.73,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 365.23,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 366.73,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 368.23,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 369.73,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 371.23,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 372.73,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 374.23,
+      "key": "e",
+      "hold": 0.25
+    },
+    {
+      "at": 375.73,
+      "key": "e",
+      "hold": 0.25
+    }
+  ],
+  "live_input": true,
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 600.324393243,
+  "screenshots": [
+    "ts04-timed-match-002.png",
+    "ts04-timed-match-007.png",
+    "ts04-timed-match-012.png",
+    "ts04-timed-match-017.png",
+    "ts04-timed-match-022.png",
+    "ts04-timed-match-027.png",
+    "ts04-timed-match-032.png",
+    "ts04-timed-match-037.png",
+    "ts04-timed-match-042.png",
+    "ts04-timed-match-047.png",
+    "ts04-timed-match-052.png",
+    "ts04-timed-match-057.png",
+    "ts04-timed-match-062.png",
+    "ts04-timed-match-067.png",
+    "ts04-timed-match-072.png",
+    "ts04-timed-match-077.png",
+    "ts04-timed-match-082.png",
+    "ts04-timed-match-087.png",
+    "ts04-timed-match-092.png",
+    "ts04-timed-match-097.png",
+    "ts04-timed-match-102.png",
+    "ts04-timed-match-107.png",
+    "ts04-timed-match-112.png",
+    "ts04-timed-match-117.png",
+    "ts04-timed-match-122.png",
+    "ts04-timed-match-127.png",
+    "ts04-timed-match-132.png",
+    "ts04-timed-match-137.png",
+    "ts04-timed-match-142.png",
+    "ts04-timed-match-147.png",
+    "ts04-timed-match-152.png",
+    "ts04-timed-match-157.png",
+    "ts04-timed-match-162.png",
+    "ts04-timed-match-167.png",
+    "ts04-timed-match-172.png",
+    "ts04-timed-match-177.png",
+    "ts04-timed-match-182.png",
+    "ts04-timed-match-187.png",
+    "ts04-timed-match-192.png",
+    "ts04-timed-match-197.png",
+    "ts04-timed-match-202.png",
+    "ts04-timed-match-207.png",
+    "ts04-timed-match-212.png",
+    "ts04-timed-match-217.png",
+    "ts04-timed-match-222.png",
+    "ts04-timed-match-227.png",
+    "ts04-timed-match-232.png",
+    "ts04-timed-match-237.png",
+    "ts04-timed-match-242.png",
+    "ts04-timed-match-247.png",
+    "ts04-timed-match-252.png",
+    "ts04-timed-match-257.png",
+    "ts04-timed-match-262.png",
+    "ts04-timed-match-267.png",
+    "ts04-timed-match-272.png",
+    "ts04-timed-match-277.png",
+    "ts04-timed-match-282.png",
+    "ts04-timed-match-287.png",
+    "ts04-timed-match-292.png",
+    "ts04-timed-match-297.png",
+    "ts04-timed-match-302.png",
+    "ts04-timed-match-307.png",
+    "ts04-timed-match-312.png",
+    "ts04-timed-match-317.png",
+    "ts04-timed-match-322.png",
+    "ts04-timed-match-327.png",
+    "ts04-timed-match-332.png",
+    "ts04-timed-match-337.png",
+    "ts04-timed-match-342.png",
+    "ts04-timed-match-347.png",
+    "ts04-timed-match-352.png",
+    "ts04-timed-match-357.png",
+    "ts04-timed-match-362.png",
+    "ts04-timed-match-367.png",
+    "ts04-timed-match-372.png",
+    "ts04-timed-match-377.png",
+    "ts04-timed-match-382.png",
+    "ts04-timed-match-387.png",
+    "ts04-timed-match-392.png",
+    "ts04-timed-match-397.png",
+    "ts04-timed-match-402.png",
+    "ts04-timed-match-407.png",
+    "ts04-timed-match-412.png",
+    "ts04-timed-match-417.png",
+    "ts04-timed-match-422.png",
+    "ts04-timed-match-427.png",
+    "ts04-timed-match-432.png",
+    "ts04-timed-match-437.png",
+    "ts04-timed-match-442.png",
+    "ts04-timed-match-447.png",
+    "ts04-timed-match-452.png",
+    "ts04-timed-match-457.png",
+    "ts04-timed-match-462.png",
+    "ts04-timed-match-467.png",
+    "ts04-timed-match-472.png",
+    "ts04-timed-match-477.png",
+    "ts04-timed-match-482.png",
+    "ts04-timed-match-487.png",
+    "ts04-timed-match-492.png",
+    "ts04-timed-match-497.png",
+    "ts04-timed-match-502.png",
+    "ts04-timed-match-507.png",
+    "ts04-timed-match-512.png",
+    "ts04-timed-match-517.png",
+    "ts04-timed-match-522.png",
+    "ts04-timed-match-527.png",
+    "ts04-timed-match-532.png",
+    "ts04-timed-match-537.png",
+    "ts04-timed-match-542.png",
+    "ts04-timed-match-547.png",
+    "ts04-timed-match-552.png",
+    "ts04-timed-match-557.png",
+    "ts04-timed-match-562.png",
+    "ts04-timed-match-567.png",
+    "ts04-timed-match-572.png",
+    "ts04-timed-match-577.png",
+    "ts04-timed-match-582.png",
+    "ts04-timed-match-587.png",
+    "ts04-timed-match-592.png",
+    "ts04-timed-match-597.png"
+  ],
+  "binary": "/mnt/data/TimeSplitters_TS04_Checkpoint/build/timesplitters/timesplitters",
+  "binary_sha256": "ee7f86bcc76a4732ad4d23ef9fa91d5266c399b6c423ee42e4e3faf332cd9cf5",
+  "binary_sha256_after": "ee7f86bcc76a4732ad4d23ef9fa91d5266c399b6c423ee42e4e3faf332cd9cf5",
+  "binary_unchanged_during_run": true,
+  "input": [
+    {
+      "requested": 35.0,
+      "actual": 35.02294617300004,
+      "action": "keydown",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 35.35,
+      "actual": 35.40117201399994,
+      "action": "keyup",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.0,
+      "actual": 44.042641343000014,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.35,
+      "actual": 44.38111925099997,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.0,
+      "actual": 56.049009180999974,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.35,
+      "actual": 56.38692274499999,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.0,
+      "actual": 70.03859141199996,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.35,
+      "actual": 70.37703861199998,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.0,
+      "actual": 78.03023391400006,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.35,
+      "actual": 78.36868408100008,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.0,
+      "actual": 88.02534112099988,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.35,
+      "actual": 88.40448946400011,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.0,
+      "actual": 98.05332153199993,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.35,
+      "actual": 98.39611771399996,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 105.0,
+      "actual": 105.03873685500002,
+      "action": "keydown",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 105.2,
+      "actual": 105.25584806699999,
+      "action": "keyup",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 144.99,
+      "actual": 145.01209119600003,
+      "action": "keydown",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 145.14000000000001,
+      "actual": 145.18878383800006,
+      "action": "keyup",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 145.99,
+      "actual": 146.01447508399997,
+      "action": "keydown",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 146.14000000000001,
+      "actual": 146.19160545399995,
+      "action": "keyup",
+      "key": "Down",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 146.99,
+      "actual": 147.01898551499994,
+      "action": "keydown",
+      "key": "Right",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 147.14000000000001,
+      "actual": 147.1880084469999,
+      "action": "keyup",
+      "key": "Right",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 206.49,
+      "actual": 206.514386673,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 206.64000000000001,
+      "actual": 206.69166582499997,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 207.49,
+      "actual": 207.51203183999996,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 207.64000000000001,
+      "actual": 207.6912479969999,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 208.49,
+      "actual": 208.5220786970001,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 208.64000000000001,
+      "actual": 208.6590276689999,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 211.49,
+      "actual": 211.5092094889999,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 211.84,
+      "actual": 211.88923200699992,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 220.49,
+      "actual": 220.51501522700005,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 220.84,
+      "actual": 220.89372566499992,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 230.49,
+      "actual": 230.51516317100004,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 230.84,
+      "actual": 230.89411001300005,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 356.23,
+      "actual": 356.254608252,
+      "action": "keydown",
+      "key": "l",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 359.53000000000003,
+      "actual": 359.571529306,
+      "action": "keyup",
+      "key": "l",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 361.23,
+      "actual": 361.2552138839999,
+      "action": "keydown",
+      "key": "w",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 362.23,
+      "actual": 362.27569915699996,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 362.48,
+      "actual": 362.53525618599997,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 363.73,
+      "actual": 363.7721471110001,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 363.98,
+      "actual": 364.0380691790001,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 365.23,
+      "actual": 365.27798444099994,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 365.48,
+      "actual": 365.49607297500006,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 366.73,
+      "actual": 366.780359439,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 366.98,
+      "actual": 367.01384072199994,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 368.23,
+      "actual": 368.26656865099994,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 368.48,
+      "actual": 368.5391522279999,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 369.23,
+      "actual": 369.249257427,
+      "action": "keyup",
+      "key": "w",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 369.73,
+      "actual": 369.75375029199995,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 369.98,
+      "actual": 370.01592507300006,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 371.23,
+      "actual": 371.25054361599996,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 371.48,
+      "actual": 371.50940115000003,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 372.73,
+      "actual": 372.7699658270001,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 372.98,
+      "actual": 373.03566623999995,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 374.23,
+      "actual": 374.2764514170001,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 374.48,
+      "actual": 374.49691585899996,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 375.73,
+      "actual": 375.7546998979999,
+      "action": "keydown",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 375.98,
+      "actual": 376.02937064,
+      "action": "keyup",
+      "key": "e",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "undelivered": [],
+  "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+  "reference_pcsx2_run": false
+}

@@ -1,0 +1,165 @@
+{
+  "capture_sha256": "15a223742931a4e714f3462a024bb9b0c587633ccca887bb3b4fb8b831241ca4",
+  "capture_bytes": 33554432,
+  "original_elf_sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+  "kind": "stopped-RAM structural analysis; not native gameplay evidence",
+  "lists": [
+    {
+      "start": "0x100000",
+      "tag_count": 4596,
+      "payload_bytes": 288672,
+      "tag_kinds": {
+        "3": 4595,
+        "7": 1
+      },
+      "old_4096_limit_next_tadr": "0x110000",
+      "last_tag": {
+        "index": 4595,
+        "tag": "0x111f30",
+        "qwc": 0,
+        "id": 7,
+        "payload": "0x111f40",
+        "reference": "0x0",
+        "tag_hi": "0x0",
+        "payload_first_words": []
+      },
+      "last_three_tags": [
+        {
+          "index": 4593,
+          "tag": "0x111f10",
+          "qwc": 3,
+          "id": 3,
+          "payload": "0x1dc4350",
+          "reference": "0x1dc4350",
+          "tag_hi": "0x0",
+          "payload_first_words": [
+            "6c028000",
+            "00008001",
+            "10000000",
+            "0000000e",
+            "00000000",
+            "027f0000",
+            "00df0000",
+            "00000040",
+            "00000000",
+            "140007fc",
+            "11000000",
+            "00000000"
+          ]
+        },
+        {
+          "index": 4594,
+          "tag": "0x111f20",
+          "qwc": 3,
+          "id": 3,
+          "payload": "0x1dc4380",
+          "reference": "0x1dc4380",
+          "tag_hi": "0x0",
+          "payload_first_words": [
+            "6c028000",
+            "00008001",
+            "10000000",
+            "0000000e",
+            "00000000",
+            "00000000",
+            "00000000",
+            "00000060",
+            "00000000",
+            "140007fc",
+            "11000000",
+            "00000000"
+          ]
+        },
+        {
+          "index": 4595,
+          "tag": "0x111f30",
+          "qwc": 0,
+          "id": 7,
+          "payload": "0x111f40",
+          "reference": "0x0",
+          "tag_hi": "0x0",
+          "payload_first_words": []
+        }
+      ]
+    },
+    {
+      "start": "0x1ec1f80",
+      "tag_count": 4596,
+      "payload_bytes": 288672,
+      "tag_kinds": {
+        "3": 4595,
+        "7": 1
+      },
+      "old_4096_limit_next_tadr": "0x1ed1f80",
+      "last_tag": {
+        "index": 4595,
+        "tag": "0x1ed3eb0",
+        "qwc": 0,
+        "id": 7,
+        "payload": "0x1ed3ec0",
+        "reference": "0x0",
+        "tag_hi": "0x0",
+        "payload_first_words": []
+      },
+      "last_three_tags": [
+        {
+          "index": 4593,
+          "tag": "0x1ed3e90",
+          "qwc": 3,
+          "id": 3,
+          "payload": "0x1d84350",
+          "reference": "0x1d84350",
+          "tag_hi": "0x0",
+          "payload_first_words": [
+            "6c028000",
+            "00008001",
+            "10000000",
+            "0000000e",
+            "00000000",
+            "027f0000",
+            "00df0000",
+            "00000040",
+            "00000000",
+            "140007fc",
+            "11000000",
+            "00000000"
+          ]
+        },
+        {
+          "index": 4594,
+          "tag": "0x1ed3ea0",
+          "qwc": 3,
+          "id": 3,
+          "payload": "0x1d84380",
+          "reference": "0x1d84380",
+          "tag_hi": "0x0",
+          "payload_first_words": [
+            "6c028000",
+            "00008001",
+            "10000000",
+            "0000000e",
+            "00000000",
+            "00000000",
+            "00000000",
+            "00000060",
+            "00000000",
+            "140007fc",
+            "11000000",
+            "00000000"
+          ]
+        },
+        {
+          "index": 4595,
+          "tag": "0x1ed3eb0",
+          "qwc": 0,
+          "id": 7,
+          "payload": "0x1ed3ec0",
+          "reference": "0x0",
+          "tag_hi": "0x0",
+          "payload_first_words": []
+        }
+      ]
+    }
+  ],
+  "numdmafail": 0
+}

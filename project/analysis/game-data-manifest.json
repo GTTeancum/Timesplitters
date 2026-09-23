@@ -1,0 +1,296 @@
+[
+  {
+    "path": "MUSIC/1001.MSC",
+    "size": 9173888,
+    "lba": 58522,
+    "sha256": "07dedae59573363333f6bca44fbc247dd7472fe9ffa43656081530f9d70f43ff"
+  },
+  {
+    "path": "MUSIC/1002.MSC",
+    "size": 14150368,
+    "lba": 63002,
+    "sha256": "562b99d6632124d8ba53860cecfa0ccb4d4d3505c8c148e58b3d86d6a52eb72e"
+  },
+  {
+    "path": "MUSIC/1003.MSC",
+    "size": 10696416,
+    "lba": 69912,
+    "sha256": "a969af215b9d7bfe34af4285ef4cfd6eff494a0a32691e5db74e5bf1a3086529"
+  },
+  {
+    "path": "MUSIC/1004.MSC",
+    "size": 14003520,
+    "lba": 75135,
+    "sha256": "05d866a9f7e2ed5e8fa3882812d4a7b9a13a607dd60deee817679b830e5350f6"
+  },
+  {
+    "path": "MUSIC/1005.MSC",
+    "size": 13296960,
+    "lba": 81973,
+    "sha256": "758cd8a2dbe901e4c094fcd36621bc761a94c795fdb84ec6c12ef76f68519517"
+  },
+  {
+    "path": "MUSIC/1006.MSC",
+    "size": 17423232,
+    "lba": 88466,
+    "sha256": "1e816b5284929665730fe9bab242a68e51513955fe508805f873d7d2d40e786e"
+  },
+  {
+    "path": "MUSIC/1007.MSC",
+    "size": 6184544,
+    "lba": 96974,
+    "sha256": "229b85ca45aa5ee4313a461092283445ae0ba605a8535879678f10c377026678"
+  },
+  {
+    "path": "MUSIC/1008.MSC",
+    "size": 15425088,
+    "lba": 99994,
+    "sha256": "bc5f5428ed943c4fdd5f5fd825cf7875888fd410ad2218cbe398e1ebfad5ed6e"
+  },
+  {
+    "path": "MUSIC/1009.MSC",
+    "size": 13384576,
+    "lba": 107526,
+    "sha256": "9706cd389d5d151b642c146d1d4b2599e498d33de60c78266ba467247c5cff82"
+  },
+  {
+    "path": "MUSIC/1010.MSC",
+    "size": 14179200,
+    "lba": 114062,
+    "sha256": "733cdf6f32351f04c47ad17f338505ce2db37be0f37cb13dd2581f6e8088779d"
+  },
+  {
+    "path": "MUSIC/1011.MSC",
+    "size": 12105440,
+    "lba": 120986,
+    "sha256": "bed543d83f33a667776e1f6c3f7c47b0b75be08b0472ed5809cb58560362cc7c"
+  },
+  {
+    "path": "MUSIC/1012.MSC",
+    "size": 12072672,
+    "lba": 126897,
+    "sha256": "d368196b4094b87fd3e2a9453969abbafd52e9be2e5b5d370159ecfb6c78b6c7"
+  },
+  {
+    "path": "MUSIC/1013.MSC",
+    "size": 10490464,
+    "lba": 132792,
+    "sha256": "0b042e4e170384961d7c1a9ee4786356d8e112cf62a00c7a2cad37574b401bd5"
+  },
+  {
+    "path": "MUSIC/1014.MSC",
+    "size": 14361760,
+    "lba": 137915,
+    "sha256": "8a754fa5aa429dc11f495e3348687d95eb80109a369c3aa91ff3eb4162d2895a"
+  },
+  {
+    "path": "MUSIC/1015.MSC",
+    "size": 15985824,
+    "lba": 144928,
+    "sha256": "de024841db874e6e06073779924ade9da3e8ae2d8923e4f0ca2fa5398e98c555"
+  },
+  {
+    "path": "MUSIC/1016.MSC",
+    "size": 11443072,
+    "lba": 152734,
+    "sha256": "922c7a923817ebac24209d0555015c85ef3ac47d59b8e238b03f72878de417d5"
+  },
+  {
+    "path": "MUSIC/1017.MSC",
+    "size": 12249408,
+    "lba": 158322,
+    "sha256": "ece4595a6b56d2959807c3c16916973eca644a2be8f732f9b888e79e2b4dafb5"
+  },
+  {
+    "path": "MUSIC/1018.MSC",
+    "size": 14804416,
+    "lba": 164304,
+    "sha256": "9319bf0b51874c66401de529aeecfb19d55b15a1096931f546fce0f265f0e24b"
+  },
+  {
+    "path": "MUSIC/1019.MSC",
+    "size": 4558368,
+    "lba": 171533,
+    "sha256": "ba6f9c3b5c57411feca23b287918a125b39d98689ae1a88963dd60d41a5a03bb"
+  },
+  {
+    "path": "MUSIC/1020.MSC",
+    "size": 16768320,
+    "lba": 173759,
+    "sha256": "b21f409640ec05afc480635aa72750b86bff2d2633bc7e1ae11d4ca194632290"
+  },
+  {
+    "path": "MUSIC/1021.MSC",
+    "size": 23560192,
+    "lba": 181947,
+    "sha256": "2a01e7284e635a6ad5b9d1b9c4c2d1fcce1b771995b8f23d10e2cf3995534b43"
+  },
+  {
+    "path": "MUSIC/1022.MSC",
+    "size": 13389632,
+    "lba": 193451,
+    "sha256": "57474223829ab338f7a0e0a60be866f16cdd6401712b2285246e1c6d37ea0388"
+  },
+  {
+    "path": "MUSIC/1023.MSC",
+    "size": 10188512,
+    "lba": 199989,
+    "sha256": "09f049343b5b079c1a5ddd413f992b34cf7711ac7acb7e670e32faa18c3b9c0c"
+  },
+  {
+    "path": "MUSIC/1024.MSC",
+    "size": 13753792,
+    "lba": 204964,
+    "sha256": "9352c1aa5a01c53591178b3d4893c10fee7dab1627ca7cfbb030d843b8f3c199"
+  },
+  {
+    "path": "MUSIC/1025.MSC",
+    "size": 9954464,
+    "lba": 211680,
+    "sha256": "0c691af41752b134ecc719731ab775ea9c727c735b26b0b925bd6ae6cf92c7ca"
+  },
+  {
+    "path": "MUSIC/1026.MSC",
+    "size": 20498656,
+    "lba": 216541,
+    "sha256": "8832b28c86545f7792d13ae8ea12f0433830701b2f8d46173514866cf6d42f53"
+  },
+  {
+    "path": "MUSIC/1027.MSC",
+    "size": 15724608,
+    "lba": 226551,
+    "sha256": "230882c375453b838398fd7da926f1e9ef3dee21ffd025a7799d914d86c4c5f6"
+  },
+  {
+    "path": "SYSTEM.CNF",
+    "size": 54,
+    "lba": 234230,
+    "sha256": "0788cb530969ec7c870f83273cf56d1822131ce230c04067b4762c93bad30116"
+  },
+  {
+    "path": "SLUS_200.90",
+    "size": 2606981,
+    "lba": 234231,
+    "sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2"
+  },
+  {
+    "path": "MODULES/SIO2MAN.IRX",
+    "size": 8317,
+    "lba": 235504,
+    "sha256": "fa44aef107303259ce368bec3b29e178d94a94590a2a45b78a7c9ee1a7c847fe"
+  },
+  {
+    "path": "MODULES/MTAPMAN.IRX",
+    "size": 9909,
+    "lba": 235509,
+    "sha256": "1bdb17a5fae593f1a4a54cc489d24d73e8aff9ff36d005ad0f834106d57f2f95"
+  },
+  {
+    "path": "MODULES/PADMAN.IRX",
+    "size": 42613,
+    "lba": 235514,
+    "sha256": "c2514a59224fd3960336863d9647303c6fa76f224e07aec431a5faae33b2a5f7"
+  },
+  {
+    "path": "MODULES/MCMAN.IRX",
+    "size": 82021,
+    "lba": 235535,
+    "sha256": "33e9984cec99b621328a1ad0d7acf8228a237e3558e49bc6b2aad617599f797e"
+  },
+  {
+    "path": "MODULES/MCSERV.IRX",
+    "size": 5865,
+    "lba": 235576,
+    "sha256": "bd89336fdcf9e0ecce2537c40d3d21e015837582e67dc81b99b7d961d22cd637"
+  },
+  {
+    "path": "MODULES/LIBSD.IRX",
+    "size": 24909,
+    "lba": 235579,
+    "sha256": "6213d7446c88b5f26a5af5a3bcef7358f69db5f851e4e88a8695a28af75cfda5"
+  },
+  {
+    "path": "MODULES/SDRDRV.IRX",
+    "size": 6865,
+    "lba": 235592,
+    "sha256": "e3bd5e97f1a8fe3062586ee5bfc852cf38dfaf8520aee1067a5213c2cffe2f5e"
+  },
+  {
+    "path": "MODULES/IOP.IMG",
+    "size": 98901,
+    "lba": 235596,
+    "sha256": "9a3f9d337a23c71ade451e95f7fd03e038f4cc4b21d47b3032c57591c83a4557"
+  },
+  {
+    "path": "MODULES/STREAM.IRX",
+    "size": 56312,
+    "lba": 235645,
+    "sha256": "066fe242d0c9094907adaeb14ec4ee5644e1fe0ad84a5e88997879eea2d4b99e"
+  },
+  {
+    "path": "PAK/ANIM.PAK",
+    "size": 6800436,
+    "lba": 235673,
+    "sha256": "a269f67c39c006f24aa36defb32614c1a2fbb9c658f8036bb05c2bc8d0c0b120"
+  },
+  {
+    "path": "PAK/FRONTEND.PAK",
+    "size": 18525772,
+    "lba": 238994,
+    "sha256": "d72db95f40b7ed965ba4b1b56a6c0a279eead6433d7a9697ebdd8e86d82a776b"
+  },
+  {
+    "path": "PAK/BG.PAK",
+    "size": 24516180,
+    "lba": 248040,
+    "sha256": "d1af1522570fa25cc2e0e8576167e5fd7d69c2d07364aeac6802a1fd62e0fe5d"
+  },
+  {
+    "path": "PAK/OB.PAK",
+    "size": 20607696,
+    "lba": 260011,
+    "sha256": "ac8da1370ef2bdfaba7fe3663e4d34858ee409d2cb240f2ab05bcbf43fd74f9c"
+  },
+  {
+    "path": "PAK/MISC.PAK",
+    "size": 25051500,
+    "lba": 270074,
+    "sha256": "534ab432a7d27004e045ced7349782ae02c35e03ae789d18ba71a2c6683d9c4d"
+  },
+  {
+    "path": "PAK/SFX.PAK",
+    "size": 18082420,
+    "lba": 282307,
+    "sha256": "8ca69f56d1de782424a183d72ddef521f8e120a65fcca3751bc35b24e5d3150f"
+  },
+  {
+    "path": "1.",
+    "size": 29949000,
+    "lba": 26,
+    "sha256": "eac5008325a7926677335e11be794e10e98701cf2f1d76ad163c0cda6f573cad"
+  },
+  {
+    "path": "2.",
+    "size": 29949000,
+    "lba": 14650,
+    "sha256": "eac5008325a7926677335e11be794e10e98701cf2f1d76ad163c0cda6f573cad"
+  },
+  {
+    "path": "3.",
+    "size": 29949000,
+    "lba": 29274,
+    "sha256": "eac5008325a7926677335e11be794e10e98701cf2f1d76ad163c0cda6f573cad"
+  },
+  {
+    "path": "4.",
+    "size": 29949000,
+    "lba": 43898,
+    "sha256": "eac5008325a7926677335e11be794e10e98701cf2f1d76ad163c0cda6f573cad"
+  },
+  {
+    "path": "ZDATA1.",
+    "size": 29949000,
+    "lba": 291137,
+    "sha256": "eac5008325a7926677335e11be794e10e98701cf2f1d76ad163c0cda6f573cad"
+  }
+]

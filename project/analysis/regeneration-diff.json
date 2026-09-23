@@ -1,0 +1,17 @@
+[
+  {
+    "path": "ps2_recompiled_stubs.h",
+    "before": "30b83dd0b781c2e5e8c993478eba9ade795d0a4de380baa0dce61cdc074ef8e7",
+    "after": "10e8be1ea56e5489f306f5ae3c67ead3fae11d84878c5efd09f064321cf3fc22"
+  },
+  {
+    "path": "register_functions.cpp",
+    "before": "3c6d6fbc4254d5c6b8c9e3653494a7be14ab7d430ea4c57ad34e3afdf7c448b4",
+    "after": "eb96d32ec293e04c2fba077992afba3ec451363a17cda0fdef77c663c17d3d38"
+  },
+  {
+    "path": "sceSdTransToIOP_0x2dd990.cpp",
+    "before": "f5b141b344f5a45ae65c94e4596b3caac36712cfaf2d77877f94714495770f28",
+    "after": "df9a81ce5c4bcd788e57cecb71a4b1354c688ecfee6f0dd20270d67cd71633e5"
+  }
+]

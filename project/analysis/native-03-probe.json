@@ -1,0 +1,9 @@
+{
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 15.30255803099999,
+  "screenshots": [],
+  "binary": "/mnt/data/TimeSplitters-Dependencies/build/PS2Recomp/timesplitters/timesplitters",
+  "native_ee": true,
+  "reference_pcsx2_run": false
+}

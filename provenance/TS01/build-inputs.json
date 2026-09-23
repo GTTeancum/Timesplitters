@@ -1,0 +1,53 @@
+{
+  "checkpoint": "TS01",
+  "date": "2026-09-22",
+  "dependency_volumes": [
+    {
+      "name": "TimeSplitters-Dependencies-001.zip",
+      "size": 366414199,
+      "sha256": "43dab16f85695bf1c0148b2518e90d4e5fdae2e6d7583b94619417d04d89fae7"
+    },
+    {
+      "name": "TimeSplitters-Dependencies-002.zip",
+      "size": 365629359,
+      "sha256": "32f7f6ec748de7fcfd91e6ca444f43d9c5e8bc4980c1adf28525369c6c1846c0"
+    },
+    {
+      "name": "TimeSplitters-Dependencies-003.zip",
+      "size": 300852733,
+      "sha256": "f084eb76bdab7790fc1eb3f7365b12e6d7f78647c59abdecf389614bcc057713"
+    },
+    {
+      "name": "TimeSplitters-Dependencies-004.zip",
+      "size": 268435726,
+      "sha256": "cb3a7e7cf5259988504a68a85f582ccd719471be0a30c8c769b925fc6f594ef2"
+    },
+    {
+      "name": "TimeSplitters-Dependencies-005.zip",
+      "size": 167710025,
+      "sha256": "ffffbf005c8257c9b4f0e1feb458f8bb4bb6da15c145209b67b6f30862a023ea"
+    }
+  ],
+  "logical_bundle_files": 852,
+  "source_repositories": 21,
+  "source_lock": "source-lock.json",
+  "recompiler_commit": "75d729ce40d7eed9649fd4bb05628dee520f3d0c",
+  "pcsx2_reference_commit": "650d7048561756cdbfea60ee65282074a38eefa1",
+  "pcsx2_built_or_executed": false,
+  "original_archive_sha256": "beb36e65408aacfb735fd0801dc77d69388d51101a6b8341c16c799d3202bb73",
+  "original_elf_sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+  "codegen": {
+    "functions_discovered": 2670,
+    "original_ee_bodies": 2374,
+    "automatic_sdk_libc_wrappers": 296,
+    "explicit_skips": 0,
+    "unhandled_instructions": 0,
+    "errors": 0,
+    "warnings": 78,
+    "indirect_entry_promotions": 16154,
+    "original_code_overrides": [
+      "fread",
+      "sceSdTransToIOP"
+    ]
+  }
+}

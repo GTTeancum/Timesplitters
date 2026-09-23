@@ -1,0 +1,195 @@
+{
+  "ts05-format": {
+    "requested_seconds": 400,
+    "elapsed_seconds": 400.4566390140001,
+    "returncode": 10,
+    "outer_killed": false,
+    "binary_sha256": "faf206065a69b5732f70a956f8510ef12ec13562e341578beba0fad17cf4d00d",
+    "binary_sha256_after": "faf206065a69b5732f70a956f8510ef12ec13562e341578beba0fad17cf4d00d",
+    "binary_unchanged_during_run": true,
+    "reference_pcsx2_run": false,
+    "exact_packaged_binary": false,
+    "delivered_key_edges": 74,
+    "undelivered_key_edges": 0,
+    "all_key_edges_succeeded": true,
+    "dma_warning_count": 0,
+    "original_numdmafail": 0,
+    "native_evidence": "project/diagnostics/ts05-format-probe.json",
+    "screenshots": 80,
+    "stopped_combat_observation": "project/analysis/TS05/ts05-format-counters.json"
+  },
+  "ts05-story-candidate": {
+    "requested_seconds": 300,
+    "elapsed_seconds": 300.46833139599994,
+    "returncode": 10,
+    "outer_killed": false,
+    "binary_sha256": "104998e0e7e0f3f0c6dca364c0396f20566ca01cb35157807e276a0ab2af1a05",
+    "binary_sha256_after": "104998e0e7e0f3f0c6dca364c0396f20566ca01cb35157807e276a0ab2af1a05",
+    "binary_unchanged_during_run": true,
+    "reference_pcsx2_run": false,
+    "exact_packaged_binary": false,
+    "delivered_key_edges": 20,
+    "undelivered_key_edges": 0,
+    "all_key_edges_succeeded": true,
+    "dma_warning_count": 0,
+    "original_numdmafail": 0,
+    "native_evidence": "project/diagnostics/ts05-story-candidate-probe.json",
+    "screenshots": 60,
+    "stopped_combat_observation": "project/analysis/TS05/ts05-story-candidate-counters.json",
+    "sound_memory": {
+      "label": "ts05-story-candidate",
+      "transfers": 164,
+      "all_recorded_copies_succeeded": true,
+      "physical_bytes_sum": 1507072,
+      "stopped_backend_counters": {
+        "writes": 164,
+        "bytes_written": 1507072,
+        "reads": 0,
+        "bytes_read": 0
+      },
+      "spu_dump_sha256": "4227e9e1a0b47f83164fb1f7018b3a11c279628d663bcee4e010599f01a06401",
+      "spu_nonzero_bytes": 1293211,
+      "mixing_or_output_verified": false,
+      "last_transfer": {
+        "core": 1,
+        "iop_address": 1223424,
+        "spu_address": 1365840,
+        "requested": 64,
+        "mode": 0,
+        "copied": true,
+        "physical": 64
+      },
+      "last_transfer_source_survives_and_matches_destination": true,
+      "last_transfer_iop_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4",
+      "last_transfer_spu_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4"
+    }
+  },
+  "ts05-final-story": {
+    "requested_seconds": 900,
+    "elapsed_seconds": 900.3800791540002,
+    "returncode": 10,
+    "outer_killed": false,
+    "binary_sha256": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+    "binary_sha256_after": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+    "binary_unchanged_during_run": true,
+    "reference_pcsx2_run": false,
+    "exact_packaged_binary": true,
+    "delivered_key_edges": 38,
+    "undelivered_key_edges": 0,
+    "all_key_edges_succeeded": true,
+    "dma_warning_count": 0,
+    "original_numdmafail": 0,
+    "native_evidence": "project/diagnostics/ts05-final-story-probe.json",
+    "screenshots": 180,
+    "stopped_combat_observation": "project/analysis/TS05/ts05-final-story-counters.json",
+    "sound_memory": {
+      "label": "ts05-final-story",
+      "transfers": 164,
+      "all_recorded_copies_succeeded": true,
+      "physical_bytes_sum": 1507072,
+      "stopped_backend_counters": {
+        "writes": 164,
+        "bytes_written": 1507072,
+        "reads": 0,
+        "bytes_read": 0
+      },
+      "spu_dump_sha256": "4227e9e1a0b47f83164fb1f7018b3a11c279628d663bcee4e010599f01a06401",
+      "spu_nonzero_bytes": 1293211,
+      "mixing_or_output_verified": false,
+      "last_transfer": {
+        "core": 1,
+        "iop_address": 1223424,
+        "spu_address": 1365840,
+        "requested": 64,
+        "mode": 0,
+        "copied": true,
+        "physical": 64
+      },
+      "last_transfer_source_survives_and_matches_destination": true,
+      "last_transfer_iop_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4",
+      "last_transfer_spu_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4"
+    },
+    "card_fixture_unchanged": true,
+    "card_files_after": [
+      {
+        "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+        "size": 47000,
+        "sha256": "01a31d22aeba9605be19f78de6f8eeb389a72d32a024a2e6ac92a3c3bd9d7b6d"
+      },
+      {
+        "path": "BASLUS-20090-TS1-OPT/icon.sys",
+        "size": 964,
+        "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+      },
+      {
+        "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+        "size": 65720,
+        "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+      }
+    ]
+  },
+  "ts05-final-arcade": {
+    "requested_seconds": 300,
+    "elapsed_seconds": 300.34907889999977,
+    "returncode": 10,
+    "outer_killed": false,
+    "binary_sha256": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+    "binary_sha256_after": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+    "binary_unchanged_during_run": true,
+    "reference_pcsx2_run": false,
+    "exact_packaged_binary": true,
+    "delivered_key_edges": 50,
+    "undelivered_key_edges": 0,
+    "all_key_edges_succeeded": true,
+    "dma_warning_count": 0,
+    "original_numdmafail": 0,
+    "native_evidence": "project/diagnostics/ts05-final-arcade-probe.json",
+    "screenshots": 60,
+    "stopped_combat_observation": "project/analysis/TS05/ts05-final-arcade-counters.json",
+    "sound_memory": {
+      "label": "ts05-final-arcade",
+      "transfers": 168,
+      "all_recorded_copies_succeeded": true,
+      "physical_bytes_sum": 1543488,
+      "stopped_backend_counters": {
+        "writes": 168,
+        "bytes_written": 1543488,
+        "reads": 0,
+        "bytes_read": 0
+      },
+      "spu_dump_sha256": "b161374930a94b3571df72da87b38050326e040ba75d320584591c1018fb44da",
+      "spu_nonzero_bytes": 1319044,
+      "mixing_or_output_verified": false,
+      "last_transfer": {
+        "core": 1,
+        "iop_address": 1223488,
+        "spu_address": 1736704,
+        "requested": 17136,
+        "mode": 0,
+        "copied": true,
+        "physical": 17152
+      },
+      "last_transfer_source_survives_and_matches_destination": true,
+      "last_transfer_iop_sha256": "9a3396e22f5002bb2bed6033b2d783a4416fb3a698af13b5f110b0e572f4db02",
+      "last_transfer_spu_sha256": "9a3396e22f5002bb2bed6033b2d783a4416fb3a698af13b5f110b0e572f4db02"
+    },
+    "card_fixture_unchanged": true,
+    "card_files_after": [
+      {
+        "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+        "size": 47000,
+        "sha256": "01a31d22aeba9605be19f78de6f8eeb389a72d32a024a2e6ac92a3c3bd9d7b6d"
+      },
+      {
+        "path": "BASLUS-20090-TS1-OPT/icon.sys",
+        "size": 964,
+        "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+      },
+      {
+        "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+        "size": 65720,
+        "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+      }
+    ]
+  }
+}

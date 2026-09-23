@@ -1,0 +1,17 @@
+{
+  "checkpoint": "TS05",
+  "kind": "source",
+  "foundation": "actual verified TS04 archive",
+  "foundation_sha256": "094609f900457ac8998481ca17997596ff6a91430b74b807f16b1a65c2bf8718",
+  "full_disc_assets_included": false,
+  "dependency_downloads_included": false,
+  "font_files_included": false,
+  "native_host_binaries_included": false,
+  "native_images_selected_RAM_included": false,
+  "native_card_fixtures_included": false,
+  "original_analysis_ELF_modules_included": true,
+  "build_intermediates_included": false,
+  "clean_build_checks_passed": 705,
+  "checks_available_after_build": 703,
+  "note": "Source-only skips the two omitted captured-RAM DMA replays. Sound RAM transfers are not working voice mixing or audio output."
+}

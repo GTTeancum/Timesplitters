@@ -1,0 +1,207 @@
+{
+  "checkpoint": "TS04",
+  "date": "2026-09-22",
+  "foundation": "byte-verified TS03 full checkpoint; no missing source in this continuation",
+  "ts03_archive_sha256": "a75a8337afa7d8eb4832c863265db52d17693db000d7270918f01912dc4dd6cc",
+  "original_elf_sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+  "ps2recomp_base": "75d729ce40d7eed9649fd4bb05628dee520f3d0c",
+  "pcsx2_reference": "650d7048561756cdbfea60ee65282074a38eefa1",
+  "pcsx2_built_run_or_linked": false,
+  "native_identity": {
+    "ps2_recomp": {
+      "size": 15532496,
+      "sha256": "f15b6a78917b46ff2b8997a2bae1719d1b8bda19a09f583571567c5ce34629b3"
+    },
+    "timesplitters": {
+      "size": 86253912,
+      "sha256": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17"
+    },
+    "timesplitters_dma_replay": {
+      "size": 1888032,
+      "sha256": "e4308ccdf6b03476a26e742f5795eb5861f656449496ce24f7bcbba4b19ac249"
+    }
+  },
+  "checks": {
+    "core": 462,
+    "IOP": 4,
+    "GS_cache": 45,
+    "original_EE_ABI": 4,
+    "original_EE_image_DMA": 10,
+    "original_EE_card_scan": 1,
+    "original_EE_soft_double": 24,
+    "original_EE_normalization": 12,
+    "original_EE_matrix": 36,
+    "Python_probe_and_capture_helpers": 13,
+    "captured_original_DMA_chains": 2
+  },
+  "total_checks_passed": 613,
+  "fresh_clean_build": true,
+  "generated_files": 2673,
+  "generated_files_reproduced_byte_identical": true,
+  "original_EE_bodies": 2376,
+  "automatic_SDK_wrappers": 294,
+  "generation_warnings": 78,
+  "explicit_skips": 0,
+  "decode_failures": 0,
+  "unhandled_instruction_errors": 0,
+  "cumulative_framework_changed_files": 29,
+  "framework_changed_files_since_TS03": 2,
+  "all_packaged_framework_files_reproduced_by_patch": 295,
+  "fixes": [
+    "Execute actual terminating DMA lists past old 4096-tag cutoff; reject repeated full control states before partial submission",
+    "Preserve recompiled original sceVu0MulMatrix: replacement HLE reversed operand order"
+  ],
+  "first_alarm_capture": {
+    "tag_count_each_list": 4596,
+    "old_cutoff": 4096,
+    "control_cycle_tests_added": 3,
+    "exact_captured_chain_replay_checks": 2,
+    "capture_sha256": "15a223742931a4e714f3462a024bb9b0c587633ccca887bb3b4fb8b831241ca4"
+  },
+  "matrix_comparison": {
+    "original_cases_passed": 36,
+    "inherited_HLE_cases_mismatched": 36,
+    "comparison_cases_not_added_to_613_again": true,
+    "original_direct_call_sites_in_game_code": 195,
+    "generated_files_changed": 3
+  },
+  "native_runs": {
+    "ts04-baseline": {
+      "requested_seconds": 180,
+      "returncode": 10,
+      "outer_killed": false,
+      "elapsed_seconds": 180.52707356599998,
+      "binary_sha256": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d",
+      "binary_sha256_after": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d",
+      "binary_unchanged_during_run": true,
+      "dma_warning_count": 47,
+      "original_numdmafail": 47,
+      "long_chain_count": 0,
+      "maximum_traced_chain_tags": 0,
+      "delivered_key_edges": 22,
+      "undelivered_key_edges": 0,
+      "all_delivered_edges_succeeded": true,
+      "reference_pcsx2_run": false,
+      "native_evidence": "project/diagnostics/ts04-baseline-probe.json"
+    },
+    "ts04-chain-fix": {
+      "requested_seconds": 250,
+      "returncode": 10,
+      "outer_killed": false,
+      "elapsed_seconds": 250.32031284900006,
+      "binary_sha256": "33833b8ecda007e485c837f5eb9febb677ded935165e4df793c280ca4b5afa16",
+      "binary_sha256_after": "33833b8ecda007e485c837f5eb9febb677ded935165e4df793c280ca4b5afa16",
+      "binary_unchanged_during_run": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "long_chain_count": 799,
+      "maximum_traced_chain_tags": 5724,
+      "delivered_key_edges": 38,
+      "undelivered_key_edges": 0,
+      "all_delivered_edges_succeeded": true,
+      "reference_pcsx2_run": false,
+      "native_evidence": "project/diagnostics/ts04-chain-fix-probe.json"
+    },
+    "ts04-timed-match": {
+      "requested_seconds": 600,
+      "returncode": 10,
+      "outer_killed": false,
+      "elapsed_seconds": 600.324393243,
+      "binary_sha256": "ee7f86bcc76a4732ad4d23ef9fa91d5266c399b6c423ee42e4e3faf332cd9cf5",
+      "binary_sha256_after": "ee7f86bcc76a4732ad4d23ef9fa91d5266c399b6c423ee42e4e3faf332cd9cf5",
+      "binary_unchanged_during_run": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "long_chain_count": 1135,
+      "maximum_traced_chain_tags": 4641,
+      "delivered_key_edges": 58,
+      "undelivered_key_edges": 0,
+      "all_delivered_edges_succeeded": true,
+      "reference_pcsx2_run": false,
+      "native_evidence": "project/diagnostics/ts04-timed-match-probe.json"
+    },
+    "ts04-final-match": {
+      "requested_seconds": 900,
+      "returncode": 10,
+      "outer_killed": false,
+      "elapsed_seconds": 900.3292360190003,
+      "binary_sha256": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+      "binary_sha256_after": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+      "binary_unchanged_during_run": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "long_chain_count": 1818,
+      "maximum_traced_chain_tags": 6620,
+      "delivered_key_edges": 112,
+      "undelivered_key_edges": 0,
+      "all_delivered_edges_succeeded": true,
+      "reference_pcsx2_run": false,
+      "native_evidence": "project/diagnostics/ts04-final-match-probe.json"
+    },
+    "ts04-final-reload": {
+      "requested_seconds": 100,
+      "returncode": 10,
+      "outer_killed": false,
+      "elapsed_seconds": 100.29453269600026,
+      "binary_sha256": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+      "binary_sha256_after": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+      "binary_unchanged_during_run": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "delivered_key_edges": 10,
+      "undelivered_key_edges": 0,
+      "all_delivered_edges_succeeded": true,
+      "saved_47000_byte_profile_read_observed": true,
+      "postmatch_files_unchanged_on_reload": true,
+      "files_after_reload": [
+        {
+          "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+          "size": 47000,
+          "sha256": "480a029b288d2f3213595b29eacab0836a9cc77c0fcb2eb0b4eb8809a7bf7a16"
+        },
+        {
+          "path": "BASLUS-20090-TS1-OPT/icon.sys",
+          "size": 964,
+          "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+        },
+        {
+          "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+          "size": 65720,
+          "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+        }
+      ],
+      "reference_pcsx2_run": false,
+      "screenshot": "project/diagnostics/ts04-final-reload-097.png"
+    }
+  },
+  "validation_scope": {
+    "animated_original_frontend": true,
+    "profile_A_fixture_load": true,
+    "intact_tested_character_model": true,
+    "Tomb_movement_turning_firing_and_reload": true,
+    "timed_match_original_countdown_and_score_screen": true,
+    "bot_score_change_observed": true,
+    "player_kill_verified": false,
+    "complete_combat_correctness": false,
+    "all_levels_or_story_complete": false,
+    "multiplayer": false,
+    "audio_output_correctness": false,
+    "optimized_release_performance": false,
+    "complete_PC_port": false,
+    "postmatch_save_update": true,
+    "postmatch_fresh_process_profile_load": true,
+    "postmatch_card_files_unchanged_on_reload": true
+  },
+  "limitations": [
+    "Audio playback device fails initialization in this scratch; register/transfer logging is not audible-output proof",
+    "Some original messages render (null); string-format/variadic path remains to be diagnosed",
+    "No comprehensive VU/GS/DMA edge-case, all-level, multiplayer, save-compatibility, collision/combat, or performance validation",
+    "Original SQRT input-selection correction retained, not a complete PS2 floating-point model"
+  ],
+  "scope_notes": [
+    "Primary native probes use actual X11 XTEST keyboard events and unretouched window captures; no guest state/menu edits",
+    "Captured-chain structural inspection and component replay are not native gameplay runs",
+    "Final run uses a copy of the native-created TS03 profile fixture, not a new empty-card creation test in this turn",
+    "Historical TS03 provenance records independent TS02 behavior recovery; TS04 starts from the actual verified TS03 archive"
+  ]
+}

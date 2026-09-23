@@ -1,0 +1,303 @@
+{
+  "checkpoint": "TS05",
+  "date": "2026-09-22",
+  "foundation": "actual byte-verified TS04 full checkpoint; no source recovery needed",
+  "foundation_archive_sha256": "094609f900457ac8998481ca17997596ff6a91430b74b807f16b1a65c2bf8718",
+  "original_elf_sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+  "ps2recomp_base": "75d729ce40d7eed9649fd4bb05628dee520f3d0c",
+  "pcsx2_reference": "650d7048561756cdbfea60ee65282074a38eefa1",
+  "pcsx2_built_run_linked": false,
+  "native_identity": {
+    "timesplitters_dma_replay": {
+      "size": 1888032,
+      "sha256": "4e59cad0a44fc733beb38c895fc5f001f48d9ed3bb93ed72f922b16453063c5f"
+    },
+    "timesplitters": {
+      "size": 86335408,
+      "sha256": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb"
+    },
+    "ps2_recomp": {
+      "size": 15532496,
+      "sha256": "e7b9c75af9462a6f2016dde3ca35f1b831d7dd30274947953a214291e7a7db25"
+    }
+  },
+  "checks": {
+    "core": 465,
+    "IOP": 4,
+    "GS_cache": 45,
+    "original_EE_ABI": 4,
+    "original_EE_image_DMA": 10,
+    "original_card_scan": 1,
+    "original_soft_double": 24,
+    "original_normalization": 12,
+    "original_matrix": 36,
+    "Python_helpers": 17,
+    "captured_original_DMA_chains": 2,
+    "format_routes": 60,
+    "sound_memory_routes": 25
+  },
+  "total_checks_passed": 705,
+  "source_only_checks_available": 703,
+  "fresh_clean_build": true,
+  "generated_files": 2673,
+  "generated_files_reproduced_byte_identical": true,
+  "original_EE_bodies": 2376,
+  "automatic_SDK_wrappers": 294,
+  "generation_warnings": 78,
+  "explicit_skips": 0,
+  "decode_failures": 0,
+  "unhandled_instruction_errors": 0,
+  "changed_framework_files_from_base": 34,
+  "changed_framework_files_since_TS04": 5,
+  "packaged_framework_files_reproduced_by_patch": 295,
+  "hand_edited_generated_bodies": false,
+  "fixes": [
+    "Use original eight-byte EE argument slots for saved va_list, integer/64-bit/double values, and incoming-SP stack spills",
+    "Actually copy IOP/SPU voice-transfer bytes using per-runtime shared 2-MiB sound RAM, physical DMA/IO rounding, readback and failure validation; preserve zero-valued register arguments"
+  ],
+  "format_comparison": {
+    "before_passed": 22,
+    "before_failed": 38,
+    "after_passed": 60,
+    "after_failed": 0,
+    "original_vafmt_cases": 20,
+    "direct_va_list_cases": 20,
+    "direct_register_stack_cases": 20,
+    "static_original_direct_vafmt_call_sites": 128
+  },
+  "sound_memory_comparison": {
+    "before_passed": 7,
+    "before_failed": 18,
+    "after_passed": 25,
+    "after_failed": 0,
+    "scope": "includes one original EE-to-IOP transfer case; others exercise runtime transfer/memory behavior, not a voice mixer"
+  },
+  "native_runs": {
+    "ts05-format": {
+      "requested_seconds": 400,
+      "elapsed_seconds": 400.4566390140001,
+      "returncode": 10,
+      "outer_killed": false,
+      "binary_sha256": "faf206065a69b5732f70a956f8510ef12ec13562e341578beba0fad17cf4d00d",
+      "binary_sha256_after": "faf206065a69b5732f70a956f8510ef12ec13562e341578beba0fad17cf4d00d",
+      "binary_unchanged_during_run": true,
+      "reference_pcsx2_run": false,
+      "exact_packaged_binary": false,
+      "delivered_key_edges": 74,
+      "undelivered_key_edges": 0,
+      "all_key_edges_succeeded": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "native_evidence": "project/diagnostics/ts05-format-probe.json",
+      "screenshots": 80,
+      "stopped_combat_observation": "project/analysis/TS05/ts05-format-counters.json"
+    },
+    "ts05-story-candidate": {
+      "requested_seconds": 300,
+      "elapsed_seconds": 300.46833139599994,
+      "returncode": 10,
+      "outer_killed": false,
+      "binary_sha256": "104998e0e7e0f3f0c6dca364c0396f20566ca01cb35157807e276a0ab2af1a05",
+      "binary_sha256_after": "104998e0e7e0f3f0c6dca364c0396f20566ca01cb35157807e276a0ab2af1a05",
+      "binary_unchanged_during_run": true,
+      "reference_pcsx2_run": false,
+      "exact_packaged_binary": false,
+      "delivered_key_edges": 20,
+      "undelivered_key_edges": 0,
+      "all_key_edges_succeeded": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "native_evidence": "project/diagnostics/ts05-story-candidate-probe.json",
+      "screenshots": 60,
+      "stopped_combat_observation": "project/analysis/TS05/ts05-story-candidate-counters.json",
+      "sound_memory": {
+        "label": "ts05-story-candidate",
+        "transfers": 164,
+        "all_recorded_copies_succeeded": true,
+        "physical_bytes_sum": 1507072,
+        "stopped_backend_counters": {
+          "writes": 164,
+          "bytes_written": 1507072,
+          "reads": 0,
+          "bytes_read": 0
+        },
+        "spu_dump_sha256": "4227e9e1a0b47f83164fb1f7018b3a11c279628d663bcee4e010599f01a06401",
+        "spu_nonzero_bytes": 1293211,
+        "mixing_or_output_verified": false,
+        "last_transfer": {
+          "core": 1,
+          "iop_address": 1223424,
+          "spu_address": 1365840,
+          "requested": 64,
+          "mode": 0,
+          "copied": true,
+          "physical": 64
+        },
+        "last_transfer_source_survives_and_matches_destination": true,
+        "last_transfer_iop_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4",
+        "last_transfer_spu_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4"
+      }
+    },
+    "ts05-final-story": {
+      "requested_seconds": 900,
+      "elapsed_seconds": 900.3800791540002,
+      "returncode": 10,
+      "outer_killed": false,
+      "binary_sha256": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+      "binary_sha256_after": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+      "binary_unchanged_during_run": true,
+      "reference_pcsx2_run": false,
+      "exact_packaged_binary": true,
+      "delivered_key_edges": 38,
+      "undelivered_key_edges": 0,
+      "all_key_edges_succeeded": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "native_evidence": "project/diagnostics/ts05-final-story-probe.json",
+      "screenshots": 180,
+      "stopped_combat_observation": "project/analysis/TS05/ts05-final-story-counters.json",
+      "sound_memory": {
+        "label": "ts05-final-story",
+        "transfers": 164,
+        "all_recorded_copies_succeeded": true,
+        "physical_bytes_sum": 1507072,
+        "stopped_backend_counters": {
+          "writes": 164,
+          "bytes_written": 1507072,
+          "reads": 0,
+          "bytes_read": 0
+        },
+        "spu_dump_sha256": "4227e9e1a0b47f83164fb1f7018b3a11c279628d663bcee4e010599f01a06401",
+        "spu_nonzero_bytes": 1293211,
+        "mixing_or_output_verified": false,
+        "last_transfer": {
+          "core": 1,
+          "iop_address": 1223424,
+          "spu_address": 1365840,
+          "requested": 64,
+          "mode": 0,
+          "copied": true,
+          "physical": 64
+        },
+        "last_transfer_source_survives_and_matches_destination": true,
+        "last_transfer_iop_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4",
+        "last_transfer_spu_sha256": "c44b52abbd2a66b7041e9f366e320d8c024ef63f2daf6e2b256bd493712f53b4"
+      },
+      "card_fixture_unchanged": true,
+      "card_files_after": [
+        {
+          "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+          "size": 47000,
+          "sha256": "01a31d22aeba9605be19f78de6f8eeb389a72d32a024a2e6ac92a3c3bd9d7b6d"
+        },
+        {
+          "path": "BASLUS-20090-TS1-OPT/icon.sys",
+          "size": 964,
+          "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+        },
+        {
+          "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+          "size": 65720,
+          "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+        }
+      ]
+    },
+    "ts05-final-arcade": {
+      "requested_seconds": 300,
+      "elapsed_seconds": 300.34907889999977,
+      "returncode": 10,
+      "outer_killed": false,
+      "binary_sha256": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+      "binary_sha256_after": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb",
+      "binary_unchanged_during_run": true,
+      "reference_pcsx2_run": false,
+      "exact_packaged_binary": true,
+      "delivered_key_edges": 50,
+      "undelivered_key_edges": 0,
+      "all_key_edges_succeeded": true,
+      "dma_warning_count": 0,
+      "original_numdmafail": 0,
+      "native_evidence": "project/diagnostics/ts05-final-arcade-probe.json",
+      "screenshots": 60,
+      "stopped_combat_observation": "project/analysis/TS05/ts05-final-arcade-counters.json",
+      "sound_memory": {
+        "label": "ts05-final-arcade",
+        "transfers": 168,
+        "all_recorded_copies_succeeded": true,
+        "physical_bytes_sum": 1543488,
+        "stopped_backend_counters": {
+          "writes": 168,
+          "bytes_written": 1543488,
+          "reads": 0,
+          "bytes_read": 0
+        },
+        "spu_dump_sha256": "b161374930a94b3571df72da87b38050326e040ba75d320584591c1018fb44da",
+        "spu_nonzero_bytes": 1319044,
+        "mixing_or_output_verified": false,
+        "last_transfer": {
+          "core": 1,
+          "iop_address": 1223488,
+          "spu_address": 1736704,
+          "requested": 17136,
+          "mode": 0,
+          "copied": true,
+          "physical": 17152
+        },
+        "last_transfer_source_survives_and_matches_destination": true,
+        "last_transfer_iop_sha256": "9a3396e22f5002bb2bed6033b2d783a4416fb3a698af13b5f110b0e572f4db02",
+        "last_transfer_spu_sha256": "9a3396e22f5002bb2bed6033b2d783a4416fb3a698af13b5f110b0e572f4db02"
+      },
+      "card_fixture_unchanged": true,
+      "card_files_after": [
+        {
+          "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+          "size": 47000,
+          "sha256": "01a31d22aeba9605be19f78de6f8eeb389a72d32a024a2e6ac92a3c3bd9d7b6d"
+        },
+        {
+          "path": "BASLUS-20090-TS1-OPT/icon.sys",
+          "size": 964,
+          "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+        },
+        {
+          "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+          "size": 65720,
+          "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+        }
+      ]
+    }
+  },
+  "validation_scope": {
+    "formatted_time_limit_and_named_bot_message": true,
+    "story_1935_Tomb_easy_entry": true,
+    "story_original_Mauser_pickup": true,
+    "story_movement_turning_strafe_and_one_shot": true,
+    "story_ammunition_15_to_14": true,
+    "story_objective_completion": false,
+    "player_kill_verified": false,
+    "comprehensive_damage_hit_correctness": false,
+    "actual_sound_memory_delivery": true,
+    "mixed_PCM_or_audible_audio": false,
+    "all_levels_complete": false,
+    "multiplayer": false,
+    "optimized_FPS": false,
+    "complete_PC_port": false,
+    "historical_TS04_save_match_paths_all_repeated": false
+  },
+  "limitations": [
+    "Only initial Story Tomb exploration, not its objective completion",
+    "No confirmed human-player kill/damage; named first-kill event in intermediate Arcade run belongs to a bot",
+    "Voice/batch/register mixing and correct block streaming remain incomplete; no PCM recording or audible-output claim",
+    "Playback device initialization still fails in scratch",
+    "Formatter output limits and untested conversion/locale/edge semantics remain",
+    "Synchronous HLE sound transfers are not cycle-accurate DMA/interrupt semantics",
+    "All-level, multiplayer, retail-card, comprehensive collision/AI and hardware-edge correctness remain unvalidated",
+    "FPS work explicitly deferred"
+  ],
+  "evidence_rules": [
+    "Actual native X11 XTEST input and unretouched window captures",
+    "Stopped-RAM inspection does not execute or modify the game",
+    "Intermediate candidates identified separately from exact final packaged native binary",
+    "No guest timer override, direct menu calls, invincibility edits or forced objective/completion signals"
+  ]
+}

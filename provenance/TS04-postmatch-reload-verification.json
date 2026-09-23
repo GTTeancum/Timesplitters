@@ -1,0 +1,35 @@
+{
+  "requested_seconds": 100,
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 100.29453269600026,
+  "binary_sha256": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+  "binary_sha256_after": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+  "binary_unchanged_during_run": true,
+  "dma_warning_count": 0,
+  "original_numdmafail": 0,
+  "delivered_key_edges": 10,
+  "undelivered_key_edges": 0,
+  "all_delivered_edges_succeeded": true,
+  "saved_47000_byte_profile_read_observed": true,
+  "postmatch_files_unchanged_on_reload": true,
+  "files_after_reload": [
+    {
+      "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+      "size": 47000,
+      "sha256": "480a029b288d2f3213595b29eacab0836a9cc77c0fcb2eb0b4eb8809a7bf7a16"
+    },
+    {
+      "path": "BASLUS-20090-TS1-OPT/icon.sys",
+      "size": 964,
+      "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+    },
+    {
+      "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+      "size": 65720,
+      "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+    }
+  ],
+  "reference_pcsx2_run": false,
+  "screenshot": "project/diagnostics/ts04-final-reload-097.png"
+}

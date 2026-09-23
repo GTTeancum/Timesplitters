@@ -1,0 +1,6 @@
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x100000 end=0x200000
+ELF file loaded successfully. Entry point: 0x200008[TS:self-test] fread size=1 count=5 PASS
+[TS:self-test] fread size=2 count=2 PASS
+[TS:self-test] fread size=0 count=5 PASS
+[TS:self-test] 3 original-EE ABI checks passed

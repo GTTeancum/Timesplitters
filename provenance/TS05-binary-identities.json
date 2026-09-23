@@ -1,0 +1,14 @@
+{
+  "timesplitters_dma_replay": {
+    "size": 1888032,
+    "sha256": "4e59cad0a44fc733beb38c895fc5f001f48d9ed3bb93ed72f922b16453063c5f"
+  },
+  "timesplitters": {
+    "size": 86335408,
+    "sha256": "a5c72f1386a5933a3748a70ab15bab4fedb5a935c193f29582ccfc76d80366bb"
+  },
+  "ps2_recomp": {
+    "size": 15532496,
+    "sha256": "e7b9c75af9462a6f2016dde3ca35f1b831d7dd30274947953a214291e7a7db25"
+  }
+}

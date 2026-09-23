@@ -1,0 +1,86 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/CMakeLists.txt:25 (cmake_policy):
+  The OLD behavior for policy CMP0127 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- {fmt} version: 12.1.0
+-- Build type: RelWithDebInfo
+-- Building dwarfgen    ... OFF
+-- Building dwarfexample... OFF
+-- Building api tests   ... 
+-- HAVE_UINTPTR_T 1: uintptr_t defined in stdint.h... YES
+-- uintptr_t value considered NO 
+-- HAVE_INTPTR_T 1: intptr_t defined in stdint.h... YES
+-- intptr_t value considered NO 
+-- ENABLE_DECOMPRESSION : ON
+-- Found libzstd           : TRUE
+-- Found zlib              : TRUE
+-- Build with zlib and zstd: TRUE
+-- CMAKE_SIZEOF_VOID_P ... : 8
+-- Compiler warning options... NO
+-- Install prefix ... /usr/local
+> Enabling optimization for: ps2_recomp_lib
+> Enabling optimization for: ps2_recomp
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Testing if -Werror=pointer-arith can be used -- compiles
+-- Testing if -Werror=implicit-function-declaration can be used -- compiles
+-- Testing if -fno-strict-aliasing can be used -- compiles
+-- Using raylib's GLFW
+-- Including X11 support
+-- Audio Backend: miniaudio
+-- Building raylib static library
+-- Generated build type: RelWithDebInfo
+-- Compiling with the flags:
+--   PLATFORM=PLATFORM_DESKTOP
+--   GRAPHICS=GRAPHICS_API_OPENGL_33
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(imgui) is deprecated, call
+  FetchContent_MakeAvailable(imgui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(imgui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:96 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(rlImGui) is deprecated, call
+  FetchContent_MakeAvailable(rlImGui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(rlImGui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:119 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+> Enabling optimization for: ps2_runtime
+> Enabling optimization for: ps2EntryRunner
+-- Using the multi-header code from /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json/include/
+> Enabling optimization for: ps2_analyzer_lib
+> Enabling optimization for: ps2_analyzer
+> Enabling optimization for: ps2_test_lib
+> Enabling optimization for: ps2x_tests
+-- Configuring done (1.5s)
+-- Generating done (0.3s)
+-- Build files have been written to: /mnt/data/TimeSplitters_TS04_Checkpoint/build
+[0/4] Re-checking globbed directories...
+[1/8] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay_before.dir/dma_replay.cpp.o
+[2/8] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay.dir/dma_replay.cpp.o
+[3/8] Linking CXX executable timesplitters/timesplitters_dma_replay
+[4/8] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay_before.dir/test-baseline/ts03_ps2_memory.cpp.o
+[5/8] Linking CXX executable timesplitters/timesplitters_dma_replay_before

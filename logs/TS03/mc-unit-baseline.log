@@ -1,0 +1,4 @@
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008[TS:MC-unit] tick=0 state=0 result=1 port=2 slot=0 type=4294967295 format=4294967295 cards=1,0,0,0,1,0,0,0,
+[TS:fatal] original mcardCheckCards/mcardTick did not finish both formatted cards

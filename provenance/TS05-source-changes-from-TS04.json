@@ -1,0 +1,45 @@
+{
+  "changes": [
+    {
+      "path": "project/game/main.cpp",
+      "before": "8c66acab9ac8da2a24e53d080a5815064aaeabbac38fa559c0cc9d1e18060295",
+      "after": "9a11fac15b2c8d77c6554025c7ec46a8071d005e6c4bcf2a41ca735af930b16e"
+    },
+    {
+      "path": "project/game/native_audio_memory_test.h",
+      "before": null,
+      "after": "da49df39c7f93f93b5052d3f77c47d88f402812efe65e7c92a834d216e885354"
+    },
+    {
+      "path": "project/game/native_format_test.h",
+      "before": null,
+      "after": "baaf3010f572ee5ee2a7ffc3495bfde8fed54cd9f4ddd293fc3d2b312ece5523"
+    },
+    {
+      "path": "source/PS2Recomp/ps2xRuntime/include/runtime/ps2_audio.h",
+      "before": "1c587b41853d76c5cb10c52571049412f4bfb1a89a7e426928f70fc6e1bc5e27",
+      "after": "c539c76fd6bf2d19f501fc1d3bc53d274a56da23afcf2424fb3024b78466ea32"
+    },
+    {
+      "path": "source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/Audio.cpp",
+      "before": "55319bf8804a70178b44a4428acace30e5041081a9fbf860605d904eb3b7de75",
+      "after": "8ddb26a9f266e1f1369b54acaba5c778a12252c8971c4531d2334adf3c3fc4d0"
+    },
+    {
+      "path": "source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/Helpers/Support.h",
+      "before": "b1640bdc33adb42e7873ff501ed5a07657a2b21fede3c5448d86f15ce34699db",
+      "after": "f125711f6f5259673a1a235a1019f657e09d8c02dfc01c057befceee7a92a6c4"
+    },
+    {
+      "path": "source/PS2Recomp/ps2xRuntime/src/lib/ps2_audio.cpp",
+      "before": "00baeae2f761812539297bce306e299c49ff94857f4ff12271d1bfd604d469c9",
+      "after": "fabc82a676431ebf18f7669b6d0769e8ca875b42421ce50211f363b07afff335"
+    },
+    {
+      "path": "source/PS2Recomp/ps2xTest/src/ps2_runtime_expansion_tests.cpp",
+      "before": "dec3a692a87f53efcc6841615fdf6d4a835c69551e3af2fafd0a11d891f1dd29",
+      "after": "b6935eea034756641565f309a0f67df7cf92d869d33a0e1720d788d6d437cc02"
+    }
+  ],
+  "hand_edited_generated_function_files": false
+}

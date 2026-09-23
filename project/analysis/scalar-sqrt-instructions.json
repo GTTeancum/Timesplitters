@@ -1,0 +1,1682 @@
+[
+  {
+    "pc": "00204aa4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "soundCalcVol",
+    "size": 692
+  },
+  {
+    "pc": "00204ba8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "soundCalcVol",
+    "size": 692
+  },
+  {
+    "pc": "00208ff0",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "hittestMoveCircleToPoint",
+    "size": 476
+  },
+  {
+    "pc": "002090dc",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "hittestMoveCircleToPoint",
+    "size": 476
+  },
+  {
+    "pc": "0020919c",
+    "raw": "460c06c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 27,
+    "name": "hittestMoveCircleToLine",
+    "size": 844
+  },
+  {
+    "pc": "002092f8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "hittestMoveCircleToLine",
+    "size": 844
+  },
+  {
+    "pc": "002094f0",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "hittestMoveCircleToCircle",
+    "size": 280
+  },
+  {
+    "pc": "00209e1c",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "hittestLineCyl",
+    "size": 696
+  },
+  {
+    "pc": "00209ed4",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "hittestLineCyl",
+    "size": 696
+  },
+  {
+    "pc": "0020a11c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "HitTestLineCylinder",
+    "size": 2136
+  },
+  {
+    "pc": "0020a1f4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "HitTestLineCylinder",
+    "size": 2136
+  },
+  {
+    "pc": "0020a4f4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "HitTestLineCylinder",
+    "size": 2136
+  },
+  {
+    "pc": "0020a9a4",
+    "raw": "460c0104",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 4,
+    "name": "HitTestLineSphere",
+    "size": 420
+  },
+  {
+    "pc": "0021e1a8",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "gmLastStandTick",
+    "size": 776
+  },
+  {
+    "pc": "002287b4",
+    "raw": "460c0104",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 4,
+    "name": "lvGetPseudoRandomPadExtref",
+    "size": 1624
+  },
+  {
+    "pc": "00228888",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "lvGetPseudoRandomPadExtref",
+    "size": 1624
+  },
+  {
+    "pc": "00228a28",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "lvGetPseudoRandomPadExtref",
+    "size": 1624
+  },
+  {
+    "pc": "00228b00",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "lvGetPseudoRandomPadExtref",
+    "size": 1624
+  },
+  {
+    "pc": "0022ac50",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "frontfxGfx",
+    "size": 684
+  },
+  {
+    "pc": "0022bf08",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "frontfxGoodiesTick",
+    "size": 460
+  },
+  {
+    "pc": "0022bf48",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "frontfxGoodiesTick",
+    "size": 460
+  },
+  {
+    "pc": "0022bf88",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "frontfxGoodiesTick",
+    "size": 460
+  },
+  {
+    "pc": "0022bfd8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "frontfxGoodiesTick",
+    "size": 460
+  },
+  {
+    "pc": "00241f34",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "animTick",
+    "size": 5652
+  },
+  {
+    "pc": "002519ec",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "mapmakercolour_pageTick",
+    "size": 820
+  },
+  {
+    "pc": "00259294",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "bgLineTest",
+    "size": 752
+  },
+  {
+    "pc": "002596e8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "bgHittestDistGlass",
+    "size": 1112
+  },
+  {
+    "pc": "00259d4c",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "bgGlassMoveTestRoom",
+    "size": 712
+  },
+  {
+    "pc": "0025a5f4",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "v3Normalize",
+    "size": 172
+  },
+  {
+    "pc": "0025a6a4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "v3NormalizeFaster",
+    "size": 164
+  },
+  {
+    "pc": "0025b5c4",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "obinstCalcAmbientLight",
+    "size": 4520
+  },
+  {
+    "pc": "0025b6f8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "obinstCalcAmbientLight",
+    "size": 4520
+  },
+  {
+    "pc": "0025b84c",
+    "raw": "460304c4",
+    "op": "SQRT.S",
+    "ft": 3,
+    "fs": 0,
+    "fd": 19,
+    "name": "obinstCalcAmbientLight",
+    "size": 4520
+  },
+  {
+    "pc": "0025bf8c",
+    "raw": "460c0104",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 4,
+    "name": "bgBulletGetClosest",
+    "size": 1240
+  },
+  {
+    "pc": "0025c3b0",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025c424",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025c4b0",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025c580",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025c774",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025ca38",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025cd70",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025cde0",
+    "raw": "460c0144",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 5,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025ce60",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "obInstLightUpdate",
+    "size": 4132
+  },
+  {
+    "pc": "0025d750",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "obMergePolys",
+    "size": 3248
+  },
+  {
+    "pc": "0025d7d0",
+    "raw": "460c0144",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 5,
+    "name": "obMergePolys",
+    "size": 3248
+  },
+  {
+    "pc": "0025d8b4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "obMergePolys",
+    "size": 3248
+  },
+  {
+    "pc": "0025d9a4",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "obMergePolys",
+    "size": 3248
+  },
+  {
+    "pc": "0025da2c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "obMergePolys",
+    "size": 3248
+  },
+  {
+    "pc": "0025daf8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "obMergePolys",
+    "size": 3248
+  },
+  {
+    "pc": "0025e060",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "obMergeChunkPolys",
+    "size": 1556
+  },
+  {
+    "pc": "0026271c",
+    "raw": "460c0104",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 4,
+    "name": "partGfx",
+    "size": 8064
+  },
+  {
+    "pc": "00263f30",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "obInstLineTest",
+    "size": 2180
+  },
+  {
+    "pc": "00264f4c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "findTwinPlugPad",
+    "size": 320
+  },
+  {
+    "pc": "00266160",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "hr_calcestcost",
+    "size": 136
+  },
+  {
+    "pc": "002667c8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "r_calcestcost",
+    "size": 136
+  },
+  {
+    "pc": "00266cf0",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "closestpadinlist",
+    "size": 252
+  },
+  {
+    "pc": "002697f0",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "remotePropNew",
+    "size": 708
+  },
+  {
+    "pc": "0026a768",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "pickupPropTick",
+    "size": 3520
+  },
+  {
+    "pc": "0026b918",
+    "raw": "460c0184",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 6,
+    "name": "headPropTick",
+    "size": 1896
+  },
+  {
+    "pc": "0026bad0",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "headPropTick",
+    "size": 1896
+  },
+  {
+    "pc": "0026c9bc",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "remotePropTick",
+    "size": 6524
+  },
+  {
+    "pc": "0026ca68",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "remotePropTick",
+    "size": 6524
+  },
+  {
+    "pc": "0026de90",
+    "raw": "46050304",
+    "op": "SQRT.S",
+    "ft": 5,
+    "fs": 0,
+    "fd": 12,
+    "name": "chrPropTick",
+    "size": 2840
+  },
+  {
+    "pc": "00270504",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "propLineTestRoom",
+    "size": 1308
+  },
+  {
+    "pc": "00270b54",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "MoveTestPropWalls",
+    "size": 1204
+  },
+  {
+    "pc": "00270ce8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "MoveTestPropWalls",
+    "size": 1204
+  },
+  {
+    "pc": "0027108c",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "propMoveTestRoom",
+    "size": 1752
+  },
+  {
+    "pc": "002712b8",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "propMoveTestRoom",
+    "size": 1752
+  },
+  {
+    "pc": "00275554",
+    "raw": "46140004",
+    "op": "SQRT.S",
+    "ft": 20,
+    "fs": 0,
+    "fd": 0,
+    "name": "explosionDamage",
+    "size": 1156
+  },
+  {
+    "pc": "002757cc",
+    "raw": "46020304",
+    "op": "SQRT.S",
+    "ft": 2,
+    "fs": 0,
+    "fd": 12,
+    "name": "pathPosUpdateAbs",
+    "size": 1204
+  },
+  {
+    "pc": "00275ca0",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "pathPosUpdateRel",
+    "size": 1764
+  },
+  {
+    "pc": "00275d44",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "pathPosUpdateRel",
+    "size": 1764
+  },
+  {
+    "pc": "00276e14",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "carPropTick",
+    "size": 3908
+  },
+  {
+    "pc": "00276f10",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "carPropTick",
+    "size": 3908
+  },
+  {
+    "pc": "002787f8",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "vtxlistWaterxyzPre",
+    "size": 1160
+  },
+  {
+    "pc": "002794f4",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "getSwingDirectionMultiplier",
+    "size": 596
+  },
+  {
+    "pc": "0027b004",
+    "raw": "460c01c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 7,
+    "name": "greenthingPropTick",
+    "size": 360
+  },
+  {
+    "pc": "0027b27c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "hologramPropTick",
+    "size": 612
+  },
+  {
+    "pc": "0027b97c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "liftPropTick",
+    "size": 840
+  },
+  {
+    "pc": "0027cc78",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "DistFromWallSq",
+    "size": 372
+  },
+  {
+    "pc": "0027d044",
+    "raw": "46150004",
+    "op": "SQRT.S",
+    "ft": 21,
+    "fs": 0,
+    "fd": 0,
+    "name": "MoveTestWall",
+    "size": 992
+  },
+  {
+    "pc": "0027ddb8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "moveTestDoSlide",
+    "size": 1252
+  },
+  {
+    "pc": "002807c4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerAutoAimCalc",
+    "size": 216
+  },
+  {
+    "pc": "00280e64",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "playerDeathView",
+    "size": 1768
+  },
+  {
+    "pc": "00280fbc",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerDeathView",
+    "size": 1768
+  },
+  {
+    "pc": "002811ac",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerDeathView",
+    "size": 1768
+  },
+  {
+    "pc": "002814a8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "002814d8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "00282abc",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "00282e54",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "002838cc",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "00283970",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "00283b44",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "00283ba8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerTick",
+    "size": 11320
+  },
+  {
+    "pc": "00284290",
+    "raw": "460c0644",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 25,
+    "name": "playerselectanim",
+    "size": 3788
+  },
+  {
+    "pc": "002842bc",
+    "raw": "46160504",
+    "op": "SQRT.S",
+    "ft": 22,
+    "fs": 0,
+    "fd": 20,
+    "name": "playerselectanim",
+    "size": 3788
+  },
+  {
+    "pc": "00285124",
+    "raw": "460c0204",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 8,
+    "name": "chrAddFloorMoveToPos",
+    "size": 724
+  },
+  {
+    "pc": "00285200",
+    "raw": "460c0184",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 6,
+    "name": "chrAddFloorMoveToPos",
+    "size": 724
+  },
+  {
+    "pc": "002871fc",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "chrLineTestChr",
+    "size": 2984
+  },
+  {
+    "pc": "002874ec",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "chrSwipeTestChr",
+    "size": 2580
+  },
+  {
+    "pc": "00287be0",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "chrSwipeTestChr",
+    "size": 2580
+  },
+  {
+    "pc": "0028c164",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "bulletTick",
+    "size": 10008
+  },
+  {
+    "pc": "0028c5e8",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "bulletTick",
+    "size": 10008
+  },
+  {
+    "pc": "0028c7c0",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "bulletTick",
+    "size": 10008
+  },
+  {
+    "pc": "0028c9bc",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "bulletTick",
+    "size": 10008
+  },
+  {
+    "pc": "0028cd74",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "bulletTick",
+    "size": 10008
+  },
+  {
+    "pc": "0028d1dc",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "bulletGetClosest",
+    "size": 276
+  },
+  {
+    "pc": "0028ed74",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "playerFireShots",
+    "size": 3244
+  },
+  {
+    "pc": "0028fcb4",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "gunChrFire",
+    "size": 3388
+  },
+  {
+    "pc": "0028ff0c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "gunChrFire",
+    "size": 3388
+  },
+  {
+    "pc": "00290390",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "gunRemoteFire",
+    "size": 1264
+  },
+  {
+    "pc": "002905f0",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "npcThrowGrenade",
+    "size": 416
+  },
+  {
+    "pc": "00292bf8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "gunUpdate",
+    "size": 7884
+  },
+  {
+    "pc": "002963c8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "ipFishEye",
+    "size": 796
+  },
+  {
+    "pc": "002994e8",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "glassSetQuad",
+    "size": 4348
+  },
+  {
+    "pc": "00299518",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "glassSetQuad",
+    "size": 4348
+  },
+  {
+    "pc": "00299b34",
+    "raw": "460c0184",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 6,
+    "name": "particleNewGlass",
+    "size": 5396
+  },
+  {
+    "pc": "0029a308",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "particleNewGlass",
+    "size": 5396
+  },
+  {
+    "pc": "0029e558",
+    "raw": "460c01c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 7,
+    "name": "particleTracerGfx",
+    "size": 1696
+  },
+  {
+    "pc": "002a1fdc",
+    "raw": "460c00c4",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 3,
+    "name": "particleGetClosestExplosion",
+    "size": 1516
+  },
+  {
+    "pc": "002a20e8",
+    "raw": "461500c4",
+    "op": "SQRT.S",
+    "ft": 21,
+    "fs": 0,
+    "fd": 3,
+    "name": "particleGetClosestExplosion",
+    "size": 1516
+  },
+  {
+    "pc": "002a299c",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "decalClipToPoly",
+    "size": 2480
+  },
+  {
+    "pc": "002a2f64",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "decalClipToPoly",
+    "size": 2480
+  },
+  {
+    "pc": "002a2fc4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "decalClipToPoly",
+    "size": 2480
+  },
+  {
+    "pc": "002a3494",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "decalAddNewDecal",
+    "size": 2408
+  },
+  {
+    "pc": "002a3534",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "decalAddNewDecal",
+    "size": 2408
+  },
+  {
+    "pc": "002a35bc",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "decalAddNewDecal",
+    "size": 2408
+  },
+  {
+    "pc": "002a3654",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "decalAddNewDecal",
+    "size": 2408
+  },
+  {
+    "pc": "002a3ef4",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "decalNewDecalMain",
+    "size": 1100
+  },
+  {
+    "pc": "002a534c",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "decalTick",
+    "size": 3912
+  },
+  {
+    "pc": "002a68f4",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "flareGfx",
+    "size": 948
+  },
+  {
+    "pc": "002ab490",
+    "raw": "461a0644",
+    "op": "SQRT.S",
+    "ft": 26,
+    "fs": 0,
+    "fd": 25,
+    "name": "specialfxTimeSplitterRadiusGfx",
+    "size": 1328
+  },
+  {
+    "pc": "002abb3c",
+    "raw": "461500c4",
+    "op": "SQRT.S",
+    "ft": 21,
+    "fs": 0,
+    "fd": 3,
+    "name": "specialfxTimeSplitterHandsGfx",
+    "size": 1172
+  },
+  {
+    "pc": "002b235c",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "hudRadarGfx",
+    "size": 1772
+  },
+  {
+    "pc": "002b24a8",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "hudRadarGfx",
+    "size": 1772
+  },
+  {
+    "pc": "002b2594",
+    "raw": "460c0084",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 2,
+    "name": "hudRadarGfx",
+    "size": 1772
+  },
+  {
+    "pc": "002b47f4",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "quaternionNormalise",
+    "size": 180
+  },
+  {
+    "pc": "002b4fe0",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "matrixLook",
+    "size": 652
+  },
+  {
+    "pc": "002b5074",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "matrixLook",
+    "size": 652
+  },
+  {
+    "pc": "002b5108",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "matrixLook",
+    "size": 652
+  },
+  {
+    "pc": "002b5760",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "matrixToQuaternion",
+    "size": 660
+  },
+  {
+    "pc": "002b5868",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "matrixToQuaternion",
+    "size": 660
+  },
+  {
+    "pc": "002b5a08",
+    "raw": "460c0144",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 5,
+    "name": "matrixToQuaternionNew",
+    "size": 664
+  },
+  {
+    "pc": "002b5b10",
+    "raw": "460c0144",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 5,
+    "name": "matrixToQuaternionNew",
+    "size": 664
+  },
+  {
+    "pc": "002bc304",
+    "raw": "460c0104",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 4,
+    "name": "updatePos",
+    "size": 2264
+  },
+  {
+    "pc": "002bc360",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "updatePos",
+    "size": 2264
+  },
+  {
+    "pc": "002bce40",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "rotateChr",
+    "size": 2612
+  },
+  {
+    "pc": "002bcea8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "rotateChr",
+    "size": 2612
+  },
+  {
+    "pc": "002bfa38",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "enemyCheckValidPad",
+    "size": 772
+  },
+  {
+    "pc": "002bfaa8",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "enemyCheckValidPad",
+    "size": 772
+  },
+  {
+    "pc": "002c0d60",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "enemyChooseDefendPad",
+    "size": 700
+  },
+  {
+    "pc": "002c1984",
+    "raw": "460c0584",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 22,
+    "name": "attack",
+    "size": 6804
+  },
+  {
+    "pc": "002c2708",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "attack",
+    "size": 6804
+  },
+  {
+    "pc": "002c2840",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "attack",
+    "size": 6804
+  },
+  {
+    "pc": "002c30c8",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "attack",
+    "size": 6804
+  },
+  {
+    "pc": "002c33cc",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "enemyAttackObject",
+    "size": 1416
+  },
+  {
+    "pc": "002c3950",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "enemyTimeSplitterAttack",
+    "size": 1100
+  },
+  {
+    "pc": "002c5270",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "enemyCheckHealth",
+    "size": 572
+  },
+  {
+    "pc": "002c59a4",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "selectTarget",
+    "size": 2788
+  },
+  {
+    "pc": "002c5b4c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "selectTarget",
+    "size": 2788
+  },
+  {
+    "pc": "002c623c",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "findbearings",
+    "size": 1200
+  },
+  {
+    "pc": "002c6360",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "findbearings",
+    "size": 1200
+  },
+  {
+    "pc": "002c6894",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "checkInFront",
+    "size": 376
+  },
+  {
+    "pc": "002c6a14",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "checkInFrontOfPad",
+    "size": 384
+  },
+  {
+    "pc": "002c6bdc",
+    "raw": "460c0004",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 0,
+    "name": "checkAimingFront",
+    "size": 376
+  },
+  {
+    "pc": "002c8d50",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "enemyAmbushWallRight",
+    "size": 2080
+  },
+  {
+    "pc": "002c9570",
+    "raw": "460c0504",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 20,
+    "name": "enemyAmbushWallLeft",
+    "size": 2080
+  },
+  {
+    "pc": "002c9f14",
+    "raw": "460c0044",
+    "op": "SQRT.S",
+    "ft": 12,
+    "fs": 0,
+    "fd": 1,
+    "name": "enemyAmbushCrouch",
+    "size": 2316
+  }
+]

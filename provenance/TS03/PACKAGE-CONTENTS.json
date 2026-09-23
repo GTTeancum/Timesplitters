@@ -1,0 +1,27 @@
+{
+  "checkpoint": "TS03",
+  "kind": "full",
+  "source_foundation": "verified TS01 + independently reimplemented documented TS02 graphics + TS03 fixes",
+  "original_ts02_zip_recovered": false,
+  "full_disc_assets_included": false,
+  "dependency_downloads_included": false,
+  "font_files_included": false,
+  "native_binaries_included": true,
+  "native_captures_selected_ram_included": true,
+  "historical_ram_omitted": [
+    "project/analysis/native-07-ram.bin",
+    "project/analysis/native-07-ram.bin.iop.bin",
+    "project/config/runtime-paths.toml",
+    "project/diagnostics/native-08-ram.bin",
+    "project/diagnostics/native-08-ram.bin.iop.bin",
+    "project/diagnostics/ts03-create-save-ram.bin",
+    "project/diagnostics/ts03-create-save-ram.bin.iop.bin",
+    "project/diagnostics/ts03-recovery-name-ram.bin",
+    "project/diagnostics/ts03-recovery-name-ram.bin.iop.bin",
+    "project/diagnostics/ts03-reload-tomb-ram.bin",
+    "project/diagnostics/ts03-reload-tomb-ram.bin.iop.bin",
+    "project/diagnostics/ts03-sqrt-fixed-ram.bin",
+    "project/diagnostics/ts03-sqrt-fixed-ram.bin.iop.bin"
+  ],
+  "see_status_for_validation_scope": true
+}

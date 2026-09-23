@@ -1,0 +1,22 @@
+[0/2] Re-checking globbed directories...
+[1/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Audio.cpp.o
+[2/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Compatibility.cpp.o
+[3/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/CD.cpp.o
+[4/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Deci2.cpp.o
+[5/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/DMA.cpp.o
+[6/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/FileIO.cpp.o
+[7/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Font.cpp.o
+[8/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/GS.cpp.o
+[9/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/IPU.cpp.o
+[10/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/LibC.cpp.o
+[11/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MPEG.cpp.o
+[12/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Pad.cpp.o
+[13/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MemoryCard.cpp.o
+[14/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/RPC.cpp.o
+[15/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/System.cpp.o
+[16/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/SIF.cpp.o
+[17/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Unimplemented.cpp.o
+[18/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/TTY.cpp.o
+[19/22] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/VU.cpp.o
+[20/22] Linking CXX static library ps2xRuntime/libps2_runtime.a
+[21/22] Linking CXX executable timesplitters/timesplitters

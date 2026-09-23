@@ -1,0 +1,35 @@
+[
+  {
+    "path": "native-07-002.png",
+    "sha256": "f0db8debbc24341560dbbef03d0949168f925dc561896d5db3b322c2e50af95f",
+    "dimensions": [
+      640,
+      448
+    ],
+    "unique_rgb_colors": 2,
+    "nonblack_pixels": 28490,
+    "assessment": "Corrupted green/black output; not usable original menus or gameplay."
+  },
+  {
+    "path": "native-07-007.png",
+    "sha256": "e1eeae82732a97cc7343ff31743395ca2c0d87977dd2b6802b671f15b03a23c5",
+    "dimensions": [
+      640,
+      448
+    ],
+    "unique_rgb_colors": 2,
+    "nonblack_pixels": 2834,
+    "assessment": "Corrupted green/black output; not usable original menus or gameplay."
+  },
+  {
+    "path": "native-07-012.png",
+    "sha256": "96a928f2718f48f0ea0082c2811fe6d47c538d5d3833ce92dbf35d0aae258f95",
+    "dimensions": [
+      640,
+      448
+    ],
+    "unique_rgb_colors": 2,
+    "nonblack_pixels": 33249,
+    "assessment": "Corrupted green/black output; not usable original menus or gameplay."
+  }
+]

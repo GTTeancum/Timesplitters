@@ -1,0 +1,97 @@
+[
+  {
+    "path": "source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.cpp",
+    "before_sha256": "98a9585b9efc634282b848194cb952c530de6f734f7f8dd04585a3b4bebb2a1d",
+    "after_sha256": "3f455ff5f651da5b3414cfdbb2a6d82478a0d8400b6ca6895f3cc981c393d191"
+  },
+  {
+    "path": "source/PS2Recomp/ps2xTest/src/ps2_memory_tests.cpp",
+    "before_sha256": "f6b3bfe4a80deb4ea35bf74e239a06d9bcbfea090385e46067090b4a77d4c5b7",
+    "after_sha256": "5a1bbb58522398c9d18f8a908b500055b925f20510e9d73a92500057945ffeb4"
+  },
+  {
+    "path": "project/game/CMakeLists.txt",
+    "before_sha256": "bc6810b34907ffb35220ff2eff561a9995bbb2307fb69b930884910aa75bc436",
+    "after_sha256": "d651e0843e96738ae30473c26cb135e73e79d9ce099b705831f2ee14095290b3"
+  },
+  {
+    "path": "project/game/dma_replay.cpp",
+    "before_sha256": null,
+    "after_sha256": "6a7bae3c389de4a08d485c86d78c2d9071dd7fe64bb43dffa702d1d25feba699"
+  },
+  {
+    "path": "project/game/main.cpp",
+    "before_sha256": "816a4cea266b668459b014648cd7ee494c51750a4b692053745e142a43eb438f",
+    "after_sha256": "8c66acab9ac8da2a24e53d080a5815064aaeabbac38fa559c0cc9d1e18060295"
+  },
+  {
+    "path": "project/game/native_matrix_test.h",
+    "before_sha256": null,
+    "after_sha256": "dba4c4743db1b0f685d767ecc917c51b632df76aab62c110d23c0a63ee2eb258"
+  },
+  {
+    "path": "project/game/test-baseline/ts03_ps2_memory.cpp",
+    "before_sha256": null,
+    "after_sha256": "98a9585b9efc634282b848194cb952c530de6f734f7f8dd04585a3b4bebb2a1d"
+  },
+  {
+    "path": "project/config/timesplitters.toml",
+    "before_sha256": "205628aaf52a98629cc906cef533ddb7e026e3d21369191a45a8eba9e4f173b0",
+    "after_sha256": "0ead48ce57b6850550771e1668e3bb6a32e356267491a7cfc83132a72bf43903"
+  },
+  {
+    "path": "project/tests/matrix_reference_probe.cpp",
+    "before_sha256": null,
+    "after_sha256": "19a620af128047972a47606b139ce2d2fd1ae334eb1fd4c110bf1f186c825bd6"
+  },
+  {
+    "path": "project/tests/reference-generated/sceVu0MulMatrix_0x2d5e98.cpp",
+    "before_sha256": null,
+    "after_sha256": "82781665fd341c15f181cef1b3bc5ac26e62c92283fbc542a869f30827e2c23f"
+  },
+  {
+    "path": "project/tests/test_dma_capture.py",
+    "before_sha256": null,
+    "after_sha256": "4ec6d08a63b65160b59c1561299476b35823970d3d36ccb4a05b56fdc3af7df4"
+  },
+  {
+    "path": "project/tests/test_probe_events.py",
+    "before_sha256": null,
+    "after_sha256": "110ef475822dac132ff4bf23524ff28e3f453045354f072176fa5346d0fb1ba2"
+  },
+  {
+    "path": "project/generated/ps2_recompiled_stubs.h",
+    "before_sha256": "4e410e854fd1ff64eb2eee4750d20e76a8cf29cfd39653ac046a668762c5dc83",
+    "after_sha256": "903cf6d86c33331ba80689037dc26da7b576b73d8c49a1208a22ce0ff2550454"
+  },
+  {
+    "path": "project/generated/register_functions.cpp",
+    "before_sha256": "120092e5657b1c5b504cd0a2ed94231d423db65b4a77aa8b232db1e84acf39a4",
+    "after_sha256": "19f5554d2aee10c95729728fea80d0f8d0edd4a9bfc2a7cc27394a433eb42221"
+  },
+  {
+    "path": "project/generated/sceVu0MulMatrix_0x2d5e98.cpp",
+    "before_sha256": "8c2263ac688a6ceb37a284f075b0fcfdcbce76e983586753ca39f3ff7aa2e770",
+    "after_sha256": "82781665fd341c15f181cef1b3bc5ac26e62c92283fbc542a869f30827e2c23f"
+  },
+  {
+    "path": "scripts/analyze_dma_capture.py",
+    "before_sha256": null,
+    "after_sha256": "70d0c454b7020465b6a4f0eee208195ed41ab351e015e8c608d4389abd5d77bc"
+  },
+  {
+    "path": "scripts/probe_events.py",
+    "before_sha256": null,
+    "after_sha256": "27d80563ef164fdf61893ed44b95b09511ea762ff9d2d37f66104989ef0b1030"
+  },
+  {
+    "path": "scripts/probe_with_input.py",
+    "before_sha256": "daeabe3d25fcc84b920eb2bac4c43bcdc8fc3520376b58bf7f5d1c5203a729b6",
+    "after_sha256": "2c0b0dc8b6c4d2766534e679dfb48eb6fafff8dcfe32f9f1045c0373fbadde42"
+  },
+  {
+    "path": "scripts/test_linux.sh",
+    "before_sha256": "a65fcf26f76a85eb942d3b052fed73263fc0c8cd4a9489396b83f7e39918b58d",
+    "after_sha256": "f3f10beea8d90d937b085f485524f371edeafa4e05a7bc18a09efde87191985e"
+  }
+]

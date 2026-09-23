@@ -1,0 +1,21 @@
+[0/2] Re-checking globbed directories...
+[1/5] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.o
+FAILED: ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.o 
+/usr/bin/clang++-19 -DAGRESSIVE_LOGS=1 -DGRAPHICS_API_OPENGL_33 -DLIBDWARF_STATIC -DPLATFORM_DESKTOP -DPS2X_ENABLE_IOP_RPC_TRACE=1 -DPS2_FUNCTION_LOG_TRACKER=1 -DPS2_RUNTIME_LOGS=1 -I/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/include -I/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRecomp/include -I/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xAnalyzer/include -I/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include -I/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/elfio -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/libdwarf/src/lib/libdwarf -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/fmt/include -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/include -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/include -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/tables -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer/tables/tables -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json/include -I/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/Kernel -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/src -I/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/src/external/glfw/include -I/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xIOP/include -O2 -g -DNDEBUG -std=gnu++20 -MD -MT ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.o -MF ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.o.d -o ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_gs_tests.cpp.o -c /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gs_tests.cpp
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gs_tests.cpp:8:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:68:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   68 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:92:11: warning: enumeration value 'Max' not handled in switch [-Wswitch]
+   92 |                 switch (psm)
+      |                         ^~~
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/include/runtime/gs/ps2_gs_memory.h:169:11: warning: 9 enumeration values not handled in switch: 'C32', 'C24', 'C16'... [-Wswitch]
+  169 |                 switch (psm)
+      |                         ^~~
+In file included from /mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xTest/src/ps2_gs_tests.cpp:12:
+/mnt/data/TimeSplitters_TS05_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/Helpers/Support.h:802:24: error: use of undeclared identifier 'GPR_U64'
+  802 |                 return GPR_U64(m_ctx, 4 + static_cast<int>(slot));
+      |                        ^
+3 warnings and 1 error generated.
+[2/5] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_runtime_expansion_tests.cpp.o
+ninja: build stopped: subcommand failed.

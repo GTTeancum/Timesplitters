@@ -1,0 +1,204 @@
+Original game files and ISO verified
+{
+  "returncode": 1,
+  "outer_killed": false,
+  "elapsed_seconds": 98.648671062,
+  "screenshots": [
+    "ts04-first-alarm-002.png",
+    "ts04-first-alarm-007.png",
+    "ts04-first-alarm-012.png",
+    "ts04-first-alarm-017.png",
+    "ts04-first-alarm-022.png",
+    "ts04-first-alarm-027.png",
+    "ts04-first-alarm-032.png",
+    "ts04-first-alarm-037.png",
+    "ts04-first-alarm-042.png",
+    "ts04-first-alarm-047.png",
+    "ts04-first-alarm-052.png",
+    "ts04-first-alarm-057.png",
+    "ts04-first-alarm-062.png",
+    "ts04-first-alarm-067.png",
+    "ts04-first-alarm-072.png",
+    "ts04-first-alarm-077.png",
+    "ts04-first-alarm-082.png",
+    "ts04-first-alarm-087.png",
+    "ts04-first-alarm-092.png",
+    "ts04-first-alarm-097.png"
+  ],
+  "binary": "/mnt/data/TimeSplitters_TS04_Checkpoint/project/tools/ts04/gdb-first-alarm.sh",
+  "binary_sha256": "c3bbbc68122857001449ac2efcea4ce36541565b58a95fe70742ebd579ecdd73",
+  "binary_sha256_after": "c3bbbc68122857001449ac2efcea4ce36541565b58a95fe70742ebd579ecdd73",
+  "binary_unchanged_during_run": true,
+  "input": [
+    {
+      "requested": 35.0,
+      "actual": 35.04383089999999,
+      "action": "keydown",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 35.35,
+      "actual": 35.386624111,
+      "action": "keyup",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.0,
+      "actual": 44.023798451000005,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.35,
+      "actual": 44.385786268000004,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.0,
+      "actual": 56.04595547599996,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.35,
+      "actual": 56.38272513099997,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.0,
+      "actual": 70.022794411,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.35,
+      "actual": 70.39954106799996,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.0,
+      "actual": 78.04744739699998,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.35,
+      "actual": 78.384427297,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.0,
+      "actual": 88.01667199100001,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.35,
+      "actual": 88.39332440499999,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.0,
+      "actual": 98.02724551199998,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 98.35,
+      "actual": 98.40536553600003,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "undelivered": [
+    [
+      108.0,
+      "keydown",
+      "x"
+    ],
+    [
+      108.35,
+      "keyup",
+      "x"
+    ],
+    [
+      118.0,
+      "keydown",
+      "x"
+    ],
+    [
+      118.35,
+      "keyup",
+      "x"
+    ],
+    [
+      128.0,
+      "keydown",
+      "x"
+    ],
+    [
+      128.35,
+      "keyup",
+      "x"
+    ],
+    [
+      138.0,
+      "keydown",
+      "x"
+    ],
+    [
+      138.35,
+      "keyup",
+      "x"
+    ]
+  ],
+  "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+  "reference_pcsx2_run": false
+}

@@ -1,0 +1,13 @@
+test_adjacent_holds_release_first (test_probe_events.ProbeEventsTest.test_adjacent_holds_release_first) ... ok
+test_append_only_new_edges (test_probe_events.ProbeEventsTest.test_append_only_new_edges) ... ok
+test_concurrent_different_keys (test_probe_events.ProbeEventsTest.test_concurrent_different_keys) ... ok
+test_deadline_and_overlap (test_probe_events.ProbeEventsTest.test_deadline_and_overlap) ... ok
+test_invalid_and_nonfinite_rejected (test_probe_events.ProbeEventsTest.test_invalid_and_nonfinite_rejected) ... ok
+test_normal_sequence (test_probe_events.ProbeEventsTest.test_normal_sequence) ... ok
+test_rewrite_rejected (test_probe_events.ProbeEventsTest.test_rewrite_rejected) ... ok
+test_truncation_rejected (test_probe_events.ProbeEventsTest.test_truncation_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.000s
+
+OK

@@ -1,0 +1,8 @@
+[0/2] Re-checking globbed directories...
+[1/8] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Pad.cpp.o
+[2/8] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/System.cpp.o
+[3/8] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_runtime.cpp.o
+[4/8] Linking CXX static library ps2xRuntime/libps2_runtime.a
+[5/8] Linking CXX executable ps2xTest/ps2x_tests
+[6/8] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o
+[7/8] Linking CXX executable timesplitters/timesplitters

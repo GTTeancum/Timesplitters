@@ -1,0 +1,32 @@
+{
+  "clean_build_exit": 0,
+  "clean_tests_exit": 0,
+  "clean_regenerate_exit": 0,
+  "final_native_validation_exit": 0,
+  "card_files_unchanged_between_processes": true,
+  "card_files": {
+    "mc0/BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT": {
+      "size": 47000,
+      "sha256": "01a31d22aeba9605be19f78de6f8eeb389a72d32a024a2e6ac92a3c3bd9d7b6d"
+    },
+    "mc0/BASLUS-20090-TS1-OPT/icon.sys": {
+      "size": 964,
+      "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+    },
+    "mc0/BASLUS-20090-TS1-OPT/tssave.ico": {
+      "size": 65720,
+      "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+    }
+  },
+  "binaries": {
+    "timesplitters": {
+      "size": 86184080,
+      "sha256": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d"
+    },
+    "ps2_recomp": {
+      "size": 15532496,
+      "sha256": "154158e061a26fe94d0848ea86c2c6a06720b129cf2dfe1dcacb2f10517fea93"
+    }
+  },
+  "all_input_events_dispatched": true
+}

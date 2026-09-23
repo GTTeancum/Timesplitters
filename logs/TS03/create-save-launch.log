@@ -1,0 +1,220 @@
+Original game files and ISO verified
+{
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 125.31973459900018,
+  "screenshots": [
+    "ts03-create-save-002.png",
+    "ts03-create-save-007.png",
+    "ts03-create-save-012.png",
+    "ts03-create-save-017.png",
+    "ts03-create-save-022.png",
+    "ts03-create-save-027.png",
+    "ts03-create-save-032.png",
+    "ts03-create-save-037.png",
+    "ts03-create-save-042.png",
+    "ts03-create-save-047.png",
+    "ts03-create-save-052.png",
+    "ts03-create-save-057.png",
+    "ts03-create-save-062.png",
+    "ts03-create-save-067.png",
+    "ts03-create-save-072.png",
+    "ts03-create-save-077.png",
+    "ts03-create-save-082.png",
+    "ts03-create-save-087.png",
+    "ts03-create-save-092.png",
+    "ts03-create-save-097.png",
+    "ts03-create-save-102.png",
+    "ts03-create-save-107.png",
+    "ts03-create-save-112.png",
+    "ts03-create-save-117.png",
+    "ts03-create-save-122.png"
+  ],
+  "binary": "/mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/timesplitters",
+  "binary_sha256": "60023e99f185e30e6d4aeae3fceea0fdd99e986fd7cb9dc0ad6f48b9f68da716",
+  "input": [
+    {
+      "requested": 35.0,
+      "actual": 35.03794423300019,
+      "action": "keydown",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 35.35,
+      "actual": 35.374766692000094,
+      "action": "keyup",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 40.0,
+      "actual": 40.04377560900002,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 40.35,
+      "actual": 40.381785704000094,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.0,
+      "actual": 44.04633600400007,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.35,
+      "actual": 44.38379384200016,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 62.0,
+      "actual": 62.024953993000054,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 62.35,
+      "actual": 62.39818076000006,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 68.0,
+      "actual": 68.03264283500016,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 68.35,
+      "actual": 68.37178229699998,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 72.0,
+      "actual": 72.04961412500006,
+      "action": "keydown",
+      "key": "Left",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 72.35,
+      "actual": 72.40863774500008,
+      "action": "keyup",
+      "key": "Left",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 75.0,
+      "actual": 75.05006480600014,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 75.35,
+      "actual": 75.38659858400001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 84.0,
+      "actual": 84.04607260000012,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 84.35,
+      "actual": 84.38339694000001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 100.0,
+      "actual": 100.04809421800019,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 100.35,
+      "actual": 100.38463523000019,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 108.0,
+      "actual": 108.02980183900013,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 108.35,
+      "actual": 108.42138057000011,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "undelivered": [],
+  "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+  "reference_pcsx2_run": false
+}

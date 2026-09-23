@@ -1,0 +1,242 @@
+[TS:native] original-EE AOT via PS2Recomp; missing functions STOP; no interpreter fallback
+INFO: Initializing raylib 5.5
+INFO: Platform backend: DESKTOP (GLFW)
+INFO: Supported raylib modules:
+INFO:     > rcore:..... loaded (mandatory)
+INFO:     > rlgl:...... loaded (mandatory)
+INFO:     > rshapes:... loaded (optional)
+INFO:     > rtextures:. loaded (optional)
+INFO:     > rtext:..... loaded (optional)
+INFO:     > rmodels:... loaded (optional)
+INFO:     > raudio:.... loaded (optional)
+INFO: DISPLAY: Device initialized successfully
+INFO:     > Display size: 1280 x 720
+INFO:     > Screen size:  640 x 448
+INFO:     > Render size:  640 x 448
+INFO:     > Viewport offsets: 0, 0
+INFO: GLAD: OpenGL extensions loaded successfully
+INFO: GL: Supported extensions count: 228
+INFO: GL: OpenGL device information:
+INFO:     > Vendor:   Mesa
+INFO:     > Renderer: llvmpipe (LLVM 19.1.7, 256 bits)
+INFO:     > Version:  4.5 (Core Profile) Mesa 25.0.7-2
+INFO:     > GLSL:     4.50
+INFO: GL: VAO extension detected, VAO functions loaded successfully
+INFO: GL: NPOT textures extension detected, full NPOT textures supported
+INFO: GL: DXT compressed textures supported
+INFO: GL: ETC2/EAC compressed textures supported
+INFO: PLATFORM: DESKTOP (GLFW - X11): Initialized successfully
+INFO: TEXTURE: [ID 1] Texture loaded successfully (1x1 | R8G8B8A8 | 1 mipmaps)
+INFO: TEXTURE: [ID 1] Default texture loaded successfully
+INFO: SHADER: [ID 1] Vertex shader compiled successfully
+INFO: SHADER: [ID 2] Fragment shader compiled successfully
+INFO: SHADER: [ID 3] Program shader loaded successfully
+INFO: SHADER: [ID 3] Default shader loaded successfully
+INFO: RLGL: Render batch vertex buffers loaded successfully in RAM (CPU)
+INFO: RLGL: Render batch vertex buffers loaded successfully in VRAM (GPU)
+INFO: RLGL: Default OpenGL state initialized successfully
+INFO: TEXTURE: [ID 2] Texture loaded successfully (128x128 | GRAY_ALPHA | 1 mipmaps)
+INFO: FONT: Default font loaded successfully (224 glyphs)
+INFO: SYSTEM: Working Directory: /
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_card_inum returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5728:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) Unknown PCM default
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_card_id returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5728:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) Unknown PCM dmix
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_card_id returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5728:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) Unknown PCM dmix:0
+ALSA lib confmisc.c:855:(parse_card) cannot find card '0'
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_card_id returned error: No such file or directory
+ALSA lib confmisc.c:422:(snd_func_concat) error evaluating strings
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_concat returned error: No such file or directory
+ALSA lib confmisc.c:1342:(snd_func_refer) error evaluating name
+ALSA lib conf.c:5205:(_snd_config_evaluate) function snd_func_refer returned error: No such file or directory
+ALSA lib conf.c:5728:(snd_config_expand) Evaluate error: No such file or directory
+ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) Unknown PCM dmix:0,0
+ALSA lib confmisc.c:165:(snd_config_get_card) Cannot get card index for 0
+ALSA lib confmisc.c:165:(snd_config_get_card) Cannot get card index for 0
+ALSA lib confmisc.c:165:(snd_config_get_card) Cannot get card index for 0
+WARNING: AUDIO: Failed to initialize playback device
+INFO: TIMER: Target time per frame: 16.667 milliseconds
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94ELF file loaded successfully. Entry point: 0x200008Starting execution at address 0x200008INFO: TEXTURE: [ID 3] Texture loaded successfully (640x512 | R8G8B8A8 | 1 mipmaps)
+[SetupHeap] base=0x1ff5390 alignedBase=0x1ff5390 size=0x8000 runtimeBase=0x0 runtimeEnd=0x0
+[SifInitRpc] Initialized[ps2xIOP] [IOP] loaded IRX id=1 entry=0x10abc base=0x10000 start=0
+[SIF module] load-emulated id=1 ref=1 path="cdrom0:\MODULES\SIO2MAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=2 entry=0x11d54 base=0x11300 start=0
+[SIF module] load-emulated id=2 ref=1 path="cdrom0:\MODULES\MTAPMAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=3 entry=0x15e68 base=0x13000 start=0
+[SIF module] load-emulated id=3 ref=1 path="cdrom0:\MODULES\PADMAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=4 entry=0x1c458 base=0x1c300 start=0
+[SIF module] load-emulated id=4 ref=1 path="cdrom0:\MODULES\MCMAN.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=5 entry=0x3fb40 base=0x3fb00 start=0
+[SIF module] load-emulated id=5 ref=1 path="cdrom0:\MODULES\MCSERV.IRX;1"
+[ps2xIOP] [IOP] loaded IRX id=6 entry=0x46830 base=0x42e00 start=0
+[SIF module] load-emulated id=6 ref=1 path="cdrom0:\MODULES\LIBSD.IRX;1"
+[ps2xIOP] [IOP printf] sdr driver version 1.4.0 (C)SCEI
+
+[ps2xIOP] [IOP printf]  Exit rsd_main 
+
+[ps2xIOP] [IOP] loaded IRX id=7 entry=0x47500 base=0x47500 start=0
+[SIF module] load-emulated id=7 ref=1 path="cdrom0:\MODULES\SDRDRV.IRX;1"
+[ps2xIOP] [IOP printf] FRD Stream Driver v%d.%d
+
+[ps2xIOP] [IOP printf] Exit stream loader thread
+
+[ps2xIOP] [IOP] loaded IRX id=8 entry=0x48700 base=0x48700 start=0
+[SIF module] load-emulated id=8 ref=1 path="cdrom0:\MODULES\STREAM.IRX;1"
+[gs:gif] idx=0 size=160 nloop=9 flg=0 nreg=1 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=0 reg=0x4c value=0x100000
+[gs:reg] idx=1 reg=0x18 value=0x0
+[gs:reg] idx=2 reg=0x40 value=0x400000004000000
+[gs:reg] idx=3 reg=0x47 value=0x0
+[gs:reg] idx=4 reg=0x0 value=0x6
+[gs:copy-reg] reg=0x0 value=0x6 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=5 reg=0x1 value=0x3f80000000000000
+[gs:reg] idx=6 reg=0x4 value=0x0
+[gs:kick] idx=0 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=7 reg=0x4 value=0x40004000
+[gs:kick] idx=1 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=0 type=6 tme=0 abe=0 fst=0 ctxt=0 fbp=0 fbw=16 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(1024,1024) test=0x0 alpha=0x0 v0=(0,0) uv0=(0,0) stq0=(0,0,1) v1=(1024,1024) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,0) rgba1=(0,0,0,0) rgba2=(0,0,0,0)
+[sceDmaSend] ch=0x1000a000 madr=0x3136b0 qwc=0xa tadr=0x3136b0 chcr=0x181
+[ps2xIOP] [IOP printf] goto stream cmd loop
+
+[gs:reg] idx=8 reg=0x4c value=0x20a0000
+[gs:reg] idx=9 reg=0x18 value=0x790800006c00
+[gs:reg] idx=10 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=11 reg=0x47 value=0x30000
+[frame:upload] idx=0 tick=13 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=12 reg=0x4c value=0x20a0000
+[gs:reg] idx=13 reg=0x18 value=0x790000006c00
+[gs:reg] idx=14 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=15 reg=0x47 value=0x30000
+[frame:upload] idx=1 tick=14 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=16 reg=0x4c value=0x20a0000
+[gs:reg] idx=17 reg=0x18 value=0x790800006c00
+[gs:reg] idx=18 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=19 reg=0x47 value=0x30000
+[frame:upload] idx=2 tick=15 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=20 reg=0x4c value=0x20a0000
+[gs:reg] idx=21 reg=0x18 value=0x790000006c00
+[gs:reg] idx=22 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=23 reg=0x47 value=0x30000
+[frame:upload] idx=3 tick=16 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=24 reg=0x4c value=0x20a0000
+[gs:reg] idx=25 reg=0x18 value=0x790800006c00
+[gs:reg] idx=26 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=27 reg=0x47 value=0x30000
+[frame:upload] idx=4 tick=17 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=28 reg=0x4c value=0x20a0000
+[gs:reg] idx=29 reg=0x18 value=0x790000006c00
+[gs:reg] idx=30 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=31 reg=0x47 value=0x30000
+[frame:upload] idx=5 tick=18 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=32 reg=0x4c value=0x20a0000
+[gs:reg] idx=33 reg=0x18 value=0x790800006c00
+[gs:reg] idx=34 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=35 reg=0x47 value=0x30000
+[frame:upload] idx=6 tick=19 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=36 reg=0x4c value=0x20a0000
+[gs:reg] idx=37 reg=0x18 value=0x790000006c00
+[gs:reg] idx=38 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=39 reg=0x47 value=0x30000
+[frame:upload] idx=7 tick=20 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=40 reg=0x4c value=0x20a0000
+[gs:reg] idx=41 reg=0x18 value=0x790800006c00
+[gs:reg] idx=42 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=43 reg=0x47 value=0x30000
+[frame:upload] idx=8 tick=21 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=44 reg=0x4c value=0x20a0000
+[gs:reg] idx=45 reg=0x18 value=0x790000006c00
+[gs:reg] idx=46 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=47 reg=0x47 value=0x30000
+[frame:upload] idx=9 tick=22 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=48 reg=0x4c value=0x20a0000
+[gs:reg] idx=49 reg=0x18 value=0x790800006c00
+[gs:reg] idx=50 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=51 reg=0x47 value=0x30000
+[frame:upload] idx=10 tick=23 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=52 reg=0x4c value=0x20a0000
+[gs:reg] idx=53 reg=0x18 value=0x790000006c00
+[gs:reg] idx=54 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=55 reg=0x47 value=0x30000
+[frame:upload] idx=11 tick=24 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=56 reg=0x4c value=0x20a0000
+[gs:reg] idx=57 reg=0x18 value=0x790800006c00
+[gs:reg] idx=58 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=59 reg=0x47 value=0x30000
+[frame:upload] idx=12 tick=25 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=60 reg=0x4c value=0x20a0000
+[gs:reg] idx=61 reg=0x18 value=0x790000006c00
+[gs:reg] idx=62 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=63 reg=0x47 value=0x30000
+[frame:upload] idx=13 tick=26 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=64 reg=0x4c value=0x20a0000
+[gs:reg] idx=65 reg=0x18 value=0x790800006c00
+[gs:reg] idx=66 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=67 reg=0x47 value=0x30000
+[frame:upload] idx=14 tick=27 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=68 reg=0x4c value=0x20a0000
+[gs:reg] idx=69 reg=0x18 value=0x790000006c00
+[gs:reg] idx=70 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=71 reg=0x47 value=0x30000
+[frame:upload] idx=15 tick=28 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=72 reg=0x4c value=0x20a0000
+[gs:reg] idx=73 reg=0x18 value=0x790800006c00
+[gs:reg] idx=74 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=75 reg=0x47 value=0x30000
+[frame:upload] idx=16 tick=29 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=76 reg=0x4c value=0x20a0000
+[gs:reg] idx=77 reg=0x18 value=0x790000006c00
+[gs:reg] idx=78 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=79 reg=0x47 value=0x30000
+[frame:upload] idx=17 tick=30 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=80 reg=0x4c value=0x20a0000
+[gs:reg] idx=81 reg=0x18 value=0x790800006c00
+[gs:reg] idx=82 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=83 reg=0x47 value=0x30000
+[frame:upload] idx=18 tick=31 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=84 reg=0x4c value=0x20a0000
+[gs:reg] idx=85 reg=0x18 value=0x790000006c00
+[gs:reg] idx=86 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=87 reg=0x47 value=0x30000
+[frame:upload] idx=19 tick=32 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=88 reg=0x4c value=0x20a0000
+[gs:reg] idx=89 reg=0x18 value=0x790800006c00
+[gs:reg] idx=90 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=91 reg=0x47 value=0x30000
+[frame:upload] idx=20 tick=33 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=92 reg=0x4c value=0x20a0000
+[gs:reg] idx=93 reg=0x18 value=0x790000006c00
+[gs:reg] idx=94 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=95 reg=0x47 value=0x30000
+[frame:upload] idx=21 tick=34 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+[gs:reg] idx=96 reg=0x4c value=0x20a0000
+[gs:reg] idx=97 reg=0x18 value=0x790800006c00
+[gs:reg] idx=98 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=99 reg=0x47 value=0x30000
+Game thread returned. PC=0x2001f4 RA=0x203ff8
+[frame:upload] idx=22 tick=35 displayFbp=0 sourceFbp=0 size=640x224 preferred=0
+INFO: TEXTURE: [ID 3] Unloaded texture data from VRAM (GPU)
+INFO: TEXTURE: [ID 2] Unloaded texture data from VRAM (GPU)
+INFO: SHADER: [ID 3] Default shader unloaded successfully
+INFO: TEXTURE: [ID 1] Default texture unloaded successfully
+INFO: Window closed successfully
+[run] exiting loop[TS:stopped] timeout=0 pc=0x203ff8 dma=1 gif=1 gs=0 vif=0 threads=1

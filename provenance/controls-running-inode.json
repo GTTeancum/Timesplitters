@@ -1,0 +1,7 @@
+{
+  "pid": 5627,
+  "executable": "/mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/timesplitters",
+  "native_executable_inode_sha256": "ff8da6dadcf27fee19d1afd972c24555759d859a8d04917f0a66f420bee32df1",
+  "arguments": "/mnt/data/TimeSplitters_TS03_Checkpoint/build/timesplitters/timesplitters /mnt/data/TimeSplitters_TS03_Checkpoint/project/game-data/SLUS_200.90 235 /mnt/data/TimeSplitters_TS03_Checkpoint/project/disc/TimeSplitters.iso",
+  "note": "Read actual running /proc/PID/exe during TS03 controls probe. Future probes hash before launch and verify unchanged at stop."
+}

@@ -1,0 +1,24 @@
+{
+  "checkpoint": "TS04",
+  "kind": "full",
+  "source_foundation": "byte-verified TS03 checkpoint plus TS04 changes",
+  "original_ts03_archive_sha256": "a75a8337afa7d8eb4832c863265db52d17693db000d7270918f01912dc4dd6cc",
+  "full_disc_assets_included": false,
+  "dependency_downloads_included": false,
+  "font_files_included": false,
+  "native_host_binaries_included": true,
+  "native_captures_selected_RAM_included": true,
+  "native_card_fixtures_included": true,
+  "original_analysis_ELF_modules_included": true,
+  "Ghidra_database_included": true,
+  "full_suite_checks": 613,
+  "checks_available_without_captured_RAM": 611,
+  "excluded_generated_workdirs": [
+    "build",
+    "build-clean",
+    "test-work",
+    "project/disc",
+    "project/game-data"
+  ],
+  "see_status_for_validation_scope": true
+}

@@ -1,0 +1,112 @@
+{
+  "checkpoint": "TS01",
+  "date": "2026-09-22",
+  "status": "Native Linux startup and graphics-thread execution; corrupted rendering; not playable",
+  "game": {
+    "name": "TimeSplitters (USA) (v2.00)",
+    "executable": "SLUS_200.90",
+    "elf_sha256": "19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2",
+    "entry": "0x00200008",
+    "original_disc_unchanged": true
+  },
+  "dependencies": {
+    "zip_volumes": 5,
+    "payload_files": 852,
+    "locked_repositories": 21,
+    "restored_and_verified": true,
+    "build_network_fetches_disabled": true
+  },
+  "source": {
+    "ps2recomp_commit": "75d729ce40d7eed9649fd4bb05628dee520f3d0c",
+    "pcsx2_reference_commit": "650d7048561756cdbfea60ee65282074a38eefa1",
+    "patch": "patches/PS2Recomp-TS01.patch",
+    "patched_framework_files": 15
+  },
+  "analysis": {
+    "ghidra": "12.1.3",
+    "ee_extension": "2.1.37",
+    "functions": 2669,
+    "types": 428,
+    "symbols": 31716
+  },
+  "generation": {
+    "processed_functions": 2670,
+    "original_ee_bodies": 2374,
+    "automatic_hle_wrappers": 296,
+    "explicit_skipped_functions": 0,
+    "decode_failures": 0,
+    "unhandled_instructions": 0,
+    "warnings": 78,
+    "errors": 0,
+    "aot_indirect_entrypoints": 16154,
+    "generated_files": 2673,
+    "fresh_regeneration_byte_identical": true
+  },
+  "build": {
+    "platform": "Debian 13 Linux x86-64",
+    "compiler": "Clang 19.1.7",
+    "fresh_standalone_checkpoint_build_exit": 0,
+    "native_sha256": "495057ebce60c15218a496e50678b58b9521c19c6b85004fc53ba08a1e51a1a3",
+    "recompiler_sha256": "9edbe3705e2095d5f808690c32d230071fc565ceea6d2f1e16839c3d1e3ab70f",
+    "dynamic_libraries_missing": []
+  },
+  "tests": {
+    "core": {
+      "passed": 442,
+      "failed": 0
+    },
+    "iop": {
+      "passed": 4,
+      "failed": 0
+    },
+    "gs_cache": {
+      "passed": 45,
+      "failed": 0
+    },
+    "original_ee_abi": {
+      "passed": 4,
+      "failed": 0
+    },
+    "total_passed": 495,
+    "total_failed": 0
+  },
+  "native_probe": {
+    "returncode": 10,
+    "outer_killed": false,
+    "elapsed_seconds": 12.428851609000048,
+    "screenshots": [
+      "native-08-002.png",
+      "native-08-007.png",
+      "native-08-012.png"
+    ],
+    "binary": "/mnt/data/TimeSplitters_TS01_Checkpoint/bin/timesplitters",
+    "binary_sha256": "495057ebce60c15218a496e50678b58b9521c19c6b85004fc53ba08a1e51a1a3",
+    "execution": "native x86-64 EE AOT with PS2Recomp HLE/runtime and IOP emulation",
+    "reference_pcsx2_run": false
+  },
+  "native_execution": {
+    "ee_threads": 3,
+    "iop_modules_loaded": 8,
+    "end_counters": {
+      "dma": 782,
+      "gif": 297,
+      "vif": 126
+    },
+    "usable_frontend_verified": false,
+    "gameplay_verified": false,
+    "input_response_in_usable_menu_verified": false,
+    "audible_audio_verified": false,
+    "saving_verified": false,
+    "pcsx2_built_or_run": false,
+    "ee_interpreter_fallback": false
+  },
+  "next_evidence_gate": "Correct original frontend rendering and usable input; Windows builds remain deferred",
+  "evidence": {
+    "build": "logs/checkpoint-clean-build.log",
+    "tests": "logs/checkpoint-final-tests.log",
+    "generation": "logs/checkpoint-regenerate.log",
+    "regeneration": "provenance/regeneration-verification.json",
+    "native": "project/diagnostics/native-08.log",
+    "native_probe": "project/diagnostics/native-08-probe.json"
+  }
+}

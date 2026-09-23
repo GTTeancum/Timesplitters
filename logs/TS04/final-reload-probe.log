@@ -1,0 +1,156 @@
+Original game files and ISO verified
+{
+  "requested_seconds": 100,
+  "requested_input": [
+    {
+      "at": 35,
+      "key": "Return",
+      "hold": 0.2
+    },
+    {
+      "at": 44,
+      "key": "x",
+      "hold": 0.2
+    },
+    {
+      "at": 56,
+      "key": "x",
+      "hold": 0.2
+    },
+    {
+      "at": 70,
+      "key": "x",
+      "hold": 0.2
+    },
+    {
+      "at": 78,
+      "key": "x",
+      "hold": 0.2
+    }
+  ],
+  "live_input": false,
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 100.29453269600026,
+  "screenshots": [
+    "ts04-final-reload-002.png",
+    "ts04-final-reload-007.png",
+    "ts04-final-reload-012.png",
+    "ts04-final-reload-017.png",
+    "ts04-final-reload-022.png",
+    "ts04-final-reload-027.png",
+    "ts04-final-reload-032.png",
+    "ts04-final-reload-037.png",
+    "ts04-final-reload-042.png",
+    "ts04-final-reload-047.png",
+    "ts04-final-reload-052.png",
+    "ts04-final-reload-057.png",
+    "ts04-final-reload-062.png",
+    "ts04-final-reload-067.png",
+    "ts04-final-reload-072.png",
+    "ts04-final-reload-077.png",
+    "ts04-final-reload-082.png",
+    "ts04-final-reload-087.png",
+    "ts04-final-reload-092.png",
+    "ts04-final-reload-097.png"
+  ],
+  "binary": "/mnt/data/TimeSplitters_TS04_Checkpoint/bin/timesplitters",
+  "binary_sha256": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+  "binary_sha256_after": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17",
+  "binary_unchanged_during_run": true,
+  "input": [
+    {
+      "requested": 35.0,
+      "actual": 35.03285993500003,
+      "action": "keydown",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 35.2,
+      "actual": 35.248412844000086,
+      "action": "keyup",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.0,
+      "actual": 44.037993415000074,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.2,
+      "actual": 44.2551750560001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.0,
+      "actual": 56.041138086000046,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.2,
+      "actual": 56.2171103540004,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.0,
+      "actual": 70.02164261600001,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.2,
+      "actual": 70.2389429130003,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.0,
+      "actual": 78.01669654200032,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.2,
+      "actual": 78.23281730600002,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "undelivered": [],
+  "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+  "reference_pcsx2_run": false
+}

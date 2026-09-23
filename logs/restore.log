@@ -1,0 +1,72 @@
+Verified: TimeSplitters-Dependencies-001.zip
+Verified: TimeSplitters-Dependencies-002.zip
+Verified: TimeSplitters-Dependencies-003.zip
+Verified: TimeSplitters-Dependencies-004.zip
+Verified: TimeSplitters-Dependencies-005.zip
+Payload reconstructed and SHA256 verified: /mnt/data/TimeSplitters-Dependencies
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/PCSX2'...
+HEAD is now at 650d704 GS: Bump shader cache version.
+Source ready: sources/PCSX2 650d7048561756cdbfea60ee65282074a38eefa1
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/PS2Recomp'...
+HEAD is now at 75d729c Feature/iop emulator (#244)
+Source ready: sources/PS2Recomp 75d729ce40d7eed9649fd4bb05628dee520f3d0c
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ghidra-emotionengine-reloaded'...
+HEAD is now at ae013ee Merge pull request #126 from chaoticgd/update_readme
+Source ready: sources/ghidra-emotionengine-reloaded ae013ee1475dc970db4fdeba3ec88def6b933d43
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2sdk'...
+HEAD is now at d317f8f Merge pull request #923 from uyjulian/an986
+Source ready: sources/ps2sdk d317f8f0a2a413db38c5ef2b46ba927996983e0a
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/elfio'...
+HEAD is now at 8ae6cec C++17 refactoring
+Source ready: sources/ps2-deps/elfio 8ae6cec5d60495822ecd57d736f66149da9b1830
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/fmt'...
+HEAD is now at 407c905 Update version
+Source ready: sources/ps2-deps/fmt 407c905e45ad75fc29bf0f9bb7c5c2fd3475976f
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui'...
+HEAD is now at b1bcb12 Merge branch 'master' into docking
+Source ready: sources/ps2-deps/imgui b1bcb12a624af7509894c8e77dd47416997777fa
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui_club'...
+HEAD is now at b083116 imgui_threaded_rendering: fixed support for copying AddCallback() user data when > sizeof(void*) (#62)
+Source ready: sources/ps2-deps/imgui_club b083116866e05e0d4bccb2c7f28d94a76ee4965e
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui_colortextedit'...
+HEAD is now at ca2f9f1 Merge pull request #166 from ocornut/fix_for_192
+Source ready: sources/ps2-deps/imgui_colortextedit ca2f9f1462e3b60e56351bc466acda448c5ea50d
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/imgui_file_dialog'...
+HEAD is now at d0e97b2 Merge pull request #229 from nfx-opensource/fix/nullptr-protection
+Source ready: sources/ps2-deps/imgui_file_dialog d0e97b2adc3d3452d72c750c7305dc0291acd052
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/libdwarf'...
+HEAD is now at 2e088b9 Merge branch 'main' of https://github.com/davea42/libdwarf-code
+Source ready: sources/ps2-deps/libdwarf 2e088b983562860f497b4fd789a3e61524eb857c
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json'...
+HEAD is now at 9cca280 JSON for Modern C++ 3.11.3 (#4222)
+Source ready: sources/ps2-deps/nlohmann_json 9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rabbitizer'...
+HEAD is now at d5804fa Remove pyodide from CI because PyPI doesn't like it
+Source ready: sources/ps2-deps/rabbitizer d5804fa488474830a47fbf9f3693048ec1e45589
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib'...
+HEAD is now at c1ab645 Update HISTORY.md
+Source ready: sources/ps2-deps/raylib c1ab645ca298a2801097931d1079b10ff7eb9df8
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/rlimgui'...
+HEAD is now at 118221c Update headings in README.md for consistency
+Source ready: sources/ps2-deps/rlimgui 118221c8a532501a3c2c236b62950877cbefc2b4
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/sdl2'...
+HEAD is now at 5d24957 Updated to version 2.32.10 for release
+Source ready: sources/ps2-deps/sdl2 5d249570393f7a37e037abf22cd6012a4cc56a71
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/sse2neon'...
+HEAD is now at 92f6de1 Bump copyright year
+Source ready: sources/ps2-deps/sse2neon 92f6de174717aef09033ad21568d5bb9e5470404
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11'...
+HEAD is now at be08ba2 doc: update versions in docs
+Source ready: sources/ps2-deps/toml11 be08ba2be2a964edcdb3d3e3ea8d100abc26f286
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/docs/themes/hugo-book'...
+HEAD is now at 2f64607 Update pos list styles, remove self link from post
+Source ready: sources/ps2-deps/toml11/docs/themes/hugo-book 2f64607bc9a4caa6ffc4ed7f614c8ad9a5b6611c
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/tests/extlib/doctest'...
+HEAD is now at ae7a135 fixed links
+Source ready: sources/ps2-deps/toml11/tests/extlib/doctest ae7a13539fb71f270b87eb2e874fbac80bc8dda2
+Cloning into '/mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/tests/extlib/json'...
+HEAD is now at 8c391e0 Docs: Fix wrong code usage in the Value access section of `json_pointer.md` (#4255)
+Source ready: sources/ps2-deps/toml11/tests/extlib/json 8c391e04fe4195d8be862c97f38cfe10e2a3472e
+Sources, matched Ghidra extension and offline CMake preload prepared.
+No packages or games have been installed/run. Build/install scripts:
+/mnt/data/TimeSplitters-Dependencies/collector-kit/linux

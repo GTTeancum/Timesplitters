@@ -1,0 +1,771 @@
+path	length	kind	description
+/types.h/__blkcnt_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/types.h/__blksize_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/types.h/__dev_t	8	TypedefDB	Unsigned Long Long Integer (compiler-specific size)
+/__dmath	8	UnionDB	
+FIELD	0	8	i	/__uint32_t[2]
+FIELD	0	8	d	/double
+/__fdlibm_version	4	EnumDB	
+/types.h/__gid_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/__gnuc_va_list	4	TypedefDB	pointer to char
+/__ieee_double_shape_type	16	UnionDB	
+FIELD	0	8	value	/double
+FIELD	0	8	number	/__ieee_double_shape_type__number
+FIELD	0	8	nan	/__ieee_double_shape_type__nan
+FIELD	0	16	parts	/__ieee_double_shape_type__parts
+FIELD	0	16	aslong	/long int[2]
+/__ieee_double_shape_type__nan	8	StructureDB	
+FIELD	0	4	function1	/unsigned int
+FIELD	4	3	function0	/unsigned int:19
+FIELD	6	1	quiet	/unsigned int:1
+FIELD	6	2	exponent	/unsigned int:11
+FIELD	7	1	sign	/unsigned int:1
+/__ieee_double_shape_type__number	8	StructureDB	
+FIELD	0	4	fraction1	/unsigned int
+FIELD	4	3	fraction0	/unsigned int:20
+FIELD	6	2	exponent	/unsigned int:11
+FIELD	7	1	sign	/unsigned int:1
+/__ieee_double_shape_type__parts	16	StructureDB	
+FIELD	0	8	lsw	/long unsigned int
+FIELD	8	8	msw	/long unsigned int
+/__ieee_float_shape_type	8	UnionDB	
+FIELD	0	4	value	/float
+FIELD	0	4	number	/__ieee_float_shape_type__number
+FIELD	0	4	nan	/__ieee_float_shape_type__nan
+FIELD	0	8	p1	/long int
+/__ieee_float_shape_type__nan	4	StructureDB	
+FIELD	0	2	function1	/unsigned int:16
+FIELD	2	1	function0	/unsigned int:6
+FIELD	2	1	quiet	/unsigned int:1
+FIELD	2	2	exponent	/unsigned int:8
+FIELD	3	1	sign	/unsigned int:1
+/__ieee_float_shape_type__number	4	StructureDB	
+FIELD	0	1	fraction0	/unsigned int:7
+FIELD	0	3	fraction1	/unsigned int:16
+FIELD	2	2	exponent	/unsigned int:8
+FIELD	3	1	sign	/unsigned int:1
+/types.h/__ino_t	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/__int32_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/__int32_t *	4	PointerDB	pointer to __int32_t
+/__int32_t[0]	1	ArrayDB	Array of Signed Integer (compiler-specific size)
+/__int32_t[20]	80	ArrayDB	Array of Signed Integer (compiler-specific size)
+/types.h/__mode_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/types.h/__nlink_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/types.h/__off_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/types.h/__pid_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/__sbuf	8	StructureDB	
+FIELD	0	4	_base	/unsigned char *
+FIELD	4	4	_size	/int
+/__sFILE	88	StructureDB	
+FIELD	0	4	_p	/unsigned char *
+FIELD	4	4	_r	/int
+FIELD	8	4	_w	/int
+FIELD	12	2	_flags	/short int
+FIELD	14	2	_file	/short int
+FIELD	16	8	_bf	/__sbuf
+FIELD	24	4	_lbfsize	/int
+FIELD	28	4	_cookie	/void *
+FIELD	32	4	_read	/undefined1 *
+FIELD	36	4	_write	/undefined1 *
+FIELD	40	4	_seek	/undefined1 *
+FIELD	44	4	_close	/undefined1 *
+FIELD	48	8	_ub	/__sbuf
+FIELD	56	4	_up	/unsigned char *
+FIELD	60	4	_ur	/int
+FIELD	64	3	_ubuf	/unsigned char[3]
+FIELD	67	1	_nbuf	/unsigned char[1]
+FIELD	68	8	_lb	/__sbuf
+FIELD	76	4	_blksize	/int
+FIELD	80	4	_offset	/int
+FIELD	84	4	_data	/_reent *
+/__sFILE *	4	PointerDB	pointer to __sFILE
+/__sFILE[3]	264	ArrayDB	Array of 
+/__siov	8	StructureDB	
+FIELD	0	4	iov_base	/void *
+FIELD	4	4	iov_len	/size_t
+/__siov *	4	PointerDB	pointer to __siov
+/__siov[8]	64	ArrayDB	Array of 
+/types.h/__ssize_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/__suio	12	StructureDB	
+FIELD	0	4	uio_iov	/__siov *
+FIELD	4	4	uio_iovcnt	/int
+FIELD	8	4	uio_resid	/int
+/__suio *	4	PointerDB	pointer to __suio
+/types.h/__time_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/types.h/__u_quad_t	8	TypedefDB	Unsigned Long Long Integer (compiler-specific size)
+/types.h/__uid_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/__uint32_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/__uint32_t[2]	8	ArrayDB	Array of Unsigned Integer (compiler-specific size)
+/_atexit	136	StructureDB	
+FIELD	0	4	_next	/_atexit *
+FIELD	4	4	_ind	/int
+FIELD	8	128	_fns	/undefined1 *[32]
+/_atexit *	4	PointerDB	pointer to _atexit
+/_Bigint	24	StructureDB	
+FIELD	0	4	_next	/_Bigint *
+FIELD	4	4	_k	/int
+FIELD	8	4	_maxwds	/int
+FIELD	12	4	_sign	/int
+FIELD	16	4	_wds	/int
+FIELD	20	4	_x	/ULong[1]
+/_Bigint *	4	PointerDB	pointer to _Bigint
+/_Bigint * *	4	PointerDB	pointer to pointer to _Bigint
+/_fpos_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/_glue	12	StructureDB	
+FIELD	0	4	_next	/_glue *
+FIELD	4	4	_niobs	/int
+FIELD	8	4	_iobs	/__sFILE *
+/_glue *	4	PointerDB	pointer to _glue
+/_off_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/_reent	748	StructureDB	
+FIELD	0	4	_errno	/int
+FIELD	4	4	_stdin	/__sFILE *
+FIELD	8	4	_stdout	/__sFILE *
+FIELD	12	4	_stderr	/__sFILE *
+FIELD	16	4	_inc	/int
+FIELD	20	25	_emergency	/char[25]
+FIELD	48	4	_current_category	/int
+FIELD	52	4	_current_locale	/char *
+FIELD	56	4	__sdidinit	/int
+FIELD	60	4	__cleanup	/undefined1 *
+FIELD	64	4	_result	/_Bigint *
+FIELD	68	4	_result_k	/int
+FIELD	72	4	_p5s	/_Bigint *
+FIELD	76	4	_freelist	/_Bigint * *
+FIELD	80	4	_cvtlen	/int
+FIELD	84	4	_cvtbuf	/char *
+FIELD	88	240	_new	/_reent___new
+FIELD	328	4	_atexit	/_atexit *
+FIELD	332	136	_atexit0	/_atexit
+FIELD	468	4	_sig_func	/undefined1 * *
+FIELD	472	12	__sglue	/_glue
+FIELD	484	264	__sf	/__sFILE[3]
+/_reent *	4	PointerDB	pointer to _reent
+/_reent___new	240	UnionDB	
+FIELD	0	76	_reent	/_reent___new___reent
+FIELD	0	240	_unused	/_reent___new___unused
+/_reent___new___reent	76	StructureDB	
+FIELD	0	4	_rand_next	/unsigned int
+FIELD	4	4	_strtok_last	/char *
+FIELD	8	26	_asctime_buf	/char[26]
+FIELD	36	36	_localtime_buf	/tm
+FIELD	72	4	_gamma_signgam	/int
+/_reent___new___unused	240	StructureDB	
+FIELD	0	120	_nextf	/unsigned char *[30]
+FIELD	120	120	_nmalloc	/unsigned int[30]
+/_sig_func_ptr	4	TypedefDB	pointer to undefined1
+/_ssize_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/_types_fd_set	8	StructureDB	
+FIELD	0	8	fds_bits	/fd_mask[1]
+/block_move_type	4	EnumDB	
+/byte	1	ByteDataType	Unsigned Byte (db)
+/byte[7]	7	ArrayDB	Array of Unsigned Byte (db)
+/caddr_t	4	TypedefDB	pointer to char
+/char	1	CharDataType	Character
+/char *	4	PointerDB	pointer to char
+/char * *	4	PointerDB	pointer to pointer to char
+/char[256]	256	ArrayDB	Array of Character
+/char[257]	257	ArrayDB	Array of Character
+/char[25]	25	ArrayDB	Array of Character
+/char[26]	26	ArrayDB	Array of Character
+/char[2]	2	ArrayDB	Array of Character
+/char[308]	308	ArrayDB	Array of Character
+/char[348]	348	ArrayDB	Array of Character
+/char[350]	350	ArrayDB	Array of Character
+/char[40]	40	ArrayDB	Array of Character
+/char[7]	7	ArrayDB	Array of Character
+/clock_t	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/cmp_type	4	EnumDB	
+/complex double	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/complex float	4	TypedefDB	Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/complex int	8	StructureDB	
+FIELD	0	4	real	/int
+FIELD	4	4	imag	/int
+/complex long double	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/CUMULATIVE_ARGS	60	TypedefDB	
+/daddr_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/delay_type	4	EnumDB	
+/dev_t	2	TypedefDB	Unsigned Short Integer (compiler-specific size)
+/DFtype	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/DIstruct	8	StructureDB	
+FIELD	0	4	low	/SItype
+FIELD	4	4	high	/SItype
+/DItype	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/DIunion	8	UnionDB	
+FIELD	0	8	s	/DIstruct
+FIELD	0	8	ll	/DItype
+/div_t	8	StructureDB	
+FIELD	0	4	quot	/int
+FIELD	4	4	rem	/int
+/double	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/double[0]	1	ArrayDB	Array of Signed Long Integer (compiler-specific size)
+/double[2]	16	ArrayDB	Array of Signed Long Integer (compiler-specific size)
+/double_union	8	UnionDB	
+FIELD	0	8	d	/double
+FIELD	0	8	i	/__uint32_t[2]
+/dword	4	DWordDataType	Unsigned Double-Word (ddw, 4-bytes)
+/dword[4]	16	ArrayDB	Array of Unsigned Double-Word (ddw, 4-bytes)
+/eflock	48	StructureDB	
+FIELD	0	2	l_type	/short int
+FIELD	2	2	l_whence	/short int
+FIELD	8	8	l_start	/long int
+FIELD	16	8	l_len	/long int
+FIELD	24	2	l_pid	/short int
+FIELD	26	2	l_xxx	/short int
+FIELD	32	8	l_rpid	/long int
+FIELD	40	8	l_rsys	/long int
+/ELF/Elf32_Ehdr	52	StructureDB	
+FIELD	0	1	e_ident_magic_num	/byte
+FIELD	1	3	e_ident_magic_str	/string
+FIELD	4	1	e_ident_class	/byte
+FIELD	5	1	e_ident_data	/byte
+FIELD	6	1	e_ident_version	/byte
+FIELD	7	1	e_ident_osabi	/byte
+FIELD	8	1	e_ident_abiversion	/byte
+FIELD	9	7	e_ident_pad	/byte[7]
+FIELD	16	2	e_type	/word
+FIELD	18	2	e_machine	/word
+FIELD	20	4	e_version	/dword
+FIELD	24	4	e_entry	/dword
+FIELD	28	4	e_phoff	/dword
+FIELD	32	4	e_shoff	/dword
+FIELD	36	4	e_flags	/dword
+FIELD	40	2	e_ehsize	/word
+FIELD	42	2	e_phentsize	/word
+FIELD	44	2	e_phnum	/word
+FIELD	46	2	e_shentsize	/word
+FIELD	48	2	e_shnum	/word
+FIELD	50	2	e_shstrndx	/word
+/Elf32_GPRMask_MIPS	4	EnumDB	
+/ELF/Elf32_Phdr	32	StructureDB	
+FIELD	0	4	p_type	/ELF/Elf_ProgramHeaderType_EE
+FIELD	4	4	p_offset	/dword
+FIELD	8	4	p_vaddr	/dword
+FIELD	12	4	p_paddr	/dword
+FIELD	16	4	p_filesz	/dword
+FIELD	20	4	p_memsz	/dword
+FIELD	24	4	p_flags	/dword
+FIELD	28	4	p_align	/dword
+/ELF/Elf32_Phdr[1]	32	ArrayDB	Array of 
+/ELF/Elf32_RegInfo_MIPS	24	StructureDB	
+FIELD	0	4	ri_gprmask	/Elf32_GPRMask_MIPS
+FIELD	4	16	null	/dword[4]
+FIELD	20	4	ri_gp_value	/dword
+/ELF/Elf32_Shdr	40	StructureDB	
+FIELD	0	4	sh_name	/dword
+FIELD	4	4	sh_type	/ELF/Elf_SectionHeaderType_EE
+FIELD	8	4	sh_flags	/dword
+FIELD	12	4	sh_addr	/dword
+FIELD	16	4	sh_offset	/dword
+FIELD	20	4	sh_size	/dword
+FIELD	24	4	sh_link	/dword
+FIELD	28	4	sh_info	/dword
+FIELD	32	4	sh_addralign	/dword
+FIELD	36	4	sh_entsize	/dword
+/ELF/Elf32_Shdr[40]	1600	ArrayDB	Array of 
+/ELF/Elf32_Sym	16	StructureDB	
+FIELD	0	4	st_name	/dword
+FIELD	4	4	st_value	/dword
+FIELD	8	4	st_size	/dword
+FIELD	12	1	st_info	/byte
+FIELD	13	1	st_other	/byte
+FIELD	14	2	st_shndx	/word
+/ELF/Elf32_Sym[6254]	100064	ArrayDB	Array of 
+/ELF/Elf_ProgramHeaderType_EE	4	EnumDB	
+/ELF/Elf_SectionHeaderType_EE	4	EnumDB	
+/ossl_typ.h/EVP_PKEY_CTX	1	TypedefDB	
+/ossl_typ.h/EVP_PKEY_CTX *	4	PointerDB	pointer to EVP_PKEY_CTX
+/ossl_typ.h/evp_pkey_ctx_st	1	StructureDB	
+/exception	40	StructureDB	
+FIELD	0	4	type	/int
+FIELD	4	4	name	/char *
+FIELD	8	8	arg1	/double
+FIELD	16	8	arg2	/double
+FIELD	24	8	retval	/double
+FIELD	32	4	err	/int
+/exception *	4	PointerDB	pointer to exception
+/fd_mask	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/fd_mask[1]	8	ArrayDB	Array of Signed Long Integer (compiler-specific size)
+/FILE	88	TypedefDB	
+/FILE *	4	PointerDB	pointer to FILE
+/FLO_type	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/FLO_type.conflict	4	TypedefDB	Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/FLO_union_type__221_38	8	UnionDB	
+FIELD	0	8	value	/FLO_type
+FIELD	0	8	value_raw	/fractype
+FIELD	0	8	words	/halffractype[2]
+FIELD	0	8	bits	/FLO_union_type__bits__221_38
+/FLO_union_type__221_38 *	4	PointerDB	pointer to FLO_union_type__221_38
+/FLO_union_type__222_38	4	UnionDB	
+FIELD	0	4	value	/FLO_type.conflict
+FIELD	0	4	value_raw	/fractype.conflict
+FIELD	0	4	bits	/FLO_union_type__bits__222_38
+/FLO_union_type__222_38 *	4	PointerDB	pointer to FLO_union_type__222_38
+/FLO_union_type__bits__221_38	8	StructureDB	
+FIELD	0	7	fraction	/fractype:52
+FIELD	6	2	exp	/unsigned int:11
+FIELD	7	1	sign	/unsigned int:1
+/FLO_union_type__bits__222_38	4	StructureDB	
+FIELD	0	3	fraction	/fractype.conflict:23
+FIELD	2	2	exp	/unsigned int:8
+FIELD	3	1	sign	/unsigned int:1
+/float	4	FloatDataType	Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/float *	4	PointerDB	pointer to float
+/float[0]	1	ArrayDB	Array of Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/float[20]	80	ArrayDB	Array of Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/float[2]	8	ArrayDB	Array of Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/float[3]	12	ArrayDB	Array of Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/flock	32	StructureDB	
+FIELD	0	2	l_type	/short int
+FIELD	2	2	l_whence	/short int
+FIELD	8	8	l_start	/long int
+FIELD	16	8	l_len	/long int
+FIELD	24	2	l_pid	/short int
+FIELD	26	2	l_xxx	/short int
+/fp_class_type	4	EnumDB	
+/fp_except	4	TypedefDB	Signed Integer (compiler-specific size)
+/fp_number_type__221_34	24	StructureDB	
+FIELD	0	4	class	/fp_class_type
+FIELD	4	4	sign	/unsigned int
+FIELD	8	4	normal_exp	/int
+FIELD	16	8	fraction	/fp_number_type__fraction__221_34
+/fp_number_type__221_34 *	4	PointerDB	pointer to fp_number_type__221_34
+/fp_number_type__222_34	16	StructureDB	
+FIELD	0	4	class	/fp_class_type
+FIELD	4	4	sign	/unsigned int
+FIELD	8	4	normal_exp	/int
+FIELD	12	4	fraction	/fp_number_type__fraction__222_34
+/fp_number_type__222_34 *	4	PointerDB	pointer to fp_number_type__222_34
+/fp_number_type__fraction__221_34	8	UnionDB	
+FIELD	0	8	ll	/fractype
+FIELD	0	8	l	/halffractype[2]
+/fp_number_type__fraction__222_34	4	UnionDB	
+FIELD	0	4	ll	/fractype.conflict
+FIELD	0	4	l	/halffractype.conflict[2]
+/fp_rdi	4	TypedefDB	Signed Integer (compiler-specific size)
+/fp_rnd	4	TypedefDB	Signed Integer (compiler-specific size)
+/fpos_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/fractype	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/fractype.conflict	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/func_ptr	4	TypedefDB	pointer to undefined1
+/func_ptr[2]	8	ArrayDB	Array of pointer to undefined1
+/gid_t	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/halffractype	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/halffractype.conflict	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/halffractype[2]	8	ArrayDB	Array of Unsigned Integer (compiler-specific size)
+/halffractype.conflict[2]	4	ArrayDB	Array of Signed Short Integer (compiler-specific size)
+/HItype	2	TypedefDB	Unsigned Short Integer (compiler-specific size)
+/ieee_double_shape_type	8	UnionDB	
+FIELD	0	8	value	/double
+FIELD	0	8	parts	/ieee_double_shape_type__parts
+/ieee_double_shape_type__parts	8	StructureDB	
+FIELD	0	4	lsw	/__uint32_t
+FIELD	4	4	msw	/__uint32_t
+/ieee_float_shape_type	4	UnionDB	
+FIELD	0	4	value	/float
+FIELD	0	4	word	/__uint32_t
+/ino_t	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/int	4	IntegerDataType	Signed Integer (compiler-specific size)
+/int *	4	PointerDB	pointer to int
+/int[0]	1	ArrayDB	Array of Signed Integer (compiler-specific size)
+/intfrac	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/intfrac.conflict	4	TypedefDB	Signed Integer (compiler-specific size)
+/stdint.h/intptr_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/key_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/lconv	48	StructureDB	
+FIELD	0	4	decimal_point	/char *
+FIELD	4	4	thousands_sep	/char *
+FIELD	8	4	grouping	/char *
+FIELD	12	4	int_curr_symbol	/char *
+FIELD	16	4	currency_symbol	/char *
+FIELD	20	4	mon_decimal_point	/char *
+FIELD	24	4	mon_thousands_sep	/char *
+FIELD	28	4	mon_grouping	/char *
+FIELD	32	4	positive_sign	/char *
+FIELD	36	4	negative_sign	/char *
+FIELD	40	1	int_frac_digits	/char
+FIELD	41	1	frac_digits	/char
+FIELD	42	1	p_cs_precedes	/char
+FIELD	43	1	p_sep_by_space	/char
+FIELD	44	1	n_cs_precedes	/char
+FIELD	45	1	n_sep_by_space	/char
+FIELD	46	1	p_sign_posn	/char
+FIELD	47	1	n_sign_posn	/char
+/locale.h/lconv	56	StructureDB	
+FIELD	0	4	decimal_point	/char *
+FIELD	4	4	thousands_sep	/char *
+FIELD	8	4	grouping	/char *
+FIELD	12	4	int_curr_symbol	/char *
+FIELD	16	4	currency_symbol	/char *
+FIELD	20	4	mon_decimal_point	/char *
+FIELD	24	4	mon_thousands_sep	/char *
+FIELD	28	4	mon_grouping	/char *
+FIELD	32	4	positive_sign	/char *
+FIELD	36	4	negative_sign	/char *
+FIELD	40	1	int_frac_digits	/char
+FIELD	41	1	frac_digits	/char
+FIELD	42	1	p_cs_precedes	/char
+FIELD	43	1	p_sep_by_space	/char
+FIELD	44	1	n_cs_precedes	/char
+FIELD	45	1	n_sep_by_space	/char
+FIELD	46	1	p_sign_posn	/char
+FIELD	47	1	n_sign_posn	/char
+FIELD	48	1	int_p_cs_precedes	/char
+FIELD	49	1	int_p_sep_by_space	/char
+FIELD	50	1	int_n_cs_precedes	/char
+FIELD	51	1	int_n_sep_by_space	/char
+FIELD	52	1	int_p_sign_posn	/char
+FIELD	53	1	int_n_sign_posn	/char
+/lconv *	4	PointerDB	pointer to lconv
+/locale.h/lconv *	4	PointerDB	pointer to lconv
+/ldiv_t	16	StructureDB	
+FIELD	0	8	quot	/long int
+FIELD	8	8	rem	/long int
+/long	8	LongDataType	Signed Long Integer (compiler-specific size)
+/long double	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/long int	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/long int[2]	16	ArrayDB	Array of Signed Long Integer (compiler-specific size)
+/long long int	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/long long unsigned int	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/long unsigned int	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/machine_mode	4	EnumDB	
+/mallinfo	40	StructureDB	
+FIELD	0	4	arena	/int
+FIELD	4	4	ordblks	/int
+FIELD	8	4	smblks	/int
+FIELD	12	4	hblks	/int
+FIELD	16	4	hblkhd	/int
+FIELD	20	4	usmblks	/int
+FIELD	24	4	fsmblks	/int
+FIELD	28	4	uordblks	/int
+FIELD	32	4	fordblks	/int
+FIELD	36	4	keepcost	/int
+/malloc_chunk	16	StructureDB	
+FIELD	0	4	prev_size	/size_t
+FIELD	4	4	size	/size_t
+FIELD	8	4	fd	/malloc_chunk *
+FIELD	12	4	bk	/malloc_chunk *
+/malloc_chunk *	4	PointerDB	pointer to malloc_chunk
+/mbinptr	4	TypedefDB	pointer to malloc_chunk
+/mbinptr[258]	1032	ArrayDB	Array of pointer to malloc_chunk
+/mchunkptr	4	TypedefDB	pointer to malloc_chunk
+/mips_abicalls_type	4	EnumDB	
+/mips_args	60	StructureDB	
+FIELD	0	4	gp_reg_found	/int
+FIELD	4	4	arg_number	/int
+FIELD	8	4	arg_words	/int
+FIELD	12	4	fp_arg_words	/int
+FIELD	16	4	last_arg_fp	/int
+FIELD	20	4	fp_code	/int
+FIELD	24	4	num_adjusts	/int
+FIELD	28	32	adjust	/rtx_def *[8]
+/mips_frame_info	112	StructureDB	
+FIELD	0	8	total_size	/long int
+FIELD	8	8	var_size	/long int
+FIELD	16	8	args_size	/long int
+FIELD	24	8	extra_size	/long int
+FIELD	32	4	gp_reg_size	/int
+FIELD	36	4	fp_reg_size	/int
+FIELD	40	8	mask	/long int
+FIELD	48	8	fmask	/long int
+FIELD	56	8	gp_save_offset	/long int
+FIELD	64	8	fp_save_offset	/long int
+FIELD	72	8	gp_sp_offset	/long int
+FIELD	80	8	fp_sp_offset	/long int
+FIELD	88	4	initialized	/int
+FIELD	92	4	num_gp	/int
+FIELD	96	4	num_fp	/int
+FIELD	104	8	insns_len	/long int
+/mode_class	4	EnumDB	
+/mode_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/nlink_t	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/off_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/pid_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/pointer	4	PointerDB	pointer
+/processor_type	4	EnumDB	
+/ptrdiff_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/reg_class	4	EnumDB	
+/rtx_def	1	StructureDB	Probably forward declared, but not defined, in a translation unit with symbols.
+/rtx_def *	4	PointerDB	pointer to rtx_def
+/rtx_def *[8]	32	ArrayDB	Array of pointer to rtx_def
+/SFtype	4	TypedefDB	Compiler-defined 'float' IEEE 754 floating-point type (32-bit / 4-byte format, aligned-length is 4-bytes)
+/short	2	ShortDataType	Signed Short Integer (compiler-specific size)
+/short int	2	TypedefDB	Unsigned Short Integer (compiler-specific size)
+/short unsigned int	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/sig_atomic_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/sigaction	24	StructureDB	
+FIELD	0	4	sa_handler	/undefined1 *
+FIELD	8	8	sa_mask	/sigset_t
+FIELD	16	4	sa_flags	/int
+/signed char	1	TypedefDB	Character
+/sigset_t	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/SItype	4	TypedefDB	Signed Integer (compiler-specific size)
+/size_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/stddef.h/size_t	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/ssize_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/types.h/ssize_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/stat	104	StructureDB	
+FIELD	0	2	st_dev	/dev_t
+FIELD	2	2	st_ino	/ino_t
+FIELD	4	4	st_mode	/mode_t
+FIELD	8	2	st_nlink	/nlink_t
+FIELD	10	2	st_uid	/uid_t
+FIELD	12	2	st_gid	/gid_t
+FIELD	14	2	st_rdev	/dev_t
+FIELD	16	8	st_size	/off_t
+FIELD	24	8	st_atime	/time_t
+FIELD	32	8	st_spare1	/long int
+FIELD	40	8	st_mtime	/time_t
+FIELD	48	8	st_spare2	/long int
+FIELD	56	8	st_ctime	/time_t
+FIELD	64	8	st_spare3	/long int
+FIELD	72	8	st_blksize	/long int
+FIELD	80	8	st_blocks	/long int
+FIELD	88	16	st_spare4	/long int[2]
+/stat.h/stat	144	StructureDB	
+FIELD	0	8	st_dev	/types.h/__dev_t
+FIELD	8	2	__pad1	/ushort
+FIELD	16	8	st_ino	/types.h/__ino_t
+FIELD	24	4	st_mode	/types.h/__mode_t
+FIELD	28	4	st_nlink	/types.h/__nlink_t
+FIELD	32	4	st_uid	/types.h/__uid_t
+FIELD	36	4	st_gid	/types.h/__gid_t
+FIELD	40	8	st_rdev	/types.h/__dev_t
+FIELD	48	2	__pad2	/ushort
+FIELD	56	8	st_size	/types.h/__off_t
+FIELD	64	8	st_blksize	/types.h/__blksize_t
+FIELD	72	8	st_blocks	/types.h/__blkcnt_t
+FIELD	80	16	st_atim	/time.h/timespec
+FIELD	96	16	st_mtim	/time.h/timespec
+FIELD	112	16	st_ctim	/time.h/timespec
+FIELD	128	8	__unused4	/ulong
+FIELD	136	8	__unused5	/ulong
+/stat *	4	PointerDB	pointer to stat
+/stat.h/stat *	4	PointerDB	pointer to stat
+/string	-1	StringDataType	String (fixed length)
+/string-utf8	-1	StringUTF8DataType	String (Fixed Length UTF-8 Unicode)
+/time_t	8	TypedefDB	Signed Long Integer (compiler-specific size)
+/time.h/timespec	16	StructureDB	
+FIELD	0	8	tv_sec	/types.h/__time_t
+FIELD	8	8	tv_nsec	/long
+/tm	36	StructureDB	
+FIELD	0	4	tm_sec	/int
+FIELD	4	4	tm_min	/int
+FIELD	8	4	tm_hour	/int
+FIELD	12	4	tm_mday	/int
+FIELD	16	4	tm_mon	/int
+FIELD	20	4	tm_year	/int
+FIELD	24	4	tm_wday	/int
+FIELD	28	4	tm_yday	/int
+FIELD	32	4	tm_isdst	/int
+/u_char	1	TypedefDB	Unsigned Character (ASCII)
+/u_int	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/u_long	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/u_short	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/uchar	1	UnsignedCharDataType	Unsigned Character (ASCII)
+/UDItype	8	TypedefDB	Unsigned Long Integer (compiler-specific size)
+/UHItype	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/uid_t	2	TypedefDB	Signed Short Integer (compiler-specific size)
+/uint	4	UnsignedIntegerDataType	Unsigned Integer (compiler-specific size)
+/ULong	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/ULong *	4	PointerDB	pointer to ULong
+/ULong.conflict	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/ulong	8	UnsignedLongDataType	Unsigned Long Integer (compiler-specific size)
+/ULong[1]	4	ArrayDB	Array of Unsigned Integer (compiler-specific size)
+/ulonglong	8	UnsignedLongLongDataType	Unsigned Long Long Integer (compiler-specific size)
+/undefined *	4	PointerDB	pointer to undefined
+/undefined1	1	Undefined1DataType	Undefined Byte
+/undefined1 *	4	PointerDB	pointer to undefined1
+/undefined1 * *	4	PointerDB	pointer to pointer to undefined1
+/undefined1 *[32]	128	ArrayDB	Array of pointer to undefined1
+/undefined1[1000]	1000	ArrayDB	Array of Undefined Byte
+/undefined1[1008]	1008	ArrayDB	Array of Undefined Byte
+/undefined1[100]	100	ArrayDB	Array of Undefined Byte
+/undefined1[1024]	1024	ArrayDB	Array of Undefined Byte
+/undefined1[1032]	1032	ArrayDB	Array of Undefined Byte
+/undefined1[1080]	1080	ArrayDB	Array of Undefined Byte
+/undefined1[1092]	1092	ArrayDB	Array of Undefined Byte
+/undefined1[10]	10	ArrayDB	Array of Undefined Byte
+/undefined1[1104]	1104	ArrayDB	Array of Undefined Byte
+/undefined1[1120]	1120	ArrayDB	Array of Undefined Byte
+/undefined1[112]	112	ArrayDB	Array of Undefined Byte
+/undefined1[11408]	11408	ArrayDB	Array of Undefined Byte
+/undefined1[1152]	1152	ArrayDB	Array of Undefined Byte
+/undefined1[116]	116	ArrayDB	Array of Undefined Byte
+/undefined1[1184]	1184	ArrayDB	Array of Undefined Byte
+/undefined1[12000]	12000	ArrayDB	Array of Undefined Byte
+/undefined1[1200]	1200	ArrayDB	Array of Undefined Byte
+/undefined1[120]	120	ArrayDB	Array of Undefined Byte
+/undefined1[1232]	1232	ArrayDB	Array of Undefined Byte
+/undefined1[1280]	1280	ArrayDB	Array of Undefined Byte
+/undefined1[128]	128	ArrayDB	Array of Undefined Byte
+/undefined1[1296]	1296	ArrayDB	Array of Undefined Byte
+/undefined1[12]	12	ArrayDB	Array of Undefined Byte
+/undefined1[132]	132	ArrayDB	Array of Undefined Byte
+/undefined1[133120]	133120	ArrayDB	Array of Undefined Byte
+/undefined1[1344]	1344	ArrayDB	Array of Undefined Byte
+/undefined1[1368]	1368	ArrayDB	Array of Undefined Byte
+/undefined1[1408]	1408	ArrayDB	Array of Undefined Byte
+/undefined1[140]	140	ArrayDB	Array of Undefined Byte
+/undefined1[144]	144	ArrayDB	Array of Undefined Byte
+/undefined1[148]	148	ArrayDB	Array of Undefined Byte
+/undefined1[14]	14	ArrayDB	Array of Undefined Byte
+/undefined1[1512]	1512	ArrayDB	Array of Undefined Byte
+/undefined1[156]	156	ArrayDB	Array of Undefined Byte
+/undefined1[1584]	1584	ArrayDB	Array of Undefined Byte
+/undefined1[15]	15	ArrayDB	Array of Undefined Byte
+/undefined1[1600]	1600	ArrayDB	Array of Undefined Byte
+/undefined1[160]	160	ArrayDB	Array of Undefined Byte
+/undefined1[168]	168	ArrayDB	Array of Undefined Byte
+/undefined1[16]	16	ArrayDB	Array of Undefined Byte
+/undefined1[1728]	1728	ArrayDB	Array of Undefined Byte
+/undefined1[176]	176	ArrayDB	Array of Undefined Byte
+/undefined1[1800]	1800	ArrayDB	Array of Undefined Byte
+/undefined1[180]	180	ArrayDB	Array of Undefined Byte
+/undefined1[18]	18	ArrayDB	Array of Undefined Byte
+/undefined1[19152]	19152	ArrayDB	Array of Undefined Byte
+/undefined1[1920]	1920	ArrayDB	Array of Undefined Byte
+/undefined1[192]	192	ArrayDB	Array of Undefined Byte
+/undefined1[196]	196	ArrayDB	Array of Undefined Byte
+/undefined1[19964]	19964	ArrayDB	Array of Undefined Byte
+/undefined1[200]	200	ArrayDB	Array of Undefined Byte
+/undefined1[208]	208	ArrayDB	Array of Undefined Byte
+/undefined1[20]	20	ArrayDB	Array of Undefined Byte
+/undefined1[2112]	2112	ArrayDB	Array of Undefined Byte
+/undefined1[2160]	2160	ArrayDB	Array of Undefined Byte
+/undefined1[2184]	2184	ArrayDB	Array of Undefined Byte
+/undefined1[224]	224	ArrayDB	Array of Undefined Byte
+/undefined1[22528]	22528	ArrayDB	Array of Undefined Byte
+/undefined1[2288]	2288	ArrayDB	Array of Undefined Byte
+/undefined1[228]	228	ArrayDB	Array of Undefined Byte
+/undefined1[2304]	2304	ArrayDB	Array of Undefined Byte
+/undefined1[2392]	2392	ArrayDB	Array of Undefined Byte
+/undefined1[2400]	2400	ArrayDB	Array of Undefined Byte
+/undefined1[240]	240	ArrayDB	Array of Undefined Byte
+/undefined1[2436]	2436	ArrayDB	Array of Undefined Byte
+/undefined1[243]	243	ArrayDB	Array of Undefined Byte
+/undefined1[2496]	2496	ArrayDB	Array of Undefined Byte
+/undefined1[24]	24	ArrayDB	Array of Undefined Byte
+/undefined1[256]	256	ArrayDB	Array of Undefined Byte
+/undefined1[257]	257	ArrayDB	Array of Undefined Byte
+/undefined1[2592]	2592	ArrayDB	Array of Undefined Byte
+/undefined1[2640]	2640	ArrayDB	Array of Undefined Byte
+/undefined1[264]	264	ArrayDB	Array of Undefined Byte
+/undefined1[2784]	2784	ArrayDB	Array of Undefined Byte
+/undefined1[280]	280	ArrayDB	Array of Undefined Byte
+/undefined1[2860]	2860	ArrayDB	Array of Undefined Byte
+/undefined1[288]	288	ArrayDB	Array of Undefined Byte
+/undefined1[28]	28	ArrayDB	Array of Undefined Byte
+/undefined1[292]	292	ArrayDB	Array of Undefined Byte
+/undefined1[3024]	3024	ArrayDB	Array of Undefined Byte
+/undefined1[3068]	3068	ArrayDB	Array of Undefined Byte
+/undefined1[320]	320	ArrayDB	Array of Undefined Byte
+/undefined1[3216]	3216	ArrayDB	Array of Undefined Byte
+/undefined1[32]	32	ArrayDB	Array of Undefined Byte
+/undefined1[33400]	33400	ArrayDB	Array of Undefined Byte
+/undefined1[3456]	3456	ArrayDB	Array of Undefined Byte
+/undefined1[34]	34	ArrayDB	Array of Undefined Byte
+/undefined1[3520]	3520	ArrayDB	Array of Undefined Byte
+/undefined1[352]	352	ArrayDB	Array of Undefined Byte
+/undefined1[360]	360	ArrayDB	Array of Undefined Byte
+/undefined1[3640]	3640	ArrayDB	Array of Undefined Byte
+/undefined1[364]	364	ArrayDB	Array of Undefined Byte
+/undefined1[3696]	3696	ArrayDB	Array of Undefined Byte
+/undefined1[36]	36	ArrayDB	Array of Undefined Byte
+/undefined1[384]	384	ArrayDB	Array of Undefined Byte
+/undefined1[4056]	4056	ArrayDB	Array of Undefined Byte
+/undefined1[408]	408	ArrayDB	Array of Undefined Byte
+/undefined1[40]	40	ArrayDB	Array of Undefined Byte
+/undefined1[416]	416	ArrayDB	Array of Undefined Byte
+/undefined1[420]	420	ArrayDB	Array of Undefined Byte
+/undefined1[432]	432	ArrayDB	Array of Undefined Byte
+/undefined1[43740]	43740	ArrayDB	Array of Undefined Byte
+/undefined1[440]	440	ArrayDB	Array of Undefined Byte
+/undefined1[448]	448	ArrayDB	Array of Undefined Byte
+/undefined1[44]	44	ArrayDB	Array of Undefined Byte
+/undefined1[456]	456	ArrayDB	Array of Undefined Byte
+/undefined1[4672]	4672	ArrayDB	Array of Undefined Byte
+/undefined1[480]	480	ArrayDB	Array of Undefined Byte
+/undefined1[484]	484	ArrayDB	Array of Undefined Byte
+/undefined1[48]	48	ArrayDB	Array of Undefined Byte
+/undefined1[4984]	4984	ArrayDB	Array of Undefined Byte
+/undefined1[50]	50	ArrayDB	Array of Undefined Byte
+/undefined1[5124]	5124	ArrayDB	Array of Undefined Byte
+/undefined1[512]	512	ArrayDB	Array of Undefined Byte
+/undefined1[5152]	5152	ArrayDB	Array of Undefined Byte
+/undefined1[5280]	5280	ArrayDB	Array of Undefined Byte
+/undefined1[52]	52	ArrayDB	Array of Undefined Byte
+/undefined1[5424]	5424	ArrayDB	Array of Undefined Byte
+/undefined1[55]	55	ArrayDB	Array of Undefined Byte
+/undefined1[5600]	5600	ArrayDB	Array of Undefined Byte
+/undefined1[560]	560	ArrayDB	Array of Undefined Byte
+/undefined1[56]	56	ArrayDB	Array of Undefined Byte
+/undefined1[576]	576	ArrayDB	Array of Undefined Byte
+/undefined1[592]	592	ArrayDB	Array of Undefined Byte
+/undefined1[600]	600	ArrayDB	Array of Undefined Byte
+/undefined1[608]	608	ArrayDB	Array of Undefined Byte
+/undefined1[60]	60	ArrayDB	Array of Undefined Byte
+/undefined1[6144]	6144	ArrayDB	Array of Undefined Byte
+/undefined1[616]	616	ArrayDB	Array of Undefined Byte
+/undefined1[624]	624	ArrayDB	Array of Undefined Byte
+/undefined1[62]	62	ArrayDB	Array of Undefined Byte
+/undefined1[64]	64	ArrayDB	Array of Undefined Byte
+/undefined1[656]	656	ArrayDB	Array of Undefined Byte
+/undefined1[6624]	6624	ArrayDB	Array of Undefined Byte
+/undefined1[672]	672	ArrayDB	Array of Undefined Byte
+/undefined1[68]	68	ArrayDB	Array of Undefined Byte
+/undefined1[700]	700	ArrayDB	Array of Undefined Byte
+/undefined1[720]	720	ArrayDB	Array of Undefined Byte
+/undefined1[728]	728	ArrayDB	Array of Undefined Byte
+/undefined1[72]	72	ArrayDB	Array of Undefined Byte
+/undefined1[732]	732	ArrayDB	Array of Undefined Byte
+/undefined1[7400]	7400	ArrayDB	Array of Undefined Byte
+/undefined1[748]	748	ArrayDB	Array of Undefined Byte
+/undefined1[752]	752	ArrayDB	Array of Undefined Byte
+/undefined1[768]	768	ArrayDB	Array of Undefined Byte
+/undefined1[76]	76	ArrayDB	Array of Undefined Byte
+/undefined1[780]	780	ArrayDB	Array of Undefined Byte
+/undefined1[792]	792	ArrayDB	Array of Undefined Byte
+/undefined1[80]	80	ArrayDB	Array of Undefined Byte
+/undefined1[8192]	8192	ArrayDB	Array of Undefined Byte
+/undefined1[832]	832	ArrayDB	Array of Undefined Byte
+/undefined1[836]	836	ArrayDB	Array of Undefined Byte
+/undefined1[84]	84	ArrayDB	Array of Undefined Byte
+/undefined1[864]	864	ArrayDB	Array of Undefined Byte
+/undefined1[888]	888	ArrayDB	Array of Undefined Byte
+/undefined1[88]	88	ArrayDB	Array of Undefined Byte
+/undefined1[896]	896	ArrayDB	Array of Undefined Byte
+/undefined1[912]	912	ArrayDB	Array of Undefined Byte
+/undefined1[960]	960	ArrayDB	Array of Undefined Byte
+/undefined1[968]	968	ArrayDB	Array of Undefined Byte
+/undefined1[96]	96	ArrayDB	Array of Undefined Byte
+/undefined1[976]	976	ArrayDB	Array of Undefined Byte
+/undefined1[990]	990	ArrayDB	Array of Undefined Byte
+/undefined1[9]	9	ArrayDB	Array of Undefined Byte
+/undefined2	2	Undefined2DataType	Undefined Word
+/undefined3	3	Undefined3DataType	Undefined 3-Byte
+/undefined4	4	Undefined4DataType	Undefined Double Word
+/undefined6	6	Undefined6DataType	Undefined 6-Byte
+/undefined8	8	Undefined8DataType	Undefined Quad Word
+/unnamed_-1__228_79	4	EnumDB	
+/unnamed_-1__252_132	4	EnumDB	
+/unsigned char	1	TypedefDB	Unsigned Character (ASCII)
+/unsigned char *	4	PointerDB	pointer to unsigned char
+/unsigned char *[30]	120	ArrayDB	Array of pointer to unsigned char
+/unsigned char[1024]	1024	ArrayDB	Array of Unsigned Character (ASCII)
+/unsigned char[1]	1	ArrayDB	Array of Unsigned Character (ASCII)
+/unsigned char[3]	3	ArrayDB	Array of Unsigned Character (ASCII)
+/unsigned int	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/unsigned int[30]	120	ArrayDB	Array of Unsigned Integer (compiler-specific size)
+/UQItype	1	TypedefDB	Unsigned Character (ASCII)
+/UQItype[0]	1	ArrayDB	Array of Unsigned Character (ASCII)
+/ushort	2	UnsignedShortDataType	Unsigned Short Integer (compiler-specific size)
+/USItype	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/va_list	4	TypedefDB	pointer to char
+/void	0	VoidDataType	void datatype
+/void *	4	PointerDB	pointer to void
+/wchar_t	4	TypedefDB	Signed Integer (compiler-specific size)
+/wchar_t *	4	PointerDB	pointer to wchar_t
+/wint_t	4	TypedefDB	Unsigned Integer (compiler-specific size)
+/word	2	WordDataType	Unsigned Word (dw, 2-bytes)
+/word_type	8	TypedefDB	Signed Long Integer (compiler-specific size)

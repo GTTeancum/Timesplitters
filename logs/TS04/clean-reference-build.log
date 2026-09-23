@@ -1,0 +1,7 @@
+[0/2] Re-checking globbed directories...
+[1/7] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay_before.dir/dma_replay.cpp.o
+[2/7] Building CXX object timesplitters/CMakeFiles/timesplitters_matrix_reference.dir/mnt/data/TimeSplitters_TS04_Checkpoint/project/tests/matrix_reference_probe.cpp.o
+[3/7] Building CXX object timesplitters/CMakeFiles/timesplitters_dma_replay_before.dir/test-baseline/ts03_ps2_memory.cpp.o
+[4/7] Linking CXX executable timesplitters/timesplitters_dma_replay_before
+[5/7] Building CXX object timesplitters/CMakeFiles/timesplitters_matrix_reference.dir/mnt/data/TimeSplitters_TS04_Checkpoint/project/tests/reference-generated/sceVu0MulMatrix_0x2d5e98.cpp.o
+[6/7] Linking CXX executable timesplitters/timesplitters_matrix_reference

@@ -1,0 +1,22 @@
+
+7-Zip 25.01 (x64) : Copyright (c) 1999-2025 Igor Pavlov : 2025-08-03
+ 64-bit locale=C.UTF-8 Threads:5 OPEN_MAX:16384, ASM
+
+Scanning the drive for archives:
+1 file, 386251149 bytes (369 MiB)
+
+Extracting archive: /mnt/data/TimeSplitters (USA) (v2.00).7z
+--
+Path = /mnt/data/TimeSplitters (USA) (v2.00).7z
+Type = 7z
+Physical Size = 386251149
+Headers Size = 260
+Method = LZMA:26
+Solid = -
+Blocks = 3
+
+Everything is Ok
+
+Files: 3
+Size:       719503231
+Compressed: 386251149

@@ -1,0 +1,20 @@
+# TimeSplitters USA v2.00, ELF SHA256 19f3adca55a338d75ec7acbf56a808ec1a3e62eb567971867a7d38e1e39938c2
+# Original EE instructions; upstream SDK HLE except explicit original-code overrides.
+[general]
+input = "/mnt/data/TS01/analysis/extracted/SLUS_200.90"
+output = "/mnt/data/TS01/generated"
+single_file_output = false
+low_memory_mode = true
+output_worker_threads = 1
+patch_syscalls = false
+patch_cop0 = false
+patch_cache = false
+stubs = []
+skip = []
+
+# __svfscanf uses fread with an original newlib in-memory FILE object.
+# A host FILE-handle shim is not ABI-compatible with that object.
+recompile=["fread", "sceSdTransToIOP", "sceGsSetDefLoadImage", "sceVu0MulMatrix"]
+
+# The original matrix product orders its factors differently from the SDK HLE.
+# Keep the original instruction body and its native ABI regression.

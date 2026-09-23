@@ -1,0 +1,124 @@
+{
+  "kind": "stopped-RAM observation, not gameplay execution",
+  "capture_sha256": "3d29193c5628ec9333bf0ae9195aecde11a5228cbc1e8c57a9295f367ac4faa7",
+  "local_players": 1,
+  "active_characters": 0,
+  "invincible": 0,
+  "selected_cheats": "0x0",
+  "first_player": null,
+  "counters": [
+    {
+      "slot": 0,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 1,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 2,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 3,
+      "attributed_kills": 0.0,
+      "deaths": 1.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 1.0
+    },
+    {
+      "slot": 4,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 5,
+      "attributed_kills": 1.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 1.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 6,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 7,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 8,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 9,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 10,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 11,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 12,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    },
+    {
+      "slot": 13,
+      "attributed_kills": 0.0,
+      "deaths": 0.0,
+      "suicides": 0.0,
+      "other_character_kills": 0.0,
+      "deaths_from_other_characters": 0.0
+    }
+  ],
+  "caveat": "Counter values supplement screenshots/input logs; they do not establish complete combat correctness."
+}

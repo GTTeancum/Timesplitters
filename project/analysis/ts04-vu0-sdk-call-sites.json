@@ -1,0 +1,1207 @@
+{
+  "sceVu0CopyMatrix": {
+    "count": 46,
+    "calls": [
+      {
+        "caller": "calMatrices",
+        "at": "0x213e78"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x213fa4"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x2140d0"
+      },
+      {
+        "caller": "bgGlassGfxRoom",
+        "at": "0x2588d0"
+      },
+      {
+        "caller": "relocateParts",
+        "at": "0x262ee4"
+      },
+      {
+        "caller": "relocateParts",
+        "at": "0x262f04"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x260dfc"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x260ec0"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x261038"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x261fac"
+      },
+      {
+        "caller": "matrixAlign",
+        "at": "0x262ff0"
+      },
+      {
+        "caller": "transformPart",
+        "at": "0x2631dc"
+      },
+      {
+        "caller": "transformPart",
+        "at": "0x263208"
+      },
+      {
+        "caller": "transformPart",
+        "at": "0x263230"
+      },
+      {
+        "caller": "transformPart",
+        "at": "0x263394"
+      },
+      {
+        "caller": "headPropTick",
+        "at": "0x26b814"
+      },
+      {
+        "caller": "headPropTick",
+        "at": "0x26b894"
+      },
+      {
+        "caller": "headPropTick",
+        "at": "0x26b9c8"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x26fff0"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291af4"
+      },
+      {
+        "caller": "decalNewDecalMain",
+        "at": "0x2a3e64"
+      },
+      {
+        "caller": "calInbetweenMatrix",
+        "at": "0x2b5c10"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273ff8"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x274094"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x274120"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x2741b0"
+      },
+      {
+        "caller": "anim_SetModelview",
+        "at": "0x2157a0"
+      },
+      {
+        "caller": "quadRenderAligned",
+        "at": "0x2ab06c"
+      },
+      {
+        "caller": "bgTileLoad",
+        "at": "0x2547ac"
+      },
+      {
+        "caller": "bulletTick",
+        "at": "0x28c92c"
+      },
+      {
+        "caller": "bulletTick",
+        "at": "0x28cbc4"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a2e0"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a2f4"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2769b4"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x276d08"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277054"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277138"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277214"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2772c0"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2773f0"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x27749c"
+      },
+      {
+        "caller": "drawLine",
+        "at": "0x2c7a78"
+      },
+      {
+        "caller": "propNewCorpse",
+        "at": "0x273780"
+      },
+      {
+        "caller": "propNewCorpse",
+        "at": "0x27378c"
+      },
+      {
+        "caller": "obInstLineTest",
+        "at": "0x263a4c"
+      },
+      {
+        "caller": "obInstLineTest",
+        "at": "0x263dcc"
+      }
+    ]
+  },
+  "sceVu0InversMatrix": {
+    "count": 13,
+    "calls": [
+      {
+        "caller": "FindBestBonePos",
+        "at": "0x2856f8"
+      },
+      {
+        "caller": "FindBestBonePos",
+        "at": "0x28571c"
+      },
+      {
+        "caller": "InitialiseChrBoundingBoxData",
+        "at": "0x28649c"
+      },
+      {
+        "caller": "InitialiseChrBoundingBoxData",
+        "at": "0x2865c4"
+      },
+      {
+        "caller": "decalNewDecalMain",
+        "at": "0x2a3e24"
+      },
+      {
+        "caller": "decalNewDecalMain",
+        "at": "0x2a3eac"
+      },
+      {
+        "caller": "camTick",
+        "at": "0x27ed08"
+      },
+      {
+        "caller": "camTick",
+        "at": "0x27ef6c"
+      },
+      {
+        "caller": "bulletTick",
+        "at": "0x28c8f4"
+      },
+      {
+        "caller": "bulletTick",
+        "at": "0x28c974"
+      },
+      {
+        "caller": "obInstLineTest",
+        "at": "0x2638f0"
+      },
+      {
+        "caller": "obInstLineTest",
+        "at": "0x263a94"
+      },
+      {
+        "caller": "chrLineTestChr",
+        "at": "0x2869f0"
+      }
+    ]
+  },
+  "sceVu0MulMatrix": {
+    "count": 195,
+    "calls": [
+      {
+        "caller": "calMatrices",
+        "at": "0x213c58"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x213c7c"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x213e40"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x213f7c"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x21408c"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x21413c"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x214194"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x2141ec"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x21420c"
+      },
+      {
+        "caller": "calMatrices",
+        "at": "0x214278"
+      },
+      {
+        "caller": "SetWindow",
+        "at": "0x230df4"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x260f34"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x260f48"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x260f70"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x260f8c"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x260ff0"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x261024"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x26201c"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x2620dc"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x262150"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x26217c"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x2621e4"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x26221c"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x262240"
+      },
+      {
+        "caller": "partGfx",
+        "at": "0x2622bc"
+      },
+      {
+        "caller": "headPropTick",
+        "at": "0x26be1c"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d3b0"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d40c"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d444"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d590"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d5a8"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d5c0"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d5d8"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d5f0"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d64c"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d664"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d67c"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d694"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d6ac"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d6e4"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d6fc"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d714"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d72c"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d744"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d774"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d7a4"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d7d4"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d808"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d83c"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d868"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d8c4"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d8fc"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d934"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d9a4"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d9dc"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26da08"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26da70"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26daa8"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26dae0"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26db50"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26db88"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26dbc4"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26dc20"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26dc58"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26dc8c"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26dd18"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26dd50"
+      },
+      {
+        "caller": "chrPropTickAfter",
+        "at": "0x26eb00"
+      },
+      {
+        "caller": "chrPropTickAfter",
+        "at": "0x26eb24"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x2700d4"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x2701f0"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x270274"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x2702a4"
+      },
+      {
+        "caller": "updateShotgunReload",
+        "at": "0x291dec"
+      },
+      {
+        "caller": "updateShotgunReload",
+        "at": "0x291e1c"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x29192c"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x29195c"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x2919c0"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x2919f0"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291a88"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291ab8"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291b9c"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291bcc"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291c68"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291c98"
+      },
+      {
+        "caller": "gunUpdate",
+        "at": "0x292a10"
+      },
+      {
+        "caller": "gunUpdate",
+        "at": "0x292a4c"
+      },
+      {
+        "caller": "particleManualGfx",
+        "at": "0x2a07f4"
+      },
+      {
+        "caller": "particleGlassGfx",
+        "at": "0x2a13e4"
+      },
+      {
+        "caller": "decalDraw",
+        "at": "0x2a5c60"
+      },
+      {
+        "caller": "decalDraw",
+        "at": "0x2a5c7c"
+      },
+      {
+        "caller": "attack",
+        "at": "0x2c2f40"
+      },
+      {
+        "caller": "attack",
+        "at": "0x2c2fa0"
+      },
+      {
+        "caller": "attack",
+        "at": "0x2c2fc8"
+      },
+      {
+        "caller": "enemySetRoom",
+        "at": "0x2c827c"
+      },
+      {
+        "caller": "creditsBgGfx",
+        "at": "0x2afc64"
+      },
+      {
+        "caller": "specialfxSphereSpawnTick",
+        "at": "0x2ad380"
+      },
+      {
+        "caller": "specialfxSphereSpawnTick",
+        "at": "0x2ad394"
+      },
+      {
+        "caller": "fireCartridges",
+        "at": "0x28e04c"
+      },
+      {
+        "caller": "fireCartridges",
+        "at": "0x28e070"
+      },
+      {
+        "caller": "fireCartridges",
+        "at": "0x28e0c4"
+      },
+      {
+        "caller": "fireCartridges",
+        "at": "0x28e0e8"
+      },
+      {
+        "caller": "addCartridge",
+        "at": "0x2954f4"
+      },
+      {
+        "caller": "addCartridge",
+        "at": "0x295644"
+      },
+      {
+        "caller": "playerFireShots",
+        "at": "0x28e610"
+      },
+      {
+        "caller": "playerFireShots",
+        "at": "0x28e640"
+      },
+      {
+        "caller": "playerFireShots",
+        "at": "0x28e97c"
+      },
+      {
+        "caller": "playerFireShots",
+        "at": "0x28e9a0"
+      },
+      {
+        "caller": "bgPortalTick",
+        "at": "0x2586f4"
+      },
+      {
+        "caller": "specialfxTimeSplitterHandsGfx",
+        "at": "0x2aba48"
+      },
+      {
+        "caller": "specialfxPlanetSpawnTick",
+        "at": "0x2aca3c"
+      },
+      {
+        "caller": "specialfxPlanetSpawnTick",
+        "at": "0x2aca50"
+      },
+      {
+        "caller": "gunChrFire",
+        "at": "0x28f6a8"
+      },
+      {
+        "caller": "gunChrFire",
+        "at": "0x28f7e0"
+      },
+      {
+        "caller": "gunChrFire",
+        "at": "0x28fa90"
+      },
+      {
+        "caller": "gunChrFire",
+        "at": "0x28fab4"
+      },
+      {
+        "caller": "camTick",
+        "at": "0x27ef5c"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273c78"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273cac"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273cf4"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273d24"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273d64"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273d94"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273dd4"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273e04"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273fb0"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273fe4"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x27402c"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x274080"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x2740c4"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x27410c"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x274154"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x27419c"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x2741e4"
+      },
+      {
+        "caller": "gunRemoteFire",
+        "at": "0x2901f0"
+      },
+      {
+        "caller": "gunRemoteFire",
+        "at": "0x290210"
+      },
+      {
+        "caller": "gunRemoteFire",
+        "at": "0x290234"
+      },
+      {
+        "caller": "specialfxPickupSpawnTick",
+        "at": "0x2ad4b4"
+      },
+      {
+        "caller": "specialfxPickupSpawnTick",
+        "at": "0x2ad4c8"
+      },
+      {
+        "caller": "specialfxRingSpawnTick",
+        "at": "0x2ad068"
+      },
+      {
+        "caller": "specialfxRingSpawnTick",
+        "at": "0x2ad07c"
+      },
+      {
+        "caller": "specialfxRingSpawnTick",
+        "at": "0x2ad0fc"
+      },
+      {
+        "caller": "specialfxRingSpawnTick",
+        "at": "0x2ad110"
+      },
+      {
+        "caller": "playerTick",
+        "at": "0x281318"
+      },
+      {
+        "caller": "playerTick",
+        "at": "0x281b3c"
+      },
+      {
+        "caller": "playerTick",
+        "at": "0x281bb8"
+      },
+      {
+        "caller": "playerTick",
+        "at": "0x281ca4"
+      },
+      {
+        "caller": "playerTick",
+        "at": "0x281d20"
+      },
+      {
+        "caller": "anim_SetModelview",
+        "at": "0x215754"
+      },
+      {
+        "caller": "anim_SetModelview",
+        "at": "0x215774"
+      },
+      {
+        "caller": "flareGfx",
+        "at": "0x2a6828"
+      },
+      {
+        "caller": "playerAutoAimTick",
+        "at": "0x2809f0"
+      },
+      {
+        "caller": "particleGfx",
+        "at": "0x2a192c"
+      },
+      {
+        "caller": "calGlobalMatrices",
+        "at": "0x214a24"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a184"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a1b4"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a210"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a240"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a29c"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a2cc"
+      },
+      {
+        "caller": "specialParticlesGfx",
+        "at": "0x2a8bb0"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2769cc"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x276b94"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x276c4c"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x276c84"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x276d20"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277080"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2770b0"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2770d4"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x27710c"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277164"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277194"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2771b8"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2771f0"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277240"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277264"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x27729c"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2772ec"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277310"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277348"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2773a0"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2773cc"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x27741c"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277440"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277478"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2774c8"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x2774ec"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x277524"
+      },
+      {
+        "caller": "drawLine",
+        "at": "0x2c7a50"
+      },
+      {
+        "caller": "drawLine",
+        "at": "0x2c7a68"
+      },
+      {
+        "caller": "obInstLightUpdate",
+        "at": "0x25cf74"
+      },
+      {
+        "caller": "obInstLightUpdate",
+        "at": "0x25cf88"
+      },
+      {
+        "caller": "obInstLightUpdate",
+        "at": "0x25cfa0"
+      },
+      {
+        "caller": "npcThrowGrenade",
+        "at": "0x2905a0"
+      },
+      {
+        "caller": "cartridgesTick",
+        "at": "0x295d0c"
+      }
+    ]
+  },
+  "sceVu0TransposeMatrix": {
+    "count": 4,
+    "calls": [
+      {
+        "caller": "transformPart",
+        "at": "0x2632d4"
+      },
+      {
+        "caller": "transformPart",
+        "at": "0x2633f0"
+      },
+      {
+        "caller": "obInstLightUpdate",
+        "at": "0x25cfac"
+      },
+      {
+        "caller": "transformHead",
+        "at": "0x263550"
+      }
+    ]
+  },
+  "sceVu0UnitMatrix": {
+    "count": 37,
+    "calls": [
+      {
+        "caller": "relocateParts",
+        "at": "0x262f0c"
+      },
+      {
+        "caller": "propUnattach",
+        "at": "0x26f4c8"
+      },
+      {
+        "caller": "pickupPropTick",
+        "at": "0x26b008"
+      },
+      {
+        "caller": "doorPropTick",
+        "at": "0x26c074"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26c4d0"
+      },
+      {
+        "caller": "remotePropTick",
+        "at": "0x26d360"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x26ff80"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x2700bc"
+      },
+      {
+        "caller": "propAttachUpdate",
+        "at": "0x27013c"
+      },
+      {
+        "caller": "clockPropTick",
+        "at": "0x27934c"
+      },
+      {
+        "caller": "mallclockPropTick",
+        "at": "0x27940c"
+      },
+      {
+        "caller": "pubsignPropTick",
+        "at": "0x279c34"
+      },
+      {
+        "caller": "boatsignPropTick",
+        "at": "0x279d14"
+      },
+      {
+        "caller": "gongPropTick",
+        "at": "0x279dbc"
+      },
+      {
+        "caller": "gunUpdateParts",
+        "at": "0x291278"
+      },
+      {
+        "caller": "specialfxCreate",
+        "at": "0x2a9dd8"
+      },
+      {
+        "caller": "specialfxCreate",
+        "at": "0x2aa1cc"
+      },
+      {
+        "caller": "specialfxCreate",
+        "at": "0x2aa6e4"
+      },
+      {
+        "caller": "specialfxCreate",
+        "at": "0x2aa8fc"
+      },
+      {
+        "caller": "specialfxCreate",
+        "at": "0x2aace8"
+      },
+      {
+        "caller": "matrixScaleSet",
+        "at": "0x2b4f44"
+      },
+      {
+        "caller": "propNew",
+        "at": "0x26897c"
+      },
+      {
+        "caller": "propNew",
+        "at": "0x268984"
+      },
+      {
+        "caller": "animMtxTick",
+        "at": "0x273e70"
+      },
+      {
+        "caller": "matrixTransRotY",
+        "at": "0x2b4c80"
+      },
+      {
+        "caller": "bulletTick",
+        "at": "0x28ce7c"
+      },
+      {
+        "caller": "bulletTick",
+        "at": "0x28ce90"
+      },
+      {
+        "caller": "lobsterPropTick",
+        "at": "0x26a0f4"
+      },
+      {
+        "caller": "matrixRotX",
+        "at": "0x2b4a10"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x276948"
+      },
+      {
+        "caller": "carPropTick",
+        "at": "0x276c98"
+      },
+      {
+        "caller": "matrixroll",
+        "at": "0x2b5ca8"
+      },
+      {
+        "caller": "matrixRotZ",
+        "at": "0x2b4ad0"
+      },
+      {
+        "caller": "matrixScale",
+        "at": "0x2b4ebc"
+      },
+      {
+        "caller": "matrixRotY",
+        "at": "0x2b4a70"
+      },
+      {
+        "caller": "animUpdate",
+        "at": "0x212dd8"
+      },
+      {
+        "caller": "matrixTrans",
+        "at": "0x2b4e64"
+      }
+    ]
+  }
+}

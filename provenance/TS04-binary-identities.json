@@ -1,0 +1,14 @@
+{
+  "ps2_recomp": {
+    "size": 15532496,
+    "sha256": "f15b6a78917b46ff2b8997a2bae1719d1b8bda19a09f583571567c5ce34629b3"
+  },
+  "timesplitters": {
+    "size": 86253912,
+    "sha256": "96e749c4f37f0a51c285161b0b56a444b5d20651081842e42b465e19dcfd9d17"
+  },
+  "timesplitters_dma_replay": {
+    "size": 1888032,
+    "sha256": "e4308ccdf6b03476a26e742f5795eb5861f656449496ce24f7bcbba4b19ac249"
+  }
+}

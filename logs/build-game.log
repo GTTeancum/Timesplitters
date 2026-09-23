@@ -1,0 +1,165 @@
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/CMakeLists.txt:25 (cmake_policy):
+  The OLD behavior for policy CMP0127 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- {fmt} version: 12.1.0
+-- Build type: RelWithDebInfo
+-- Building dwarfgen    ... OFF
+-- Building dwarfexample... OFF
+-- Building api tests   ... 
+-- HAVE_UINTPTR_T 1: uintptr_t defined in stdint.h... YES
+-- uintptr_t value considered NO 
+-- HAVE_INTPTR_T 1: intptr_t defined in stdint.h... YES
+-- intptr_t value considered NO 
+-- ENABLE_DECOMPRESSION : ON
+-- Found libzstd           : TRUE
+-- Found zlib              : TRUE
+-- Build with zlib and zstd: TRUE
+-- CMAKE_SIZEOF_VOID_P ... : 8
+-- Compiler warning options... NO
+-- Install prefix ... /usr/local
+> Enabling optimization for: ps2_recomp_lib
+> Enabling optimization for: ps2_recomp
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Testing if -Werror=pointer-arith can be used -- compiles
+-- Testing if -Werror=implicit-function-declaration can be used -- compiles
+-- Testing if -fno-strict-aliasing can be used -- compiles
+-- Using raylib's GLFW
+-- Including X11 support
+-- Audio Backend: miniaudio
+-- Building raylib static library
+-- Generated build type: RelWithDebInfo
+-- Compiling with the flags:
+--   PLATFORM=PLATFORM_DESKTOP
+--   GRAPHICS=GRAPHICS_API_OPENGL_33
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(imgui) is deprecated, call
+  FetchContent_MakeAvailable(imgui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(imgui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:96 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(rlImGui) is deprecated, call
+  FetchContent_MakeAvailable(rlImGui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(rlImGui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:119 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+> Enabling optimization for: ps2_runtime
+> Enabling optimization for: ps2EntryRunner
+-- Using the multi-header code from /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json/include/
+> Enabling optimization for: ps2_analyzer_lib
+> Enabling optimization for: ps2_analyzer
+> Enabling optimization for: ps2_test_lib
+> Enabling optimization for: ps2x_tests
+-- Configuring done (1.6s)
+-- Generating done (0.3s)
+-- Build files have been written to: /mnt/data/TimeSplitters-Dependencies/build/PS2Recomp
+[0/2] Re-checking globbed directories...
+[1/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/cmake_pch.hxx.pch
+[2/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_82_cxx.cxx.o
+[3/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_83_cxx.cxx.o
+[4/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_81_cxx.cxx.o
+[5/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_79_cxx.cxx.o
+[6/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_80_cxx.cxx.o
+[7/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_78_cxx.cxx.o
+[8/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_77_cxx.cxx.o
+[9/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_76_cxx.cxx.o
+[10/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_74_cxx.cxx.o
+[11/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_75_cxx.cxx.o
+[12/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_72_cxx.cxx.o
+[13/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_70_cxx.cxx.o
+[14/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_69_cxx.cxx.o
+[15/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_68_cxx.cxx.o
+[16/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_67_cxx.cxx.o
+[17/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_66_cxx.cxx.o
+[18/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_65_cxx.cxx.o
+[19/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_64_cxx.cxx.o
+[20/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_71_cxx.cxx.o
+[21/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_73_cxx.cxx.o
+[22/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_63_cxx.cxx.o
+[23/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_61_cxx.cxx.o
+[24/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_60_cxx.cxx.o
+[25/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_62_cxx.cxx.o
+[26/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_59_cxx.cxx.o
+[27/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_56_cxx.cxx.o
+[28/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_58_cxx.cxx.o
+[29/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_57_cxx.cxx.o
+[30/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_54_cxx.cxx.o
+[31/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_55_cxx.cxx.o
+[32/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_53_cxx.cxx.o
+[33/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_51_cxx.cxx.o
+[34/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_52_cxx.cxx.o
+[35/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_50_cxx.cxx.o
+[36/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_48_cxx.cxx.o
+[37/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_49_cxx.cxx.o
+[38/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_45_cxx.cxx.o
+[39/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_47_cxx.cxx.o
+[40/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_46_cxx.cxx.o
+[41/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_42_cxx.cxx.o
+[42/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_43_cxx.cxx.o
+[43/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_44_cxx.cxx.o
+[44/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_39_cxx.cxx.o
+[45/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_38_cxx.cxx.o
+[46/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_37_cxx.cxx.o
+[47/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_40_cxx.cxx.o
+[48/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_36_cxx.cxx.o
+[49/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_35_cxx.cxx.o
+[50/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_41_cxx.cxx.o
+[51/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_34_cxx.cxx.o
+[52/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_32_cxx.cxx.o
+[53/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_30_cxx.cxx.o
+[54/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_33_cxx.cxx.o
+[55/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_31_cxx.cxx.o
+[56/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_29_cxx.cxx.o
+[57/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_27_cxx.cxx.o
+[58/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_28_cxx.cxx.o
+[59/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_26_cxx.cxx.o
+[60/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_25_cxx.cxx.o
+[61/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_23_cxx.cxx.o
+[62/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_24_cxx.cxx.o
+[63/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_21_cxx.cxx.o
+[64/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_20_cxx.cxx.o
+[65/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_22_cxx.cxx.o
+[66/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_19_cxx.cxx.o
+[67/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_18_cxx.cxx.o
+[68/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_16_cxx.cxx.o
+[69/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_15_cxx.cxx.o
+[70/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_17_cxx.cxx.o
+[71/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_13_cxx.cxx.o
+[72/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_11_cxx.cxx.o
+[73/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_12_cxx.cxx.o
+[74/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_10_cxx.cxx.o
+[75/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_14_cxx.cxx.o
+[76/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_7_cxx.cxx.o
+[77/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_8_cxx.cxx.o
+[78/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_6_cxx.cxx.o
+[79/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_9_cxx.cxx.o
+[80/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_4_cxx.cxx.o
+[81/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_3_cxx.cxx.o
+[82/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_1_cxx.cxx.o
+[83/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_5_cxx.cxx.o
+[84/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_0_cxx.cxx.o
+[85/87] Building CXX object timesplitters/CMakeFiles/timesplitters.dir/Unity/unity_2_cxx.cxx.o
+[86/87] Linking CXX executable timesplitters/timesplitters

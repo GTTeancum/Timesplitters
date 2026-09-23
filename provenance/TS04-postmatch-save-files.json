@@ -1,0 +1,37 @@
+{
+  "before": [
+    {
+      "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+      "size": 47000,
+      "sha256": "01a31d22aeba9605be19f78de6f8eeb389a72d32a024a2e6ac92a3c3bd9d7b6d"
+    },
+    {
+      "path": "BASLUS-20090-TS1-OPT/icon.sys",
+      "size": 964,
+      "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+    },
+    {
+      "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+      "size": 65720,
+      "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+    }
+  ],
+  "after": [
+    {
+      "path": "BASLUS-20090-TS1-OPT/BASLUS-20090-TS1-OPT",
+      "size": 47000,
+      "sha256": "480a029b288d2f3213595b29eacab0836a9cc77c0fcb2eb0b4eb8809a7bf7a16"
+    },
+    {
+      "path": "BASLUS-20090-TS1-OPT/icon.sys",
+      "size": 964,
+      "sha256": "1de89ca00b1cad2f2058052a6d447e2b3372d3a63912ae1ff59e85becd37cc82"
+    },
+    {
+      "path": "BASLUS-20090-TS1-OPT/tssave.ico",
+      "size": 65720,
+      "sha256": "3591484b02c9e0b8f67500c81097201e68a515caef95f42eb21cab4c7666894d"
+    }
+  ],
+  "source": "Original game Save Game Status after completed match; isolated disposable card"
+}

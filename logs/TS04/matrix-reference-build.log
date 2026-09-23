@@ -1,0 +1,112 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/toml11/CMakeLists.txt:25 (cmake_policy):
+  The OLD behavior for policy CMP0127 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+
+
+-- {fmt} version: 12.1.0
+-- Build type: RelWithDebInfo
+-- Building dwarfgen    ... OFF
+-- Building dwarfexample... OFF
+-- Building api tests   ... 
+-- HAVE_UINTPTR_T 1: uintptr_t defined in stdint.h... YES
+-- uintptr_t value considered NO 
+-- HAVE_INTPTR_T 1: intptr_t defined in stdint.h... YES
+-- intptr_t value considered NO 
+-- ENABLE_DECOMPRESSION : ON
+-- Found libzstd           : TRUE
+-- Found zlib              : TRUE
+-- Build with zlib and zstd: TRUE
+-- CMAKE_SIZEOF_VOID_P ... : 8
+-- Compiler warning options... NO
+-- Install prefix ... /usr/local
+> Enabling optimization for: ps2_recomp_lib
+> Enabling optimization for: ps2_recomp
+CMake Deprecation Warning at /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/raylib/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+
+-- Testing if -Werror=pointer-arith can be used -- compiles
+-- Testing if -Werror=implicit-function-declaration can be used -- compiles
+-- Testing if -fno-strict-aliasing can be used -- compiles
+-- Using raylib's GLFW
+-- Including X11 support
+-- Audio Backend: miniaudio
+-- Building raylib static library
+-- Generated build type: RelWithDebInfo
+-- Compiling with the flags:
+--   PLATFORM=PLATFORM_DESKTOP
+--   GRAPHICS=GRAPHICS_API_OPENGL_33
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(imgui) is deprecated, call
+  FetchContent_MakeAvailable(imgui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(imgui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:96 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+CMake Warning (dev) at /usr/share/cmake-3.31/Modules/FetchContent.cmake:1953 (message):
+  Calling FetchContent_Populate(rlImGui) is deprecated, call
+  FetchContent_MakeAvailable(rlImGui) instead.  Policy CMP0169 can be set to
+  OLD to allow FetchContent_Populate(rlImGui) to be called directly for now,
+  but the ability to call it with declared details will be removed completely
+  in a future version.
+Call Stack (most recent call first):
+  ps2xRuntime/CMakeLists.txt:119 (FetchContent_Populate)
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+> Enabling optimization for: ps2_runtime
+> Enabling optimization for: ps2EntryRunner
+-- Using the multi-header code from /mnt/data/TimeSplitters-Dependencies/sources/ps2-deps/nlohmann_json/include/
+> Enabling optimization for: ps2_analyzer_lib
+> Enabling optimization for: ps2_analyzer
+> Enabling optimization for: ps2_test_lib
+> Enabling optimization for: ps2x_tests
+-- Configuring done (1.6s)
+-- Generating done (0.4s)
+-- Build files have been written to: /mnt/data/TimeSplitters_TS04_Checkpoint/build
+[0/4] Re-checking globbed directories...
+[1/6] Building CXX object timesplitters/CMakeFiles/timesplitters_matrix_reference.dir/mnt/data/TimeSplitters_TS04_Checkpoint/project/tests/matrix_reference_probe.cpp.o
+[2/6] Building CXX object timesplitters/CMakeFiles/timesplitters_matrix_reference.dir/mnt/data/TimeSplitters_TS04_Checkpoint/project/tests/reference-generated/sceVu0MulMatrix_0x2d5e98.cpp.o
+[3/6] Linking CXX executable timesplitters/timesplitters_matrix_reference
+FAILED: timesplitters/timesplitters_matrix_reference 
+: && /usr/bin/clang++-19 -O2 -g -DNDEBUG -Xlinker --dependency-file=timesplitters/CMakeFiles/timesplitters_matrix_reference.dir/link.d timesplitters/CMakeFiles/timesplitters_matrix_reference.dir/mnt/data/TimeSplitters_TS04_Checkpoint/project/tests/matrix_reference_probe.cpp.o timesplitters/CMakeFiles/timesplitters_matrix_reference.dir/mnt/data/TimeSplitters_TS04_Checkpoint/project/tests/reference-generated/sceVu0MulMatrix_0x2d5e98.cpp.o -o timesplitters/timesplitters_matrix_reference  ps2xRuntime/libps2_runtime.a  _deps/raylib-build/raylib/libraylib.a  -lm  -lpthread  /usr/lib/x86_64-linux-gnu/libGL.so  /usr/lib/x86_64-linux-gnu/librt.a  -lm  -ldl  /usr/lib/x86_64-linux-gnu/libavcodec.so  /usr/lib/x86_64-linux-gnu/libavformat.so  /usr/lib/x86_64-linux-gnu/libavutil.so  /usr/lib/x86_64-linux-gnu/libswresample.so  /usr/lib/x86_64-linux-gnu/libswscale.so  ps2xIOP/libps2_iop.a && :
+/usr/bin/ld: ps2xRuntime/libps2_runtime.a(ps2_runtime.cpp.o): in function `PS2Runtime::replaceFunction(unsigned int, void (*)(unsigned char*, R5900Context*, PS2Runtime*))':
+/mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1106:(.text+0x3203): undefined reference to `g_ps2RecompiledFunctionTableSlotCount'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1128:(.text+0x3215): undefined reference to `g_ps2RecompiledFunctionTableBase'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1129:(.text+0x321f): undefined reference to `g_ps2RecompiledFunctionTableEnd'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1134:(.text+0x324d): undefined reference to `g_ps2RecompiledFunctionTable'
+/usr/bin/ld: ps2xRuntime/libps2_runtime.a(ps2_runtime.cpp.o): in function `PS2Runtime::hasFunction(unsigned int) const':
+/mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1106:(.text+0x338a): undefined reference to `g_ps2RecompiledFunctionTableSlotCount'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1111:(.text+0x339f): undefined reference to `g_ps2RecompiledFunctionTableBase'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:(.text+0x33ae): undefined reference to `g_ps2RecompiledFunctionTableEnd'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1146:(.text+0x33c2): undefined reference to `g_ps2RecompiledFunctionTable'
+/usr/bin/ld: ps2xRuntime/libps2_runtime.a(ps2_runtime.cpp.o): in function `PS2Runtime::lookupFunction(unsigned int)':
+/mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1106:(.text+0x343b): undefined reference to `g_ps2RecompiledFunctionTableSlotCount'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1183:(.text+0x344b): undefined reference to `g_ps2RecompiledFunctionTableBase'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1184:(.text+0x3455): undefined reference to `g_ps2RecompiledFunctionTableEnd'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1175:(.text+0x3482): undefined reference to `g_ps2RecompiledFunctionTable'
+/usr/bin/ld: ps2xRuntime/libps2_runtime.a(ps2_runtime.cpp.o): in function `(anonymous namespace)::generatedFunctionTableSlot(unsigned int, unsigned int&)':
+/mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1106:(.text+0x46fb): undefined reference to `g_ps2RecompiledFunctionTableSlotCount'
+/usr/bin/ld: ps2xRuntime/libps2_runtime.a(ps2_runtime.cpp.o): in function `PS2Runtime::dispatchGuestBranch(unsigned char*, R5900Context*, unsigned int, unsigned int, unsigned int, PS2Runtime::GuestBranchKind, char const*)':
+/mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1111:(.text+0x477e): undefined reference to `g_ps2RecompiledFunctionTableBase'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:(.text+0x478b): undefined reference to `g_ps2RecompiledFunctionTableEnd'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1146:(.text+0x47a7): undefined reference to `g_ps2RecompiledFunctionTable'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1111:(.text+0x4803): undefined reference to `g_ps2RecompiledFunctionTableBase'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:(.text+0x4814): undefined reference to `g_ps2RecompiledFunctionTableEnd'
+/usr/bin/ld: /mnt/data/TimeSplitters_TS04_Checkpoint/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.cpp:1146:(.text+0x4830): undefined reference to `g_ps2RecompiledFunctionTable'
+clang++-19: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.

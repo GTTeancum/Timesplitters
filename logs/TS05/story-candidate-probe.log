@@ -1,0 +1,306 @@
+Original game files and ISO verified
+{
+  "requested_seconds": 300,
+  "requested_input": [
+    {
+      "at": 35,
+      "key": "Return"
+    },
+    {
+      "at": 44,
+      "key": "x"
+    },
+    {
+      "at": 56,
+      "key": "x"
+    },
+    {
+      "at": 70,
+      "key": "x"
+    },
+    {
+      "at": 78,
+      "key": "x"
+    },
+    {
+      "at": 84,
+      "key": "Up",
+      "hold": 0.3
+    },
+    {
+      "at": 88,
+      "key": "x",
+      "hold": 0.3
+    },
+    {
+      "at": 134.45,
+      "key": "x",
+      "hold": 0.5
+    },
+    {
+      "at": 149.45,
+      "key": "x",
+      "hold": 0.5
+    },
+    {
+      "at": 219.68,
+      "key": "x",
+      "hold": 0.5
+    }
+  ],
+  "live_input": true,
+  "returncode": 10,
+  "outer_killed": false,
+  "elapsed_seconds": 300.46833139599994,
+  "screenshots": [
+    "ts05-story-candidate-002.png",
+    "ts05-story-candidate-007.png",
+    "ts05-story-candidate-012.png",
+    "ts05-story-candidate-017.png",
+    "ts05-story-candidate-022.png",
+    "ts05-story-candidate-027.png",
+    "ts05-story-candidate-032.png",
+    "ts05-story-candidate-037.png",
+    "ts05-story-candidate-042.png",
+    "ts05-story-candidate-047.png",
+    "ts05-story-candidate-052.png",
+    "ts05-story-candidate-057.png",
+    "ts05-story-candidate-062.png",
+    "ts05-story-candidate-067.png",
+    "ts05-story-candidate-072.png",
+    "ts05-story-candidate-077.png",
+    "ts05-story-candidate-082.png",
+    "ts05-story-candidate-087.png",
+    "ts05-story-candidate-092.png",
+    "ts05-story-candidate-097.png",
+    "ts05-story-candidate-102.png",
+    "ts05-story-candidate-107.png",
+    "ts05-story-candidate-112.png",
+    "ts05-story-candidate-117.png",
+    "ts05-story-candidate-122.png",
+    "ts05-story-candidate-127.png",
+    "ts05-story-candidate-132.png",
+    "ts05-story-candidate-137.png",
+    "ts05-story-candidate-142.png",
+    "ts05-story-candidate-147.png",
+    "ts05-story-candidate-152.png",
+    "ts05-story-candidate-157.png",
+    "ts05-story-candidate-162.png",
+    "ts05-story-candidate-167.png",
+    "ts05-story-candidate-172.png",
+    "ts05-story-candidate-177.png",
+    "ts05-story-candidate-182.png",
+    "ts05-story-candidate-187.png",
+    "ts05-story-candidate-192.png",
+    "ts05-story-candidate-197.png",
+    "ts05-story-candidate-202.png",
+    "ts05-story-candidate-207.png",
+    "ts05-story-candidate-212.png",
+    "ts05-story-candidate-217.png",
+    "ts05-story-candidate-222.png",
+    "ts05-story-candidate-227.png",
+    "ts05-story-candidate-232.png",
+    "ts05-story-candidate-237.png",
+    "ts05-story-candidate-242.png",
+    "ts05-story-candidate-247.png",
+    "ts05-story-candidate-252.png",
+    "ts05-story-candidate-257.png",
+    "ts05-story-candidate-262.png",
+    "ts05-story-candidate-267.png",
+    "ts05-story-candidate-272.png",
+    "ts05-story-candidate-277.png",
+    "ts05-story-candidate-282.png",
+    "ts05-story-candidate-287.png",
+    "ts05-story-candidate-292.png",
+    "ts05-story-candidate-297.png"
+  ],
+  "binary": "/mnt/data/TimeSplitters_TS05_Checkpoint/bin/candidates/ts05-audio-memory",
+  "binary_sha256": "104998e0e7e0f3f0c6dca364c0396f20566ca01cb35157807e276a0ab2af1a05",
+  "binary_sha256_after": "104998e0e7e0f3f0c6dca364c0396f20566ca01cb35157807e276a0ab2af1a05",
+  "binary_unchanged_during_run": true,
+  "input": [
+    {
+      "requested": 35.0,
+      "actual": 35.080153410000094,
+      "action": "keydown",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 35.35,
+      "actual": 35.39171534800016,
+      "action": "keyup",
+      "key": "Return",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.0,
+      "actual": 44.05130707300009,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 44.35,
+      "actual": 44.391350117,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.0,
+      "actual": 56.04733354600012,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 56.35,
+      "actual": 56.39135291399998,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.0,
+      "actual": 70.04999270600001,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 70.35,
+      "actual": 70.39053591900006,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.0,
+      "actual": 78.05500059600013,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 78.35,
+      "actual": 78.38989420600001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 84.0,
+      "actual": 84.05242220000014,
+      "action": "keydown",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 84.3,
+      "actual": 84.34987777000015,
+      "action": "keyup",
+      "key": "Up",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.0,
+      "actual": 88.05030898000018,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 88.3,
+      "actual": 88.35858285100016,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 134.45,
+      "actual": 134.4907045330001,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 134.95,
+      "actual": 134.9912698600001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 149.45,
+      "actual": 149.53282904599996,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 149.95,
+      "actual": 150.00091659300006,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 219.68,
+      "actual": 219.74987761300008,
+      "action": "keydown",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "requested": 220.18,
+      "actual": 220.2491245430001,
+      "action": "keyup",
+      "key": "x",
+      "window": "2097159",
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "undelivered": [],
+  "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+  "reference_pcsx2_run": false
+}

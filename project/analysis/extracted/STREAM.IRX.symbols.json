@@ -1,0 +1,914 @@
+[
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 0
+  },
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 3
+  },
+  {
+    "name": "",
+    "value": "0x00002A60",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 4
+  },
+  {
+    "name": "",
+    "value": "0x00002DE0",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 6
+  },
+  {
+    "name": "",
+    "value": "0x00002E20",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 7
+  },
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 8
+  },
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 9
+  },
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 10
+  },
+  {
+    "name": "",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 3,
+    "bind": 0,
+    "section": 11
+  },
+  {
+    "name": "gcc2_compiled.",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "__gnu_compiled_c",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "gcc2_compiled.",
+    "value": "0x00000190",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "__gnu_compiled_c",
+    "value": "0x00000190",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "BackgroundLoadInitialise",
+    "value": "0x00000190",
+    "size": 56,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "BackgroundLoad",
+    "value": "0x00002E20",
+    "size": 784,
+    "type": 0,
+    "bind": 0,
+    "section": 7
+  },
+  {
+    "name": "StartBackgroundLoad",
+    "value": "0x000001C8",
+    "size": 476,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "BackgroundLoadTick",
+    "value": "0x000003A4",
+    "size": 668,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "BackgroundLoadStop",
+    "value": "0x00000640",
+    "size": 132,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "stream_tid",
+    "value": "0x00002DF0",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "stream_sid",
+    "value": "0x00002DF4",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "stream_volumeset",
+    "value": "0x00002DF8",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "stream_preloadstart",
+    "value": "0x00002DFC",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "stream_start",
+    "value": "0x00002E00",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "stream_stop",
+    "value": "0x00002E04",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "stream_stopclose",
+    "value": "0x00002E08",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "stream_status",
+    "value": "0x00002E0C",
+    "size": 0,
+    "type": 0,
+    "bind": 0,
+    "section": 5
+  },
+  {
+    "name": "StreamLoadFinishedCallBack",
+    "value": "0x000006C4",
+    "size": 136,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "stream",
+    "value": "0x00003130",
+    "size": 64,
+    "type": 0,
+    "bind": 0,
+    "section": 7
+  },
+  {
+    "name": "StreamSetVolumeDirect",
+    "value": "0x00001668",
+    "size": 244,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamMake",
+    "value": "0x0000074C",
+    "size": 80,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamInit",
+    "value": "0x0000079C",
+    "size": 328,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamPlay",
+    "value": "0x00001820",
+    "size": 3004,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamDmaInt",
+    "value": "0x00001794",
+    "size": 72,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamSpu2Int",
+    "value": "0x000017DC",
+    "size": 68,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "stream_readbuf",
+    "value": "0x00003170",
+    "size": 8,
+    "type": 0,
+    "bind": 0,
+    "section": 7
+  },
+  {
+    "name": "StreamQuit",
+    "value": "0x000008E4",
+    "size": 352,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamOpen",
+    "value": "0x00000A44",
+    "size": 372,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamRead",
+    "value": "0x00000BB8",
+    "size": 1272,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamClose",
+    "value": "0x000010B0",
+    "size": 188,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamPreLoad",
+    "value": "0x0000116C",
+    "size": 340,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "stream_volume",
+    "value": "0x00003180",
+    "size": 4,
+    "type": 0,
+    "bind": 0,
+    "section": 7
+  },
+  {
+    "name": "stream_curaddr",
+    "value": "0x00003178",
+    "size": 8,
+    "type": 0,
+    "bind": 0,
+    "section": 7
+  },
+  {
+    "name": "StreamPreLoadStart",
+    "value": "0x000012C0",
+    "size": 160,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamStart",
+    "value": "0x00001360",
+    "size": 140,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamStop",
+    "value": "0x000013EC",
+    "size": 108,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamStopClose",
+    "value": "0x00001458",
+    "size": 108,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamSetVoice",
+    "value": "0x000014C4",
+    "size": 344,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamSetVolume",
+    "value": "0x0000161C",
+    "size": 76,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "StreamGetStatus",
+    "value": "0x0000175C",
+    "size": 56,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "dispatch",
+    "value": "0x000023DC",
+    "size": 856,
+    "type": 2,
+    "bind": 0,
+    "section": 2
+  },
+  {
+    "name": "rpc_arg",
+    "value": "0x00003188",
+    "size": 64,
+    "type": 0,
+    "bind": 0,
+    "section": 7
+  },
+  {
+    "name": "FlushDcache",
+    "value": "0x0000290C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSdSetAddr",
+    "value": "0x00002834",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "printf",
+    "value": "0x000029A0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSifInit",
+    "value": "0x00002974",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSdSetSwitch",
+    "value": "0x0000282C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSdVoiceTrans",
+    "value": "0x00002844",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSdSetParam",
+    "value": "0x00002824",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sifcmd_stub",
+    "value": "0x00002924",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "CreateSema",
+    "value": "0x00002A2C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "libsd_stub",
+    "value": "0x00002810",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "FreeSysMemory",
+    "value": "0x00002880",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "QueryBootMode",
+    "value": "0x00002914",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSifCheckInit",
+    "value": "0x0000297C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "lseek",
+    "value": "0x000028E8",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "AllocSysMemory",
+    "value": "0x00002878",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "loadcore_stub",
+    "value": "0x000028F8",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "trans_stat",
+    "value": "0x00002E10",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 5
+  },
+  {
+    "name": "ioman_stub",
+    "value": "0x000028BC",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSdSetIRQCallback",
+    "value": "0x00002854",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSifInitRpc",
+    "value": "0x00002938",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "Module",
+    "value": "0x00002DE0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 5
+  },
+  {
+    "name": "GetThreadId",
+    "value": "0x00002A08",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "stdio_stub",
+    "value": "0x0000298C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "stream_loop",
+    "value": "0x00002734",
+    "size": 216,
+    "type": 2,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "read",
+    "value": "0x000028E0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sifman_stub",
+    "value": "0x00002960",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSifRegisterRpc",
+    "value": "0x00002940",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "iSignalSema",
+    "value": "0x00002A44",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "memset",
+    "value": "0x000029C4",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "thsemap_stub",
+    "value": "0x00002A18",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSdSetCoreAttr",
+    "value": "0x0000283C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "intrman_stub",
+    "value": "0x00002890",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "SignalSema",
+    "value": "0x00002A3C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sysclib_stub",
+    "value": "0x000029B0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSifSetRpcQueue",
+    "value": "0x00002948",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "TerminateThread",
+    "value": "0x00002A00",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "thbase_stub",
+    "value": "0x000029D4",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sysmem_stub",
+    "value": "0x00002864",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "DeleteThread",
+    "value": "0x000029F0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "EnableIntr",
+    "value": "0x000028A4",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "WaitSema",
+    "value": "0x00002A4C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "start",
+    "value": "0x00000000",
+    "size": 388,
+    "type": 2,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "ret",
+    "value": "0x00002E14",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 5
+  },
+  {
+    "name": "CpuEnableIntr",
+    "value": "0x000028AC",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "DeleteSema",
+    "value": "0x00002A34",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "CreateThread",
+    "value": "0x000029E8",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "open",
+    "value": "0x000028D0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSdSetTransCallback",
+    "value": "0x0000284C",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "close",
+    "value": "0x000028D8",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "sceSifRpcLoop",
+    "value": "0x00002950",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "StartThread",
+    "value": "0x000029F8",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "_ftext",
+    "value": "0x00000000",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 2
+  },
+  {
+    "name": "etext",
+    "value": "0x00002A60",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  },
+  {
+    "name": "_etext",
+    "value": "0x00002A60",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  },
+  {
+    "name": "_fdata",
+    "value": "0x00002A60",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 4
+  },
+  {
+    "name": "edata",
+    "value": "0x00002E20",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  },
+  {
+    "name": "_edata",
+    "value": "0x00002E20",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  },
+  {
+    "name": "_fbss",
+    "value": "0x00002E20",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  },
+  {
+    "name": "end",
+    "value": "0x000031D0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  },
+  {
+    "name": "_end",
+    "value": "0x000031D0",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  },
+  {
+    "name": "_gp",
+    "value": "0x0000AE10",
+    "size": 0,
+    "type": 1,
+    "bind": 1,
+    "section": 65311
+  }
+]

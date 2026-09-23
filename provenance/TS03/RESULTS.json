@@ -1,0 +1,688 @@
+{
+  "checkpoint": "TS03",
+  "date": "2026-09-22",
+  "foundation": "verified TS01 + independently reimplemented documented TS02 graphics behavior + TS03 fixes",
+  "ts02_original_zip_recovered": false,
+  "pcsx2_executed_or_linked": false,
+  "tests": {
+    "core": 459,
+    "iop": 4,
+    "gs_cache": 45,
+    "original_ee_abi": 4,
+    "original_ee_image": 10,
+    "original_ee_card": 1,
+    "original_soft_double": 24,
+    "original_vector_normalization": 12,
+    "total": 559,
+    "failed": 0
+  },
+  "generation": {
+    "original_ee_bodies": 2375,
+    "automatic_hle_wrappers": 295,
+    "files": 2673,
+    "warnings": 78,
+    "explicit_skips": 0,
+    "unhandled_instruction_errors": 0,
+    "byte_identical_clean_regeneration": true
+  },
+  "fix": {
+    "sqrt_original_instructions": 168,
+    "sqrt_regenerated_function_files": 96
+  },
+  "framework": {
+    "cumulative_changed_files": 29,
+    "fresh_patch_reconstructed_files": 295
+  },
+  "binaries": {
+    "timesplitters": {
+      "size": 86184080,
+      "sha256": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d"
+    },
+    "ps2_recomp": {
+      "size": 15532496,
+      "sha256": "154158e061a26fe94d0848ea86c2c6a06720b129cf2dfe1dcacb2f10517fea93"
+    }
+  },
+  "native_runs": {
+    "ts03-final-create": {
+      "returncode": 10,
+      "outer_killed": false,
+      "elapsed_seconds": 125.33210623600007,
+      "screenshots": [
+        "ts03-final-create-002.png",
+        "ts03-final-create-007.png",
+        "ts03-final-create-012.png",
+        "ts03-final-create-017.png",
+        "ts03-final-create-022.png",
+        "ts03-final-create-027.png",
+        "ts03-final-create-032.png",
+        "ts03-final-create-037.png",
+        "ts03-final-create-042.png",
+        "ts03-final-create-047.png",
+        "ts03-final-create-052.png",
+        "ts03-final-create-057.png",
+        "ts03-final-create-062.png",
+        "ts03-final-create-067.png",
+        "ts03-final-create-072.png",
+        "ts03-final-create-077.png",
+        "ts03-final-create-082.png",
+        "ts03-final-create-087.png",
+        "ts03-final-create-092.png",
+        "ts03-final-create-097.png",
+        "ts03-final-create-102.png",
+        "ts03-final-create-107.png",
+        "ts03-final-create-112.png",
+        "ts03-final-create-117.png",
+        "ts03-final-create-122.png"
+      ],
+      "binary": "/mnt/data/TimeSplitters_TS03_Checkpoint/bin/timesplitters",
+      "binary_sha256": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d",
+      "binary_sha256_after": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d",
+      "binary_unchanged_during_run": true,
+      "input": [
+        {
+          "requested": 35.0,
+          "actual": 35.05311442999982,
+          "action": "keydown",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 35.35,
+          "actual": 35.39367204200016,
+          "action": "keyup",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 40.0,
+          "actual": 40.05368481300002,
+          "action": "keydown",
+          "key": "Up",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 40.35,
+          "actual": 40.39038478800012,
+          "action": "keyup",
+          "key": "Up",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 44.0,
+          "actual": 44.0534729699998,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 44.35,
+          "actual": 44.39099822700018,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 62.0,
+          "actual": 62.04497108800024,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 62.35,
+          "actual": 62.367209923000246,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 68.0,
+          "actual": 68.02958766199981,
+          "action": "keydown",
+          "key": "Up",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 68.35,
+          "actual": 68.3665956509999,
+          "action": "keyup",
+          "key": "Up",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 72.0,
+          "actual": 72.03830693600003,
+          "action": "keydown",
+          "key": "Left",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 72.35,
+          "actual": 72.39509767800018,
+          "action": "keyup",
+          "key": "Left",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 75.0,
+          "actual": 75.02296230799993,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 75.35,
+          "actual": 75.40321222000011,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 84.0,
+          "actual": 84.03464162399996,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 84.35,
+          "actual": 84.37462511500007,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 100.0,
+          "actual": 100.02899797600003,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 100.35,
+          "actual": 100.36626843000022,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 108.0,
+          "actual": 108.03031288700004,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 108.35,
+          "actual": 108.37185113299984,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        }
+      ],
+      "undelivered": [],
+      "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+      "reference_pcsx2_run": false
+    },
+    "ts03-final-tomb": {
+      "returncode": 10,
+      "outer_killed": false,
+      "elapsed_seconds": 250.31626502500012,
+      "screenshots": [
+        "ts03-final-tomb-002.png",
+        "ts03-final-tomb-007.png",
+        "ts03-final-tomb-012.png",
+        "ts03-final-tomb-017.png",
+        "ts03-final-tomb-022.png",
+        "ts03-final-tomb-027.png",
+        "ts03-final-tomb-032.png",
+        "ts03-final-tomb-037.png",
+        "ts03-final-tomb-042.png",
+        "ts03-final-tomb-047.png",
+        "ts03-final-tomb-052.png",
+        "ts03-final-tomb-057.png",
+        "ts03-final-tomb-062.png",
+        "ts03-final-tomb-067.png",
+        "ts03-final-tomb-072.png",
+        "ts03-final-tomb-077.png",
+        "ts03-final-tomb-082.png",
+        "ts03-final-tomb-087.png",
+        "ts03-final-tomb-092.png",
+        "ts03-final-tomb-097.png",
+        "ts03-final-tomb-102.png",
+        "ts03-final-tomb-107.png",
+        "ts03-final-tomb-112.png",
+        "ts03-final-tomb-117.png",
+        "ts03-final-tomb-122.png",
+        "ts03-final-tomb-127.png",
+        "ts03-final-tomb-132.png",
+        "ts03-final-tomb-137.png",
+        "ts03-final-tomb-142.png",
+        "ts03-final-tomb-147.png",
+        "ts03-final-tomb-152.png",
+        "ts03-final-tomb-157.png",
+        "ts03-final-tomb-162.png",
+        "ts03-final-tomb-167.png",
+        "ts03-final-tomb-172.png",
+        "ts03-final-tomb-177.png",
+        "ts03-final-tomb-182.png",
+        "ts03-final-tomb-187.png",
+        "ts03-final-tomb-192.png",
+        "ts03-final-tomb-197.png",
+        "ts03-final-tomb-202.png",
+        "ts03-final-tomb-207.png",
+        "ts03-final-tomb-212.png",
+        "ts03-final-tomb-217.png",
+        "ts03-final-tomb-222.png",
+        "ts03-final-tomb-227.png",
+        "ts03-final-tomb-232.png",
+        "ts03-final-tomb-237.png",
+        "ts03-final-tomb-242.png",
+        "ts03-final-tomb-247.png"
+      ],
+      "binary": "/mnt/data/TimeSplitters_TS03_Checkpoint/bin/timesplitters",
+      "binary_sha256": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d",
+      "binary_sha256_after": "5f50119feaa68f65d4f46271d2fdcf0f97da29a064eb019b84f61136036e463d",
+      "binary_unchanged_during_run": true,
+      "input": [
+        {
+          "requested": 35.0,
+          "actual": 35.03058333600029,
+          "action": "keydown",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 35.35,
+          "actual": 35.37046863000023,
+          "action": "keyup",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 44.0,
+          "actual": 44.02613031100009,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 44.35,
+          "actual": 44.40424685000016,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 56.0,
+          "actual": 56.04720750500019,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 56.35,
+          "actual": 56.38379887000019,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 70.0,
+          "actual": 70.02687335000019,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 70.35,
+          "actual": 70.404231987,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 78.0,
+          "actual": 78.0283042670003,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 78.35,
+          "actual": 78.36579479200009,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 88.0,
+          "actual": 88.05375111800004,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 88.35,
+          "actual": 88.39061270900038,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 98.0,
+          "actual": 98.02958965900007,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 98.35,
+          "actual": 98.36864841200031,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 108.0,
+          "actual": 108.05033814700028,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 108.35,
+          "actual": 108.39021818500032,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 118.0,
+          "actual": 118.02889951100042,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 118.35,
+          "actual": 118.36759330900031,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 128.0,
+          "actual": 128.04576847600038,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 128.35,
+          "actual": 128.38289467200002,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 138.0,
+          "actual": 138.0289505740002,
+          "action": "keydown",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 138.35,
+          "actual": 138.36803244700013,
+          "action": "keyup",
+          "key": "x",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 175.0,
+          "actual": 175.03889130000016,
+          "action": "keydown",
+          "key": "w",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 180.0,
+          "actual": 180.0242142330003,
+          "action": "keyup",
+          "key": "w",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 185.0,
+          "actual": 185.0367526480004,
+          "action": "keydown",
+          "key": "l",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 188.0,
+          "actual": 188.05408482700022,
+          "action": "keyup",
+          "key": "l",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 195.0,
+          "actual": 195.0445372600002,
+          "action": "keydown",
+          "key": "e",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 196.0,
+          "actual": 196.02397791500016,
+          "action": "keyup",
+          "key": "e",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 205.0,
+          "actual": 205.05369272100006,
+          "action": "keydown",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 205.35,
+          "actual": 205.3907337200003,
+          "action": "keyup",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 216.0,
+          "actual": 216.0575778360003,
+          "action": "keydown",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 216.35,
+          "actual": 216.39647840900034,
+          "action": "keyup",
+          "key": "Return",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 220.0,
+          "actual": 220.02570125800003,
+          "action": "keydown",
+          "key": "s",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 222.5,
+          "actual": 222.54434414100024,
+          "action": "keyup",
+          "key": "s",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 225.0,
+          "actual": 225.05938074300002,
+          "action": "keydown",
+          "key": "j",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 226.5,
+          "actual": 226.531503058,
+          "action": "keyup",
+          "key": "j",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 231.0,
+          "actual": 231.01874087100032,
+          "action": "keydown",
+          "key": "e",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        },
+        {
+          "requested": 232.0,
+          "actual": 232.03816910600017,
+          "action": "keyup",
+          "key": "e",
+          "window": "2097159",
+          "returncode": 0,
+          "stderr": ""
+        }
+      ],
+      "undelivered": [],
+      "execution": "native x86-64 EE AOT with PS2Recomp runtime HLE/IOP/VU support",
+      "reference_pcsx2_run": false
+    }
+  },
+  "verified": {
+    "native_profile_save": true,
+    "fresh_process_profile_load": true,
+    "save_files_unchanged_after_load": true,
+    "tomb_initial_movement_turning_firing_scores_resume": true,
+    "complete_match": false,
+    "complete_port": false,
+    "audio_correctness": false,
+    "multiplayer": false,
+    "windows_build": false
+  }
+}

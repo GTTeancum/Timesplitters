@@ -1,0 +1,4 @@
+[0/2] Re-checking globbed directories...
+[1/4] Building CXX object ps2xTest/CMakeFiles/ps2_test_lib.dir/src/ps2_memory_tests.cpp.o
+[2/4] Linking CXX static library ps2xTest/libps2_test_lib.a
+[3/4] Linking CXX executable ps2xTest/ps2x_tests

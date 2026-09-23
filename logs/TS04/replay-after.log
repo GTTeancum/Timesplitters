@@ -1,0 +1,441 @@
+[DMA:long-chain] channel=0x10009000 start=0x100000 end=0x111f30 tags=4596 bytes=288672
+[gs:reg] idx=0 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=1 reg=0x47 value=0x30000
+[gs:reg] idx=2 reg=0x0 value=0x4e
+[gs:copy-reg] reg=0x0 value=0x4e primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=3 reg=0x1 value=0x3f80000080000000
+[gs:reg] idx=4 reg=0x5 value=0x79006c00
+[gs:kick] idx=0 drawing=1 prim=6 vtxCount=1
+[gs:reg] idx=5 reg=0x5 value=0x87109410
+[gs:kick] idx=1 drawing=1 prim=6 vtxCount=2
+[gs:prim] idx=0 type=6 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=0 tbw=0 psm=0x0 tw=0 th=0 tcc=0 tfx=0 cbp=0 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x30000 alpha=0x0 v0=(1728,1936) uv0=(0,0) stq0=(0,0,1) v1=(2369,2161) uv1=(0,0) stq1=(0,0,1) v2=(0,0) uv2=(0,0) stq2=(0,0,1) rgba0=(0,0,0,128) rgba1=(0,0,0,128) rgba2=(0,0,0,0)
+[gs:reg] idx=6 reg=0x47 value=0x50000
+[gs:reg] idx=7 reg=0x42 value=0x44
+[gs:copy-reg] reg=0x49 value=0x0 primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=8 reg=0x3b value=0x0
+[gs:texa] idx=0 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:reg] idx=9 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=10 reg=0x40 value=0xdf0000027f0000
+[gs:reg] idx=11 reg=0x6 value=0x8006fd0621311540
+[gs:reg] idx=12 reg=0x0 value=0x4c
+[gs:copy-reg] reg=0x0 value=0x4c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyzf] idx=0 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=2 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyzf] idx=1 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=3 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyzf] idx=2 x=32768 y=32768 z=0x8000 fog=0 kick=1 prim=4
+[gs:kick] idx=4 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=1 type=4 tme=0 abe=1 fst=0 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2048,2048) uv0=(0,0) stq0=(0,0,1) v1=(2048,2048) uv1=(0,0) stq1=(0,0,1) v2=(2048,2048) uv2=(0,0) stq2=(0,0,1) rgba0=(255,255,255,255) rgba1=(255,255,255,255) rgba2=(255,255,255,255)
+[gs:reg] idx=13 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=3 x=27446 y=30914 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=5 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=4 x=27633 y=31368 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=6 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=5 x=28078 y=30883 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=7 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=2 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1715.37,1932.12) uv0=(51,196) stq0=(0,0,1) v1=(1727.06,1960.5) uv1=(51,260) stq1=(0,0,1) v2=(1754.87,1930.18) uv2=(80,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=6 x=28266 y=31336 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=8 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=3 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1727.06,1960.5) uv0=(51,260) stq0=(0,0,1) v1=(1754.87,1930.18) uv1=(80,196) stq1=(0,0,1) v2=(1766.62,1958.5) uv2=(80,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=14 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=7 x=28078 y=30883 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=9 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=8 x=28266 y=31336 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=10 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=9 x=28658 y=30852 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=11 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=4 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1754.87,1930.18) uv0=(80,196) stq0=(0,0,1) v1=(1766.62,1958.5) uv1=(80,260) stq1=(0,0,1) v2=(1791.12,1928.25) uv2=(108,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=10 x=28846 y=31306 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=12 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=5 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1766.62,1958.5) uv0=(80,260) stq0=(0,0,1) v1=(1791.12,1928.25) uv1=(108,196) stq1=(0,0,1) v2=(1802.87,1956.62) uv2=(108,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=15 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=11 x=28658 y=30852 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=13 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=12 x=28846 y=31306 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=14 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=13 x=29519 y=30828 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=15 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=6 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1791.12,1928.25) uv0=(108,196) stq0=(0,0,1) v1=(1802.87,1956.62) uv1=(108,260) stq1=(0,0,1) v2=(1844.93,1926.75) uv2=(137,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=14 x=29706 y=31281 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=16 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=7 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1802.87,1956.62) uv0=(108,260) stq0=(0,0,1) v1=(1844.93,1926.75) uv1=(137,196) stq1=(0,0,1) v2=(1856.62,1955.06) uv2=(137,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=16 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=15 x=29519 y=30828 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=17 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=16 x=29706 y=31281 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=18 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=17 x=30288 y=30812 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=19 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=8 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1844.93,1926.75) uv0=(137,196) stq0=(0,0,1) v1=(1856.62,1955.06) uv1=(137,260) stq1=(0,0,1) v2=(1893,1925.75) uv2=(165,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=18 x=30476 y=31265 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=20 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=9 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1856.62,1955.06) uv0=(137,260) stq0=(0,0,1) v1=(1893,1925.75) uv1=(165,196) stq1=(0,0,1) v2=(1904.75,1954.06) uv2=(165,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=17 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=19 x=30288 y=30812 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=21 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=20 x=30476 y=31265 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=22 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=21 x=30824 y=30808 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=23 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=10 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1893,1925.75) uv0=(165,196) stq0=(0,0,1) v1=(1904.75,1954.06) uv1=(165,260) stq1=(0,0,1) v2=(1926.5,1925.5) uv2=(193,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=22 x=31011 y=31262 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=24 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=11 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1904.75,1954.06) uv0=(165,260) stq0=(0,0,1) v1=(1926.5,1925.5) uv1=(193,196) stq1=(0,0,1) v2=(1938.18,1953.87) uv2=(193,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=18 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=23 x=30824 y=30808 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=25 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=24 x=31011 y=31262 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=26 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=25 x=31570 y=30817 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=27 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=12 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1926.5,1925.5) uv0=(193,196) stq0=(0,0,1) v1=(1938.18,1953.87) uv1=(193,260) stq1=(0,0,1) v2=(1973.12,1926.06) uv2=(222,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=26 x=31758 y=31270 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=28 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=13 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1938.18,1953.87) uv0=(193,260) stq0=(0,0,1) v1=(1973.12,1926.06) uv1=(222,196) stq1=(0,0,1) v2=(1984.87,1954.37) uv2=(222,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=19 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=27 x=31570 y=30817 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=29 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=28 x=31758 y=31270 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=30 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=29 x=32442 y=30836 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=31 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=14 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1973.12,1926.06) uv0=(222,196) stq0=(0,0,1) v1=(1984.87,1954.37) uv1=(222,260) stq1=(0,0,1) v2=(2027.62,1927.25) uv2=(250,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=30 x=32630 y=31290 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=32 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=15 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1984.87,1954.37) uv0=(222,260) stq0=(0,0,1) v1=(2027.62,1927.25) uv1=(250,196) stq1=(0,0,1) v2=(2039.37,1955.62) uv2=(250,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=20 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=31 x=32442 y=30836 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=33 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=32 x=32630 y=31290 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=34 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=33 x=33039 y=30864 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=35 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=16 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2027.62,1927.25) uv0=(250,196) stq0=(0,0,1) v1=(2039.37,1955.62) uv1=(250,260) stq1=(0,0,1) v2=(2064.93,1929) uv2=(279,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=34 x=33226 y=31318 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=36 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=17 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2039.37,1955.62) uv0=(250,260) stq0=(0,0,1) v1=(2064.93,1929) uv1=(279,196) stq1=(0,0,1) v2=(2076.62,1957.37) uv2=(279,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=21 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=35 x=33039 y=30864 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=37 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=36 x=33226 y=31318 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=38 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=37 x=33651 y=30896 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=39 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=18 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2064.93,1929) uv0=(279,196) stq0=(0,0,1) v1=(2076.62,1957.37) uv1=(279,260) stq1=(0,0,1) v2=(2103.18,1931) uv2=(307,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=38 x=33839 y=31349 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=40 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=19 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2076.62,1957.37) uv0=(279,260) stq0=(0,0,1) v1=(2103.18,1931) uv1=(307,196) stq1=(0,0,1) v2=(2114.93,1959.31) uv2=(307,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=22 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=39 x=33651 y=30896 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=41 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=40 x=33839 y=31349 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=42 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=41 x=34531 y=30926 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=43 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=20 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2103.18,1931) uv0=(51,196) stq0=(0,0,1) v1=(2114.93,1959.31) uv1=(51,260) stq1=(0,0,1) v2=(2158.18,1932.87) uv2=(80,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=42 x=34718 y=31379 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=44 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=21 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2114.93,1959.31) uv0=(51,260) stq0=(0,0,1) v1=(2158.18,1932.87) uv1=(80,196) stq1=(0,0,1) v2=(2169.87,1961.18) uv2=(80,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=23 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=43 x=34531 y=30926 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=45 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=44 x=34718 y=31379 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=46 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=45 x=35258 y=30950 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=47 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=22 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2158.18,1932.87) uv0=(80,196) stq0=(0,0,1) v1=(2169.87,1961.18) uv1=(80,260) stq1=(0,0,1) v2=(2203.62,1934.37) uv2=(108,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=46 x=35446 y=31403 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=48 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=23 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2169.87,1961.18) uv0=(80,260) stq0=(0,0,1) v1=(2203.62,1934.37) uv1=(108,196) stq1=(0,0,1) v2=(2215.37,1962.68) uv2=(108,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=24 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=47 x=35258 y=30950 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=49 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=48 x=35446 y=31403 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=50 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=49 x=35796 y=30965 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=51 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=24 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2203.62,1934.37) uv0=(108,196) stq0=(0,0,1) v1=(2215.37,1962.68) uv1=(108,260) stq1=(0,0,1) v2=(2237.25,1935.31) uv2=(137,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=50 x=35984 y=31418 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=52 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=25 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2215.37,1962.68) uv0=(108,260) stq0=(0,0,1) v1=(2237.25,1935.31) uv1=(137,196) stq1=(0,0,1) v2=(2249,1963.62) uv2=(137,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=25 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=51 x=35796 y=30965 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=53 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=52 x=35984 y=31418 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=54 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=53 x=36583 y=30968 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=55 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=26 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2237.25,1935.31) uv0=(137,196) stq0=(0,0,1) v1=(2249,1963.62) uv1=(137,260) stq1=(0,0,1) v2=(2286.43,1935.5) uv2=(165,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=54 x=36771 y=31421 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=56 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=27 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2249,1963.62) uv0=(137,260) stq0=(0,0,1) v1=(2286.43,1935.5) uv1=(165,196) stq1=(0,0,1) v2=(2298.18,1963.81) uv2=(165,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=26 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=55 x=36583 y=30968 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=57 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=56 x=36771 y=31421 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=58 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=57 x=37432 y=30958 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=59 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=28 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2286.43,1935.5) uv0=(165,196) stq0=(0,0,1) v1=(2298.18,1963.81) uv1=(165,260) stq1=(0,0,1) v2=(2339.5,1934.87) uv2=(193,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=58 x=37620 y=31411 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=60 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=29 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2298.18,1963.81) uv0=(165,260) stq0=(0,0,1) v1=(2339.5,1934.87) uv1=(193,196) stq1=(0,0,1) v2=(2351.25,1963.18) uv2=(193,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=27 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=59 x=37432 y=30958 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=61 drawing=1 prim=4 vtxCount=1
+[gs:packed-xyz] idx=60 x=37620 y=31411 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=62 drawing=1 prim=4 vtxCount=2
+[gs:packed-xyz] idx=61 x=38000 y=30937 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=63 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=30 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2339.5,1934.87) uv0=(193,196) stq0=(0,0,1) v1=(2351.25,1963.18) uv1=(193,260) stq1=(0,0,1) v2=(2375,1933.56) uv2=(222,196) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:packed-xyz] idx=62 x=38188 y=31391 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=64 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=31 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2351.25,1963.18) uv0=(193,260) stq0=(0,0,1) v1=(2375,1933.56) uv1=(222,196) stq1=(0,0,1) v2=(2386.75,1961.93) uv2=(222,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=28 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:packed-xyz] idx=63 x=27633 y=31368 z=0xffffffff kick=1 prim=4
+[gs:kick] idx=65 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=66 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=67 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=32 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1727.06,1960.5) uv0=(51,260) stq0=(0,0,1) v1=(1718.43,1995.93) uv1=(51,324) stq1=(0,0,1) v2=(1766.62,1958.5) uv2=(80,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:kick] idx=68 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=33 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1718.43,1995.93) uv0=(51,324) stq0=(0,0,1) v1=(1766.62,1958.5) uv1=(80,260) stq1=(0,0,1) v2=(1757.93,1994) uv2=(80,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=29 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=69 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=70 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=71 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=34 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1766.62,1958.5) uv0=(80,260) stq0=(0,0,1) v1=(1757.93,1994) uv1=(80,324) stq1=(0,0,1) v2=(1802.87,1956.62) uv2=(108,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:kick] idx=72 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=35 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1757.93,1994) uv0=(80,324) stq0=(0,0,1) v1=(1802.87,1956.62) uv1=(108,260) stq1=(0,0,1) v2=(1794.18,1992.12) uv2=(108,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=30 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=73 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=74 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=75 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=36 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1802.87,1956.62) uv0=(108,260) stq0=(0,0,1) v1=(1794.18,1992.12) uv1=(108,324) stq1=(0,0,1) v2=(1856.62,1955.06) uv2=(137,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:kick] idx=76 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=37 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1794.18,1992.12) uv0=(108,324) stq0=(0,0,1) v1=(1856.62,1955.06) uv1=(137,260) stq1=(0,0,1) v2=(1848,1990.56) uv2=(137,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=31 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=77 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=78 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=79 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=38 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1856.62,1955.06) uv0=(137,260) stq0=(0,0,1) v1=(1848,1990.56) uv1=(137,324) stq1=(0,0,1) v2=(1904.75,1954.06) uv2=(165,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:kick] idx=80 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=39 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1848,1990.56) uv0=(137,324) stq0=(0,0,1) v1=(1904.75,1954.06) uv1=(165,260) stq1=(0,0,1) v2=(1896.06,1989.56) uv2=(165,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=32 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=81 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=82 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=83 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=40 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1904.75,1954.06) uv0=(165,260) stq0=(0,0,1) v1=(1896.06,1989.56) uv1=(165,324) stq1=(0,0,1) v2=(1938.18,1953.87) uv2=(193,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:kick] idx=84 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=41 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1896.06,1989.56) uv0=(165,324) stq0=(0,0,1) v1=(1938.18,1953.87) uv1=(193,260) stq1=(0,0,1) v2=(1929.56,1989.31) uv2=(193,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=33 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=85 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=86 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=87 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=42 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1938.18,1953.87) uv0=(193,260) stq0=(0,0,1) v1=(1929.56,1989.31) uv1=(193,324) stq1=(0,0,1) v2=(1984.87,1954.37) uv2=(222,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:kick] idx=88 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=43 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1929.56,1989.31) uv0=(193,324) stq0=(0,0,1) v1=(1984.87,1954.37) uv1=(222,260) stq1=(0,0,1) v2=(1976.18,1989.87) uv2=(222,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=34 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=89 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=90 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=91 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=44 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1984.87,1954.37) uv0=(222,260) stq0=(0,0,1) v1=(1976.18,1989.87) uv1=(222,324) stq1=(0,0,1) v2=(2039.37,1955.62) uv2=(250,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:kick] idx=92 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=45 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1976.18,1989.87) uv0=(222,324) stq0=(0,0,1) v1=(2039.37,1955.62) uv1=(250,260) stq1=(0,0,1) v2=(2030.68,1991.12) uv2=(250,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=35 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:kick] idx=93 drawing=1 prim=4 vtxCount=1
+[gs:kick] idx=94 drawing=1 prim=4 vtxCount=2
+[gs:kick] idx=95 drawing=1 prim=4 vtxCount=3
+[gs:prim] idx=46 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2039.37,1955.62) uv0=(250,260) stq0=(0,0,1) v1=(2030.68,1991.12) uv1=(250,324) stq1=(0,0,1) v2=(2076.62,1957.37) uv2=(279,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=47 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2030.68,1991.12) uv0=(250,324) stq0=(0,0,1) v1=(2076.62,1957.37) uv1=(279,260) stq1=(0,0,1) v2=(2068,1992.81) uv2=(279,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=36 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=48 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2076.62,1957.37) uv0=(279,260) stq0=(0,0,1) v1=(2068,1992.81) uv1=(279,324) stq1=(0,0,1) v2=(2114.93,1959.31) uv2=(307,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=49 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2068,1992.81) uv0=(279,324) stq0=(0,0,1) v1=(2114.93,1959.31) uv1=(307,260) stq1=(0,0,1) v2=(2106.25,1994.81) uv2=(307,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=37 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=50 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2114.93,1959.31) uv0=(51,260) stq0=(0,0,1) v1=(2106.25,1994.81) uv1=(51,324) stq1=(0,0,1) v2=(2169.87,1961.18) uv2=(80,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=51 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2106.25,1994.81) uv0=(51,324) stq0=(0,0,1) v1=(2169.87,1961.18) uv1=(80,260) stq1=(0,0,1) v2=(2161.25,1996.68) uv2=(80,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=38 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=52 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2169.87,1961.18) uv0=(80,260) stq0=(0,0,1) v1=(2161.25,1996.68) uv1=(80,324) stq1=(0,0,1) v2=(2215.37,1962.68) uv2=(108,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=53 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2161.25,1996.68) uv0=(80,324) stq0=(0,0,1) v1=(2215.37,1962.68) uv1=(108,260) stq1=(0,0,1) v2=(2206.68,1998.18) uv2=(108,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=39 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=54 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2215.37,1962.68) uv0=(108,260) stq0=(0,0,1) v1=(2206.68,1998.18) uv1=(108,324) stq1=(0,0,1) v2=(2249,1963.62) uv2=(137,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=55 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2206.68,1998.18) uv0=(108,324) stq0=(0,0,1) v1=(2249,1963.62) uv1=(137,260) stq1=(0,0,1) v2=(2240.31,1999.12) uv2=(137,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=40 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=56 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2249,1963.62) uv0=(137,260) stq0=(0,0,1) v1=(2240.31,1999.12) uv1=(137,324) stq1=(0,0,1) v2=(2298.18,1963.81) uv2=(165,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=57 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2240.31,1999.12) uv0=(137,324) stq0=(0,0,1) v1=(2298.18,1963.81) uv1=(165,260) stq1=(0,0,1) v2=(2289.5,1999.31) uv2=(165,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=41 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=58 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2298.18,1963.81) uv0=(165,260) stq0=(0,0,1) v1=(2289.5,1999.31) uv1=(165,324) stq1=(0,0,1) v2=(2351.25,1963.18) uv2=(193,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=59 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2289.5,1999.31) uv0=(165,324) stq0=(0,0,1) v1=(2351.25,1963.18) uv1=(193,260) stq1=(0,0,1) v2=(2342.56,1998.68) uv2=(193,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=42 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=60 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2351.25,1963.18) uv0=(193,260) stq0=(0,0,1) v1=(2342.56,1998.68) uv1=(193,324) stq1=(0,0,1) v2=(2386.75,1961.93) uv2=(222,260) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=61 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(2342.56,1998.68) uv0=(193,324) stq0=(0,0,1) v1=(2386.75,1961.93) uv1=(222,260) stq1=(0,0,1) v2=(2378.06,1997.43) uv2=(222,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=43 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:prim] idx=62 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1718.43,1995.93) uv0=(51,324) stq0=(0,0,1) v1=(1715.43,2036.37) uv1=(51,388) stq1=(0,0,1) v2=(1757.93,1994) uv2=(80,324) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:prim] idx=63 type=4 tme=1 abe=1 fst=1 ctxt=0 fbp=0 fbw=10 psm=0x0 tex0=(tbp0=5440 tbw=4 psm=0x13 tw=8 th=8 tcc=1 tfx=0 cbp=14312 cpsm=0x0 csm=0 csa=0) texclut=(cbw=0 cou=0 cov=0) ofx=0 ofy=0 scissor=(0,0)-(639,223) test=0x50000 alpha=0x44 v0=(1715.43,2036.37) uv0=(51,388) stq0=(0,0,1) v1=(1757.93,1994) uv1=(80,324) stq1=(0,0,1) v2=(1755,2034.43) uv2=(80,388) stq2=(0,0,1) rgba0=(21,21,37,111) rgba1=(21,21,37,111) rgba2=(21,21,37,111)
+[gs:reg] idx=44 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=45 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=46 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=47 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=48 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=49 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=50 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=51 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=52 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=53 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=54 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=55 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=56 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=57 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=58 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=59 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=60 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=61 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=62 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=63 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=64 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=65 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=66 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=67 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=68 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=69 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=70 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=71 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=72 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=73 reg=0x0 value=0x15c
+[gs:copy-reg] reg=0x0 value=0x15c primCtxt=0 ctx0fbp=0 ctx1fbp=0
+[gs:reg] idx=74 reg=0x0 value=0x15c
+[gs:reg] idx=75 reg=0x0 value=0x15c
+[gs:reg] idx=76 reg=0x0 value=0x15c
+[gs:reg] idx=77 reg=0x0 value=0x15c
+[gs:reg] idx=78 reg=0x0 value=0x15c
+[gs:reg] idx=79 reg=0x0 value=0x15c
+[gs:reg] idx=80 reg=0x0 value=0x15c
+[gs:reg] idx=81 reg=0x0 value=0x15c
+[gs:reg] idx=82 reg=0x0 value=0x15c
+[gs:reg] idx=83 reg=0x0 value=0x15c
+[gs:reg] idx=84 reg=0x0 value=0x15c
+[gs:reg] idx=85 reg=0x0 value=0x15c
+[gs:reg] idx=86 reg=0x0 value=0x15c
+[gs:reg] idx=87 reg=0x0 value=0x15c
+[gs:reg] idx=88 reg=0x0 value=0x15c
+[gs:reg] idx=89 reg=0x0 value=0x15c
+[gs:reg] idx=90 reg=0x0 value=0x15c
+[gs:reg] idx=91 reg=0x0 value=0x15c
+[gs:reg] idx=92 reg=0x0 value=0x15c
+[gs:reg] idx=93 reg=0x0 value=0x15c
+[gs:reg] idx=94 reg=0x0 value=0x15c
+[gs:reg] idx=95 reg=0x0 value=0x15c
+[gs:reg] idx=96 reg=0x0 value=0x15c
+[gs:reg] idx=97 reg=0x0 value=0x15c
+[gs:reg] idx=98 reg=0x0 value=0x15c
+[gs:reg] idx=99 reg=0x0 value=0x15c
+[gs:reg] idx=100 reg=0x0 value=0x15c
+[gs:reg] idx=101 reg=0x0 value=0x15c
+[gs:reg] idx=102 reg=0x0 value=0x15c
+[gs:reg] idx=103 reg=0x0 value=0x15c
+[gs:reg] idx=104 reg=0x0 value=0x15c
+[gs:reg] idx=105 reg=0x0 value=0x15c
+[gs:reg] idx=106 reg=0x0 value=0x15c
+[gs:reg] idx=107 reg=0x0 value=0x15c
+[gs:reg] idx=108 reg=0x0 value=0x15c
+[gs:reg] idx=109 reg=0x0 value=0x15c
+[gs:reg] idx=110 reg=0x0 value=0x15c
+[gs:reg] idx=111 reg=0x0 value=0x15c
+[gs:reg] idx=112 reg=0x0 value=0x15c
+[gs:reg] idx=113 reg=0x0 value=0x15c
+[gs:reg] idx=114 reg=0x0 value=0x15c
+[gs:reg] idx=115 reg=0x0 value=0x15c
+[gs:reg] idx=116 reg=0x0 value=0x15c
+[gs:reg] idx=117 reg=0x0 value=0x15c
+[gs:reg] idx=118 reg=0x6 value=0x8006fc8621311440
+[gs:reg] idx=119 reg=0x0 value=0x4c
+[gs:reg] idx=120 reg=0x0 value=0x15c
+[gs:reg] idx=121 reg=0x0 value=0x15c
+[gs:reg] idx=122 reg=0x0 value=0x15c
+[gs:reg] idx=123 reg=0x0 value=0x15c
+[gs:reg] idx=124 reg=0x0 value=0x15c
+[gs:reg] idx=125 reg=0x0 value=0x15c
+[gs:reg] idx=126 reg=0x0 value=0x15c
+[gs:reg] idx=127 reg=0x0 value=0x15c
+[gs:texa] idx=1 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=2 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=3 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=4 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=5 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=6 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=7 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=8 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=9 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[TS:DMA-replay] list=0 start=0x100000 TADR=0x111f30 CHCR=0x70000085 CSR=0x1 actual_SIGNAL=1 actual_END=1
+[DMA:long-chain] channel=0x10009000 start=0x1ec1f80 end=0x1ed3eb0 tags=4596 bytes=288672
+[gs:texa] idx=10 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=11 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=12 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=13 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=14 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=15 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=16 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=17 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=18 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[gs:texa] idx=19 value=0x0 ta0=0x0 aem=0 ta1=0x0
+[TS:DMA-replay] list=1 start=0x1ec1f80 TADR=0x1ed3eb0 CHCR=0x70000085 CSR=0x1 actual_SIGNAL=1 actual_END=1
+[TS:DMA-replay] 2 captured original chains, failures=0

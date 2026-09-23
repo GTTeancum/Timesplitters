@@ -1,0 +1,51 @@
+Loading segment: 0x200000 - 0x1ff5390 (filesz: 0x1afd94, memsz: 0x1df5390)
+Registered code region: 200000 - 3afd94[kernel:callback-arena] base=0x80000 end=0x100000
+ELF file loaded successfully. Entry point: 0x200008[sceSifSetDma:CALL] pc=0x2dd9c8 ra=0x2dd9c8 list=0x1ff2b00 count=1
+[sceSifSetDma:DESC] i=0 src=0x11000 dst=0x140000 size=0x80 attr=0x0 pc=0x2dd9c8 ra=0x2dd9c8
+[TS:audio-memory] original EE to IOP PASS
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0x4000 size=0x80 mode=0x0 copied=1 physical=128
+[TS:audio-memory] EE to IOP to sound RAM PASS
+[TS:audio-memory] completed only after copy PASS
+[Audio:VoiceTrans] core=1 src=0x141000 dest=0x4000 size=0x80 mode=0x1 copied=1 physical=128
+[TS:audio-memory] other core reads shared sound RAM PASS
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0x0 size=0x40 mode=0x0 copied=1 physical=64
+[TS:audio-memory] zero sound address is valid PASS
+[Audio:VoiceTrans] core=0 src=0x0 dest=0x5000 size=0x40 mode=0x0 copied=1 physical=64
+[TS:audio-memory] zero IOP address is valid PASS
+[Audio:VoiceTrans] core=0 src=0x0 dest=0x0 size=0x0 mode=0x0 copied=1 physical=0
+[TS:audio-memory] zero size ignores poisoned stack PASS
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0x6000 size=0x3f mode=0x0 copied=1 physical=64
+[TS:audio-memory] DMA rounds 63 bytes to one block PASS
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0x7000 size=0x41 mode=0x0 copied=1 physical=128
+[TS:audio-memory] DMA rounds 65 bytes to two blocks PASS
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0x8001 size=0x40 mode=0x0 copied=1 physical=64
+[TS:audio-memory] TSA is halfword addressed PASS
+[Audio:VoiceTrans] core=1 src=0x140000 dest=0x1fffe0 size=0x40 mode=0x0 copied=1 physical=64
+[TS:audio-memory] sound RAM wrap PASS
+[TS:audio-memory] wrapped bytes reach address zero PASS
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0x9000 size=0x3 mode=0x8 copied=1 physical=4
+[TS:audio-memory] programmed IO writes halfwords PASS
+[Audio:VoiceTrans:rejected] core=0 direction=0 requested=1 physical=64
+[Audio:VoiceTrans] core=0 src=0x1fffff dest=0xa000 size=0x1 mode=0x0 copied=0 physical=64
+[TS:audio-memory] reject rounded IOP source overrun PASS
+[TS:audio-memory] failed core not marked complete PASS
+[TS:audio-memory] other core completion preserved PASS
+[Audio:VoiceTrans:rejected] core=0 direction=0 requested=4294967295 physical=4294967296
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0xa000 size=0xffffffff mode=0x0 copied=0 physical=4294967296
+[TS:audio-memory] reject oversized transfer PASS
+[Audio:VoiceTrans:rejected] core=0 direction=2 requested=64 physical=64
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0xa000 size=0x40 mode=0x2 copied=0 physical=64
+[TS:audio-memory] reject invalid voice direction PASS
+[Audio:VoiceTrans:rejected] core=0 direction=1 requested=64 physical=64
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0xa000 size=0x40 mode=0x9 copied=0 physical=64
+[TS:audio-memory] unsupported IO read is not success PASS
+[Audio:VoiceTrans:rejected] core=0 direction=1 requested=64 physical=64
+[Audio:VoiceTrans] core=0 src=0x1ffff0 dest=0x4000 size=0x40 mode=0x1 copied=0 physical=64
+[TS:audio-memory] reject IOP destination overrun atomically PASS
+[TS:audio-memory] failed transfer leaves sound memory intact PASS
+[Audio:VoiceTrans] core=0 src=0x140000 dest=0xb000 size=0x40 mode=0x0 copied=1 physical=64
+[TS:audio-memory] valid transfer recovers after failure PASS
+[TS:audio-memory] sound RAM belongs to each runtime PASS
+[TS:audio-memory] invalid host buffer rejected PASS
+[TS:audio-memory] oversized host read rejected PASS
+[TS:audio-memory] 25 passed, 0 failed; memory transfers only, no voice mixing or output claim

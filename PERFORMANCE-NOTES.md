@@ -19,6 +19,7 @@ more than 16.7 ms of work drops to 30.
 | + recompiled VU1 microprogram (unoptimized) | — | ~10–13 |
 | + drawing on worker threads | 30+ | ~15 |
 | + huge-function optimization, GS/VU/VIF work | 50–60 | 60 in light views, 25–30 in busy views |
+| + OpenGL renderer (now the default) | 60 | 50–60 in the busy view (Story start: ~40 vs ~23) |
 
 The arcade benchmark route leaves the player standing at the spawn point for
 the whole match, so the result depends on the view: `TS_TEST_SPAWN_SEED=1`
@@ -71,9 +72,31 @@ gives a repeatable busy view (~28 fps); other spawns often hold 60.
    thread scan merged into one pass; screenshots saved at the host aspect.
 
 In-game numbers vary between identical runs (bot/enemy behaviour depends on
-timing): Story start measured 20�28 across runs of the same build. Use the
+timing): Story start measured 20–28 across runs of the same build. Use the
 deterministic replays (`timesplitters_vu_replay`, `timesplitters_gs_replay`)
 to judge a change; treat single in-game runs as rough.
+
+The CPU rasterizer needs ~6 cores in busy views, so anything else running on
+the machine (a parallel compile, for instance) drops it from 60 to 30 or 20.
+The OpenGL renderer uses under 2 cores and is far less sensitive. Check the
+machine is idle before comparing in-game numbers.
+
+### OpenGL renderer (`GSGpuBackend`, default since 2026-09-26)
+
+Draws GS primitives with OpenGL 3.3 on its own thread (hidden window whose
+context shares with the raylib window). GS local memory stays authoritative:
+uploads, CLUT loads and transfers run through an internal `GSCpuBackend`, and
+render targets are written back (only rows drawn since the last write-back)
+before anything reads their pages — texture decode, local→host readbacks,
+presentation. Presentation converts a VRAM snapshot on a separate thread.
+Colour targets are RGBA16F holding c/255 and a/128, depth is DEPTH32F with
+`gl_FragDepth` = z/2^32; GS blending (A−B)·C+D uses dual-source blending.
+Output is close to, not bit-identical with, the CPU rasterizer (frames
+compared by eye and pixel diff: a few hundred pixels differ by >16).
+
+`TS_GS_GPU=0` (or `TS_GS_SYNC=1`) selects the CPU rasterizer.
+`TS_GS_GPU=1 timesplitters_gs_replay capture` replays a capture through it.
+`TS_SAMPLE_PROFILE_GPU=1` profiles the GL thread.
 
 ## Tools
 
@@ -107,8 +130,12 @@ to judge a change; treat single in-game runs as rough.
 
 * A large dark wedge in one spawn view (seed 1) appears with the interpreter
   and serial drawing too — pre-existing, not investigated.
-* CPU use in busy views is ~5–6 cores (software rasterization).
-* Busy views are limited by EE-thread VU1/GIF work (~25–40% of a frame) and
-  waits on GS readbacks (`sjeStoreImage`).
-* GPU renderer for PC (primitive level; the Xbox D3D8 renderer can share the
-  texture-cache/primitive translation design).
+* CPU rasterizer: ~5–6 cores in busy views (software rasterization).
+* With the OpenGL renderer, busy views are limited by EE-thread VU1 work
+  (~50% of the EE thread) and a per-frame depth-buffer readback
+  (`sjeStoreImage` → `zbtestCopyZB`, ~7%, which drains the GL queue).
+  Candidates: run VIF1/VU1/GIF on their own thread; answer the depth readback
+  without draining everything queued.
+* Present straight from the GPU targets instead of converting on the CPU.
+* The Xbox D3D8 renderer can reuse the OpenGL renderer's design (primitive
+  translation, render-target mirroring, write-back rules).

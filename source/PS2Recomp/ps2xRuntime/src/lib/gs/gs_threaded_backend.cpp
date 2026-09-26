@@ -301,6 +301,10 @@ void GSThreadedBackend::publish()
     const bool urgent = published.join || published.primaryOnly || published.kind == Kind::Present;
     ++m_head;
     m_published.store(m_head, std::memory_order_release);
+    // Pairs with the sleeper count increment in workerLoop: without a full
+    // fence the load below can pass the store and miss a worker that is
+    // about to sleep (it would then wait out its timeout).
+    std::atomic_thread_fence(std::memory_order_seq_cst);
     // Waking a sleeping worker is a system call: batch it within a burst of
     // primitives; sleepers also re-check on a short timeout.
     if (s_sleepers.load(std::memory_order_acquire) && (++m_unnotified >= 64u || urgent))
@@ -444,6 +448,7 @@ void GSThreadedBackend::workerLoop(unsigned index)
         }
         ++next;
         self.completed.store(next, std::memory_order_release);
+        std::atomic_thread_fence(std::memory_order_seq_cst); // see commit()
         notifyProgress();
     }
 }

@@ -40,6 +40,15 @@ public:
     // Every pixel keeps the operation order of a serial draw.
     static void SetThreadBand(unsigned index, unsigned count);
 
+    // Decodes the whole texture of a draw state (textureWidth x textureHeight
+    // texels) from GS local memory to RGBA8888 with CLUT and TEXA applied,
+    // reading memory directly. Used by GPU backends to build textures.
+    void DecodeTexture(const GSDrawState &state, std::vector<uint32_t> &out);
+    // Writes a rectangle of pixel values (row-major, width * height) into GS
+    // local memory in the given format, taking the lock once.
+    void WriteVramRect(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x0, uint32_t y0,
+                       uint32_t width, uint32_t height, const uint32_t *values);
+
     // CLUT buffer state, for GS command captures (gs_threaded_backend).
     void GetClutState(std::array<uint16_t, 512> &clut, std::array<uint32_t, 2> &cbp) const
     {

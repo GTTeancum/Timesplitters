@@ -7,6 +7,7 @@
 // usage: timesplitters_gs_replay capture.bin [workers=1] [iterations=5] [last-frame.png]
 #include "runtime/gs/gs_cpu_backend.h"
 #include "runtime/gs/gs_threaded_backend.h"
+#include "runtime/gs/gs_gpu_backend.h"
 #include "raylib.h"
 #include "runtime/ps2_sample_profiler.h"
 
@@ -62,9 +63,22 @@ namespace
 }
 
 static int replayMain(int argc, char **argv);
+static GLFWwindow *s_gpuContext = nullptr;
 
 int main(int argc, char **argv)
 {
+    // TS_GS_GPU=1 replays through the OpenGL renderer (hidden window).
+    if (const char *gpu = std::getenv("TS_GS_GPU"); gpu && *gpu == '1')
+    {
+        SetConfigFlags(FLAG_WINDOW_HIDDEN);
+        InitWindow(64, 64, "gs_replay");
+        s_gpuContext = GSGpuBackend::CreateSharedContextWindow();
+        if (!s_gpuContext)
+        {
+            std::cerr << "[TS:gs-replay] no GL context\n";
+            return 1;
+        }
+    }
     // TS_SAMPLE_PROFILE samples the replay (producer) thread.
     int result = 0;
     std::thread worker([&] { result = replayMain(argc, argv); });
@@ -132,7 +146,14 @@ static int replayMain(int argc, char **argv)
         {
             std::memcpy(vram.data(), initialVram.data(), vramSize);
             std::unique_ptr<GSRasterBackend> backend;
-            if (workers > 1)
+            if (s_gpuContext)
+            {
+                auto gpu = std::make_unique<GSGpuBackend>(s_gpuContext);
+                gpu->Initialize(vram.data(), vramSize);
+                gpu->SetClutState(clut, cbp);
+                backend = std::move(gpu);
+            }
+            else if (workers > 1)
             {
                 auto threaded = std::make_unique<GSThreadedBackend>(workers);
                 threaded->Initialize(vram.data(), vramSize);

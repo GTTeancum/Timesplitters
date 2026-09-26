@@ -1487,6 +1487,58 @@ const uint32_t *GSCpuBackend::FindOrDecodeTexture(const GSDrawState &state)
     return slot->texels.data();
 }
 
+void GSCpuBackend::WriteVramRect(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x0, uint32_t y0,
+                                 uint32_t width, uint32_t height, const uint32_t *values)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_vram)
+        return;
+    const auto write = m_writeVramFuncs[psm & 0x3Fu];
+    for (uint32_t y = 0; y < height; ++y)
+        for (uint32_t x = 0; x < width; ++x)
+            write(m_vram, base, bw, x0 + x, y0 + y, values[size_t(y) * width + x]);
+}
+
+void GSCpuBackend::DecodeTexture(const GSDrawState &state, std::vector<uint32_t> &out)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const auto &tex = state.context.tex0;
+    const int texW = std::max<int>(1, state.textureWidth);
+    const int texH = std::max<int>(1, state.textureHeight);
+    out.resize(size_t(texW) * texH);
+    for (int y = 0; y < texH; ++y)
+        for (int x = 0; x < texW; ++x)
+        {
+            const uint32_t raw = ReadVramUnlocked(tex.psm, tex.tbp0, tex.tbw, uint32_t(x), uint32_t(y));
+            uint32_t color = 0xFFFF00FFu;
+            switch (tex.psm)
+            {
+            case GS_PSM_CT32:
+            case GS_PSM_Z32:
+            case GS_PSM_CT24:
+            case GS_PSM_Z24:
+                color = applyTexa(state.texa, tex.psm, raw);
+                break;
+            case GS_PSM_CT16:
+            case GS_PSM_CT16S:
+            case GS_PSM_Z16:
+            case GS_PSM_Z16S:
+                color = applyTexa(state.texa, tex.psm, Rgba5551ToRgba8888(raw));
+                break;
+            case GS_PSM_T8:
+            case GS_PSM_T8H:
+            case GS_PSM_T4:
+            case GS_PSM_T4HL:
+            case GS_PSM_T4HH:
+                color = LookupCLUT(state, static_cast<uint8_t>(raw), tex.cpsm, tex.csm, tex.csa, tex.psm);
+                break;
+            default:
+                break;
+            }
+            out[size_t(y) * texW + x] = color;
+        }
+}
+
 void GSCpuBackend::DrawSprite(const GSPrimitiveBatch &batch)
 {
     const GSDrawState &state = batch.state;

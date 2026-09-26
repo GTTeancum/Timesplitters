@@ -1,6 +1,7 @@
 #include "ps2_runtime.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/gs/gs_threaded_backend.h"
+#include "runtime/gs/gs_gpu_backend.h"
 #include "runtime/gs/gs_cpu_backend.h"
 #include "ps2_log.h"
 #include "ps2_stubs.h"
@@ -752,6 +753,19 @@ bool PS2Runtime::initialize(const char *title)
         m_audioBackend.setAudioReady(IsAudioDeviceReady());
 #endif
         SetTargetFPS(60);
+#if !defined(PLATFORM_VITA)
+        // Draw on the GPU (OpenGL, needs the window's context) unless
+        // TS_GS_GPU=0 or TS_GS_SYNC=1 asks for the CPU rasterizer.
+        const char *gpu = std::getenv("TS_GS_GPU");
+        const char *sync = std::getenv("TS_GS_SYNC");
+        if (!(gpu && *gpu == '0') && !(sync && *sync == '1'))
+        {
+            if (GLFWwindow *context = GSGpuBackend::CreateSharedContextWindow())
+                m_gs.setRasterBackend(std::make_unique<GSGpuBackend>(context));
+            else
+                std::cerr << "[TS:gs-gpu] no GL context; using the CPU rasterizer\n";
+        }
+#endif
         if (m_debugUiInitCallback)
         {
             m_debugUiInitCallback(*this, m_debugUiUserData);

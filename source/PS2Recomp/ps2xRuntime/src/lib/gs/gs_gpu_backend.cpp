@@ -179,6 +179,40 @@ void main()
         return a.begin < b.end && b.begin < a.end;
     }
 
+    // Write-back packing: converts rows of a render target into GS pixel
+    // values on the GPU (one uint per pixel), so reading back costs 4 bytes
+    // per pixel and no CPU conversion.
+    const char *kPackVertexShader = R"(#version 330 core
+void main()
+{
+    gl_Position = vec4(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0, 0.0, 1.0);
+}
+)";
+
+    const char *kPackFragmentShader = R"(#version 330 core
+uniform sampler2D uSource;
+uniform int uMode;  // 0: 32-bit colour, 1: 16-bit colour, 2: depth
+uniform int uFirst; // first target row
+out uint oValue;
+uint channel(float v, float scale)
+{
+    return uint(clamp(floor(v * scale + 0.5), 0.0, 255.0));
+}
+void main()
+{
+    vec4 t = texelFetch(uSource, ivec2(int(gl_FragCoord.x), int(gl_FragCoord.y) + uFirst), 0);
+    if (uMode == 2)
+    {
+        float z = t.r * 4294967296.0;
+        oValue = z >= 4294967295.0 ? 0xFFFFFFFFu : uint(z + 0.5);
+        return;
+    }
+    uint r = channel(t.r, 255.0), g = channel(t.g, 255.0), b = channel(t.b, 255.0), a = channel(t.a, 128.0);
+    oValue = uMode == 1 ? ((r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10) | ((a >> 7) << 15))
+                        : (r | (g << 8) | (b << 16) | (a << 24));
+}
+)";
+
     GLuint compileShader(GLenum type, const char *source)
     {
         GLuint shader = glCreateShader(type);
@@ -262,6 +296,7 @@ struct GSGpuBackend::Impl
     uint64_t submitted = 0, completed = 0;
     bool stop = false;
     bool sleeping = false; // GL thread waits for work (push must notify)
+    std::atomic<size_t> queued{0}; // commands in queue (spin check without the lock)
     unsigned drainers = 0; // threads waiting in drain (the GL thread must notify)
 
     GSCpuBackend cpu;
@@ -271,6 +306,10 @@ struct GSGpuBackend::Impl
 
     // --------------------------------------------------------------- GL
     GLuint program = 0, vao = 0, vbo = 0;
+    GLuint packProgram = 0, packVao = 0, packTexture = 0, packFbo = 0;
+    GLint uPackSource = -1, uPackMode = -1, uPackFirst = -1;
+    int packWidth = 0;
+    std::vector<uint32_t> packValues;
     GLint uTarget = -1, uTexture = -1, uTme = -1, uCoordMode = -1, uTexSize = -1, uLinear = -1, uWrap = -1,
           uRegion = -1, uTfx = -1, uTcc = -1, uIip = -1, uAtest = -1, uAref = -1, uAfail = -1, uFge = -1,
           uFogColor = -1, uFba = -1, uPabe = -1, uFactor = -1;
@@ -371,18 +410,14 @@ struct GSGpuBackend::Impl
         {
             work.clear();
             {
+                // Primitives usually arrive in bursts: poll briefly (without
+                // the producer's lock) before sleeping, so push rarely needs
+                // a system call.
+                for (unsigned spin = 0; spin < 2048 && queued.load(std::memory_order_relaxed) == 0u; ++spin)
+                    _mm_pause();
                 std::unique_lock<std::mutex> lock(mutex);
                 if (queue.empty() && !stop)
                 {
-                    // Primitives usually arrive in bursts: poll briefly
-                    // before sleeping, so push rarely needs a system call.
-                    for (unsigned spin = 0; spin < 64 && queue.empty(); ++spin)
-                    {
-                        lock.unlock();
-                        for (unsigned i = 0; i < 32; ++i)
-                            _mm_pause();
-                        lock.lock();
-                    }
                     sleeping = true;
                     wake.wait(lock, [&] { return stop || !queue.empty(); });
                     sleeping = false;
@@ -390,6 +425,7 @@ struct GSGpuBackend::Impl
                 if (queue.empty() && stop)
                     break;
                 work.swap(queue);
+                queued.store(0, std::memory_order_relaxed);
             }
             for (Command &c : work)
                 execute(c);
@@ -414,6 +450,7 @@ struct GSGpuBackend::Impl
             std::lock_guard<std::mutex> lock(mutex);
             queue.push_back(std::move(c));
             ++submitted;
+            queued.store(queue.size(), std::memory_order_relaxed);
             notify = sleeping;
         }
         if (notify)
@@ -468,6 +505,67 @@ struct GSGpuBackend::Impl
         glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<void *>(offsetof(Vertex, fog)));
         glPixelStorei(GL_PACK_ALIGNMENT, 1);
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+        GLuint pvs = compileShader(GL_VERTEX_SHADER, kPackVertexShader);
+        GLuint pfs = compileShader(GL_FRAGMENT_SHADER, kPackFragmentShader);
+        packProgram = glCreateProgram();
+        glAttachShader(packProgram, pvs);
+        glAttachShader(packProgram, pfs);
+        glLinkProgram(packProgram);
+        glGetProgramiv(packProgram, GL_LINK_STATUS, &ok);
+        if (!ok)
+        {
+            char log[2048];
+            glGetProgramInfoLog(packProgram, sizeof(log), nullptr, log);
+            std::fprintf(stderr, "[TS:gs-gpu] pack program link failed: %s\n", log);
+        }
+        glDeleteShader(pvs);
+        glDeleteShader(pfs);
+        uPackSource = glGetUniformLocation(packProgram, "uSource");
+        uPackMode = glGetUniformLocation(packProgram, "uMode");
+        uPackFirst = glGetUniformLocation(packProgram, "uFirst");
+        glGenVertexArrays(1, &packVao);
+        glGenFramebuffers(1, &packFbo);
+    }
+
+    // Packs rows [first, first + rows) of a target into GS pixel values.
+    const uint32_t *packRows(const Target &t, int width, int first, int rows)
+    {
+        if (width > packWidth)
+        {
+            if (packTexture)
+                glDeleteTextures(1, &packTexture);
+            glGenTextures(1, &packTexture);
+            glBindTexture(GL_TEXTURE_2D, packTexture);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_R32UI, width, kTargetHeight, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, nullptr);
+            glBindFramebuffer(GL_FRAMEBUFFER, packFbo);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, packTexture, 0);
+            packWidth = width;
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, packFbo);
+        glViewport(0, 0, width, rows);
+        glDisable(GL_SCISSOR_TEST);
+        glDisable(GL_BLEND);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(GL_FALSE);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glUseProgram(packProgram);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, t.texture);
+        glUniform1i(uPackSource, 0);
+        const bool sixteen = t.psm == GS_PSM_CT16 || t.psm == GS_PSM_CT16S;
+        glUniform1i(uPackMode, t.depth ? 2 : sixteen ? 1 : 0);
+        glUniform1i(uPackFirst, first);
+        glBindVertexArray(packVao);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        packValues.resize(size_t(width) * size_t(rows));
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glReadPixels(0, 0, width, rows, GL_RED_INTEGER, GL_UNSIGNED_INT, packValues.data());
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glDepthMask(GL_TRUE);
+        return packValues.data();
     }
 
     // ------------------------------------------------------- local memory
@@ -509,46 +607,9 @@ struct GSGpuBackend::Impl
         if (last >= first)
         {
             const int rows = last - first + 1;
-            std::vector<uint32_t> values(size_t(width) * rows);
-            if (t.depth)
-            {
-                GLuint fbo = 0;
-                glGenFramebuffers(1, &fbo);
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
-                glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, t.texture, 0);
-                glReadBuffer(GL_NONE);
-                std::vector<float> depth(size_t(width) * rows);
-                glReadPixels(0, first, width, rows, GL_DEPTH_COMPONENT, GL_FLOAT, depth.data());
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-                glDeleteFramebuffers(1, &fbo);
-                for (size_t i = 0; i < values.size(); ++i)
-                {
-                    const double z = double(depth[i]) * 4294967296.0;
-                    values[i] = z >= 4294967295.0 ? 0xFFFFFFFFu : uint32_t(z + 0.5);
-                }
-            }
-            else
-            {
-                std::vector<float> pixels(size_t(width) * rows * 4u);
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, t.fbo);
-                glReadPixels(0, first, width, rows, GL_RGBA, GL_FLOAT, pixels.data());
-                glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-                const bool sixteen = t.psm == GS_PSM_CT16 || t.psm == GS_PSM_CT16S;
-                for (size_t i = 0; i < values.size(); ++i)
-                {
-                    const float *p = &pixels[i * 4u];
-                    auto channel = [](float v, float scale) {
-                        const float c = std::floor(v * scale + 0.5f);
-                        return uint32_t(c < 0.0f ? 0.0f : c > 255.0f ? 255.0f : c);
-                    };
-                    const uint32_t r = channel(p[0], 255.0f), g = channel(p[1], 255.0f), b = channel(p[2], 255.0f);
-                    const uint32_t a = channel(p[3], 128.0f);
-                    values[i] = sixteen ? (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10) | ((a >> 7) << 15)
-                                        : r | (g << 8) | (b << 16) | (a << 24);
-                }
-            }
+            const uint32_t *values = packRows(t, width, first, rows);
             cpu.WriteVramRect(t.psm, t.base * 32u, t.fbw, 0u, uint32_t(first), uint32_t(width), uint32_t(rows),
-                              values.data());
+                              values);
             cpu.TextureFlush(); // its page cache may hold the old contents
         }
         t.gpuDirty = false;

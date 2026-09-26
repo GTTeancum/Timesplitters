@@ -10,6 +10,8 @@
 #include <atomic>
 #include <iostream>
 #include <mutex>
+#include <condition_variable>
+#include <thread>
 
 #include "gs/ps2_gif_arbiter.h"
 #if defined(_MSC_VER)
@@ -22,6 +24,81 @@
 #endif
 
 class GS;
+
+// EE I/O register storage. Registers in 0x10000000-0x1000FFFF live in a flat
+// array so different registers can be read and written from different
+// threads (the async VIF1 worker touches only VIF/GIF/DMA registers while the
+// EE thread keeps using timers, INTC and so on). The map-like interface
+// (operator[], count, find/end, clear) mirrors the std::unordered_map it
+// replaces; other addresses fall back to a mutex-guarded map.
+class IoRegisterFile
+{
+public:
+    struct Slot
+    {
+        uint32_t first = 0;
+        uint32_t second = 0;
+    };
+
+    uint32_t &operator[](uint32_t address)
+    {
+        if (Slot *slot = flatSlot(address))
+        {
+            present(address) = 1u;
+            return slot->second;
+        }
+        std::lock_guard<std::mutex> lock(m_otherMutex);
+        Slot &slot = m_other[address];
+        slot.first = address;
+        return slot.second;
+    }
+    size_t count(uint32_t address) const
+    {
+        if (address - kBase < kSize)
+            return m_present[(address - kBase) >> 2] != 0u ? 1u : 0u;
+        std::lock_guard<std::mutex> lock(m_otherMutex);
+        return m_other.count(address);
+    }
+    Slot *find(uint32_t address)
+    {
+        if (Slot *slot = flatSlot(address))
+            return present(address) ? slot : nullptr;
+        std::lock_guard<std::mutex> lock(m_otherMutex);
+        auto it = m_other.find(address);
+        return it == m_other.end() ? nullptr : &it->second;
+    }
+    const Slot *find(uint32_t address) const { return const_cast<IoRegisterFile *>(this)->find(address); }
+    Slot *end() { return nullptr; }
+    const Slot *end() const { return nullptr; }
+    void clear()
+    {
+        for (size_t i = 0; i < m_flat.size(); ++i)
+        {
+            m_flat[i].second = 0u;
+            m_present[i] = 0u;
+        }
+        std::lock_guard<std::mutex> lock(m_otherMutex);
+        m_other.clear();
+    }
+
+private:
+    static constexpr uint32_t kBase = 0x10000000u;
+    static constexpr uint32_t kSize = 0x10000u;
+    Slot *flatSlot(uint32_t address)
+    {
+        if (address - kBase >= kSize)
+            return nullptr;
+        Slot &slot = m_flat[(address - kBase) >> 2];
+        slot.first = address & ~3u;
+        return &slot;
+    }
+    uint8_t &present(uint32_t address) { return m_present[(address - kBase) >> 2]; }
+
+    std::array<Slot, kSize / 4> m_flat{};
+    std::array<uint8_t, kSize / 4> m_present{};
+    mutable std::mutex m_otherMutex;
+    std::unordered_map<uint32_t, Slot> m_other;
+};
 
 constexpr uint32_t PS2_RAM_SIZE = 32u * 1024u * 1024u; // 32MB
 constexpr uint32_t PS2_RAM_MASK = PS2_RAM_SIZE - 1u;   // Mask for 32MB alignment
@@ -322,6 +399,42 @@ public:
 
     using Vu1MscalCallback = std::function<void(uint32_t startPC, uint32_t top, uint32_t itop)>;
     void setVu1MscalCallback(Vu1MscalCallback cb) { m_vu1MscalCallback = std::move(cb); }
+
+    // Asynchronous VIF1: forward VIF1 DMA (VIF decode, VU1 microprograms,
+    // PATH1/PATH2 output to the GS) runs on a worker thread while the EE
+    // continues, like the real VIF1/VU1 running beside the EE. The channel
+    // stays busy (CHCR.STR) until the EE thread completes it; any EE access
+    // to VIF/GIF/DMA/VU/GS registers or memory waits for the worker first.
+    // TS_VIF1_ASYNC=0 processes VIF1 DMA inline as before.
+    // start: EE thread, before a job is handed over. done: worker thread,
+    // after it finished (post an EE event that calls completeVif1Async).
+    void setVif1AsyncCallbacks(std::function<void()> start, std::function<void()> done)
+    {
+        m_vif1StartCallback = std::move(start);
+        m_vif1DoneCallback = std::move(done);
+    }
+    bool vif1AsyncBusy() const { return m_vif1Busy.load(std::memory_order_acquire); }
+    // Waits for the worker, then completes the channel (EE thread).
+    void waitVif1Idle();
+    // Completes the channel if the worker finished: CHCR/QWC/D_STAT and a
+    // queued DMAC cause 1. Returns true if it completed a job.
+    bool completeVif1Async();
+    static bool onVif1Worker();
+    // Waits for the worker if the address belongs to the VIF/GIF/VU/GS
+    // pipeline (EE-side accessors).
+    void syncVif1ForAddress(uint32_t address)
+    {
+        if (m_vif1Busy.load(std::memory_order_acquire) && isPipelineAddress(address) && !onVif1Worker())
+            waitVif1Idle();
+    }
+    static bool isPipelineAddress(uint32_t a)
+    {
+        a &= 0x1FFFFFFFu;
+        return (a >= 0x10003000u && a < 0x1000B000u) || // GIF/VIF regs, FIFOs, DMA ch0-2
+               (a >= 0x1000E000u && a < 0x1000F000u) || // DMA control
+               (a >= 0x11000000u && a < 0x11010000u) || // VU memory
+               (a >= 0x12000000u && a < 0x12002000u);   // GS privileged
+    }
     using Vu1MscntCallback = std::function<void(uint32_t top, uint32_t itop)>;
     void setVu1MscntCallback(Vu1MscntCallback cb) { m_vu1MscntCallback = std::move(cb); }
 
@@ -380,7 +493,7 @@ public:
     std::atomic<uint64_t> m_vu0CodeGeneration{0};
     std::atomic<uint64_t> m_vu1CodeGeneration{0};
     // I/O registers
-    std::unordered_map<uint32_t, uint32_t> m_ioRegisters;
+    IoRegisterFile m_ioRegisters;
 
     // Registers
     GSRegisters gs_regs;
@@ -405,6 +518,22 @@ public:
     GifArbiter *m_gifArbiter = nullptr;
     Vu1MscalCallback m_vu1MscalCallback;
     Vu1MscntCallback m_vu1MscntCallback;
+
+    // Asynchronous VIF1 worker (see setVif1AsyncCallbacks).
+    bool startVif1Async();
+    void vif1WorkerLoop();
+    void stopVif1Worker();
+    std::thread m_vif1Thread;
+    std::mutex m_vif1Mutex;
+    std::condition_variable m_vif1Cv;
+    std::vector<std::vector<uint8_t>> m_vif1Job;
+    bool m_vif1HasJob = false;
+    bool m_vif1Stop = false;
+    std::atomic<bool> m_vif1Busy{false}; // handed over and not yet completed
+    std::atomic<bool> m_vif1Done{false}; // worker finished the job
+    int m_vif1AsyncMode = -1;             // -1: read TS_VIF1_ASYNC on first use
+    std::function<void()> m_vif1StartCallback;
+    std::function<void()> m_vif1DoneCallback;
 
     uint8_t *m_vu0Code = nullptr;
     uint8_t *m_vu0Data = nullptr;

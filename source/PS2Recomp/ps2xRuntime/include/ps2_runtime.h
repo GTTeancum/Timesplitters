@@ -390,6 +390,10 @@ public:
     uint32_t reserveAsyncCallbackStack(uint32_t size, uint32_t alignment = 16u);
 
     void drainCompletedDmacHandlers(uint8_t *rdram);
+    // EE thread: completes an asynchronous VIF1 transfer and runs its DMAC handlers.
+    void completeAsyncDmac(uint8_t *rdram);
+    uint32_t m_asyncVuFbrst = 0;
+    std::atomic<uint32_t> m_asyncVpuStopBits{UINT32_MAX};
 
     void requestStop();
     bool isStopRequested() const;

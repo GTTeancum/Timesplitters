@@ -20,6 +20,7 @@ more than 16.7 ms of work drops to 30.
 | + drawing on worker threads | 30+ | ~15 |
 | + huge-function optimization, GS/VU/VIF work | 50–60 | 60 in light views, 25–30 in busy views |
 | + OpenGL renderer (now the default) | 60 | 50–60 in the busy view (Story start: ~40 vs ~23) |
+| + VIF1/VU1 on their own thread | 60 | 60 in the busy view; Story start 60 (was ~32 in the same session) |
 
 The arcade benchmark route leaves the player standing at the spawn point for
 the whole match, so the result depends on the view: `TS_TEST_SPAWN_SEED=1`
@@ -98,6 +99,24 @@ compared by eye and pixel diff: a few hundred pixels differ by >16).
 `TS_GS_GPU=1 timesplitters_gs_replay capture` replays a capture through it.
 `TS_SAMPLE_PROFILE_GPU=1` profiles the GL thread.
 
+### Asynchronous VIF1 (default since 2026-09-26)
+
+The game sends one VIF1 DMA chain per frame (`gsMain` → `sceDmaSendM`), then
+its render thread blocks on a semaphore that the DMAC channel-1 handler
+signals; the game-logic thread keeps running. `PS2Memory` now hands that
+chain (already gathered into owned bytes at kick time) to a worker thread
+that runs VIF decode, the VU1 microprograms and PATH1/PATH2 output to the GS,
+exactly like the real VIF1/VU1 running beside the EE. CHCR.STR stays set
+until the EE thread completes the channel: the worker posts
+`EeEventType::Dmac`, and the EE finishes the registers and dispatches the
+DMAC handler. Any EE access to VIF/GIF/DMA/VU/GS registers or memory (and
+the HLE GS stubs that write the GS directly) waits for the worker first, so
+the EE never sees a half-processed pipeline. VU1 uses the FBRST captured at
+hand-over and reports D/T stop bits back on completion. Transfers under 4 KB
+stay inline. `TS_VIF1_ASYNC=0` disables it; `TS_SAMPLE_PROFILE_VIF1=1`
+profiles the worker. The I/O register map became a flat array
+(`IoRegisterFile`) so the two threads can use different registers at once.
+
 ## Tools
 
 * `TS_SAMPLE_PROFILE=<hz>` — built-in sampling profiler (Windows) of the EE
@@ -131,11 +150,11 @@ compared by eye and pixel diff: a few hundred pixels differ by >16).
 * A large dark wedge in one spawn view (seed 1) appears with the interpreter
   and serial drawing too — pre-existing, not investigated.
 * CPU rasterizer: ~5–6 cores in busy views (software rasterization).
-* With the OpenGL renderer, busy views are limited by EE-thread VU1 work
-  (~50% of the EE thread) and a per-frame depth-buffer readback
-  (`sjeStoreImage` → `zbtestCopyZB`, ~7%, which drains the GL queue).
-  Candidates: run VIF1/VU1/GIF on their own thread; answer the depth readback
-  without draining everything queued.
+* The VIF1 worker is busy ~40% of a Story frame; a heavier scene could make it
+  the limit (VU1 microcode ~55% of it, GS packet handling ~25%). Next steps
+  there: a separate GS-packet stage, leaner VU1 code.
+* Per-frame depth-buffer readback (`sjeStoreImage` → `zbtestCopyZB`, 280 KB,
+  ~3 ms on the EE) drains the GL queue; it could be answered faster.
 * Present straight from the GPU targets instead of converting on the CPU.
 * The Xbox D3D8 renderer can reuse the OpenGL renderer's design (primitive
   translation, render-target mirroring, write-back rules).

@@ -1360,7 +1360,8 @@ namespace
         mem.processPendingTransfers();
 
         std::vector<uint32_t> completedCauses = mem.consumeCompletedDmacCauses();
-        if (completedCauses.empty() && (mem.readIORegister(channelBase + 0x00u) & 0x100u) == 0u)
+        // An asynchronous VIF1 transfer completes later (EeEventType::Dmac).
+        if (completedCauses.empty() && !mem.vif1AsyncBusy() && (mem.readIORegister(channelBase + 0x00u) & 0x100u) == 0u)
         {
             if (channelBase == 0x10008000u)
             {
@@ -1874,6 +1875,7 @@ namespace
     {
         if (!runtime || !pairs || !runtime->syncCoreSubsystems())
             return;
+        runtime->memory().waitVif1Idle(); // the GS must see VIF1 output first
         for (size_t i = 0; i < pairCount; ++i)
         {
             runtime->gs().writeRegister(static_cast<uint8_t>(pairs[i].reg & 0xFFu), pairs[i].value);

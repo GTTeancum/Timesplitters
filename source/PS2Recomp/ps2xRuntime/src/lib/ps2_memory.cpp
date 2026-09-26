@@ -1,4 +1,5 @@
 #include "runtime/ps2_memory.h"
+#include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_address.h"
 #include "runtime/gs/gs_frontend.h"
 #include "ps2_log.h"
@@ -249,6 +250,7 @@ PS2Memory::PS2Memory()
 
 PS2Memory::~PS2Memory()
 {
+    stopVif1Worker();
     if (m_rdram)
     {
         delete[] m_rdram;
@@ -674,6 +676,7 @@ int32_t PS2Memory::tlbProbe(uint32_t vpn) const
 
 uint8_t PS2Memory::read8(uint32_t address)
 {
+    syncVif1ForAddress(address);
     const bool scratch = isScratchpad(address);
     uint32_t physAddr = translateAddress(address);
 
@@ -705,6 +708,7 @@ uint8_t PS2Memory::read8(uint32_t address)
 
 uint16_t PS2Memory::read16(uint32_t address)
 {
+    syncVif1ForAddress(address);
     if (address & 1)
     {
         throw std::runtime_error("Unaligned 16-bit read at address: 0x" + std::to_string(address));
@@ -740,6 +744,7 @@ uint16_t PS2Memory::read16(uint32_t address)
 
 uint32_t PS2Memory::read32(uint32_t address)
 {
+    syncVif1ForAddress(address);
     if (address & 3)
     {
         throw std::runtime_error("Unaligned 32-bit read at address: 0x" + std::to_string(address));
@@ -788,6 +793,7 @@ uint32_t PS2Memory::read32(uint32_t address)
 
 uint64_t PS2Memory::read64(uint32_t address)
 {
+    syncVif1ForAddress(address);
     if (address & 7)
     {
         throw std::runtime_error("Unaligned 64-bit read at address: 0x" + std::to_string(address));
@@ -835,6 +841,7 @@ uint64_t PS2Memory::read64(uint32_t address)
 
 __m128i PS2Memory::read128(uint32_t address)
 {
+    syncVif1ForAddress(address);
     if (address & 15)
     {
         throw std::runtime_error("Unaligned 128-bit read at address: 0x" + std::to_string(address));
@@ -868,6 +875,7 @@ __m128i PS2Memory::read128(uint32_t address)
 
 void PS2Memory::write8(uint32_t address, uint8_t value)
 {
+    syncVif1ForAddress(address);
     const bool scratch = isScratchpad(address);
     uint32_t physAddr = translateAddress(address);
 
@@ -907,6 +915,7 @@ void PS2Memory::write8(uint32_t address, uint8_t value)
 
 void PS2Memory::write16(uint32_t address, uint16_t value)
 {
+    syncVif1ForAddress(address);
     if (address & 1)
     {
         throw std::runtime_error("Unaligned 16-bit write at address: 0x" + std::to_string(address));
@@ -949,6 +958,7 @@ void PS2Memory::write16(uint32_t address, uint16_t value)
 
 void PS2Memory::write32(uint32_t address, uint32_t value)
 {
+    syncVif1ForAddress(address);
     if (address & 3)
     {
         throw std::runtime_error("Unaligned 32-bit write at address: 0x" + std::to_string(address));
@@ -1009,6 +1019,7 @@ void PS2Memory::write32(uint32_t address, uint32_t value)
 
 void PS2Memory::write64(uint32_t address, uint64_t value)
 {
+    syncVif1ForAddress(address);
     if (address & 7)
     {
         throw std::runtime_error("Unaligned 64-bit write at address: 0x" + std::to_string(address));
@@ -1065,6 +1076,7 @@ void PS2Memory::write64(uint32_t address, uint64_t value)
 
 void PS2Memory::write128(uint32_t address, __m128i value)
 {
+    syncVif1ForAddress(address);
     if (address & 15)
     {
         throw std::runtime_error("Unaligned 128-bit write at address: 0x" + std::to_string(address));
@@ -1127,6 +1139,7 @@ void PS2Memory::write128(uint32_t address, __m128i value)
 
 bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 {
+    syncVif1ForAddress(address);
     size_t timerIndex = 0u;
     uint32_t timerOffset = 0u;
     if (decodeEeTimerRegister(address, timerIndex, timerOffset))
@@ -1774,6 +1787,17 @@ void PS2Memory::completeDmacChannel(uint32_t channelBase, uint32_t cause)
 
 void PS2Memory::processPendingTransfers()
 {
+    if (!onVif1Worker())
+    {
+        if (m_pendingGifTransfers.empty() && m_pendingVif0Transfers.empty() && m_pendingVif1Transfers.empty() &&
+            m_vif1Busy.load(std::memory_order_acquire))
+            return; // nothing new; leave the asynchronous VIF1 transfer running
+        if (m_vif1Busy.load(std::memory_order_acquire))
+            waitVif1Idle();
+        if (m_pendingGifTransfers.empty() && m_pendingVif0Transfers.empty() && !m_pendingVif1Transfers.empty() &&
+            startVif1Async())
+            return;
+    }
     const bool hadGif = !m_pendingGifTransfers.empty();
     uint32_t observedGifQwc = 0u;
     for (const auto &transfer : m_pendingGifTransfers)
@@ -2015,6 +2039,176 @@ void PS2Memory::processPendingTransfers()
         m_ioRegisters[VIF1_CHANNEL + 0x00] &= ~0x100u;
         m_ioRegisters[VIF1_CHANNEL + 0x20] = 0;
     }
+}
+
+namespace
+{
+    thread_local bool t_onVif1Worker = false;
+}
+
+bool PS2Memory::onVif1Worker()
+{
+    return t_onVif1Worker;
+}
+
+bool PS2Memory::startVif1Async()
+{
+    if (m_vif1AsyncMode < 0)
+    {
+        const char *mode = std::getenv("TS_VIF1_ASYNC");
+        m_vif1AsyncMode = (mode && *mode == '0') ? 0 : 1;
+    }
+    if (m_vif1AsyncMode == 0)
+        return false;
+
+    // Own every byte: chains were gathered at kick time; normal transfers
+    // are copied now, so the EE may reuse its buffers straight away.
+    std::vector<std::vector<uint8_t>> job;
+    size_t total = 0;
+    for (auto &p : m_pendingVif1Transfers)
+    {
+        if (!p.chainData.empty())
+        {
+            total += p.chainData.size();
+            job.push_back(std::move(p.chainData));
+            continue;
+        }
+        if (p.qwc == 0)
+            continue;
+        uint32_t srcPhys = 0;
+        try
+        {
+            srcPhys = translateAddress(p.srcAddr);
+        }
+        catch (const std::exception &)
+        {
+            continue;
+        }
+        const uint8_t *base = p.fromScratchpad ? m_scratchpad : m_rdram;
+        const uint32_t limit = p.fromScratchpad ? PS2_SCRATCHPAD_SIZE : PS2_RAM_SIZE;
+        uint64_t bytesLeft = static_cast<uint64_t>(p.qwc) * 16ull;
+        std::vector<uint8_t> bytes;
+        bytes.reserve(static_cast<size_t>(bytesLeft));
+        while (bytesLeft > 0)
+        {
+            if (srcPhys >= limit)
+                srcPhys = 0;
+            const uint32_t chunk = static_cast<uint32_t>(std::min<uint64_t>(bytesLeft, limit - srcPhys));
+            bytes.insert(bytes.end(), base + srcPhys, base + srcPhys + chunk);
+            bytesLeft -= chunk;
+            srcPhys += chunk;
+        }
+        total += bytes.size();
+        job.push_back(std::move(bytes));
+    }
+    // Small transfers (register setup before a readback, say) are cheaper
+    // inline than a thread round trip; the EE usually waits on them at once.
+    if (total < 4096u)
+    {
+        for (auto &p : m_pendingVif1Transfers)
+            p.qwc = 0; // consumed below
+        m_pendingVif1Transfers.clear();
+        for (auto &bytes : job)
+        {
+            PendingTransfer pt{};
+            pt.chainData = std::move(bytes);
+            m_pendingVif1Transfers.push_back(std::move(pt));
+        }
+        return false;
+    }
+    m_pendingVif1Transfers.clear();
+
+    if (m_vif1StartCallback)
+        m_vif1StartCallback();
+    {
+        std::lock_guard<std::mutex> lock(m_vif1Mutex);
+        if (!m_vif1Thread.joinable())
+        {
+            m_vif1Thread = std::thread([this] { vif1WorkerLoop(); });
+            // TS_SAMPLE_PROFILE_VIF1=1: profile this worker instead of the EE.
+            if (const char *v = std::getenv("TS_SAMPLE_PROFILE_VIF1"); v && *v == '1')
+                ps2_sample_profiler::start(m_vif1Thread);
+        }
+        m_vif1Job = std::move(job);
+        m_vif1HasJob = true;
+        m_vif1Done.store(false, std::memory_order_release);
+        m_vif1Busy.store(true, std::memory_order_release);
+    }
+    m_vif1Cv.notify_all();
+    return true;
+}
+
+void PS2Memory::vif1WorkerLoop()
+{
+    t_onVif1Worker = true;
+    for (;;)
+    {
+        std::vector<std::vector<uint8_t>> job;
+        {
+            std::unique_lock<std::mutex> lock(m_vif1Mutex);
+            m_vif1Cv.wait(lock, [&] { return m_vif1Stop || m_vif1HasJob; });
+            if (!m_vif1HasJob)
+                return;
+            job = std::move(m_vif1Job);
+            m_vif1HasJob = false;
+        }
+        for (const auto &bytes : job)
+            processVIF1Data(bytes.data(), static_cast<uint32_t>(bytes.size()));
+        if (m_gifArbiter)
+            m_gifArbiter->drain();
+        {
+            std::lock_guard<std::mutex> lock(m_vif1Mutex);
+            m_vif1Done.store(true, std::memory_order_release);
+        }
+        m_vif1Cv.notify_all();
+        if (m_vif1DoneCallback)
+            m_vif1DoneCallback();
+    }
+}
+
+void PS2Memory::waitVif1Idle()
+{
+    if (!m_vif1Busy.load(std::memory_order_acquire) || onVif1Worker())
+        return;
+    {
+        std::unique_lock<std::mutex> lock(m_vif1Mutex);
+        m_vif1Cv.wait(lock, [&] { return m_vif1Done.load(std::memory_order_acquire); });
+    }
+    completeVif1Async();
+}
+
+bool PS2Memory::completeVif1Async()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_vif1Mutex);
+        if (!m_vif1Busy.load(std::memory_order_acquire) || !m_vif1Done.load(std::memory_order_acquire))
+            return false;
+        m_vif1Busy.store(false, std::memory_order_release);
+    }
+    constexpr uint32_t VIF1_CHANNEL = 0x10009000u;
+    constexpr uint32_t D_STAT = 0x1000E010u;
+    uint32_t dstat = m_ioRegisters.count(D_STAT) ? m_ioRegisters[D_STAT] : 0u;
+    dstat |= 1u << 1;
+    if (((dstat & 0x3FFu) & ((dstat >> 16) & 0x3FFu)) != 0u)
+        dstat |= 1u << 31;
+    else
+        dstat &= ~(1u << 31);
+    m_ioRegisters[D_STAT] = dstat;
+    queueCompletedDmacCause(1u);
+    m_ioRegisters[VIF1_CHANNEL + 0x00] &= ~0x100u;
+    m_ioRegisters[VIF1_CHANNEL + 0x20] = 0;
+    return true;
+}
+
+void PS2Memory::stopVif1Worker()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_vif1Mutex);
+        m_vif1Stop = true;
+    }
+    m_vif1Cv.notify_all();
+    if (m_vif1Thread.joinable())
+        m_vif1Thread.join();
 }
 
 void PS2Memory::queueCompletedDmacCause(uint32_t cause)
@@ -2398,6 +2592,7 @@ int PS2Memory::pollDmaRegisters()
 
 uint32_t PS2Memory::readIORegister(uint32_t address)
 {
+    syncVif1ForAddress(address);
     size_t timerIndex = 0u;
     uint32_t timerOffset = 0u;
     if (decodeEeTimerRegister(address, timerIndex, timerOffset))

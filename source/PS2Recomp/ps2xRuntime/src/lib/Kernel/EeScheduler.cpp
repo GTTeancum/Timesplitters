@@ -1968,6 +1968,8 @@ void EeScheduler::processEvent(const EeEvent &event)
         dispatchIrq(false, 3u);
         break;
     case EeEventType::Dmac:
+        // The asynchronous VIF1 worker finished a transfer.
+        m_runtime.completeAsyncDmac(m_rdram);
         break;
     case EeEventType::Alarm:
     {

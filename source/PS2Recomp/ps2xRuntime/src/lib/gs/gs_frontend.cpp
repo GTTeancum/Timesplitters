@@ -549,11 +549,21 @@ void GS::latchHostPresentationFrame()
         if (m_backend)
         {
             m_backend->Flush();
+            // Asynchronous backends publish from their own thread once they
+            // reach this point of the command stream.
+            if (m_backend->PresentAsync(request, [this](PresentationFrame &&ready) {
+                    publishHostPresentationFrame(std::move(ready), false);
+                }))
+                return;
             m_backend->Sync(GSSyncReason::Presentation);
             frame = m_backend->Present(request);
         }
     }
+    publishHostPresentationFrame(std::move(frame), true);
+}
 
+void GS::publishHostPresentationFrame(PresentationFrame &&frame, bool recordDebugEvent)
+{
     const bool hasFrame = static_cast<bool>(frame);
     const uint32_t displayFbp = frame.displayFbp;
     const uint32_t sourceFbp = frame.sourceFbp;
@@ -572,7 +582,9 @@ void GS::latchHostPresentationFrame()
         m_hostPresentationSequence.fetch_add(1, std::memory_order_release);
     }
 
-    if (hasFrame)
+    // The asynchronous path runs on the backend thread, which must not take
+    // the state mutex (the EE thread may hold it while draining the backend).
+    if (hasFrame && recordDebugEvent)
     {
         std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
         recordPresentDebugEventUnlocked(displayFbp, sourceFbp, width, height, usedPreferred);

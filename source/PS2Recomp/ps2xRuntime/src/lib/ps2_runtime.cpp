@@ -1,4 +1,7 @@
 #include "ps2_runtime.h"
+#include "runtime/ps2_sample_profiler.h"
+#include "runtime/gs/gs_threaded_backend.h"
+#include "runtime/gs/gs_cpu_backend.h"
 #include "ps2_log.h"
 #include "ps2_stubs.h"
 #include "ps2_syscalls.h"
@@ -670,6 +673,10 @@ bool PS2Runtime::syncCoreSubsystems()
     }
 
     m_gs.init(gsVram, static_cast<uint32_t>(PS2_GS_VRAM_SIZE), &m_memory.gs());
+    // Rasterize on a worker thread so the EE/VU work of the next draws
+    // overlaps pixel work. TS_GS_SYNC=1 keeps drawing on the game thread.
+    if (const char *sync = std::getenv("TS_GS_SYNC"); !(sync && *sync == '1'))
+        m_gs.setRasterBackend(std::make_unique<GSThreadedBackend>());
     m_gifArbiter.setProcessPathPacketFn([this](GifPathId path, const uint8_t *data, uint32_t size)
                                     { m_gs.processGIFPacket(data, size, path); });
     m_memory.setGifArbiter(&m_gifArbiter);
@@ -738,7 +745,8 @@ bool PS2Runtime::initialize(const char *title)
 #if defined(PLATFORM_VITA)
         InitWindow(HOST_WINDOW_WIDTH, HOST_WINDOW_HEIGHT, title); // raylib vita does not support audio
 #else
-        SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE |
+            (std::getenv("TS_TEST_HIDDEN") ? FLAG_WINDOW_HIDDEN : 0));
         InitWindow(HOST_WINDOW_WIDTH, HOST_WINDOW_HEIGHT, title);
         InitAudioDevice();
         m_audioBackend.setAudioReady(IsAudioDeviceReady());
@@ -1427,7 +1435,39 @@ bool PS2Runtime::dispatchGuestBranch(uint8_t *rdram,
 
     RecompiledFunction targetFn = lookupFunction(targetPc);
     const uint32_t entryPc = ctx->pc;
+    // Measure host time in direct boss-loop calls, including dispatcher unwind.
+    // A yielded segment is not a completed guest call; keep that explicit.
+    static const bool profileBoss = [] {
+        const char *value = std::getenv("TS_PROFILE_BOSS_CALLS");
+        return value && std::strcmp(value, "1") == 0;
+    }();
+    static const bool profileGs = std::getenv("TS_PROFILE_DISPATCH") != nullptr;
+    struct BossCallScope
+    {
+        bool enabled;
+        uint32_t source, target;
+        R5900Context *context;
+        bool returned = false;
+        std::chrono::steady_clock::time_point start;
+        ~BossCallScope()
+        {
+            if (!enabled) return;
+            const double ms = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - start).count();
+            if (ms < 1.0) return;
+            std::ostringstream line;
+            line << (source >= 0x200f20u ? "[TS:gs-call] src=0x" : "[TS:boss-call] src=0x") << std::hex << source
+                 << " target=0x" << target << " exit_pc=0x" << context->pc
+                 << std::dec << " ms=" << ms
+                 << " outcome=" << (returned ? "returned" : "unwound") << '\n';
+            std::cerr << line.str();
+        }
+    } profile{(profileBoss && sourcePc >= 0x200638u && sourcePc < 0x200c40u) ||
+              (profileGs && sourcePc >= 0x200f20u && sourcePc < 0x201198u),
+              sourcePc, targetPc, ctx};
+    if (profile.enabled) profile.start = std::chrono::steady_clock::now();
     targetFn(rdram, ctx, this);
+    profile.returned = true;
 
     if (isStopRequested() || ctx->pc == 0u)
     {
@@ -2419,10 +2459,33 @@ void PS2Runtime::run()
             std::cerr << "Error during program execution: unknown exception" << std::endl;
         }
         gameThreadFinished.store(true, std::memory_order_release); });
+    ps2_sample_profiler::start(gameThread);
 
     uint64_t tick = 0;
+    const bool measureFrames = std::getenv("TS_PROFILE_DISPATCH") != nullptr;
+    auto rateStart = std::chrono::steady_clock::now();
+    uint64_t ratePresents = 0, lastGsFrames = m_gs.hostPresentationSequence();
+    uint64_t lastVBlanks = m_memory.gs().vsyncTick.load(std::memory_order_acquire);
+    uint32_t captureWidth = FB_WIDTH, captureHeight = DEFAULT_DISPLAY_HEIGHT;
     while (!isStopRequested() && !gameThreadFinished.load(std::memory_order_acquire))
     {
+        if (measureFrames)
+        {
+            ++ratePresents;
+            const auto now = std::chrono::steady_clock::now();
+            const double seconds = std::chrono::duration<double>(now - rateStart).count();
+            if (seconds >= 1.0)
+            {
+                const auto frames = m_gs.hostPresentationSequence();
+                const auto vblanks = m_memory.gs().vsyncTick.load(std::memory_order_acquire);
+                std::ostringstream line;
+                line << "[TS:render-rate] presents_per_s=" << ratePresents / seconds
+                     << " gs_publications_per_s=" << (frames - lastGsFrames) / seconds
+                     << " vblank_per_s=" << (vblanks - lastVBlanks) / seconds << '\n';
+                std::cerr << line.str();
+                rateStart = now; ratePresents = 0; lastGsFrames = frames; lastVBlanks = vblanks;
+            }
+        }
         PS2_IF_AGRESSIVE_LOGS({
             tick++;
             if ((tick % 120) == 0)
@@ -2458,6 +2521,8 @@ void PS2Runtime::run()
         uint32_t presentWidth = FB_WIDTH;
         uint32_t presentHeight = DEFAULT_DISPLAY_HEIGHT;
         UploadFrame(frameTex, this, presentWidth, presentHeight, uploadState);
+        captureWidth = presentWidth;
+        captureHeight = presentHeight;
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -2491,6 +2556,7 @@ void PS2Runtime::run()
     }
 
     requestStop();
+    ps2_sample_profiler::stop();
     if (gameThread.joinable())
     {
         gameThread.join();
@@ -2500,6 +2566,23 @@ void PS2Runtime::run()
     {
         m_debugUiShutdownCallback(*this, m_debugUiUserData);
         m_debugUiInitialized = false;
+    }
+    // Read this process's game texture, never the desktop or another window.
+    if (const char *capture = std::getenv("TS_CAPTURE_FRAME"); capture && *capture)
+    {
+        Image frame = LoadImageFromTexture(frameTex);
+        ImageCrop(&frame, Rectangle{0, 0, static_cast<float>(captureWidth), static_cast<float>(captureHeight)});
+        // Match the window: games often draw half-height (field) buffers that
+        // the display stretches to the host aspect ratio.
+        if (m_hostAspectRatio > 0.0f && captureWidth > 0u)
+        {
+            const int aspectHeight = static_cast<int>(static_cast<float>(captureWidth) / m_hostAspectRatio + 0.5f);
+            if (aspectHeight > 0 && aspectHeight != static_cast<int>(captureHeight))
+                ImageResize(&frame, static_cast<int>(captureWidth), aspectHeight);
+        }
+        const bool saved = ExportImage(frame, capture);
+        UnloadImage(frame);
+        std::cerr << "[TS:capture] saved=" << saved << " path=" << capture << '\n';
     }
     UnloadTexture(frameTex);
     CloseWindow();

@@ -669,23 +669,32 @@ namespace ps2x::iop::detail
         cpu.yielded = true;
     }
 
-    IopThread *IopKernel::beginNextReady(uint64_t currentCycle)
+    IopThread *IopKernel::beginNextReady(uint64_t currentCycle, uint64_t *minDelayWake)
     {
-        for (auto &[id, thread] : m_threads)
-        {
-            if (thread.state == IopThreadState::Delay && thread.wakeCycle <= currentCycle)
-                thread.state = IopThreadState::Ready;
-        }
-
+        // One pass: waking a due thread only affects that thread's own
+        // eligibility, so waking and selection can share the scan.
         IopThread *next = nullptr;
+        uint64_t wake = UINT64_MAX;
         for (auto &[id, thread] : m_threads)
         {
+            if (thread.state == IopThreadState::Delay)
+            {
+                if (thread.wakeCycle <= currentCycle)
+                    thread.state = IopThreadState::Ready;
+                else
+                {
+                    wake = std::min(wake, thread.wakeCycle);
+                    continue;
+                }
+            }
             if (thread.state != IopThreadState::Ready)
                 continue;
             if (next == nullptr || thread.priority < next->priority ||
                 (thread.priority == next->priority && thread.id < next->id))
                 next = &thread;
         }
+        if (minDelayWake)
+            *minDelayWake = wake;
         if (next == nullptr)
             return nullptr;
 

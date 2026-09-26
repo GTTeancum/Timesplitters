@@ -3,6 +3,7 @@
 #include "runtime/gs/gs_types.h"
 
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 class GSRasterBackend
@@ -23,6 +24,10 @@ public:
     virtual void TextureFlush() = 0;
     virtual void Sync(GSSyncReason reason) = 0;
     virtual PresentationFrame Present(const GSPresentationRequest &request) = 0;
+    // Backends that run asynchronously produce the frame later, in command
+    // order, and hand it to done (on their own thread). Returns false when
+    // unsupported; the caller then uses Present().
+    virtual bool PresentAsync(const GSPresentationRequest &, std::function<void(PresentationFrame &&)>) { return false; }
 
     virtual bool ClearFramebuffer(const GSContext &context, uint32_t rgba) = 0;
     virtual uint32_t ConsumeLocalToHostBytes(uint8_t *dst, uint32_t maxBytes) = 0;

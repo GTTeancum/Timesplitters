@@ -60,7 +60,9 @@ namespace ps2x::iop::detail
         void sleepCurrent(IopCpuState &cpu);
         void delayCurrentUntil(uint64_t wakeCycle, IopCpuState &cpu);
 
-        [[nodiscard]] IopThread *beginNextReady(uint64_t currentCycle);
+        // minDelayWake (optional) receives the earliest wake cycle of threads
+        // still delayed after this call, i.e. nextWakeCycle() for the same state.
+        [[nodiscard]] IopThread *beginNextReady(uint64_t currentCycle, uint64_t *minDelayWake = nullptr);
         [[nodiscard]] uint64_t nextWakeCycle(uint64_t fallback) const;
         void endTimeslice(IopThread &thread, uint32_t returnSentinel);
         void cleanupDeadThreads();

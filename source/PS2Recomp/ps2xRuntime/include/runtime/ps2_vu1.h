@@ -6,6 +6,8 @@
 
 class GS;
 class PS2Memory;
+struct Vu1Jit;
+using Vu1CompiledEntry = bool (*)(Vu1Jit &jit, uint32_t pc);
 
 struct VU1State
 {
@@ -63,6 +65,8 @@ public:
     const VU1State &state() const { return m_state; }
 
 private:
+    friend struct Vu1Jit;
+
     enum Pipeline : uint8_t
     {
         PipelineNone = 0,
@@ -199,6 +203,9 @@ private:
     static constexpr uint32_t kMaxPendingViWrites = 8u;
     static constexpr uint32_t kMaxPendingAccWrites = 8u;
     static constexpr uint32_t kMaxDecodedPairs = 0x4000u / 8u;
+    // Compiled code hands back this many cycles before the budget so no
+    // register/EFU stall inside a pair can cross it.
+    static constexpr uint32_t kJitBudgetMargin = 64u;
 
     Unit m_unit;
     VU1State m_state;
@@ -226,6 +233,9 @@ private:
 
     uint64_t m_cycle = 0;
     uint64_t m_nextWriteSequence = 0;
+    uint64_t m_nextPipelineReady = UINT64_MAX;
+    enum PendingKind { PendingFlags, PendingEfu, PendingStores, PendingVf, PendingVi, PendingAcc };
+    std::array<uint32_t, 6> m_pendingMasks{};
     uint64_t m_efuResourceReady = 0;
     uint32_t m_workingClip = 0;
     uint32_t m_currentUpperInstruction = 0;
@@ -239,6 +249,11 @@ private:
     bool m_stopRequested = false;
     bool m_pendingHaltD = false;
     bool m_pendingHaltT = false;
+    Vu1CompiledEntry m_compiledProgram = nullptr;
+    uint64_t m_compiledLookupGeneration = 0;
+    bool m_compiledLookupValid = false;
+
+    Vu1CompiledEntry lookupCompiledProgram(const uint8_t *vuCode, uint32_t codeSize, const PS2Memory *memory);
 
     void run(uint8_t *vuCode, uint32_t codeSize,
              uint8_t *vuData, uint32_t dataSize,

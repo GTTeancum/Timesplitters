@@ -32,6 +32,16 @@ void GifArbiter::submit(GifPathId pathId, const uint8_t *data, uint32_t sizeByte
     m_queue.push_back(std::move(pkt));
 }
 
+void GifArbiter::processDirect(GifPathId pathId, const uint8_t *data, uint32_t sizeBytes)
+{
+    if (!data || sizeBytes == 0)
+        return;
+    if (m_processPathFn)
+        m_processPathFn(pathId, data, sizeBytes);
+    else if (m_processFn)
+        m_processFn(data, sizeBytes);
+}
+
 void GifArbiter::drain()
 {
     if (!m_processFn && !m_processPathFn)

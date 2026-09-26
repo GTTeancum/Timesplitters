@@ -36,6 +36,9 @@ public:
 
     void drain();
     bool empty() const { return m_queue.empty(); }
+    // Processes one packet immediately without copying it; only valid when
+    // nothing is queued (there is nothing to arbitrate against).
+    void processDirect(GifPathId pathId, const uint8_t *data, uint32_t sizeBytes);
 
 private:
     ProcessPacketFn m_processFn;

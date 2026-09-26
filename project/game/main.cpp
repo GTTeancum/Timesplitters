@@ -132,6 +132,12 @@ int main(int argc, char** argv) {
                      <<",0x"<<readU32(0x003affd8u)<<std::dec<<"]"
                      <<" mc_last_cmd="<<mcSnapshot.lastCmd
                      <<" mc_last_result="<<mcSnapshot.lastResult
+                     <<" mc_last_port="<<mcSnapshot.lastPort
+                     <<" mc_last_slot="<<mcSnapshot.lastSlot
+                     <<" mc_last_flags=0x"<<std::hex<<mcSnapshot.lastFlags<<std::dec
+                     <<" mc_last_raw='"<<mcSnapshot.lastRawPath<<"'"
+                     <<" mc_last_guest='"<<mcSnapshot.lastGuestPath<<"'"
+                     <<" mc_last_host='"<<mcSnapshot.lastHostPath.string()<<"'"
                      <<" mc_open_files="<<mcSnapshot.openFiles.size()
                      <<" mc0={fmt="<<(mcSnapshot.ports[0].formatted ? 1 : 0)
                      <<",cwd='"<<mcSnapshot.ports[0].currentDir<<"'}"
@@ -302,6 +308,27 @@ int main(int argc, char** argv) {
         const char* dump=std::getenv("TS_DUMP_RAM");
         if(dump && *dump) {std::ofstream f(dump,std::ios::binary);f.write(reinterpret_cast<char*>(rt.memory().getRDRAM()),PS2_RAM_SIZE);if(!f)throw std::runtime_error("RAM dump write failed");}
         if(dump && *dump) {std::vector<uint8_t> bytes(2u*1024u*1024u);if(rt.readIopMemory(0u,bytes.data(),bytes.size())) {std::ofstream f(std::string(dump)+".iop.bin",std::ios::binary);f.write(reinterpret_cast<const char*>(bytes.data()),bytes.size());if(!f)throw std::runtime_error("IOP dump write failed");}}
+        // Graphics state for timesplitters_dma_replay's frame benchmark.
+        if(dump && *dump) {
+            auto write=[&](const char* suffix,const void* data,size_t size){
+                std::ofstream f(std::string(dump)+suffix,std::ios::binary);
+                f.write(reinterpret_cast<const char*>(data),static_cast<std::streamsize>(size));
+                if(!f)throw std::runtime_error(std::string("graphics dump write failed: ")+suffix);
+            };
+            write(".vu1code.bin",rt.memory().getVU1Code(),PS2_VU1_CODE_SIZE);
+            write(".vu1data.bin",rt.memory().getVU1Data(),PS2_VU1_DATA_SIZE);
+            write(".vu1state.bin",&rt.vu1().state(),sizeof(VU1State));
+            {
+                uint64_t regs[20];
+                std::memcpy(regs,&rt.memory().gs(),sizeof(regs));
+                write(".gspriv.bin",regs,sizeof(regs));
+            }
+            rt.gs().refreshDisplaySnapshot();
+            uint32_t size=0;
+            const uint8_t* vram=rt.gs().lockDisplaySnapshot(size);
+            if(vram && size) write(".gsvram.bin",vram,size);
+            rt.gs().unlockDisplaySnapshot();
+        }
         if(dump && *dump) {
             std::vector<uint8_t> bytes(PS2AudioBackend::SpuRamBytes);
             if(!rt.audioBackend().readSpuMemory(0,bytes.data(),bytes.size()))throw std::runtime_error("SPU dump read failed");

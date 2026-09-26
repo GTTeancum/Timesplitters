@@ -569,6 +569,47 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
             {
                 const uint8_t *srcBase = data + pos;
                 uint32_t srcIndex = 0u;
+                // Fast path for the common unmasked, non-accumulating unpacks
+                // where every write consumes one source vector. Produces the
+                // same bytes as the general loop below.
+                const bool fastUnpack = !maskEnable && (vif1_regs.mode & 3u) == 0u && cl >= wl &&
+                                        sourceVectorCount == writeVectorCount &&
+                                        ((vl == 0u && components >= 2) ||
+                                         ((vl == 1u || vl == 2u) && components == 4));
+                if (fastUnpack)
+                {
+                    for (uint32_t writeIndex = 0; writeIndex < writeVectorCount; ++writeIndex)
+                    {
+                        const uint32_t cyclePos = writeIndex % wl;
+                        const uint32_t destVec = (vuAddr + (writeIndex / wl) * cl + cyclePos) & 0x3FFu;
+                        uint8_t *dest = m_vu1Data + destVec * 16u;
+                        const uint8_t *srcVec = srcBase + writeIndex * bytesPerVector;
+                        if (vl == 0u)
+                        {
+                            std::memcpy(dest, srcVec, static_cast<size_t>(components) * 4u);
+                        }
+                        else
+                        {
+                            uint32_t lanes[4];
+                            for (uint32_t c = 0; c < 4u; ++c)
+                            {
+                                if (vl == 1u)
+                                {
+                                    uint16_t raw;
+                                    std::memcpy(&raw, srcVec + c * 2u, sizeof(raw));
+                                    lanes[c] = zeroExtend ? raw : static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(raw)));
+                                }
+                                else
+                                {
+                                    const uint8_t raw = srcVec[c];
+                                    lanes[c] = zeroExtend ? raw : static_cast<uint32_t>(static_cast<int32_t>(static_cast<int8_t>(raw)));
+                                }
+                            }
+                            std::memcpy(dest, lanes, sizeof(lanes));
+                        }
+                    }
+                }
+                else
                 for (uint32_t writeIndex = 0; writeIndex < writeVectorCount; ++writeIndex)
                 {
                     const uint32_t cyclePos = writeIndex % wl;

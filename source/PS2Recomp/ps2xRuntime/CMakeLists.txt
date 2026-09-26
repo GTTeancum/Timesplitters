@@ -11,8 +11,8 @@ option(PS2X_ENABLE_RUNNER_PCH "Precompile the heavy runtime headers for ps2Entry
 option(PS2X_ENABLE_SCCACHE "Use sccache as compiler launcher when available" ON)
 
 option(PS2X_ENABLE_RUNTIME_LOGS "Enable PS2 runtime logs" ON)
-option(PS2X_ENABLE_AGRESSIVE_LOGS "Enable very verbose/agressive PS2 runtime logs" ON)
-option(PS2X_ENABLE_IOP_RPC_TRACE "Log unhandled IOP/SIF RPC trace suggestions" ON)
+option(PS2X_ENABLE_AGRESSIVE_LOGS "Enable very verbose/agressive PS2 runtime logs" OFF)
+option(PS2X_ENABLE_IOP_RPC_TRACE "Log unhandled IOP/SIF RPC trace suggestions" OFF)
 option(PS2X_STRICT_RETURN_DIAGNOSTICS "Route generated JR $ra returns through runtime branch diagnostics" OFF)
 option(PS2X_SHOW_WINDOWS_CONSOLE "Show a console window for ps2EntryRunner on Windows release builds" ON)
 option(PS2X_ENABLE_DEBUG_UI "Build the desktop runtime debug UI" ON)
@@ -238,7 +238,7 @@ else()
     target_link_libraries(ps2_host_backend INTERFACE raylib)
 
     if(WIN32)
-        target_link_libraries(ps2_host_backend INTERFACE xinput)
+        target_link_libraries(ps2_host_backend INTERFACE xinput dbghelp winmm)
     endif()
 
     if(PS2X_IS_ANDROID)
@@ -387,18 +387,39 @@ add_library(ps2_runtime STATIC
     src/lib/gs/ps2_gs_memory.cpp
     src/lib/gs/gs_frontend.cpp
     src/lib/gs/gs_cpu_backend.cpp
+    src/lib/gs/gs_threaded_backend.cpp
     src/lib/ps2_iop_host.cpp
     src/lib/ps2_memory.cpp
     src/lib/ps2_pad.cpp
     src/lib/ps2_rom_device.cpp
     src/lib/ps2_vfs.cpp
     src/lib/ps2_runtime.cpp
+    src/lib/ps2_sample_profiler.cpp
     src/lib/ps2_vif1_interpreter.cpp
     src/lib/vu/ps2_vu1_core.cpp
     src/lib/vu/ps2_vu1_upper.cpp
     src/lib/vu/ps2_vu1_lower.cpp
+    src/lib/vu/ps2_vu1_jit.cpp
     src/lib/games_database.cpp
 )
+
+# RelWithDebInfo defaults to /Ob1 on MSVC, preventing automatic inlining
+# through the software rasterizer's per-pixel helper calls.
+if(MSVC)
+    set_property(SOURCE src/lib/gs/gs_cpu_backend.cpp src/lib/gs/ps2_gs_memory.cpp
+        src/lib/vu/ps2_vu1_core.cpp src/lib/vu/ps2_vu1_upper.cpp src/lib/vu/ps2_vu1_lower.cpp
+        APPEND PROPERTY COMPILE_OPTIONS "$<$<NOT:$<CONFIG:Debug>>:/Ob2>")
+endif()
+
+# VU arithmetic must follow its written rounding (separate multiply and add,
+# round toward zero). /fp:fast lets the compiler fuse multiply-adds at will,
+# which changes results and would make the interpreter disagree with the
+# recompiled microprograms (compiled with the default /fp:precise).
+if(MSVC)
+    set_property(SOURCE src/lib/vu/ps2_vu1_core.cpp src/lib/vu/ps2_vu1_upper.cpp src/lib/vu/ps2_vu1_lower.cpp
+        src/lib/vu/ps2_vu1_jit.cpp
+        APPEND PROPERTY COMPILE_OPTIONS "/fp:precise")
+endif()
 
 if(PS2X_ENABLE_RUNTIME_LOGS)
     target_compile_definitions(ps2_runtime PUBLIC

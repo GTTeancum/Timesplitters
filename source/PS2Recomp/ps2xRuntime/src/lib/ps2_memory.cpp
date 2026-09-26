@@ -1389,10 +1389,56 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     // The synchronous snapshot cannot change during this walk, so a
                     // repeated full control state proves a cycle. Return-stack values
                     // matter: revisiting a sublist from a different CALL is legal.
-                    std::set<std::array<uint32_t, 4>> chainStates;
+                    // Flat open-addressing set: a std::set allocated a node per tag.
+                    struct ChainStateSet
+                    {
+                        std::vector<std::array<uint32_t, 4>> slots;
+                        std::vector<uint8_t> used;
+                        size_t count = 0;
+                        static size_t hash(const std::array<uint32_t, 4> &k)
+                        {
+                            uint64_t h = 0x9E3779B97F4A7C15ull;
+                            for (uint32_t v : k)
+                                h = (h ^ v) * 0xFF51AFD7ED558CCDull;
+                            return static_cast<size_t>(h ^ (h >> 29));
+                        }
+                        bool insert(const std::array<uint32_t, 4> &k)
+                        {
+                            if ((count + 1) * 2 > slots.size())
+                            {
+                                std::vector<std::array<uint32_t, 4>> oldSlots = std::move(slots);
+                                std::vector<uint8_t> oldUsed = std::move(used);
+                                const size_t capacity = std::max<size_t>(1024u, oldSlots.size() * 2u);
+                                slots.assign(capacity, {});
+                                used.assign(capacity, 0u);
+                                count = 0;
+                                for (size_t i = 0; i < oldSlots.size(); ++i)
+                                    if (oldUsed[i])
+                                        insert(oldSlots[i]);
+                            }
+                            const size_t mask = slots.size() - 1u;
+                            for (size_t i = hash(k) & mask;; i = (i + 1u) & mask)
+                            {
+                                if (!used[i])
+                                {
+                                    used[i] = 1u;
+                                    slots[i] = k;
+                                    ++count;
+                                    return true;
+                                }
+                                if (slots[i] == k)
+                                    return false;
+                            }
+                        }
+                        size_t size() const { return count; }
+                    } chainStates;
                     constexpr size_t kMaxBufferedDmaBytes = 64u * 1024u * 1024u;
                     constexpr size_t kMaxDmaControlStates = 1u << 20;
                     std::vector<uint8_t> chainBuf;
+                    // Display lists are similar from frame to frame: size the
+                    // buffer once instead of growing it tag by tag.
+                    static thread_local size_t s_lastChainBytes = 0;
+                    chainBuf.reserve(s_lastChainBytes + 4096u);
 
                     auto appendData = [&](uint32_t srcAddr, uint32_t qwCount)
                     {
@@ -1462,7 +1508,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                             throw std::runtime_error("invalid DMA return-stack depth");
                         const std::array<uint32_t, 4> state{
                             tagAddr, asp, asp > 0u ? asr0 : 0u, asp > 1u ? asr1 : 0u};
-                        if (!chainStates.insert(state).second)
+                        if (!chainStates.insert(state))
                             throw std::runtime_error("cyclic DMA chain at TADR=" + std::to_string(tagAddr));
                         if (chainStates.size() > kMaxDmaControlStates)
                             throw std::runtime_error("DMA chain exceeds host control-state budget");
@@ -1599,6 +1645,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         pt.fromScratchpad = false;
                         pt.srcAddr = 0;
                         pt.qwc = 0;
+                        s_lastChainBytes = std::max(s_lastChainBytes, chainBuf.size());
                         pt.chainData = std::move(chainBuf);
                         if (channelBase == 0x1000A000)
                         {
@@ -2023,6 +2070,12 @@ void PS2Memory::submitGifPacket(GifPathId pathId, const uint8_t *data, uint32_t 
         flushMaskedPath3Packets(false);
     }
 
+    if (m_gifArbiter && drainImmediately && m_gifArbiter->empty())
+    {
+        // A lone packet has nothing to be ordered against: skip the copy.
+        m_gifArbiter->processDirect(pathId, data, sizeBytes);
+        return;
+    }
     if (m_gifArbiter)
         m_gifArbiter->submit(pathId, data, sizeBytes, path2DirectHl);
     else if (m_gifPacketCallback)

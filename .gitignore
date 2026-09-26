@@ -73,3 +73,9 @@ Thumbs.db
 /list.txt
 __pycache__/
 *.pyc
+
+# Retail binaries copied from the disc (supply your own)
+project/analysis/extracted/SLUS_200.90
+project/analysis/extracted/SLUS_200.90.symbols.json
+project/analysis/extracted/SYSTEM.CNF
+project/analysis/extracted/MODULES/

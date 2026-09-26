@@ -99,6 +99,22 @@ bool GSCpuBackend::TextureReadOnlyDuringDraw(const GSDrawState &state)
     if (!state.prim.tme) return false;
     const auto &ctx = state.context;
     if (state.textureWidth <= 0 || state.textureHeight <= 0) return false;
+    // Consecutive primitives almost always share these registers.
+    struct Key
+    {
+        uint32_t tbp0, fbp, zbp, x1, y1, fbw;
+        uint64_t clamp;
+        uint16_t tw, th;
+        uint8_t tpsm, tbw, fpsm, zpsm, zmask;
+        bool operator==(const Key &) const = default;
+    };
+    const Key key{ctx.tex0.tbp0, ctx.frame.fbp, ctx.zbuf.zbp, uint32_t(ctx.scissor.x1), uint32_t(ctx.scissor.y1),
+                  ctx.frame.fbw, ctx.clamp, state.textureWidth, state.textureHeight, ctx.tex0.psm, ctx.tex0.tbw,
+                  uint8_t(ctx.frame.psm), uint8_t(ctx.zbuf.psm), uint8_t(ctx.zbuf.zmask ? 1 : 0)};
+    thread_local Key lastKey{};
+    thread_local bool lastValid = false, lastResult = false;
+    if (lastValid && key == lastKey)
+        return lastResult;
     const VramRange texture = TextureRange(state);
     const auto disjoint = [&](VramRange destination)
     {
@@ -106,8 +122,11 @@ bool GSCpuBackend::TextureReadOnlyDuringDraw(const GSDrawState &state)
         return texture.end <= GSMem::MEMORY_SIZE && destination.end <= GSMem::MEMORY_SIZE &&
                (texture.end <= destination.begin || destination.end <= texture.begin);
     };
-    if (!disjoint(FrameRange(state))) return false;
-    return ctx.zbuf.zmask || disjoint(DepthRange(state));
+    const bool result = disjoint(FrameRange(state)) && (ctx.zbuf.zmask || disjoint(DepthRange(state)));
+    lastKey = key;
+    lastValid = true;
+    lastResult = result;
+    return result;
 }
 
 namespace
@@ -1330,6 +1349,9 @@ void GSCpuBackend::InvalidateAllDecoded()
 
 void GSCpuBackend::InvalidateDecoded(uint64_t begin, uint64_t end)
 {
+    // Render targets rarely overlap cached textures: test their union first.
+    if (m_decodedTexels == 0u || (end != UINT64_MAX && (end <= m_decodedUnionBegin || begin >= m_decodedUnionEnd)))
+        return;
     for (DecodedTexture &entry : m_decoded)
         if (entry.valid && (end == UINT64_MAX || (begin < entry.end && entry.begin < end)))
         {
@@ -1436,6 +1458,16 @@ const uint32_t *GSCpuBackend::FindOrDecodeTexture(const GSDrawState &state)
     slot->texa = texa;
     slot->begin = range.begin;
     slot->end = range.end;
+    if (m_decodedTexels == 0u)
+    {
+        m_decodedUnionBegin = range.begin;
+        m_decodedUnionEnd = range.end;
+    }
+    else
+    {
+        m_decodedUnionBegin = std::min(m_decodedUnionBegin, range.begin);
+        m_decodedUnionEnd = std::max(m_decodedUnionEnd, range.end);
+    }
     slot->lastUse = ++m_decodeTick;
     slot->texels.resize(size_t(texW) * texH);
     for (int y = 0; y < texH; ++y)

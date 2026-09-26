@@ -70,6 +70,11 @@ gives a repeatable busy view (~28 fps); other spawns often hold 60.
    XGKICK copies whole qwords; VU scheduler tables not cleared when idle; IOP
    thread scan merged into one pass; screenshots saved at the host aspect.
 
+In-game numbers vary between identical runs (bot/enemy behaviour depends on
+timing): Story start measured 20–28 across runs of the same build. Use the
+deterministic replays (`timesplitters_vu_replay`, `timesplitters_gs_replay`)
+to judge a change; treat single in-game runs as rough.
+
 ## Tools
 
 * `TS_SAMPLE_PROFILE=<hz>` â€” built-in sampling profiler (Windows) of the EE

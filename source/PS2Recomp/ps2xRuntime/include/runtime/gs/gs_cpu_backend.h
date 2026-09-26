@@ -132,6 +132,7 @@ private:
     };
     std::vector<DecodedTexture> m_decoded; // LRU within kDecodedTexelBudget
     size_t m_decodedTexels = 0;
+    uint64_t m_decodedUnionBegin = 0, m_decodedUnionEnd = 0; // covers every valid entry
     static constexpr size_t kDecodedTexelBudget = 1u << 20; // 4 MiB of RGBA
     static constexpr size_t kDecodedMaxEntries = 128;
     uint64_t m_decodeTick = 0;

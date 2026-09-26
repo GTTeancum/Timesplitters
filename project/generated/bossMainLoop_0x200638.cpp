@@ -1,4 +1,7 @@
 #include <stdexcept>
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
 #include "ps2_runtime_macros.h"
 #include "ps2_runtime.h"
 #include <ps2_recompiled_functions.h>
@@ -14,6 +17,44 @@
 // Function: bossMainLoop
 // Address: 0x200638 - 0x200c3c
 void bossMainLoop_0x200638(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
+    // Bound an optional benchmark by real game updates, after player setup.
+    static const unsigned benchmarkUpdates = [] {
+        const char *text = std::getenv("TS_TEST_GAME_UPDATES");
+        return text ? static_cast<unsigned>(std::strtoul(text, nullptr, 10)) : 0u;
+    }();
+    if (benchmarkUpdates && ctx->pc == 0x200638u) {
+        const uint32_t player = READ32(0x003afa20u);
+        const uint32_t prop = player && player <= 0x02000000u - 0x184u ? READ32(player + 0x180u) : 0u;
+        if (prop && prop <= 0x02000000u - 0x20cu && READ32(0x003afd8cu) > 0) {
+            static bool started = false;
+            static unsigned completed = 0;
+            static std::chrono::steady_clock::time_point start;
+            if (!started) {
+                started = true; start = std::chrono::steady_clock::now();
+                std::cerr << "[TS:benchmark] started player=0x" << std::hex << player << std::dec << '\n';
+            } else if (++completed >= benchmarkUpdates) {
+                const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+                std::cerr << "[TS:benchmark] updates=" << completed << " seconds=" << seconds
+                          << " updates_per_s=" << completed / seconds << '\n';
+                runtime->requestStop();
+                return;
+            }
+        }
+    }
+    // Canonical entries only; scheduler resume labels are not game updates.
+    static const bool measure = std::getenv("TS_PROFILE_BOSS_CALLS") != nullptr;
+    if (measure && ctx->pc == 0x200638u) {
+        static auto start = std::chrono::steady_clock::now();
+        static unsigned updates = 0;
+        ++updates;
+        const auto now = std::chrono::steady_clock::now();
+        const double elapsed = std::chrono::duration<double>(now - start).count();
+        if (elapsed >= 1.0) {
+            std::cerr << "[TS:game-rate] game_per_s=" << updates / elapsed
+                      << " window_s=" << elapsed << '\n';
+            start = now; updates = 0;
+        }
+    }
 #ifdef PS2_FUNCTION_LOG_TRACKER
     PS_LOG_ENTRY("bossMainLoop_0x200638");
 #endif

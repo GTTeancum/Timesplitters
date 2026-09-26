@@ -1,0 +1,22 @@
+[ 14%] Built target rabbitizer
+[ 14%] Built target fmt
+[ 42%] Built target dwarf
+[ 57%] Built target ps2_recomp_lib
+[ 71%] Built target ps2_iop
+[ 71%] Built target glfw
+[ 71%] Built target raylib
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/Pad.cpp.obj
+Pad.cpp
+[ 71%] Linking CXX static library ps2_runtime.lib
+[ 85%] Built target ps2_runtime
+[ 85%] Built target ps2_analyzer_lib
+[ 85%] Built target ps2_test_function_table
+[100%] Built target ps2_test_lib
+[100%] Linking CXX executable ps2x_tests.exe
+[100%] Built target ps2x_tests
+[  1%] Built target ps2_iop
+[  1%] Built target glfw
+[  1%] Built target raylib
+[  2%] Built target ps2_runtime
+[  2%] Linking CXX executable timesplitters.exe
+[100%] Built target timesplitters

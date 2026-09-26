@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <stdexcept>
@@ -157,6 +158,7 @@ void EeScheduler::run()
 {
     assertExecutor();
     m_running.store(true, std::memory_order_release);
+    const bool profileDispatch = std::getenv("TS_PROFILE_DISPATCH") != nullptr;
 
     while (!m_stopRequested.load(std::memory_order_acquire))
     {
@@ -293,6 +295,9 @@ void EeScheduler::run()
             continue;
         }
 
+        const uint32_t profilePc = context.pc;
+        const auto dispatchStart = profileDispatch ? std::chrono::steady_clock::now()
+                                                  : std::chrono::steady_clock::time_point{};
         try
         {
             m_insideInterrupt = !running->invocations.empty() && running->invocations.back().kind == GuestInvocationKind::Interrupt;
@@ -322,6 +327,14 @@ void EeScheduler::run()
             throw;
         }
 
+        if (profileDispatch)
+        {
+            const double ms = std::chrono::duration<double, std::milli>(
+                std::chrono::steady_clock::now() - dispatchStart).count();
+            if (ms >= 5.0)
+                std::cerr << "[TS:dispatch] pc=0x" << std::hex << profilePc
+                          << " exit_pc=0x" << context.pc << std::dec << " ms=" << ms << '\n';
+        }
         processPendingEvents();
         if (m_rescheduleRequested && m_currentThreadId != 0)
         {
@@ -1808,6 +1821,19 @@ void EeScheduler::processPendingEvents()
 
 void EeScheduler::processDueDeadlines()
 {
+    // AOT safe-point cycle counts are approximate. Do not withhold an
+    // already-expired wall-clock event while waiting for those counts.
+    uint64_t expiredCycle = m_eeCycle;
+    {
+        std::lock_guard lock(m_eventMutex);
+        const auto now = std::chrono::steady_clock::now();
+        for (const ScheduledEvent &item : m_deadlines)
+            if (item.hostDeadline <= now)
+                expiredCycle = std::max(expiredCycle, item.deadlineCycle);
+    }
+    while (m_eeCycle < expiredCycle)
+        accountCycles(static_cast<uint32_t>(std::min<uint64_t>(
+            expiredCycle - m_eeCycle, UINT32_MAX)));
     for (;;)
     {
         std::vector<ScheduledEvent> due;

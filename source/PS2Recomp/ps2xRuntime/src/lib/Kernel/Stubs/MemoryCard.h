@@ -31,6 +31,12 @@ namespace ps2_stubs
         int32_t nextFd = 0;
         int32_t lastCmd = 0;
         int32_t lastResult = 0;
+        uint32_t lastFlags = 0;
+        int32_t lastPort = 0;
+        int32_t lastSlot = 0;
+        std::string lastRawPath;
+        std::string lastGuestPath;
+        std::filesystem::path lastHostPath;
         int32_t cvFileCursor = 0;
         std::array<MemoryCardDebugPort, 2> ports{};
         std::vector<MemoryCardDebugOpenFile> openFiles;

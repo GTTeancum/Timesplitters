@@ -87,6 +87,12 @@ namespace ps2_stubs
         int32_t g_mcLastCmd = 0;
         bool g_mcCommandPending = false;
         int32_t g_mcLastResult = 0;
+        uint32_t g_mcLastFlags = 0;
+        int32_t g_mcLastPort = 0;
+        int32_t g_mcLastSlot = 0;
+        std::string g_mcLastRawPath;
+        std::string g_mcLastGuestPath;
+        std::filesystem::path g_mcLastHostPath;
         std::unordered_map<int32_t, McOpenFile> g_mcFiles;
         std::array<McPortState, 2> g_mcPorts{};
         int32_t g_cvMcFileCursor = 0;
@@ -367,6 +373,21 @@ namespace ps2_stubs
             g_mcCommandPending = true;
         }
 
+        void setMcCommandPathLocked(int32_t port,
+                                    int32_t slot,
+                                    uint32_t flags,
+                                    const std::string &rawPath,
+                                    const std::string &guestPath,
+                                    const std::filesystem::path &hostPath)
+        {
+            g_mcLastPort = port;
+            g_mcLastSlot = slot;
+            g_mcLastFlags = flags;
+            g_mcLastRawPath = rawPath;
+            g_mcLastGuestPath = guestPath;
+            g_mcLastHostPath = hostPath;
+        }
+
         void closeMcFilesLocked()
         {
             for (auto &[fd, openFile] : g_mcFiles)
@@ -485,6 +506,12 @@ namespace ps2_stubs
         snapshot.nextFd = g_mcNextFd;
         snapshot.lastCmd = g_mcLastCmd;
         snapshot.lastResult = g_mcLastResult;
+        snapshot.lastFlags = g_mcLastFlags;
+        snapshot.lastPort = g_mcLastPort;
+        snapshot.lastSlot = g_mcLastSlot;
+        snapshot.lastRawPath = g_mcLastRawPath;
+        snapshot.lastGuestPath = g_mcLastGuestPath;
+        snapshot.lastHostPath = g_mcLastHostPath;
         snapshot.cvFileCursor = g_cvMcFileCursor;
 
         for (size_t i = 0; i < g_mcPorts.size(); ++i)
@@ -637,6 +664,12 @@ namespace ps2_stubs
             g_mcNextFd = 1;
             g_mcLastCmd = 0;
             g_mcLastResult = 0;
+            g_mcLastFlags = 0;
+            g_mcLastPort = 0;
+            g_mcLastSlot = 0;
+            g_mcLastRawPath.clear();
+            g_mcLastGuestPath.clear();
+            g_mcLastHostPath.clear();
             g_mcCommandPending = false;
             for (McPortState &state : g_mcPorts)
             {
@@ -704,6 +737,8 @@ namespace ps2_stubs
 
         std::vector<SceMcTblGetDir> entries;
         int32_t result = kMcResultNoEntry;
+        std::string guestPath;
+        std::filesystem::path hostPath;
         {
             std::lock_guard<std::mutex> lock(g_mcStateMutex);
             if (isValidMcPortSlot(port, slot))
@@ -924,6 +959,12 @@ namespace ps2_stubs
             g_mcNextFd = 1;
             g_mcLastCmd = 0;
             g_mcLastResult = 0;
+            g_mcLastFlags = 0;
+            g_mcLastPort = 0;
+            g_mcLastSlot = 0;
+            g_mcLastRawPath.clear();
+            g_mcLastGuestPath.clear();
+            g_mcLastHostPath.clear();
             g_mcCommandPending = false;
             for (McPortState &state : g_mcPorts)
             {
@@ -943,6 +984,8 @@ namespace ps2_stubs
         const std::string path = readPs2CStringBounded(rdram, getRegU32(ctx, 6), kMcMaxPathLen);
 
         int32_t result = kMcResultNoEntry;
+        std::string guestPath;
+        std::filesystem::path hostPath;
         {
             std::lock_guard<std::mutex> lock(g_mcStateMutex);
             if (isValidMcPortSlot(port, slot))
@@ -955,8 +998,8 @@ namespace ps2_stubs
                 else
                 {
                     ensureMcRootExists(port);
-                    const std::string guestPath = normalizeGuestMcPathLocked(port, path);
-                    const std::filesystem::path hostPath = guestMcPathToHostPath(port, guestPath);
+                    guestPath = normalizeGuestMcPathLocked(port, path);
+                    hostPath = guestMcPathToHostPath(port, guestPath);
                     std::error_code ec;
                     if (std::filesystem::exists(hostPath, ec) && !ec)
                     {
@@ -975,8 +1018,12 @@ namespace ps2_stubs
                 }
             }
 
+            setMcCommandPathLocked(port, slot, 0u, path, guestPath, hostPath);
             setMcCommandResultLocked(kMcCmdMkdir, result);
         }
+        RUNTIME_LOG("[MC] Mkdir port=" << port << " slot=" << slot
+                                       << " raw='" << path << "' guest='" << guestPath
+                                       << "' host='" << hostPath.string() << "' -> result=" << result);
         setReturnS32(ctx, 0);
     }
 
@@ -988,6 +1035,10 @@ namespace ps2_stubs
         const uint32_t flags = getRegU32(ctx, 7);
 
         int32_t result = kMcResultNoEntry;
+        std::string guestPath;
+        std::filesystem::path hostPath;
+        bool exists = false;
+        bool parentExists = false;
         {
             std::lock_guard<std::mutex> lock(g_mcStateMutex);
             if (isValidMcPortSlot(port, slot))
@@ -999,11 +1050,12 @@ namespace ps2_stubs
                 }
                 else
                 {
-                    const std::string guestPath = normalizeGuestMcPathLocked(port, path);
-                    const std::filesystem::path hostPath = guestMcPathToHostPath(port, guestPath);
+                    guestPath = normalizeGuestMcPathLocked(port, path);
+                    hostPath = guestMcPathToHostPath(port, guestPath);
                     std::error_code ec;
                     const bool create = (flags & PS2_FIO_O_CREAT) != 0u;
-                    const bool exists = std::filesystem::exists(hostPath, ec) && !ec;
+                    exists = std::filesystem::exists(hostPath, ec) && !ec;
+                    parentExists = std::filesystem::exists(hostPath.parent_path(), ec) && !ec;
                     if (guestPath == "/")
                     {
                         result = kMcResultDeniedPermit;
@@ -1016,7 +1068,7 @@ namespace ps2_stubs
                     {
                         result = kMcResultNoEntry;
                     }
-                    else if (!std::filesystem::exists(hostPath.parent_path(), ec) || ec)
+                    else if (!parentExists || ec)
                     {
                         result = kMcResultNoEntry;
                     }
@@ -1038,8 +1090,16 @@ namespace ps2_stubs
                     }
                 }
             }
+            setMcCommandPathLocked(port, slot, flags, path, guestPath, hostPath);
             setMcCommandResultLocked(kMcCmdOpen, result);
         }
+        RUNTIME_LOG("[MC] Open port=" << port << " slot=" << slot
+                                      << " flags=0x" << std::hex << flags << std::dec
+                                      << " raw='" << path << "' guest='" << guestPath
+                                      << "' host='" << hostPath.string() << "'"
+                                      << " exists=" << (exists ? 1 : 0)
+                                      << " parent_exists=" << (parentExists ? 1 : 0)
+                                      << " -> result=" << result);
         setReturnS32(ctx, 0);
     }
 

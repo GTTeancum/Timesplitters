@@ -1,4 +1,6 @@
 #include <stdexcept>
+#include <cstdlib>
+#include <iostream>
 #include "ps2_runtime_macros.h"
 #include "ps2_runtime.h"
 #include <ps2_recompiled_functions.h>
@@ -23,6 +25,15 @@ void lvGetRandomPlayerSpawn_0x228370(uint8_t* rdram, R5900Context* ctx, PS2Runti
         default: break;
     }
 
+    // Optional process-local benchmark setting. Use the original RNG and
+    // spawn selection algorithm, with a reproducible starting seed.
+    static const char *testSeed = std::getenv("TS_TEST_SPAWN_SEED");
+    if (testSeed && *testSeed) {
+        static const uint32_t seed = static_cast<uint32_t>(std::strtoul(testSeed, nullptr, 0));
+        WRITE32(ADD32(GPR_U32(ctx, 28), 4294947976), 0u);
+        WRITE64(ADD32(GPR_U32(ctx, 28), 4294947968), static_cast<uint64_t>(seed) + 1u);
+        std::cerr << "[TS:test-spawn] seed=" << seed << '\n';
+    }
     ctx->pc = 0x228370u;
 
     // 0x228370: 0x27bdfff0  addiu       $sp, $sp, -0x10

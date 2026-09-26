@@ -1,0 +1,51 @@
+# Windows crash-hunt route for the profile sign-on screen.
+# Uses timed input only; combine with TS_PAD_TIME_SCALE=2 on the current Windows build.
+# The later pulses type a single A, move to the lower command row, choose END, and confirm.
+# Format: at seconds buttons lx ly rx ry
+at 0 none 128 128 128 128
+at 35 start 128 128 128 128
+at 35.35 none 128 128 128 128
+at 44 cross 128 128 128 128
+at 44.35 none 128 128 128 128
+at 56 cross 128 128 128 128
+at 56.35 none 128 128 128 128
+at 70 cross 128 128 128 128
+at 70.35 none 128 128 128 128
+at 78 cross 128 128 128 128
+at 78.35 none 128 128 128 128
+at 84 up 128 128 128 128
+at 84.3 none 128 128 128 128
+at 88 cross 128 128 128 128
+at 88.3 none 128 128 128 128
+# Sign-on rescue sequence. These timings intentionally begin after the profile
+# keyboard is visible in current Windows runs.
+at 92 cross 128 128 128 128
+at 92.35 none 128 128 128 128
+at 94 down 128 128 128 128
+at 94.25 none 128 128 128 128
+at 95 down 128 128 128 128
+at 95.25 none 128 128 128 128
+at 96 down 128 128 128 128
+at 96.25 none 128 128 128 128
+at 97 down 128 128 128 128
+at 97.25 none 128 128 128 128
+at 98 right 128 128 128 128
+at 98.25 none 128 128 128 128
+at 99 right 128 128 128 128
+at 99.25 none 128 128 128 128
+at 100 right 128 128 128 128
+at 100.25 none 128 128 128 128
+at 101 right 128 128 128 128
+at 101.25 none 128 128 128 128
+at 102 cross 128 128 128 128
+at 102.5 none 128 128 128 128
+at 108 cross 128 128 128 128
+at 108.35 none 128 128 128 128
+at 118 cross 128 128 128 128
+at 118.35 none 128 128 128 128
+at 130 cross 128 128 128 128
+at 130.5 none 128 128 128 128
+at 150 cross 128 128 128 128
+at 150.5 none 128 128 128 128
+at 175 cross 128 128 128 128
+at 175.5 none 128 128 128 128

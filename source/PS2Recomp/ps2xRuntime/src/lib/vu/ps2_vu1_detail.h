@@ -2,6 +2,30 @@
 #define PS2_VU1_DETAIL_H
 
 #include <cstdint>
+#include <cstring>
+
+// Keep operand normalization visible to all three VU implementation units.
+inline float VU1Interpreter::normalizeOperand(float value) const
+{
+    uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    const uint32_t exponent = (bits >> 23) & 0xFFu;
+    if (exponent == 0u)
+    {
+        bits &= 0x80000000u;
+    }
+    else if (exponent == 0xFFu)
+    {
+        bits = (bits & 0x80000000u) | 0x7F7FFFFFu;
+    }
+    std::memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+inline float VU1Interpreter::broadcast(const float *vf, uint8_t bc)
+{
+    return normalizeOperand(vf[bc & 3u]);
+}
 
 // Instruction field extraction helpers
 static inline uint8_t DEST(uint32_t i) { return (uint8_t)((i >> 21) & 0xF); }

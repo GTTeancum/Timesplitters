@@ -2,6 +2,27 @@ cmake_minimum_required(VERSION 3.21)
 
 project(ps2xTest LANGUAGES C CXX)
 
+add_executable(ps2_vu_benchmark EXCLUDE_FROM_ALL src/vu_benchmark.cpp src/test_function_table.cpp)
+target_include_directories(ps2_vu_benchmark PRIVATE ${CMAKE_SOURCE_DIR}/ps2xRuntime/src/lib)
+target_link_libraries(ps2_vu_benchmark PRIVATE ps2_runtime)
+set(PS2X_VU_REFERENCE_DIR "" CACHE PATH "Optional VU sources for deterministic comparison")
+if(PS2X_VU_REFERENCE_DIR)
+    add_executable(ps2_vu_benchmark_reference EXCLUDE_FROM_ALL
+        src/vu_benchmark.cpp src/test_function_table.cpp
+        ${PS2X_VU_REFERENCE_DIR}/ps2_vu1_core.cpp
+        ${PS2X_VU_REFERENCE_DIR}/ps2_vu1_upper.cpp
+        ${PS2X_VU_REFERENCE_DIR}/ps2_vu1_lower.cpp)
+    target_include_directories(ps2_vu_benchmark_reference PRIVATE ${CMAKE_SOURCE_DIR}/ps2xRuntime/src/lib)
+    target_link_libraries(ps2_vu_benchmark_reference PRIVATE ps2_runtime)
+endif()
+
+add_executable(ps2_timing_tests src/timing_main.cpp src/ps2_runtime_interrupt_tests.cpp src/test_function_table.cpp)
+target_include_directories(ps2_timing_tests PRIVATE include)
+target_link_libraries(ps2_timing_tests PRIVATE ps2_runtime)
+if(MSVC)
+    target_link_options(ps2_timing_tests PRIVATE /STACK:8388608)
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

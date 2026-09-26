@@ -1,0 +1,2 @@
+no such file or directory
+CMake Error: Generator: build tool execution failed, command was: nmake -f Makefile /nologo ps2x_tests timesplitters

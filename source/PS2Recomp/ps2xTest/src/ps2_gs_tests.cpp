@@ -4,6 +4,10 @@
 #include "ps2_stubs.h"
 #include "ps2_syscalls.h"
 #include "runtime/gs/gs_frontend.h"
+#include "runtime/gs/gs_color_rounding.h"
+#include "runtime/gs/gs_cpu_backend.h"
+#include <cmath>
+#include <limits>
 #include "runtime/ee_scheduler.h"
 #include "runtime/gs/ps2_gs_memory.h"
 #include "runtime/gs/ps2_gs_psmct32.h"
@@ -414,6 +418,90 @@ void register_ps2_gs_tests()
 {
     MiniTest::Case("PS2GS", [](TestCase &tc)
     {
+        tc.Run("texture reuse matches original raster across aliasing wrapping and filtering", [](TestCase &t)
+        {
+            std::vector<uint8_t> optimized(4u * 1024u * 1024u), reference;
+            uint32_t random = 0x13579bdf;
+            for (auto &byte : optimized) { random = random * 1664525u + 1013904223u; byte = random >> 24; }
+            reference = optimized;
+            GSCpuBackend fast, original;
+            fast.Initialize(optimized.data(), optimized.size());
+            original.Initialize(reference.data(), reference.size());
+            original.SetTexturePageReuseEnabled(false);
+            bool matches = true;
+            for (unsigned psm : {0u, 1u, 2u, 10u, 19u, 20u, 27u, 36u, 44u})
+                for (unsigned scenario = 0; scenario < 8; ++scenario)
+                {
+                    GSPrimitiveBatch batch{};
+                    batch.vertexCount = 2;
+                    auto &s = batch.state;
+                    s.prim.type = GS_PRIM_SPRITE; s.prim.tme = s.prim.fst = s.prim.abe = true;
+                    s.context.frame.fbw = 2; s.context.frame.psm = scenario & 1 ? GS_PSM_CT16 : GS_PSM_CT32;
+                    s.context.frame.fbp = scenario == 6 ? 511 : 0;
+                    s.context.scissor.x1 = 127; s.context.scissor.y1 = 63;
+                    s.context.zbuf.zmask = scenario != 5;
+                    s.context.zbuf.psm = GS_PSM_Z32;
+                    s.context.zbuf.zbp = scenario == 5 ? 384 : 128;
+                    s.context.test = 1ull << 17; s.context.alpha = 0x44;
+                    auto &tex = s.context.tex0;
+                    tex.psm = psm; tex.tbp0 = scenario == 4 ? 0 : scenario == 7 ? 16383 : 12287;
+                    tex.tbw = 4; tex.tw = tex.th = 6; tex.tcc = tex.tfx = 1;
+                    tex.cbp = 14000; tex.cpsm = GS_PSM_CT32; tex.cld = 1;
+                    s.context.clamp = (scenario & 3u) * 5u | (7ull << 4) | (127ull << 14) | (3ull << 24) | (127ull << 34);
+                    s.textureWidth = s.textureHeight = 64; s.linearFilter = true;
+                    s.texa.ta0 = s.texa.ta1 = 128;
+                    for (auto &v : batch.vertices) { v.r = v.g = v.b = v.a = 128; v.z = 1234; }
+                    batch.vertices[1].x = 128; batch.vertices[1].y = 64;
+                    batch.vertices[1].u = batch.vertices[1].v = 255 * 16;
+                    fast.LoadClut(tex, {}); original.LoadClut(tex, {});
+                    fast.Submit(batch); original.Submit(batch);
+                    matches &= optimized == reference;
+                }
+            t.IsTrue(matches, "complete VRAM agrees for independent, overlapping, depth-aliasing and wrapped textures");
+        });
+        tc.Run("texture coordinate floor matches reference across signed texel boundaries", [](TestCase &t)
+        {
+            bool matches = true;
+            for (int coordinate = -4096; coordinate <= 4096; ++coordinate)
+                for (float value : {std::nextafter(float(coordinate), -8192.0f), float(coordinate),
+                                    std::nextafter(float(coordinate), 8192.0f), coordinate + 0.5f})
+                    matches &= GSInternal::floorTextureCoordinate(value) == static_cast<int>(std::floor(value));
+            t.IsTrue(matches, "negative, positive and adjacent representable values agree with floorf");
+        });
+        tc.Run("read-only texture reuse preserves logical eviction and final snapshot", [](TestCase &t)
+        {
+            std::vector<uint8_t> bytes(8192u * 3u, 0);
+            GSMem::TexturePageCache cache;
+            bytes[0] = 11; bytes[8192] = 33;
+            t.Equals(int(*cache.Resolve(bytes.data(), 0)), 11, "prime logical page");
+            bytes[0] = 22;
+            cache.BeginReadOnlySampling();
+            t.Equals(int(*cache.Resolve(bytes.data(), 0)), 11, "initial stale page retained until eviction");
+            t.Equals(int(*cache.Resolve(bytes.data(), 8192)), 33, "new page loads current memory");
+            t.Equals(int(*cache.Resolve(bytes.data(), 0)), 22, "eviction exposes previous writes");
+            const auto loads = cache.PageLoads();
+            for (unsigned i = 0; i < 100; ++i) {
+                cache.Resolve(bytes.data(), 8192); cache.Resolve(bytes.data(), 0);
+            }
+            t.IsTrue(cache.PageLoads() == loads, "read-only alternation reuses snapshots");
+            cache.EndReadOnlySampling();
+            bytes[0] = 44;
+            t.Equals(int(*cache.Resolve(bytes.data(), 0)), 22, "last logical page remains latched after scope");
+            cache.Resolve(bytes.data(), 8192);
+            t.Equals(int(*cache.Resolve(bytes.data(), 0)), 44, "normal eviction still refreshes memory");
+        });
+        tc.Run("interpolated channel rounding preserves half-boundary pixels", [](TestCase &t)
+        {
+            for (int channel = 0; channel < 255; ++channel)
+            {
+                const float half = channel + 0.5f;
+                for (float value : {std::nextafter(half, 0.0f), half, std::nextafter(half, 256.0f)})
+                    t.Equals(static_cast<int>(GSInternal::roundInterpolatedChannel(value)),
+                             static_cast<int>(std::lround(value)), "match reference immediately around a rounding boundary");
+            }
+            t.Equals(static_cast<int>(GSInternal::roundInterpolatedChannel(-0.0001f)), 0, "clamp negative interpolation drift");
+            t.Equals(static_cast<int>(GSInternal::roundInterpolatedChannel(255.0001f)), 255, "clamp high interpolation drift");
+        });
         tc.Run("GS CSR/IMR support coherent 64-bit and 32-bit access", [](TestCase &t)
         {
             PS2Memory mem;

@@ -1,0 +1,14 @@
+TimeSplitters native PS2Recomp Windows x86-64 diagnostic build
+Date: 2026-09-25
+Features:
+- automatic timesplitters.log beside EXE
+- FPS / VBLANK/s / GAME/s title diagnostics
+- scheduler wall-clock vblank timing fix
+- remote keyboard + XInput merge fix
+- TS_INPUT_TRACE via batch launcher
+Validation in build environment:
+- Windows MinGW compile/link: PASS
+- focused scheduler/interrupt tests: 12/12 PASS
+- automatic logfile creation and [TS:rate] output: PASS on Linux smoke test
+- Windows runtime execution still requires user testing
+FFmpeg: disabled

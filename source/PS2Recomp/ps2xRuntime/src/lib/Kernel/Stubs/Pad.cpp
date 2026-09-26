@@ -80,6 +80,12 @@ namespace ps2_stubs
             return enabled && *enabled && std::string(enabled) != "0";
         }
 
+        bool padScriptMergeLiveEnabled()
+        {
+            const char *enabled = std::getenv("TS_PAD_SCRIPT_MERGE_LIVE");
+            return enabled && *enabled && std::string(enabled) != "0";
+        }
+
         uint8_t axisToByte(float axis)
         {
             axis = std::clamp(axis, -1.0f, 1.0f);
@@ -320,6 +326,11 @@ namespace ps2_stubs
                     state.lx = backendData[6];
                     state.ly = backendData[7];
                     usedBackend = true;
+                    if (padScriptMergeLiveEnabled())
+                    {
+                        applyGamepadState(state);
+                        applyKeyboardState(state, portState.analogMode);
+                    }
                 }
                 else
                 {

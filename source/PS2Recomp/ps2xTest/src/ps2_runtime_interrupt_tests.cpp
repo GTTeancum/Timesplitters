@@ -18,6 +18,17 @@ using namespace ps2_syscalls;
 namespace
 {
     constexpr int KE_OK = 0;
+    uint64_t g_coarseClockVBlank = 0;
+    void coarseClockDispatch(uint8_t *, R5900Context *ctx, PS2Runtime *)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+        ctx->pc = 0x00160910u;
+    }
+    void coarseClockResume(uint8_t *, R5900Context *, PS2Runtime *runtime)
+    {
+        g_coarseClockVBlank = runtime->eeScheduler().currentVSyncTick();
+        runtime->requestStop();
+    }
     constexpr int KE_EVF_COND = -421;
 
     constexpr uint32_t WEF_OR = 1u;
@@ -406,6 +417,19 @@ void register_ps2_runtime_interrupt_tests()
 {
     MiniTest::Case("PS2RuntimeInterrupt", [](TestCase &tc)
     {
+        tc.Run("host-paced VBlank is not blocked by coarse EE cycle accounting", [](TestCase &t)
+        {
+            TestEnv env;
+            env.runtime.registerFunction(0x00160900u, coarseClockDispatch);
+            env.runtime.registerFunction(0x00160910u, coarseClockResume);
+            g_coarseClockVBlank = 0;
+            R5900Context context{};
+            context.pc = 0x00160900u;
+            env.runtime.eeScheduler().reset(env.rdram.data(), context);
+            env.runtime.eeScheduler().run();
+            t.IsTrue(g_coarseClockVBlank >= 1u, "expired host VBlank must be delivered after a slow guest dispatch");
+        });
+
         tc.Run("negative interrupt-safe EE syscall ids dispatch", [](TestCase &t)
         {
             TestEnv env;

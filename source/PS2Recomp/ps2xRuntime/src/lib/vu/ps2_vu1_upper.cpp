@@ -30,6 +30,15 @@ void VU1Interpreter::execUpper(uint32_t instr)
     uint8_t fd = FD(instr);
     uint8_t op = instr & 0x3F;
 
+    // NOP has no operands or side effects; cycle and pipeline advancement
+    // belongs to run(), so avoid normalizing unused registers here.
+    if (op >= 0x3Cu)
+    {
+        const uint8_t special = static_cast<uint8_t>((instr & 3u) | ((instr >> 4) & 0x7Cu));
+        if (special == 0x2Fu || special == 0x30u)
+            return;
+    }
+
     float *vd = m_state.vf[fd];
     float normalizedVs[4];
     float normalizedVt[4];

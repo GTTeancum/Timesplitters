@@ -1,0 +1,30 @@
+[ 14%] Built target rabbitizer
+[ 14%] Built target fmt
+[ 42%] Built target dwarf
+[ 57%] Built target ps2_recomp_lib
+[ 71%] Built target ps2_iop
+[ 71%] Built target glfw
+[ 71%] Built target raylib
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/ps2_iop_host.cpp.obj
+ps2_iop_host.cpp
+[ 71%] Building CXX object ps2xRuntime/CMakeFiles/ps2_runtime.dir/src/lib/Kernel/Stubs/MemoryCard.cpp.obj
+MemoryCard.cpp
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(993): error C2065: 'guestPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(994): error C2065: 'hostPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(994): error C2065: 'guestPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(996): error C2065: 'hostPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(998): error C2065: 'hostPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(1000): error C2065: 'hostPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(1006): error C2065: 'hostPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(1013): error C2065: 'guestPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(1013): error C2065: 'hostPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(1016): error C2065: 'guestPath': undeclared identifier
+D:\Programming\GitHub\Timesplitters\source\PS2Recomp\ps2xRuntime\src\lib\Kernel\Stubs\MemoryCard.cpp(1016): error C2065: 'hostPath': undeclared identifier
+NMAKE : fatal error U1077: '"C:\Program Files\CMake\bin\cmake.exe" -E cmake_cl_compile_depends --dep-file=CMakeFiles\ps2_runtime.dir\src\lib\Kernel\Stubs\MemoryCard.cpp.obj.d --working-dir=D:\Programming\GitHub\Timesplitters\build-windows-nmake\ps2xRuntime --filter-prefix="Note: including file: " -- C:\PROGRA~1\MICROS~3\2022\COMMUN~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\cl.exe @C:\Users\smmel\AppData\Local\Temp\nm5C86.tmp' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f ps2xRuntime\CMakeFiles\ps2_runtime.dir\build.make /nologo -SL                 ps2xRuntime\CMakeFiles\ps2_runtime.dir\build' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -SL                 ps2xTest\CMakeFiles\ps2x_tests.dir\all' : return code '0x2'
+Stop.
+NMAKE : fatal error U1077: '"C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\nmake.exe" -s -f CMakeFiles\Makefile2 /nologo -LS                 ps2x_tests' : return code '0x2'
+Stop.

@@ -2694,11 +2694,23 @@ void PS2Runtime::run()
                 const char *v = std::getenv("TS_CAPTURE_WINDOW_FRAME");
                 return v ? std::strtoull(v, nullptr, 10) : 0ull;
             }();
-            if (windowCapture && ++hostFrame == windowCaptureFrame)
+            // TS_CAPTURE_WINDOW_EVERY=<n>: keep saving every n frames after that,
+            // as <png>.<frame>.png.
+            static const uint64_t windowCaptureEvery = [] {
+                const char *v = std::getenv("TS_CAPTURE_WINDOW_EVERY");
+                return v ? std::strtoull(v, nullptr, 10) : 0ull;
+            }();
+            ++hostFrame;
+            const bool first = hostFrame == windowCaptureFrame;
+            const bool repeat = windowCaptureEvery && hostFrame > windowCaptureFrame &&
+                                (hostFrame - windowCaptureFrame) % windowCaptureEvery == 0;
+            if (windowCapture && (first || repeat))
             {
                 rlDrawRenderBatchActive(); // draw what is queued before reading it back
                 Image shot = LoadImageFromScreen();
-                ExportImage(shot, windowCapture);
+                const std::string path = repeat ? std::string(windowCapture) + "." + std::to_string(hostFrame) + ".png"
+                                                : std::string(windowCapture);
+                ExportImage(shot, path.c_str());
                 UnloadImage(shot);
             }
         }

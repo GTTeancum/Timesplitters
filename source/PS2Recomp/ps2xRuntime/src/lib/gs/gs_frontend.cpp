@@ -1696,8 +1696,26 @@ void GS::adjustWidescreenHud(GSPrimitiveBatch &batch)
     }
     if (x0 < 0.0f || x1 > width || y0 < 0.0f || y1 > height)
         return; // full-screen effects reach past the edges
-    const float centre = (x0 + x1) * 0.5f;
-    const float anchor = centre < width / 3.0f ? 0.0f : centre > width * 2.0f / 3.0f ? width : width * 0.5f;
+    // Text is drawn a glyph at a time. A primitive that continues the row the
+    // previous overlay draw started (same line, just to its right) shares that
+    // row's anchor; otherwise it starts a new row, pinned to a margin only when
+    // it sits near that edge.
+    const float rowHeight = std::max(y1 - y0, 1.0f);
+    const bool continuesRow = m_hudRunDraw + 1u == m_drawCounter &&
+                              std::fabs(y0 - m_hudRunY0) <= 2.0f && std::fabs(y1 - m_hudRunY1) <= 2.0f &&
+                              x0 >= m_hudRunX1 - 2.0f && x0 - m_hudRunX1 <= rowHeight * 2.0f;
+    float anchor;
+    if (continuesRow)
+        anchor = m_hudRunAnchor;
+    else
+    {
+        anchor = x0 < width * 0.22f ? 0.0f : x1 > width * 0.78f ? width : width * 0.5f;
+        m_hudRunY0 = y0;
+        m_hudRunY1 = y1;
+        m_hudRunAnchor = anchor;
+    }
+    m_hudRunDraw = m_drawCounter;
+    m_hudRunX1 = x1;
     constexpr float kNarrow = 3.0f / 4.0f;
     for (uint32_t i = 0; i < batch.vertexCount; ++i)
     {

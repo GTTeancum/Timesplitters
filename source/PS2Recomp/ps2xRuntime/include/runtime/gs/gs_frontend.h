@@ -180,6 +180,9 @@ private:
     GSPrimitiveBatch buildDrawBatch(int vertexCount) const;
     void adjustWidescreenHud(GSPrimitiveBatch &batch);
     uint64_t m_drawCounter = 0, m_lastPerspectiveDraw = 0;
+    // Current row of HUD glyphs, moved as one piece so text is not split.
+    uint64_t m_hudRunDraw = 0;
+    float m_hudRunY0 = 0.0f, m_hudRunY1 = 0.0f, m_hudRunX1 = 0.0f, m_hudRunAnchor = 0.0f;
     void updatePreferredDisplaySourceForDraw(const GSPrimitiveBatch &batch);
     GSPresentationRequest buildPresentationRequestUnlocked() const;
 

@@ -1,10 +1,5 @@
 @echo off
-cd /d "%~dp0"
-set TS_INPUT_TRACE=1
-timesplitters.exe
-set "RC=%ERRORLEVEL%"
-echo.
-echo TimeSplitters exited with code %RC%.
-echo Log: %~dp0timesplitters.log
-pause
-exit /b %RC%
+rem Starts the current build (same as RUN-TIMESPLITTERS-FAST.bat).
+rem The timesplitters.exe in this folder is an old build from before the
+rem performance, sound and display work; it ignores timesplitters.ini.
+call "%~dp0RUN-TIMESPLITTERS-FAST.bat"

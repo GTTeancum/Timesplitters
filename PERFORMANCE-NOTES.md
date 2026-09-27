@@ -114,7 +114,12 @@ the HLE GS stubs that write the GS directly) waits for the worker first, so
 the EE never sees a half-processed pipeline. VU1 uses the FBRST captured at
 hand-over and reports D/T stop bits back on completion. Transfers under 4 KB
 stay inline. `TS_VIF1_ASYNC=0` disables it; `TS_SAMPLE_PROFILE_VIF1=1`
-profiles the worker. The I/O register map became a flat array
+profiles the worker. GIF packets the worker produces (XGKICK, DIRECT) go,
+in order, to a second "GS stage" thread that runs them through the arbiter
+and GS frontend, so VU1 work overlaps GS packet handling; the worker waits
+for the stage to empty before it reports the transfer done, and the stage
+thread counts as part of the pipeline (it never waits for the worker).
+`TS_GS_STAGE=0` disables the stage. The I/O register map became a flat array
 (`IoRegisterFile`) so the two threads can use different registers at once.
 
 ## Tools
@@ -150,9 +155,13 @@ profiles the worker. The I/O register map became a flat array
 * A large dark wedge in one spawn view (seed 1) appears with the interpreter
   and serial drawing too — pre-existing, not investigated.
 * CPU rasterizer: ~5–6 cores in busy views (software rasterization).
-* The VIF1 worker is busy ~40% of a Story frame; a heavier scene could make it
-  the limit (VU1 microcode ~55% of it, GS packet handling ~25%). Next steps
-  there: a separate GS-packet stage, leaner VU1 code.
+* The VIF1 worker is busy ~40–50% of a frame in busy views; VU1 microcode is
+  most of it. The recompiled VU1 code keeps exact per-lane interlock timing
+  on every instruction (ready-cycle reads/stores); leaner code there is the
+  next lever (e.g. timing analysis across whole loops, not just blocks).
+* GPU write-backs are packed on the GPU (R32UI, bit-identical); presentation
+  still reads the colour target back each frame — presenting straight from
+  the GPU texture would remove that.
 * Per-frame depth-buffer readback (`sjeStoreImage` → `zbtestCopyZB`, 280 KB,
   ~3 ms on the EE) drains the GL queue; it could be answered faster.
 * Present straight from the GPU targets instead of converting on the CPU.

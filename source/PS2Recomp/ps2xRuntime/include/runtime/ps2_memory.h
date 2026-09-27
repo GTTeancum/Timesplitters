@@ -535,6 +535,29 @@ public:
     std::function<void()> m_vif1StartCallback;
     std::function<void()> m_vif1DoneCallback;
 
+    // GS stage of the asynchronous VIF1 pipeline: GIF packets the VIF1
+    // worker produces (XGKICK, DIRECT) are handed, in order, to another
+    // thread that runs them through the arbiter/GS, so VU1 work overlaps GS
+    // packet processing. The worker waits for the stage to empty before it
+    // reports a transfer complete. TS_GS_STAGE=0 disables it.
+    struct GsStagePacket
+    {
+        GifPathId path;
+        std::vector<uint8_t> data;
+    };
+    bool gsStageSubmit(GifPathId path, const uint8_t *data, uint32_t sizeBytes);
+    void gsStageWaitEmpty();
+    void gsStageLoop();
+    std::thread m_gsStageThread;
+    std::mutex m_gsStageMutex;
+    std::condition_variable m_gsStageWake, m_gsStageIdle;
+    std::vector<GsStagePacket> m_gsStageQueue, m_gsStageWork;
+    std::vector<std::vector<uint8_t>> m_gsStageFree; // recycled packet buffers
+    std::atomic<size_t> m_gsStageQueued{0};
+    uint64_t m_gsStageSubmitted = 0, m_gsStageCompleted = 0;
+    bool m_gsStageSleeping = false, m_gsStageStop = false, m_gsStageWaiting = false;
+    int m_gsStageMode = -1;
+
     uint8_t *m_vu0Code = nullptr;
     uint8_t *m_vu0Data = nullptr;
     uint8_t *m_vu1Code = nullptr;

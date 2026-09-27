@@ -2154,6 +2154,7 @@ void PS2Memory::vif1WorkerLoop()
         }
         for (const auto &bytes : job)
             processVIF1Data(bytes.data(), static_cast<uint32_t>(bytes.size()));
+        gsStageWaitEmpty();
         if (m_gifArbiter)
             m_gifArbiter->drain();
         {
@@ -2200,8 +2201,95 @@ bool PS2Memory::completeVif1Async()
     return true;
 }
 
+bool PS2Memory::gsStageSubmit(GifPathId path, const uint8_t *data, uint32_t sizeBytes)
+{
+    if (m_gsStageMode < 0)
+    {
+        const char *mode = std::getenv("TS_GS_STAGE");
+        m_gsStageMode = (mode && *mode == '0') ? 0 : 1;
+    }
+    if (m_gsStageMode == 0)
+        return false;
+    bool notify;
+    {
+        std::lock_guard<std::mutex> lock(m_gsStageMutex);
+        if (!m_gsStageThread.joinable())
+            m_gsStageThread = std::thread([this] { gsStageLoop(); });
+        GsStagePacket packet{path, {}};
+        if (!m_gsStageFree.empty())
+        {
+            packet.data = std::move(m_gsStageFree.back());
+            m_gsStageFree.pop_back();
+        }
+        packet.data.assign(data, data + sizeBytes);
+        m_gsStageQueue.push_back(std::move(packet));
+        ++m_gsStageSubmitted;
+        m_gsStageQueued.store(m_gsStageQueue.size(), std::memory_order_relaxed);
+        notify = m_gsStageSleeping;
+    }
+    if (notify)
+        m_gsStageWake.notify_one();
+    return true;
+}
+
+void PS2Memory::gsStageWaitEmpty()
+{
+    std::unique_lock<std::mutex> lock(m_gsStageMutex);
+    if (m_gsStageCompleted == m_gsStageSubmitted)
+        return;
+    const uint64_t target = m_gsStageSubmitted;
+    if (m_gsStageSleeping)
+        m_gsStageWake.notify_one();
+    m_gsStageWaiting = true;
+    m_gsStageIdle.wait(lock, [&] { return m_gsStageCompleted >= target; });
+    m_gsStageWaiting = false;
+}
+
+void PS2Memory::gsStageLoop()
+{
+    t_onVif1Worker = true; // part of the VIF1 pipeline: never waits for it
+    for (;;)
+    {
+        for (unsigned spin = 0; spin < 2048 && m_gsStageQueued.load(std::memory_order_relaxed) == 0u; ++spin)
+            _mm_pause();
+        {
+            std::unique_lock<std::mutex> lock(m_gsStageMutex);
+            for (auto &packet : m_gsStageWork)
+                m_gsStageFree.push_back(std::move(packet.data));
+            m_gsStageWork.clear();
+            if (m_gsStageQueue.empty() && !m_gsStageStop)
+            {
+                m_gsStageSleeping = true;
+                m_gsStageWake.wait(lock, [&] { return m_gsStageStop || !m_gsStageQueue.empty(); });
+                m_gsStageSleeping = false;
+            }
+            if (m_gsStageQueue.empty())
+                return; // stopping
+            m_gsStageWork.swap(m_gsStageQueue);
+            m_gsStageQueued.store(0, std::memory_order_relaxed);
+        }
+        for (const auto &packet : m_gsStageWork)
+            m_gifArbiter->processDirect(packet.path, packet.data.data(), static_cast<uint32_t>(packet.data.size()));
+        bool notify;
+        {
+            std::lock_guard<std::mutex> lock(m_gsStageMutex);
+            m_gsStageCompleted += m_gsStageWork.size();
+            notify = m_gsStageWaiting;
+        }
+        if (notify)
+            m_gsStageIdle.notify_all();
+    }
+}
+
 void PS2Memory::stopVif1Worker()
 {
+    {
+        std::lock_guard<std::mutex> lock(m_gsStageMutex);
+        m_gsStageStop = true;
+    }
+    m_gsStageWake.notify_all();
+    if (m_gsStageThread.joinable())
+        m_gsStageThread.join();
     {
         std::lock_guard<std::mutex> lock(m_vif1Mutex);
         m_vif1Stop = true;
@@ -2264,6 +2352,11 @@ void PS2Memory::submitGifPacket(GifPathId pathId, const uint8_t *data, uint32_t 
         flushMaskedPath3Packets(false);
     }
 
+    if (onVif1Worker() && m_gifArbiter && drainImmediately && m_gifArbiter->empty() &&
+        gsStageSubmit(pathId, data, sizeBytes))
+        return;
+    if (onVif1Worker())
+        gsStageWaitEmpty(); // the arbiter/GS are used directly below
     if (m_gifArbiter && drainImmediately && m_gifArbiter->empty())
     {
         // A lone packet has nothing to be ordered against: skip the copy.

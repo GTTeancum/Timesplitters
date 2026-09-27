@@ -46,7 +46,7 @@ void padCheckLinks_0x265828(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x265838: 0x1900001e  blez        $t0, . + 4 + (0x1E << 2)
     ctx->pc = 0x265838u;
     {
-        const bool branch_taken_0x265838 = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x265838 = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x26583Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x265838u;
@@ -103,7 +103,7 @@ label_265850:
     // 0x265868: 0x18e0000c  blez        $a3, . + 4 + (0xC << 2)
     ctx->pc = 0x265868u;
     {
-        const bool branch_taken_0x265868 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x265868 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x26586Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x265868u;
@@ -222,7 +222,7 @@ label_2658bc:
     // 0x2658bc: 0x18e00009  blez        $a3, . + 4 + (0x9 << 2)
     ctx->pc = 0x2658BCu;
     {
-        const bool branch_taken_0x2658bc = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x2658bc = (GPR_S64(ctx, 7) <= 0);
         if (branch_taken_0x2658bc) {
             ctx->pc = 0x2658E4u;
             goto label_2658e4;

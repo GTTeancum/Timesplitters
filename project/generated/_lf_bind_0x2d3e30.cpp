@@ -48,7 +48,7 @@ void _lf_bind_0x2d3e30(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x2d3e48: 0x441001c  bgez        $v0, . + 4 + (0x1C << 2)
     ctx->pc = 0x2D3E48u;
     {
-        const bool branch_taken_0x2d3e48 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2d3e48 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2D3E4Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2D3E48u;
@@ -95,7 +95,7 @@ label_2d3e6c:
     // 0x2d3e6c: 0x4430003  bgezl       $v0, . + 4 + (0x3 << 2)
     ctx->pc = 0x2D3E6Cu;
     {
-        const bool branch_taken_0x2d3e6c = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2d3e6c = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2d3e6c) {
             ctx->pc = 0x2D3E70u;
             ctx->in_delay_slot = true;

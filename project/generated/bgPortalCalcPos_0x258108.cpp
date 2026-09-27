@@ -145,7 +145,7 @@ void bgPortalCalcPos_0x258108(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x258198: 0x4410003  bgez        $v0, . + 4 + (0x3 << 2)
     ctx->pc = 0x258198u;
     {
-        const bool branch_taken_0x258198 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x258198 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x25819Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x258198u;
@@ -376,7 +376,7 @@ label_2581a8:
     // 0x2582b0: 0x18c000f3  blez        $a2, . + 4 + (0xF3 << 2)
     ctx->pc = 0x2582B0u;
     {
-        const bool branch_taken_0x2582b0 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2582b0 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2582B4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2582B0u;
@@ -567,7 +567,7 @@ label_258318:
     // 0x258384: 0x1840001d  blez        $v0, . + 4 + (0x1D << 2)
     ctx->pc = 0x258384u;
     {
-        const bool branch_taken_0x258384 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x258384 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x258388u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x258384u;
@@ -957,7 +957,7 @@ label_2584d0:
     // 0x2584d0: 0x1840003c  blez        $v0, . + 4 + (0x3C << 2)
     ctx->pc = 0x2584D0u;
     {
-        const bool branch_taken_0x2584d0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2584d0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2584D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2584D0u;
@@ -1212,7 +1212,7 @@ label_2585c4:
     // 0x2585c8: 0x4e00028  bltz        $a3, . + 4 + (0x28 << 2)
     ctx->pc = 0x2585C8u;
     {
-        const bool branch_taken_0x2585c8 = (GPR_S32(ctx, 7) < 0);
+        const bool branch_taken_0x2585c8 = (GPR_S64(ctx, 7) < 0);
         ctx->pc = 0x2585CCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2585C8u;

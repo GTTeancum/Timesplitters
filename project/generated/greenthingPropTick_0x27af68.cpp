@@ -146,7 +146,7 @@ label_27afcc:
     // 0x27afdc: 0x18a00033  blez        $a1, . + 4 + (0x33 << 2)
     ctx->pc = 0x27AFDCu;
     {
-        const bool branch_taken_0x27afdc = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x27afdc = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x27AFE0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27AFDCu;

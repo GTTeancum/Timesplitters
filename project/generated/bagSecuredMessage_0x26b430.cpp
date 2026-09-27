@@ -75,7 +75,7 @@ label_26b45c:
     // 0x26b460: 0x1900001e  blez        $t0, . + 4 + (0x1E << 2)
     ctx->pc = 0x26B460u;
     {
-        const bool branch_taken_0x26b460 = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x26b460 = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x26B464u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26B460u;

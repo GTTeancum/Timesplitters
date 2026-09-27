@@ -81,7 +81,7 @@ label_253658:
     // 0x253658: 0x623fffb  bgezl       $s1, . + 4 + (-0x5 << 2)
     ctx->pc = 0x253658u;
     {
-        const bool branch_taken_0x253658 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x253658 = (GPR_S64(ctx, 17) >= 0);
         if (branch_taken_0x253658) {
             ctx->pc = 0x25365Cu;
             ctx->in_delay_slot = true;

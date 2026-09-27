@@ -46,7 +46,7 @@ void focusprev_0x20ca20(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) 
     // 0x20ca38: 0x4a00012  bltz        $a1, . + 4 + (0x12 << 2)
     ctx->pc = 0x20CA38u;
     {
-        const bool branch_taken_0x20ca38 = (GPR_S32(ctx, 5) < 0);
+        const bool branch_taken_0x20ca38 = (GPR_S64(ctx, 5) < 0);
         ctx->pc = 0x20CA3Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x20CA38u;
@@ -119,7 +119,7 @@ label_20ca78:
     // 0x20ca7c: 0x4a1fff4  bgez        $a1, . + 4 + (-0xC << 2)
     ctx->pc = 0x20CA7Cu;
     {
-        const bool branch_taken_0x20ca7c = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x20ca7c = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x20CA80u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x20CA7Cu;

@@ -34,7 +34,7 @@ void lvGetPadExtrefFromData_0x228be8(uint8_t* rdram, R5900Context* ctx, PS2Runti
     // 0x228bf0: 0x4410003  bgez        $v0, . + 4 + (0x3 << 2)
     ctx->pc = 0x228BF0u;
     {
-        const bool branch_taken_0x228bf0 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x228bf0 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x228BF4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x228BF0u;

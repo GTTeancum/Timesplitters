@@ -110,7 +110,7 @@ void FindBestBonePos_0x285348(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x2853a0: 0x4420005  bltzl       $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x2853A0u;
     {
-        const bool branch_taken_0x2853a0 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2853a0 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2853a0) {
             ctx->pc = 0x2853A4u;
             ctx->in_delay_slot = true;
@@ -142,7 +142,7 @@ label_2853b8:
     // 0x2853bc: 0x4800006  bltz        $a0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2853BCu;
     {
-        const bool branch_taken_0x2853bc = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2853bc = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x2853C0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2853BCu;
@@ -378,7 +378,7 @@ label_28548c:
     // 0x285490: 0x4400078  bltz        $v0, . + 4 + (0x78 << 2)
     ctx->pc = 0x285490u;
     {
-        const bool branch_taken_0x285490 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x285490 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x285494u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x285490u;
@@ -428,7 +428,7 @@ label_2854a0:
     // 0x2854c4: 0x18a0005f  blez        $a1, . + 4 + (0x5F << 2)
     ctx->pc = 0x2854C4u;
     {
-        const bool branch_taken_0x2854c4 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x2854c4 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x2854C8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2854C4u;
@@ -971,7 +971,7 @@ label_28564c:
     // 0x285650: 0x443ff93  bgezl       $v0, . + 4 + (-0x6D << 2)
     ctx->pc = 0x285650u;
     {
-        const bool branch_taken_0x285650 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x285650 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x285650) {
             ctx->pc = 0x285654u;
             ctx->in_delay_slot = true;

@@ -63,7 +63,7 @@ void bubbleSort_0x2b48f8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime)
     // 0x2b4924: 0x18c00009  blez        $a2, . + 4 + (0x9 << 2)
     ctx->pc = 0x2B4924u;
     {
-        const bool branch_taken_0x2b4924 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2b4924 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2B4928u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B4924u;
@@ -112,7 +112,7 @@ label_2b494c:
     // 0x2b494c: 0x18c00025  blez        $a2, . + 4 + (0x25 << 2)
     ctx->pc = 0x2B494Cu;
     {
-        const bool branch_taken_0x2b494c = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2b494c = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2B4950u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B494Cu;
@@ -138,7 +138,7 @@ label_2b4958:
     // 0x2b4960: 0x18c00016  blez        $a2, . + 4 + (0x16 << 2)
     ctx->pc = 0x2B4960u;
     {
-        const bool branch_taken_0x2b4960 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2b4960 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2B4964u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B4960u;

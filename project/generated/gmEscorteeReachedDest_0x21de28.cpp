@@ -26,7 +26,7 @@ void gmEscorteeReachedDest_0x21de28(uint8_t* rdram, R5900Context* ctx, PS2Runtim
     // 0x21de2c: 0x4c0000c  bltz        $a2, . + 4 + (0xC << 2)
     ctx->pc = 0x21DE2Cu;
     {
-        const bool branch_taken_0x21de2c = (GPR_S32(ctx, 6) < 0);
+        const bool branch_taken_0x21de2c = (GPR_S64(ctx, 6) < 0);
         ctx->pc = 0x21DE30u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21DE2Cu;

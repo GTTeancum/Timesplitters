@@ -107,7 +107,7 @@ void bgBulletGetClosest_0x25bc88(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x25bce8: 0x18e00006  blez        $a3, . + 4 + (0x6 << 2)
     ctx->pc = 0x25BCE8u;
     {
-        const bool branch_taken_0x25bce8 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x25bce8 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x25BCECu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25BCE8u;
@@ -611,7 +611,7 @@ label_25be68:
     // 0x25beb4: 0x4600004  bltz        $v1, . + 4 + (0x4 << 2)
     ctx->pc = 0x25BEB4u;
     {
-        const bool branch_taken_0x25beb4 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x25beb4 = (GPR_S64(ctx, 3) < 0);
         ctx->pc = 0x25BEB8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25BEB4u;
@@ -678,7 +678,7 @@ label_25bee0:
     // 0x25bef0: 0x4600004  bltz        $v1, . + 4 + (0x4 << 2)
     ctx->pc = 0x25BEF0u;
     {
-        const bool branch_taken_0x25bef0 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x25bef0 = (GPR_S64(ctx, 3) < 0);
         ctx->pc = 0x25BEF4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25BEF0u;
@@ -745,7 +745,7 @@ label_25bf1c:
     // 0x25bf2c: 0x4600005  bltz        $v1, . + 4 + (0x5 << 2)
     ctx->pc = 0x25BF2Cu;
     {
-        const bool branch_taken_0x25bf2c = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x25bf2c = (GPR_S64(ctx, 3) < 0);
         ctx->pc = 0x25BF30u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25BF2Cu;

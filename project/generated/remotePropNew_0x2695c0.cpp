@@ -365,7 +365,7 @@ label_269720:
     // 0x269738: 0x58400040  blezl       $v0, . + 4 + (0x40 << 2)
     ctx->pc = 0x269738u;
     {
-        const bool branch_taken_0x269738 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x269738 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x269738) {
             ctx->pc = 0x26973Cu;
             ctx->in_delay_slot = true;

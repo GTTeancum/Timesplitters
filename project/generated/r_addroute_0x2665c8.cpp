@@ -49,7 +49,7 @@ void r_addroute_0x2665c8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime)
     // 0x2665e4: 0x4e10005  bgez        $a3, . + 4 + (0x5 << 2)
     ctx->pc = 0x2665E4u;
     {
-        const bool branch_taken_0x2665e4 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x2665e4 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x2665E8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2665E4u;
@@ -152,7 +152,7 @@ label_266630:
     // 0x266634: 0x4e20008  bltzl       $a3, . + 4 + (0x8 << 2)
     ctx->pc = 0x266634u;
     {
-        const bool branch_taken_0x266634 = (GPR_S32(ctx, 7) < 0);
+        const bool branch_taken_0x266634 = (GPR_S64(ctx, 7) < 0);
         if (branch_taken_0x266634) {
             ctx->pc = 0x266638u;
             ctx->in_delay_slot = true;

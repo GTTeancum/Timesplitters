@@ -130,7 +130,7 @@ label_277b50:
     // 0x277b50: 0x623fffb  bgezl       $s1, . + 4 + (-0x5 << 2)
     ctx->pc = 0x277B50u;
     {
-        const bool branch_taken_0x277b50 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x277b50 = (GPR_S64(ctx, 17) >= 0);
         if (branch_taken_0x277b50) {
             ctx->pc = 0x277B54u;
             ctx->in_delay_slot = true;

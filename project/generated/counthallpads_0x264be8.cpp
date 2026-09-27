@@ -34,7 +34,7 @@ void counthallpads_0x264be8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x264bf0: 0x1900000e  blez        $t0, . + 4 + (0xE << 2)
     ctx->pc = 0x264BF0u;
     {
-        const bool branch_taken_0x264bf0 = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x264bf0 = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x264BF4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x264BF0u;

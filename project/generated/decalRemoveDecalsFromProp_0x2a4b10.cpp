@@ -48,7 +48,7 @@ void decalRemoveDecalsFromProp_0x2a4b10(uint8_t* rdram, R5900Context* ctx, PS2Ru
     // 0x2a4b28: 0x18c00012  blez        $a2, . + 4 + (0x12 << 2)
     ctx->pc = 0x2A4B28u;
     {
-        const bool branch_taken_0x2a4b28 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2a4b28 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2A4B2Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A4B28u;
@@ -209,7 +209,7 @@ label_2a4ba4:
     // 0x2a4ba4: 0x601fff8  bgez        $s0, . + 4 + (-0x8 << 2)
     ctx->pc = 0x2A4BA4u;
     {
-        const bool branch_taken_0x2a4ba4 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2a4ba4 = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x2A4BA8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A4BA4u;

@@ -32,7 +32,7 @@ void enemyRoomDrawn_0x2cd970(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x2cd974: 0x19400018  blez        $t2, . + 4 + (0x18 << 2)
     ctx->pc = 0x2CD974u;
     {
-        const bool branch_taken_0x2cd974 = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x2cd974 = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x2CD978u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CD974u;
@@ -67,7 +67,7 @@ label_2cd988:
     // 0x2cd994: 0x1860000c  blez        $v1, . + 4 + (0xC << 2)
     ctx->pc = 0x2CD994u;
     {
-        const bool branch_taken_0x2cd994 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2cd994 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2CD998u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CD994u;

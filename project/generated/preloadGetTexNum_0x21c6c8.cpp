@@ -34,7 +34,7 @@ void preloadGetTexNum_0x21c6c8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x21c6d0: 0x18e00012  blez        $a3, . + 4 + (0x12 << 2)
     ctx->pc = 0x21C6D0u;
     {
-        const bool branch_taken_0x21c6d0 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x21c6d0 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x21C6D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21C6D0u;

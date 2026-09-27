@@ -40,7 +40,7 @@ void chrCountLosses_0x289028(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x289038: 0x1940000d  blez        $t2, . + 4 + (0xD << 2)
     ctx->pc = 0x289038u;
     {
-        const bool branch_taken_0x289038 = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x289038 = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x28903Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x289038u;

@@ -61,7 +61,7 @@ label_212b00:
     // 0x212b04: 0x441000b  bgez        $v0, . + 4 + (0xB << 2)
     ctx->pc = 0x212B04u;
     {
-        const bool branch_taken_0x212b04 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x212b04 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x212B08u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x212B04u;

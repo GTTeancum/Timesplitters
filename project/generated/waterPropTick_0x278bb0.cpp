@@ -80,7 +80,7 @@ void waterPropTick_0x278bb0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x278bec: 0x18800016  blez        $a0, . + 4 + (0x16 << 2)
     ctx->pc = 0x278BECu;
     {
-        const bool branch_taken_0x278bec = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x278bec = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x278BF0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x278BECu;
@@ -215,7 +215,7 @@ label_278c54:
     // 0x278c58: 0x18400021  blez        $v0, . + 4 + (0x21 << 2)
     ctx->pc = 0x278C58u;
     {
-        const bool branch_taken_0x278c58 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x278c58 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x278C5Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x278C58u;

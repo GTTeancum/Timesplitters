@@ -56,7 +56,7 @@ void announceTick_0x204c78(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x204c8c: 0x461001b  bgez        $v1, . + 4 + (0x1B << 2)
     ctx->pc = 0x204C8Cu;
     {
-        const bool branch_taken_0x204c8c = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x204c8c = (GPR_S64(ctx, 3) >= 0);
         ctx->pc = 0x204C90u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x204C8Cu;
@@ -81,7 +81,7 @@ label_204c9c:
     // 0x204c9c: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x204C9Cu;
     {
-        const bool branch_taken_0x204c9c = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x204c9c = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x204CA0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x204C9Cu;
@@ -182,7 +182,7 @@ label_204cfc:
     // 0x204d04: 0x1c400068  bgtz        $v0, . + 4 + (0x68 << 2)
     ctx->pc = 0x204D04u;
     {
-        const bool branch_taken_0x204d04 = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x204d04 = (GPR_S64(ctx, 2) > 0);
         ctx->pc = 0x204D08u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x204D04u;
@@ -713,7 +713,7 @@ label_204e8c:
     // 0x204e8c: 0x6000005  bltz        $s0, . + 4 + (0x5 << 2)
     ctx->pc = 0x204E8Cu;
     {
-        const bool branch_taken_0x204e8c = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x204e8c = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x204E90u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x204E8Cu;

@@ -38,7 +38,7 @@ void isinlist_0x22dec8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x22ded4: 0x18400018  blez        $v0, . + 4 + (0x18 << 2)
     ctx->pc = 0x22DED4u;
     {
-        const bool branch_taken_0x22ded4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x22ded4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x22DED8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x22DED4u;

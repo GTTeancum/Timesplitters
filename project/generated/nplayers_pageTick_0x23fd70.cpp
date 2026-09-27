@@ -157,7 +157,7 @@ label_23fdc8:
     // 0x23fddc: 0x481fffa  bgez        $a0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x23FDDCu;
     {
-        const bool branch_taken_0x23fddc = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x23fddc = (GPR_S64(ctx, 4) >= 0);
         if (branch_taken_0x23fddc) {
             ctx->pc = 0x23FDC8u;
             if (runtime->eeCheckpointDue()) {

@@ -62,7 +62,7 @@ label_265ec8:
     // 0x265edc: 0x4a1fffa  bgez        $a1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x265EDCu;
     {
-        const bool branch_taken_0x265edc = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x265edc = (GPR_S64(ctx, 5) >= 0);
         if (branch_taken_0x265edc) {
             ctx->pc = 0x265EC8u;
             if (runtime->eeCheckpointDue()) {

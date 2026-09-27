@@ -129,7 +129,7 @@ label_2ae8a0:
     // 0x2ae8a8: 0x621fff9  bgez        $s1, . + 4 + (-0x7 << 2)
     ctx->pc = 0x2AE8A8u;
     {
-        const bool branch_taken_0x2ae8a8 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x2ae8a8 = (GPR_S64(ctx, 17) >= 0);
         ctx->pc = 0x2AE8ACu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2AE8A8u;
@@ -561,7 +561,7 @@ label_2aea6c:
     // 0x2aea78: 0x621ffe9  bgez        $s1, . + 4 + (-0x17 << 2)
     ctx->pc = 0x2AEA78u;
     {
-        const bool branch_taken_0x2aea78 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x2aea78 = (GPR_S64(ctx, 17) >= 0);
         ctx->pc = 0x2AEA7Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2AEA78u;

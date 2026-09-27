@@ -88,7 +88,7 @@ void vtxlistWaterst_0x278998(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x2789e8: 0x18c00011  blez        $a2, . + 4 + (0x11 << 2)
     ctx->pc = 0x2789E8u;
     {
-        const bool branch_taken_0x2789e8 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2789e8 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2789ECu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2789E8u;

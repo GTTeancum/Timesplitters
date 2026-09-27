@@ -34,7 +34,7 @@ void soundBatchExec_0x204950(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x204958: 0x18c00013  blez        $a2, . + 4 + (0x13 << 2)
     ctx->pc = 0x204958u;
     {
-        const bool branch_taken_0x204958 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x204958 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x20495Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x204958u;

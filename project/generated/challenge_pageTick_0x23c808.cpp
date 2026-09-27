@@ -254,7 +254,7 @@ label_23c8e0:
     // 0x23c8e4: 0x4410002  bgez        $v0, . + 4 + (0x2 << 2)
     ctx->pc = 0x23C8E4u;
     {
-        const bool branch_taken_0x23c8e4 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x23c8e4 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x23C8E8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x23C8E4u;

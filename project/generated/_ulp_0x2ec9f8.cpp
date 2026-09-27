@@ -38,7 +38,7 @@ void _ulp_0x2ec9f8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x2eca0c: 0x18800003  blez        $a0, . + 4 + (0x3 << 2)
     ctx->pc = 0x2ECA0Cu;
     {
-        const bool branch_taken_0x2eca0c = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x2eca0c = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x2ECA10u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2ECA0Cu;

@@ -239,7 +239,7 @@ label_235bc0:
     // 0x235bd0: 0x462002b  bltzl       $v1, . + 4 + (0x2B << 2)
     ctx->pc = 0x235BD0u;
     {
-        const bool branch_taken_0x235bd0 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x235bd0 = (GPR_S64(ctx, 3) < 0);
         if (branch_taken_0x235bd0) {
             ctx->pc = 0x235BD4u;
             ctx->in_delay_slot = true;
@@ -255,7 +255,7 @@ label_235bc0:
     // 0x235bd8: 0x6c00026  bltz        $s6, . + 4 + (0x26 << 2)
     ctx->pc = 0x235BD8u;
     {
-        const bool branch_taken_0x235bd8 = (GPR_S32(ctx, 22) < 0);
+        const bool branch_taken_0x235bd8 = (GPR_S64(ctx, 22) < 0);
         ctx->pc = 0x235BDCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x235BD8u;

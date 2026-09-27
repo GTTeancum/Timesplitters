@@ -386,7 +386,7 @@ label_2ad2ac:
     // 0x2ad2b0: 0x641ffcd  bgez        $s2, . + 4 + (-0x33 << 2)
     ctx->pc = 0x2AD2B0u;
     {
-        const bool branch_taken_0x2ad2b0 = (GPR_S32(ctx, 18) >= 0);
+        const bool branch_taken_0x2ad2b0 = (GPR_S64(ctx, 18) >= 0);
         ctx->pc = 0x2AD2B4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2AD2B0u;

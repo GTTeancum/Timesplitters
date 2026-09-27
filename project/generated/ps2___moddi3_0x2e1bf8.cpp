@@ -41,7 +41,7 @@ void ps2___moddi3_0x2e1bf8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x2e1c10: 0x4810016  bgez        $a0, . + 4 + (0x16 << 2)
     ctx->pc = 0x2E1C10u;
     {
-        const bool branch_taken_0x2e1c10 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x2e1c10 = (GPR_S64(ctx, 4) >= 0);
         ctx->pc = 0x2E1C14u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E1C10u;
@@ -124,7 +124,7 @@ label_2e1c6c:
     // 0x2e1c70: 0x4810013  bgez        $a0, . + 4 + (0x13 << 2)
     ctx->pc = 0x2E1C70u;
     {
-        const bool branch_taken_0x2e1c70 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x2e1c70 = (GPR_S64(ctx, 4) >= 0);
         ctx->pc = 0x2E1C74u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E1C70u;

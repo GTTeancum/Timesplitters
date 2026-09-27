@@ -44,7 +44,7 @@ label_205c48:
     // 0x205c48: 0x4400009  bltz        $v0, . + 4 + (0x9 << 2)
     ctx->pc = 0x205C48u;
     {
-        const bool branch_taken_0x205c48 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x205c48 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x205C4Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x205C48u;

@@ -79,7 +79,7 @@ label_232e20:
     // 0x232e24: 0x4410002  bgez        $v0, . + 4 + (0x2 << 2)
     ctx->pc = 0x232E24u;
     {
-        const bool branch_taken_0x232e24 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x232e24 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x232E28u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x232E24u;

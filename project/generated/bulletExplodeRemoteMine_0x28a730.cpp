@@ -75,7 +75,7 @@ void bulletExplodeRemoteMine_0x28a730(uint8_t* rdram, R5900Context* ctx, PS2Runt
     // 0x28a75c: 0x4800006  bltz        $a0, . + 4 + (0x6 << 2)
     ctx->pc = 0x28A75Cu;
     {
-        const bool branch_taken_0x28a75c = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x28a75c = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x28A760u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28A75Cu;
@@ -133,7 +133,7 @@ label_28a778:
     // 0x28a788: 0x4800005  bltz        $a0, . + 4 + (0x5 << 2)
     ctx->pc = 0x28A788u;
     {
-        const bool branch_taken_0x28a788 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x28a788 = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x28A78Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28A788u;

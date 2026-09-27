@@ -224,7 +224,7 @@ label_2a07fc:
     // 0x2a0800: 0x1880019e  blez        $a0, . + 4 + (0x19E << 2)
     ctx->pc = 0x2A0800u;
     {
-        const bool branch_taken_0x2a0800 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x2a0800 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x2A0804u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A0800u;

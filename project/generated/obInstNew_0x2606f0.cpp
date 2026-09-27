@@ -154,7 +154,7 @@ label_260754:
     // 0x26075c: 0x18a0000d  blez        $a1, . + 4 + (0xD << 2)
     ctx->pc = 0x26075Cu;
     {
-        const bool branch_taken_0x26075c = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x26075c = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x260760u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26075Cu;

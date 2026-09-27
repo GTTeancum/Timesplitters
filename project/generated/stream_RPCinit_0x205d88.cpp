@@ -75,7 +75,7 @@ label_205db8:
     // 0x205db8: 0x4430003  bgezl       $v0, . + 4 + (0x3 << 2)
     ctx->pc = 0x205DB8u;
     {
-        const bool branch_taken_0x205db8 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x205db8 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x205db8) {
             ctx->pc = 0x205DBCu;
             ctx->in_delay_slot = true;

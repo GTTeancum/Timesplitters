@@ -87,7 +87,7 @@ void mm_makepadinfo_0x250300(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x25034c: 0x1aa0002c  blez        $s5, . + 4 + (0x2C << 2)
     ctx->pc = 0x25034Cu;
     {
-        const bool branch_taken_0x25034c = (GPR_S32(ctx, 21) <= 0);
+        const bool branch_taken_0x25034c = (GPR_S64(ctx, 21) <= 0);
         ctx->pc = 0x250350u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25034Cu;

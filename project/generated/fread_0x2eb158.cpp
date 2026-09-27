@@ -144,7 +144,7 @@ label_2eb1b0:
     // 0x2eb1b4: 0x4c10004  bgez        $a2, . + 4 + (0x4 << 2)
     ctx->pc = 0x2EB1B4u;
     {
-        const bool branch_taken_0x2eb1b4 = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x2eb1b4 = (GPR_S64(ctx, 6) >= 0);
         ctx->pc = 0x2EB1B8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2EB1B4u;

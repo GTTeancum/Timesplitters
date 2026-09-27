@@ -103,7 +103,7 @@ label_23170c:
     // 0x23170c: 0x4400006  bltz        $v0, . + 4 + (0x6 << 2)
     ctx->pc = 0x23170Cu;
     {
-        const bool branch_taken_0x23170c = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x23170c = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x231710u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x23170Cu;

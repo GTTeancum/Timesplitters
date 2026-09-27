@@ -50,7 +50,7 @@ label_296ae0:
     // 0x296af4: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x296AF4u;
     {
-        const bool branch_taken_0x296af4 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x296af4 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x296af4) {
             ctx->pc = 0x296AE0u;
             if (runtime->eeCheckpointDue()) {

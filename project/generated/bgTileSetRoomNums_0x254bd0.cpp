@@ -52,7 +52,7 @@ void bgTileSetRoomNums_0x254bd0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x254bec: 0x18400017  blez        $v0, . + 4 + (0x17 << 2)
     ctx->pc = 0x254BECu;
     {
-        const bool branch_taken_0x254bec = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x254bec = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x254BF0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x254BECu;
@@ -87,7 +87,7 @@ label_254c00:
     // 0x254c0c: 0x4620005  bltzl       $v1, . + 4 + (0x5 << 2)
     ctx->pc = 0x254C0Cu;
     {
-        const bool branch_taken_0x254c0c = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x254c0c = (GPR_S64(ctx, 3) < 0);
         if (branch_taken_0x254c0c) {
             ctx->pc = 0x254C10u;
             ctx->in_delay_slot = true;
@@ -116,7 +116,7 @@ label_254c24:
     // 0x254c24: 0x4620005  bltzl       $v1, . + 4 + (0x5 << 2)
     ctx->pc = 0x254C24u;
     {
-        const bool branch_taken_0x254c24 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x254c24 = (GPR_S64(ctx, 3) < 0);
         if (branch_taken_0x254c24) {
             ctx->pc = 0x254C28u;
             ctx->in_delay_slot = true;
@@ -174,7 +174,7 @@ label_254c4c:
     // 0x254c50: 0x1840000e  blez        $v0, . + 4 + (0xE << 2)
     ctx->pc = 0x254C50u;
     {
-        const bool branch_taken_0x254c50 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x254c50 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x254C54u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x254C50u;
@@ -247,7 +247,7 @@ label_254c8c:
     // 0x254c90: 0x18400017  blez        $v0, . + 4 + (0x17 << 2)
     ctx->pc = 0x254C90u;
     {
-        const bool branch_taken_0x254c90 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x254c90 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x254C94u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x254C90u;

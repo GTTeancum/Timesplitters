@@ -1013,7 +1013,7 @@ label_2e8ea4:
     }
     ctx->pc = 0x2E8EA0u;
     {
-        const bool branch_taken_0x2e8ea0 = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x2e8ea0 = (GPR_S64(ctx, 2) > 0);
         if (branch_taken_0x2e8ea0) {
             ctx->pc = 0x2E8EA4u;
             ctx->in_delay_slot = true;
@@ -1329,7 +1329,7 @@ label_2e8f30:
     }
     ctx->pc = 0x2E8F2Cu;
     {
-        const bool branch_taken_0x2e8f2c = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x2e8f2c = (GPR_S64(ctx, 2) > 0);
         if (branch_taken_0x2e8f2c) {
             ctx->pc = 0x2E8F30u;
             ctx->in_delay_slot = true;
@@ -1475,7 +1475,7 @@ label_2e8f74:
     }
     ctx->pc = 0x2E8F70u;
     {
-        const bool branch_taken_0x2e8f70 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2e8f70 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2E8F74u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E8F70u;
@@ -2454,7 +2454,7 @@ label_2e9134:
     }
     ctx->pc = 0x2E9130u;
     {
-        const bool branch_taken_0x2e9130 = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x2e9130 = (GPR_S64(ctx, 2) > 0);
         ctx->pc = 0x2E9134u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E9130u;
@@ -2640,7 +2640,7 @@ label_2e918c:
     }
     ctx->pc = 0x2E9188u;
     {
-        const bool branch_taken_0x2e9188 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2e9188 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2E918Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E9188u;
@@ -3384,7 +3384,7 @@ label_2e92dc:
     }
     ctx->pc = 0x2E92D8u;
     {
-        const bool branch_taken_0x2e92d8 = (GPR_S32(ctx, 3) > 0);
+        const bool branch_taken_0x2e92d8 = (GPR_S64(ctx, 3) > 0);
         if (branch_taken_0x2e92d8) {
             ctx->pc = 0x2E92DCu;
             ctx->in_delay_slot = true;
@@ -3679,7 +3679,7 @@ label_2e935c:
     }
     ctx->pc = 0x2E9358u;
     {
-        const bool branch_taken_0x2e9358 = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x2e9358 = (GPR_S64(ctx, 2) > 0);
         if (branch_taken_0x2e9358) {
             ctx->pc = 0x2E935Cu;
             ctx->in_delay_slot = true;
@@ -4014,7 +4014,7 @@ label_2e93f0:
     }
     ctx->pc = 0x2E93ECu;
     {
-        const bool branch_taken_0x2e93ec = (GPR_S32(ctx, 3) > 0);
+        const bool branch_taken_0x2e93ec = (GPR_S64(ctx, 3) > 0);
         if (branch_taken_0x2e93ec) {
             ctx->pc = 0x2E93F0u;
             ctx->in_delay_slot = true;
@@ -4269,7 +4269,7 @@ label_2e9470:
     }
     ctx->pc = 0x2E946Cu;
     {
-        const bool branch_taken_0x2e946c = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x2e946c = (GPR_S64(ctx, 2) > 0);
         if (branch_taken_0x2e946c) {
             ctx->pc = 0x2E9470u;
             ctx->in_delay_slot = true;
@@ -5002,7 +5002,7 @@ label_2e95cc:
     }
     ctx->pc = 0x2E95C8u;
     {
-        const bool branch_taken_0x2e95c8 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2e95c8 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2E95CCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E95C8u;
@@ -6071,7 +6071,7 @@ label_2e97a4:
     }
     ctx->pc = 0x2E97A0u;
     {
-        const bool branch_taken_0x2e97a0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2e97a0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2E97A4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E97A0u;

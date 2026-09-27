@@ -1,26 +1,24 @@
 # Known issues
 
-## Damage does not apply (player and enemies)
+## NPC aiming, movement and damage (fixed 2026-09-27, needs hands-on check)
 
-Reported 2026-09-26 in hands-on play (Windows Release build, OpenGL
-renderer, asynchronous VIF1): enemies do no damage to the player, and the
-player cannot damage enemies.
-
-Cause found (2026-09-27): a hands-on Story session (damage-log.txt) showed
-every bullet, the player's and the enemy's, hitting indestructible scenery
-behind the characters, and the enemy "teleporting" and failing to aim. Bullet
-hits on characters use chrLineTestChr (matrix/vector maths); AI aiming uses
-the same maths. Two faults:
-- The EE context default constructor zeroed VU0 VF0, which the hardware
-  hard-wires to (0,0,0,1). Only the main context set it, so every other guest
-  thread ran VU0 macro code with VF0 = 0.
-- 39 of 40 libvu0 functions ran on SDK HLE replacements, several of which
-  differ from the original code (Normalize/InnerProduct include W, etc.).
-Fixed: VF0 is set in every context, and all libvu0 functions now run the
-game's original VU0 code (regenerated with ps2_recomp). Needs a hands-on
-Story confirmation. `TS_TRACE_DAMAGE=1` (or RUN-TIMESPLITTERS-DAMAGE-LOG.bat)
-logs every propDamage call; arcade bot damage goes through gunChrFire
-(no bullet collision) and always worked.
+Symptoms: bullets never hit characters, NPCs "teleported" and did not face
+the player, in Story and Arcade. Causes, all fixed:
+- ps2_recomp translated BLTZ/BGEZ/BLEZ/BGTZ (and likely/link variants)
+  with a 32-bit test; the R5900 tests the full 64-bit register. That broke
+  the game's soft-float double routines (e.g. 1.5 - 2.25 gave 15.25), and
+  so atan2 and everything built on them (AI facing, animation timing).
+  The generator now tests 64 bits; 724 generated files were regenerated.
+- VU0 VF0 was zero in every guest thread except the main one (hardware
+  constant (0,0,0,1)); now set in every context.
+- libvu0 and libm functions (atan, atan2, sqrt, pow, floor, fabs, sin/cos
+  kernels, __divdi3) ran on SDK HLE replacements with wrong arguments or
+  semantics (doubles read from FPRs instead of GPRs, W included in
+  Normalize, ...). They now run the game's original code.
+Result: an Arcade match with bots now plays to its end (583 damage events
+instead of 21). `TS_LIBM_SELFTEST=1` checks the game's own maths routines
+against the host C library and exits. `TS_TRACE_DAMAGE=1` (or
+RUN-TIMESPLITTERS-DAMAGE-LOG.bat) logs every propDamage call.
 
 ## Sound
 

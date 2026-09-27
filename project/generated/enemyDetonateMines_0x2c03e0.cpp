@@ -270,7 +270,7 @@ label_2c04e4:
     // 0x2c04e4: 0x643ffd4  bgezl       $s2, . + 4 + (-0x2C << 2)
     ctx->pc = 0x2C04E4u;
     {
-        const bool branch_taken_0x2c04e4 = (GPR_S32(ctx, 18) >= 0);
+        const bool branch_taken_0x2c04e4 = (GPR_S64(ctx, 18) >= 0);
         if (branch_taken_0x2c04e4) {
             ctx->pc = 0x2C04E8u;
             ctx->in_delay_slot = true;

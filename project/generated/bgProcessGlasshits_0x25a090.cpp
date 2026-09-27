@@ -80,7 +80,7 @@ void bgProcessGlasshits_0x25a090(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x25a0d0: 0x1ac0007c  blez        $s6, . + 4 + (0x7C << 2)
     ctx->pc = 0x25A0D0u;
     {
-        const bool branch_taken_0x25a0d0 = (GPR_S32(ctx, 22) <= 0);
+        const bool branch_taken_0x25a0d0 = (GPR_S64(ctx, 22) <= 0);
         ctx->pc = 0x25A0D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A0D0u;
@@ -163,7 +163,7 @@ label_25a124:
     // 0x25a124: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x25A124u;
     {
-        const bool branch_taken_0x25a124 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x25a124 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x25A128u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A124u;
@@ -445,7 +445,7 @@ label_25a234:
     // 0x25a234: 0x680001f  bltz        $s4, . + 4 + (0x1F << 2)
     ctx->pc = 0x25A234u;
     {
-        const bool branch_taken_0x25a234 = (GPR_S32(ctx, 20) < 0);
+        const bool branch_taken_0x25a234 = (GPR_S64(ctx, 20) < 0);
         ctx->pc = 0x25A238u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A234u;

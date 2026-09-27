@@ -63,7 +63,7 @@ void padFlagsToString_0x264c38(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x264c64: 0x6000011  bltz        $s0, . + 4 + (0x11 << 2)
     ctx->pc = 0x264C64u;
     {
-        const bool branch_taken_0x264c64 = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x264c64 = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x264C68u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x264C64u;
@@ -162,7 +162,7 @@ label_264ca0:
     // 0x264ca4: 0x601fff4  bgez        $s0, . + 4 + (-0xC << 2)
     ctx->pc = 0x264CA4u;
     {
-        const bool branch_taken_0x264ca4 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x264ca4 = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x264CA8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x264CA4u;

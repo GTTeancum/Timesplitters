@@ -67,7 +67,7 @@ void findNextPad_0x2bf680(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x2bf6a4: 0x4c10005  bgez        $a2, . + 4 + (0x5 << 2)
     ctx->pc = 0x2BF6A4u;
     {
-        const bool branch_taken_0x2bf6a4 = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x2bf6a4 = (GPR_S64(ctx, 6) >= 0);
         ctx->pc = 0x2BF6A8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2BF6A4u;

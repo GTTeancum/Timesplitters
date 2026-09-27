@@ -75,7 +75,7 @@ label_296908:
     // 0x296908: 0x623fffb  bgezl       $s1, . + 4 + (-0x5 << 2)
     ctx->pc = 0x296908u;
     {
-        const bool branch_taken_0x296908 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x296908 = (GPR_S64(ctx, 17) >= 0);
         if (branch_taken_0x296908) {
             ctx->pc = 0x29690Cu;
             ctx->in_delay_slot = true;

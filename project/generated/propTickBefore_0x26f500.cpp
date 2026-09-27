@@ -77,7 +77,7 @@ void propTickBefore_0x26f500(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x26f520: 0x18a00052  blez        $a1, . + 4 + (0x52 << 2)
     ctx->pc = 0x26F520u;
     {
-        const bool branch_taken_0x26f520 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x26f520 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x26F524u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26F520u;
@@ -118,7 +118,7 @@ label_26f538:
     // 0x26f548: 0x4620045  bltzl       $v1, . + 4 + (0x45 << 2)
     ctx->pc = 0x26F548u;
     {
-        const bool branch_taken_0x26f548 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x26f548 = (GPR_S64(ctx, 3) < 0);
         if (branch_taken_0x26f548) {
             ctx->pc = 0x26F54Cu;
             ctx->in_delay_slot = true;
@@ -505,7 +505,7 @@ label_26f66c:
     // 0x26f66c: 0x18a000d6  blez        $a1, . + 4 + (0xD6 << 2)
     ctx->pc = 0x26F66Cu;
     {
-        const bool branch_taken_0x26f66c = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x26f66c = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x26F670u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26F66Cu;

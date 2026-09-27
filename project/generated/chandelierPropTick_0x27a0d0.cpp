@@ -146,7 +146,7 @@ label_27a10c:
     // 0x27a15c: 0x18400016  blez        $v0, . + 4 + (0x16 << 2)
     ctx->pc = 0x27A15Cu;
     {
-        const bool branch_taken_0x27a15c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x27a15c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x27A160u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27A15Cu;

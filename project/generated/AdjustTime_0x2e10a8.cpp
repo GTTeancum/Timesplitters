@@ -159,7 +159,7 @@ label_2e1108:
     // 0x2e1110: 0x602000d  bltzl       $s0, . + 4 + (0xD << 2)
     ctx->pc = 0x2E1110u;
     {
-        const bool branch_taken_0x2e1110 = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x2e1110 = (GPR_S64(ctx, 16) < 0);
         if (branch_taken_0x2e1110) {
             ctx->pc = 0x2E1114u;
             ctx->in_delay_slot = true;
@@ -270,7 +270,7 @@ label_2e1150:
     // 0x2e1150: 0x602fffd  bltzl       $s0, . + 4 + (-0x3 << 2)
     ctx->pc = 0x2E1150u;
     {
-        const bool branch_taken_0x2e1150 = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x2e1150 = (GPR_S64(ctx, 16) < 0);
         if (branch_taken_0x2e1150) {
             ctx->pc = 0x2E1154u;
             ctx->in_delay_slot = true;

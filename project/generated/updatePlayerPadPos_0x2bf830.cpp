@@ -52,7 +52,7 @@ void updatePlayerPadPos_0x2bf830(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x2bf84c: 0x1840001e  blez        $v0, . + 4 + (0x1E << 2)
     ctx->pc = 0x2BF84Cu;
     {
-        const bool branch_taken_0x2bf84c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2bf84c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2BF850u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2BF84Cu;

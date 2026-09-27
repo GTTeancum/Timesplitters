@@ -56,7 +56,7 @@ void decalRemoveDecal_0x2a4ac8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x2a4ae0: 0x4a00007  bltz        $a1, . + 4 + (0x7 << 2)
     ctx->pc = 0x2A4AE0u;
     {
-        const bool branch_taken_0x2a4ae0 = (GPR_S32(ctx, 5) < 0);
+        const bool branch_taken_0x2a4ae0 = (GPR_S64(ctx, 5) < 0);
         ctx->pc = 0x2A4AE4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A4AE0u;

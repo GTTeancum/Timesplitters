@@ -32,7 +32,7 @@ void exponent_0x2e8d18(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x2e8d1c: 0x4a10006  bgez        $a1, . + 4 + (0x6 << 2)
     ctx->pc = 0x2E8D1Cu;
     {
-        const bool branch_taken_0x2e8d1c = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2e8d1c = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x2E8D20u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E8D1Cu;

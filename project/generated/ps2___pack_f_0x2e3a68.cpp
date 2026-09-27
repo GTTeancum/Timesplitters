@@ -269,7 +269,7 @@ label_2e3b10:
     // 0x2e3b10: 0x4a30004  bgezl       $a1, . + 4 + (0x4 << 2)
     ctx->pc = 0x2E3B10u;
     {
-        const bool branch_taken_0x2e3b10 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2e3b10 = (GPR_S64(ctx, 5) >= 0);
         if (branch_taken_0x2e3b10) {
             ctx->pc = 0x2E3B14u;
             ctx->in_delay_slot = true;

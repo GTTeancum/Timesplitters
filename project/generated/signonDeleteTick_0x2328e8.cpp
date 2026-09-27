@@ -593,7 +593,7 @@ label_232ab8:
     // 0x232abc: 0x600ffdb  bltz        $s0, . + 4 + (-0x25 << 2)
     ctx->pc = 0x232ABCu;
     {
-        const bool branch_taken_0x232abc = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x232abc = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x232AC0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x232ABCu;

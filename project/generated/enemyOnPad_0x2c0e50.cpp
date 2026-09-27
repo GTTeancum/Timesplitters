@@ -34,7 +34,7 @@ void enemyOnPad_0x2c0e50(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime)
     // 0x2c0e58: 0x19000011  blez        $t0, . + 4 + (0x11 << 2)
     ctx->pc = 0x2C0E58u;
     {
-        const bool branch_taken_0x2c0e58 = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x2c0e58 = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x2C0E5Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C0E58u;

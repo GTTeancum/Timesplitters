@@ -169,7 +169,7 @@ label_21a39c:
     // 0x21a3a0: 0x600000e  bltz        $s0, . + 4 + (0xE << 2)
     ctx->pc = 0x21A3A0u;
     {
-        const bool branch_taken_0x21a3a0 = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x21a3a0 = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x21A3A4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21A3A0u;

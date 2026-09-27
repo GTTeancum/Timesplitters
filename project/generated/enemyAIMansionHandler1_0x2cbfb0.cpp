@@ -186,7 +186,7 @@ label_2cc01c:
     // 0x2cc020: 0x18400006  blez        $v0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2CC020u;
     {
-        const bool branch_taken_0x2cc020 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2cc020 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2CC024u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CC020u;

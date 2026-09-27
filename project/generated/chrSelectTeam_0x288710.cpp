@@ -136,7 +136,7 @@ label_28873c:
     // 0x28875c: 0x1880001f  blez        $a0, . + 4 + (0x1F << 2)
     ctx->pc = 0x28875Cu;
     {
-        const bool branch_taken_0x28875c = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x28875c = (GPR_S64(ctx, 4) <= 0);
         if (branch_taken_0x28875c) {
             ctx->pc = 0x2887DCu;
             goto label_2887dc;

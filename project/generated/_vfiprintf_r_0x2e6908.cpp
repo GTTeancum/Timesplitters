@@ -215,7 +215,7 @@ label_2e697c:
     // 0x2e6990: 0x4400006  bltz        $v0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2E6990u;
     {
-        const bool branch_taken_0x2e6990 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2e6990 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2E6994u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6990u;
@@ -337,7 +337,7 @@ label_2e69f8:
     // 0x2e69fc: 0x1a000004  blez        $s0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2E69FCu;
     {
-        const bool branch_taken_0x2e69fc = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2e69fc = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2E6A00u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E69FCu;
@@ -477,7 +477,7 @@ label_2e6a68:
     // 0x2e6a68: 0x1a000280  blez        $s0, . + 4 + (0x280 << 2)
     ctx->pc = 0x2E6A68u;
     {
-        const bool branch_taken_0x2e6a68 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2e6a68 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2E6A6Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6A68u;
@@ -660,7 +660,7 @@ label_2e6ad8:
     // 0x2e6ae0: 0x4a1ffe8  bgez        $a1, . + 4 + (-0x18 << 2)
     ctx->pc = 0x2E6AE0u;
     {
-        const bool branch_taken_0x2e6ae0 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2e6ae0 = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x2E6AE4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6AE0u;
@@ -1183,7 +1183,7 @@ label_2e6c44:
     // 0x2e6c44: 0x6010070  bgez        $s0, . + 4 + (0x70 << 2)
     ctx->pc = 0x2E6C44u;
     {
-        const bool branch_taken_0x2e6c44 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2e6c44 = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x2E6C48u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6C44u;
@@ -1502,7 +1502,7 @@ label_2e6d18:
     // 0x2e6d18: 0x620000e  bltz        $s1, . + 4 + (0xE << 2)
     ctx->pc = 0x2E6D18u;
     {
-        const bool branch_taken_0x2e6d18 = (GPR_S32(ctx, 17) < 0);
+        const bool branch_taken_0x2e6d18 = (GPR_S64(ctx, 17) < 0);
         ctx->pc = 0x2E6D1Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6D18u;
@@ -1876,7 +1876,7 @@ label_2e6e08:
     // 0x2e6e08: 0x6200003  bltz        $s1, . + 4 + (0x3 << 2)
     ctx->pc = 0x2E6E08u;
     {
-        const bool branch_taken_0x2e6e08 = (GPR_S32(ctx, 17) < 0);
+        const bool branch_taken_0x2e6e08 = (GPR_S64(ctx, 17) < 0);
         ctx->pc = 0x2E6E0Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6E08u;
@@ -2513,7 +2513,7 @@ label_2e6fe4:
     // 0x2e6ff4: 0x1a000034  blez        $s0, . + 4 + (0x34 << 2)
     ctx->pc = 0x2E6FF4u;
     {
-        const bool branch_taken_0x2e6ff4 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2e6ff4 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2E6FF8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6FF4u;
@@ -3026,7 +3026,7 @@ label_2e7170:
     // 0x2e7188: 0x1a00002f  blez        $s0, . + 4 + (0x2F << 2)
     ctx->pc = 0x2E7188u;
     {
-        const bool branch_taken_0x2e7188 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2e7188 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2E718Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E7188u;
@@ -3297,7 +3297,7 @@ label_2e724c:
     // 0x2e7254: 0x1a000030  blez        $s0, . + 4 + (0x30 << 2)
     ctx->pc = 0x2E7254u;
     {
-        const bool branch_taken_0x2e7254 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2e7254 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2E7258u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E7254u;
@@ -3664,7 +3664,7 @@ label_2e735c:
     // 0x2e736c: 0x1a00002e  blez        $s0, . + 4 + (0x2E << 2)
     ctx->pc = 0x2E736Cu;
     {
-        const bool branch_taken_0x2e736c = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2e736c = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2E7370u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E736Cu;

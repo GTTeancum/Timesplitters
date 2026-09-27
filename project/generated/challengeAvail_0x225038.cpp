@@ -211,7 +211,7 @@ label_2250c4:
     // 0x2250c4: 0x1a200011  blez        $s1, . + 4 + (0x11 << 2)
     ctx->pc = 0x2250C4u;
     {
-        const bool branch_taken_0x2250c4 = (GPR_S32(ctx, 17) <= 0);
+        const bool branch_taken_0x2250c4 = (GPR_S64(ctx, 17) <= 0);
         ctx->pc = 0x2250C8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2250C4u;

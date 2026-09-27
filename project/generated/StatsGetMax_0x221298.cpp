@@ -66,7 +66,7 @@ void StatsGetMax_0x221298(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x2212c8: 0x1a400011  blez        $s2, . + 4 + (0x11 << 2)
     ctx->pc = 0x2212C8u;
     {
-        const bool branch_taken_0x2212c8 = (GPR_S32(ctx, 18) <= 0);
+        const bool branch_taken_0x2212c8 = (GPR_S64(ctx, 18) <= 0);
         ctx->pc = 0x2212CCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2212C8u;

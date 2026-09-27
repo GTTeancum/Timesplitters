@@ -249,7 +249,7 @@ label_203720:
     }
     ctx->pc = 0x20371Cu;
     {
-        const bool branch_taken_0x20371c = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x20371c = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x203720u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x20371Cu;
@@ -523,7 +523,7 @@ label_2037c0:
     }
     ctx->pc = 0x2037BCu;
     {
-        const bool branch_taken_0x2037bc = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x2037bc = (GPR_S64(ctx, 6) >= 0);
         if (branch_taken_0x2037bc) {
             ctx->pc = 0x2037A8u;
             if (runtime->eeCheckpointDue()) {

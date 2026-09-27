@@ -1034,7 +1034,7 @@ label_2abcb8:
     // 0x2abcb8: 0x661ff7f  bgez        $s3, . + 4 + (-0x81 << 2)
     ctx->pc = 0x2ABCB8u;
     {
-        const bool branch_taken_0x2abcb8 = (GPR_S32(ctx, 19) >= 0);
+        const bool branch_taken_0x2abcb8 = (GPR_S64(ctx, 19) >= 0);
         ctx->pc = 0x2ABCBCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2ABCB8u;

@@ -253,7 +253,7 @@ label_22dfc4:
     // 0x22dff0: 0x5c600011  bgtzl       $v1, . + 4 + (0x11 << 2)
     ctx->pc = 0x22DFF0u;
     {
-        const bool branch_taken_0x22dff0 = (GPR_S32(ctx, 3) > 0);
+        const bool branch_taken_0x22dff0 = (GPR_S64(ctx, 3) > 0);
         if (branch_taken_0x22dff0) {
             ctx->pc = 0x22DFF4u;
             ctx->in_delay_slot = true;

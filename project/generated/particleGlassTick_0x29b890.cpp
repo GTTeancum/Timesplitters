@@ -108,7 +108,7 @@ void particleGlassTick_0x29b890(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x29b8f8: 0x192000c9  blez        $t1, . + 4 + (0xC9 << 2)
     ctx->pc = 0x29B8F8u;
     {
-        const bool branch_taken_0x29b8f8 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x29b8f8 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x29B8FCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29B8F8u;
@@ -348,7 +348,7 @@ label_29b9f0:
     // 0x29ba10: 0x1960001c  blez        $t3, . + 4 + (0x1C << 2)
     ctx->pc = 0x29BA10u;
     {
-        const bool branch_taken_0x29ba10 = (GPR_S32(ctx, 11) <= 0);
+        const bool branch_taken_0x29ba10 = (GPR_S64(ctx, 11) <= 0);
         ctx->pc = 0x29BA14u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29BA10u;

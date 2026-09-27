@@ -1199,7 +1199,7 @@ label_25e360:
     // 0x25e3b4: 0x1840003a  blez        $v0, . + 4 + (0x3A << 2)
     ctx->pc = 0x25E3B4u;
     {
-        const bool branch_taken_0x25e3b4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x25e3b4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x25E3B8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25E3B4u;

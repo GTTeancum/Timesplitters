@@ -116,7 +116,7 @@ void gmDeathmatchTick_0x21d468(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x21d4bc: 0x1840002e  blez        $v0, . + 4 + (0x2E << 2)
     ctx->pc = 0x21D4BCu;
     {
-        const bool branch_taken_0x21d4bc = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x21d4bc = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x21D4C0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D4BCu;
@@ -172,7 +172,7 @@ label_21d4ec:
     // 0x21d4ec: 0x1840001b  blez        $v0, . + 4 + (0x1B << 2)
     ctx->pc = 0x21D4ECu;
     {
-        const bool branch_taken_0x21d4ec = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x21d4ec = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x21D4F0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D4ECu;
@@ -233,7 +233,7 @@ label_21d51c:
     // 0x21d524: 0x5840000a  blezl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x21D524u;
     {
-        const bool branch_taken_0x21d524 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x21d524 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x21d524) {
             ctx->pc = 0x21D528u;
             ctx->in_delay_slot = true;
@@ -858,7 +858,7 @@ label_21d70c:
     // 0x21d714: 0x18400009  blez        $v0, . + 4 + (0x9 << 2)
     ctx->pc = 0x21D714u;
     {
-        const bool branch_taken_0x21d714 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x21d714 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x21D718u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D714u;

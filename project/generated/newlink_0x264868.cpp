@@ -37,7 +37,7 @@ void newlink_0x264868(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x264874: 0x1840000f  blez        $v0, . + 4 + (0xF << 2)
     ctx->pc = 0x264874u;
     {
-        const bool branch_taken_0x264874 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x264874 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x264878u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x264874u;
@@ -75,7 +75,7 @@ label_264888:
     // 0x264898: 0x4a1000c  bgez        $a1, . + 4 + (0xC << 2)
     ctx->pc = 0x264898u;
     {
-        const bool branch_taken_0x264898 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x264898 = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x26489Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x264898u;
@@ -128,7 +128,7 @@ label_2648b8:
     // 0x2648b8: 0x4a30005  bgezl       $a1, . + 4 + (0x5 << 2)
     ctx->pc = 0x2648B8u;
     {
-        const bool branch_taken_0x2648b8 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2648b8 = (GPR_S64(ctx, 5) >= 0);
         if (branch_taken_0x2648b8) {
             ctx->pc = 0x2648BCu;
             ctx->in_delay_slot = true;

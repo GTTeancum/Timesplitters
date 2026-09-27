@@ -95,7 +95,7 @@ void soundCalcVol_0x2049c0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x204a08: 0x18a0001f  blez        $a1, . + 4 + (0x1F << 2)
     ctx->pc = 0x204A08u;
     {
-        const bool branch_taken_0x204a08 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x204a08 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x204A0Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x204A08u;

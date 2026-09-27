@@ -88,7 +88,7 @@ label_296c74:
     // 0x296c74: 0x623fffc  bgezl       $s1, . + 4 + (-0x4 << 2)
     ctx->pc = 0x296C74u;
     {
-        const bool branch_taken_0x296c74 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x296c74 = (GPR_S64(ctx, 17) >= 0);
         if (branch_taken_0x296c74) {
             ctx->pc = 0x296C78u;
             ctx->in_delay_slot = true;

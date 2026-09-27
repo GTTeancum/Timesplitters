@@ -90,7 +90,7 @@ void padAddTilePads_0x2650e8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x265134: 0x1aa0000c  blez        $s5, . + 4 + (0xC << 2)
     ctx->pc = 0x265134u;
     {
-        const bool branch_taken_0x265134 = (GPR_S32(ctx, 21) <= 0);
+        const bool branch_taken_0x265134 = (GPR_S64(ctx, 21) <= 0);
         ctx->pc = 0x265138u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x265134u;
@@ -148,7 +148,7 @@ label_265168:
     // 0x265168: 0x1aa00097  blez        $s5, . + 4 + (0x97 << 2)
     ctx->pc = 0x265168u;
     {
-        const bool branch_taken_0x265168 = (GPR_S32(ctx, 21) <= 0);
+        const bool branch_taken_0x265168 = (GPR_S64(ctx, 21) <= 0);
         ctx->pc = 0x26516Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x265168u;
@@ -484,7 +484,7 @@ label_26528c:
     // 0x2652a8: 0x18a00042  blez        $a1, . + 4 + (0x42 << 2)
     ctx->pc = 0x2652A8u;
     {
-        const bool branch_taken_0x2652a8 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x2652a8 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x2652ACu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2652A8u;
@@ -532,7 +532,7 @@ label_2652c8:
     // 0x2652cc: 0x18a0003a  blez        $a1, . + 4 + (0x3A << 2)
     ctx->pc = 0x2652CCu;
     {
-        const bool branch_taken_0x2652cc = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x2652cc = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x2652D0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2652CCu;
@@ -600,7 +600,7 @@ label_2652f8:
     // 0x2652f8: 0x18400030  blez        $v0, . + 4 + (0x30 << 2)
     ctx->pc = 0x2652F8u;
     {
-        const bool branch_taken_0x2652f8 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2652f8 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2652FCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2652F8u;
@@ -859,7 +859,7 @@ label_2653c8:
     // 0x2653c8: 0x1940004e  blez        $t2, . + 4 + (0x4E << 2)
     ctx->pc = 0x2653C8u;
     {
-        const bool branch_taken_0x2653c8 = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x2653c8 = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x2653CCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2653C8u;
@@ -921,7 +921,7 @@ label_2653d8:
     // 0x26540c: 0x1aa00020  blez        $s5, . + 4 + (0x20 << 2)
     ctx->pc = 0x26540Cu;
     {
-        const bool branch_taken_0x26540c = (GPR_S32(ctx, 21) <= 0);
+        const bool branch_taken_0x26540c = (GPR_S64(ctx, 21) <= 0);
         ctx->pc = 0x265410u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26540Cu;

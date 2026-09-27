@@ -245,7 +245,7 @@ label_219f94:
     // 0x219fb4: 0x1a40005a  blez        $s2, . + 4 + (0x5A << 2)
     ctx->pc = 0x219FB4u;
     {
-        const bool branch_taken_0x219fb4 = (GPR_S32(ctx, 18) <= 0);
+        const bool branch_taken_0x219fb4 = (GPR_S64(ctx, 18) <= 0);
         ctx->pc = 0x219FB8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x219FB4u;

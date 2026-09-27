@@ -75,7 +75,7 @@ label_2ae620:
     // 0x2ae620: 0x623fffb  bgezl       $s1, . + 4 + (-0x5 << 2)
     ctx->pc = 0x2AE620u;
     {
-        const bool branch_taken_0x2ae620 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x2ae620 = (GPR_S64(ctx, 17) >= 0);
         if (branch_taken_0x2ae620) {
             ctx->pc = 0x2AE624u;
             ctx->in_delay_slot = true;

@@ -107,7 +107,7 @@ void specialfxOccasionalRocketSmokeTick_0x2ac510(uint8_t* rdram, R5900Context* c
     // 0x2ac560: 0x18400044  blez        $v0, . + 4 + (0x44 << 2)
     ctx->pc = 0x2AC560u;
     {
-        const bool branch_taken_0x2ac560 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2ac560 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2AC564u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2AC560u;
@@ -252,7 +252,7 @@ label_2ac5dc:
     // 0x2ac5dc: 0x4400005  bltz        $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x2AC5DCu;
     {
-        const bool branch_taken_0x2ac5dc = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2ac5dc = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2AC5E0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2AC5DCu;
@@ -334,7 +334,7 @@ label_2ac60c:
     // 0x2ac62c: 0x1860000f  blez        $v1, . + 4 + (0xF << 2)
     ctx->pc = 0x2AC62Cu;
     {
-        const bool branch_taken_0x2ac62c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2ac62c = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2AC630u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2AC62Cu;

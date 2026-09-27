@@ -37,7 +37,7 @@ void vtxlistWaterxyz_0x278888(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x278894: 0x1980003e  blez        $t4, . + 4 + (0x3E << 2)
     ctx->pc = 0x278894u;
     {
-        const bool branch_taken_0x278894 = (GPR_S32(ctx, 12) <= 0);
+        const bool branch_taken_0x278894 = (GPR_S64(ctx, 12) <= 0);
         ctx->pc = 0x278898u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x278894u;

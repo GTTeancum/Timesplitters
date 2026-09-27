@@ -472,7 +472,7 @@ label_24b7c8:
     // 0x24b7ec: 0x6000008  bltz        $s0, . + 4 + (0x8 << 2)
     ctx->pc = 0x24B7ECu;
     {
-        const bool branch_taken_0x24b7ec = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x24b7ec = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x24B7F0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24B7ECu;

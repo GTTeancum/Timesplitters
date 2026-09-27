@@ -247,7 +247,7 @@ label_2dbcd0:
     // 0x2dbce0: 0x4c10003  bgez        $a2, . + 4 + (0x3 << 2)
     ctx->pc = 0x2DBCE0u;
     {
-        const bool branch_taken_0x2dbce0 = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x2dbce0 = (GPR_S64(ctx, 6) >= 0);
         if (branch_taken_0x2dbce0) {
             ctx->pc = 0x2DBCF0u;
             goto label_2dbcf0;

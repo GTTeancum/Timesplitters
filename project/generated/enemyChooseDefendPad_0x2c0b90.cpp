@@ -107,7 +107,7 @@ void enemyChooseDefendPad_0x2c0b90(uint8_t* rdram, R5900Context* ctx, PS2Runtime
     // 0x2c0bf0: 0x18c0001a  blez        $a2, . + 4 + (0x1A << 2)
     ctx->pc = 0x2C0BF0u;
     {
-        const bool branch_taken_0x2c0bf0 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2c0bf0 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2C0BF4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C0BF0u;
@@ -388,7 +388,7 @@ label_2c0ce8:
     // 0x2c0ce8: 0x1aa0004a  blez        $s5, . + 4 + (0x4A << 2)
     ctx->pc = 0x2C0CE8u;
     {
-        const bool branch_taken_0x2c0ce8 = (GPR_S32(ctx, 21) <= 0);
+        const bool branch_taken_0x2c0ce8 = (GPR_S64(ctx, 21) <= 0);
         ctx->pc = 0x2C0CECu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C0CE8u;

@@ -592,7 +592,7 @@ label_21ecc0:
     // 0x21ecc0: 0x4400009  bltz        $v0, . + 4 + (0x9 << 2)
     ctx->pc = 0x21ECC0u;
     {
-        const bool branch_taken_0x21ecc0 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x21ecc0 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x21ECC4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21ECC0u;
@@ -866,7 +866,7 @@ label_21ed90:
     // 0x21ed94: 0x58400005  blezl       $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x21ED94u;
     {
-        const bool branch_taken_0x21ed94 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x21ed94 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x21ed94) {
             ctx->pc = 0x21ED98u;
             ctx->in_delay_slot = true;
@@ -895,7 +895,7 @@ label_21edac:
     // 0x21edac: 0x18400004  blez        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x21EDACu;
     {
-        const bool branch_taken_0x21edac = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x21edac = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x21edac) {
             ctx->pc = 0x21EDC0u;
             goto label_21edc0;

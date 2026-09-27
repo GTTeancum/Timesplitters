@@ -109,7 +109,7 @@ label_2cabe0:
     // 0x2cabe0: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2CABE0u;
     {
-        const bool branch_taken_0x2cabe0 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2cabe0 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2CABE4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CABE0u;
@@ -408,7 +408,7 @@ label_2caca4:
     // 0x2caca4: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2CACA4u;
     {
-        const bool branch_taken_0x2caca4 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2caca4 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2CACA8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CACA4u;
@@ -601,7 +601,7 @@ label_2cad54:
     // 0x2cad54: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2CAD54u;
     {
-        const bool branch_taken_0x2cad54 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2cad54 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2CAD58u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CAD54u;
@@ -767,7 +767,7 @@ label_2cadd4:
     // 0x2cadd4: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2CADD4u;
     {
-        const bool branch_taken_0x2cadd4 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2cadd4 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2CADD8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CADD4u;
@@ -948,7 +948,7 @@ label_2cae6c:
     // 0x2cae6c: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2CAE6Cu;
     {
-        const bool branch_taken_0x2cae6c = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2cae6c = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2CAE70u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CAE6Cu;
@@ -1068,7 +1068,7 @@ label_2caec8:
     // 0x2caec8: 0x4410008  bgez        $v0, . + 4 + (0x8 << 2)
     ctx->pc = 0x2CAEC8u;
     {
-        const bool branch_taken_0x2caec8 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2caec8 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2CAECCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CAEC8u;
@@ -1119,7 +1119,7 @@ label_2caee4:
     // 0x2caee4: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2CAEE4u;
     {
-        const bool branch_taken_0x2caee4 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2caee4 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2CAEE8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CAEE4u;

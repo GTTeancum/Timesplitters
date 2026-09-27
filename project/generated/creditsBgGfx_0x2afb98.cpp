@@ -785,7 +785,7 @@ label_2afdc8:
     // 0x2afec8: 0x603ff71  bgezl       $s0, . + 4 + (-0x8F << 2)
     ctx->pc = 0x2AFEC8u;
     {
-        const bool branch_taken_0x2afec8 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2afec8 = (GPR_S64(ctx, 16) >= 0);
         if (branch_taken_0x2afec8) {
             ctx->pc = 0x2AFECCu;
             ctx->in_delay_slot = true;

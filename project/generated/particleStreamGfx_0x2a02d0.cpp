@@ -167,7 +167,7 @@ label_2a0368:
     // 0x2a036c: 0x186000df  blez        $v1, . + 4 + (0xDF << 2)
     ctx->pc = 0x2A036Cu;
     {
-        const bool branch_taken_0x2a036c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2a036c = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2A0370u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A036Cu;

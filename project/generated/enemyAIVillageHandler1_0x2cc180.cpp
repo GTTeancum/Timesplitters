@@ -60,7 +60,7 @@ void enemyAIVillageHandler1_0x2cc180(uint8_t* rdram, R5900Context* ctx, PS2Runti
     // 0x2cc198: 0x1920000c  blez        $t1, . + 4 + (0xC << 2)
     ctx->pc = 0x2CC198u;
     {
-        const bool branch_taken_0x2cc198 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2cc198 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2CC19Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CC198u;

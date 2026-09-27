@@ -37,7 +37,7 @@ void bgFloorBBIntersectionXZ_0x2571c8(uint8_t* rdram, R5900Context* ctx, PS2Runt
     // 0x2571d4: 0x19200033  blez        $t1, . + 4 + (0x33 << 2)
     ctx->pc = 0x2571D4u;
     {
-        const bool branch_taken_0x2571d4 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2571d4 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2571D8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2571D4u;

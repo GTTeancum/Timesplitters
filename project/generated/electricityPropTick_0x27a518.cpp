@@ -110,7 +110,7 @@ void electricityPropTick_0x27a518(uint8_t* rdram, R5900Context* ctx, PS2Runtime 
     // 0x27a574: 0x18800092  blez        $a0, . + 4 + (0x92 << 2)
     ctx->pc = 0x27A574u;
     {
-        const bool branch_taken_0x27a574 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x27a574 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x27A578u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27A574u;
@@ -347,7 +347,7 @@ label_27a638:
     // 0x27a644: 0x4800004  bltz        $a0, . + 4 + (0x4 << 2)
     ctx->pc = 0x27A644u;
     {
-        const bool branch_taken_0x27a644 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x27a644 = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x27A648u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27A644u;
@@ -418,7 +418,7 @@ label_27a680:
     // 0x27a684: 0x19400046  blez        $t2, . + 4 + (0x46 << 2)
     ctx->pc = 0x27A684u;
     {
-        const bool branch_taken_0x27a684 = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x27a684 = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x27A688u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27A684u;
@@ -856,7 +856,7 @@ label_27a858:
     // 0x27a858: 0x4400005  bltz        $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x27A858u;
     {
-        const bool branch_taken_0x27a858 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x27a858 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x27A85Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27A858u;
@@ -995,7 +995,7 @@ label_27a8b8:
     // 0x27a8d4: 0x18400040  blez        $v0, . + 4 + (0x40 << 2)
     ctx->pc = 0x27A8D4u;
     {
-        const bool branch_taken_0x27a8d4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x27a8d4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x27A8D8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27A8D4u;

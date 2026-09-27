@@ -97,7 +97,7 @@ void particleRayGfx_0x29efb8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x29f010: 0x18400168  blez        $v0, . + 4 + (0x168 << 2)
     ctx->pc = 0x29F010u;
     {
-        const bool branch_taken_0x29f010 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x29f010 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x29F014u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29F010u;
@@ -510,7 +510,7 @@ label_29f1c0:
     // 0x29f1c0: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x29F1C0u;
     {
-        const bool branch_taken_0x29f1c0 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x29f1c0 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x29F1C4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29F1C0u;

@@ -94,7 +94,7 @@ label_22db34:
     // 0x22db3c: 0x18400056  blez        $v0, . + 4 + (0x56 << 2)
     ctx->pc = 0x22DB3Cu;
     {
-        const bool branch_taken_0x22db3c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x22db3c = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x22db3c) {
             ctx->pc = 0x22DC98u;
             goto label_22dc98;

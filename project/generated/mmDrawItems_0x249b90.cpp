@@ -329,7 +329,7 @@ label_249ca0:
     // 0x249cac: 0x1a80000b  blez        $s4, . + 4 + (0xB << 2)
     ctx->pc = 0x249CACu;
     {
-        const bool branch_taken_0x249cac = (GPR_S32(ctx, 20) <= 0);
+        const bool branch_taken_0x249cac = (GPR_S64(ctx, 20) <= 0);
         ctx->pc = 0x249CB0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x249CACu;

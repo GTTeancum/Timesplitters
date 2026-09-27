@@ -264,7 +264,7 @@ label_2ddfbc:
     }
     ctx->pc = 0x2DDFB8u;
     {
-        const bool branch_taken_0x2ddfb8 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2ddfb8 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2DDFBCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2DDFB8u;

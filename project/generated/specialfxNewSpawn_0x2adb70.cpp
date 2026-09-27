@@ -118,7 +118,7 @@ label_2adbc8:
     // 0x2adbc8: 0x6030005  bgezl       $s0, . + 4 + (0x5 << 2)
     ctx->pc = 0x2ADBC8u;
     {
-        const bool branch_taken_0x2adbc8 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2adbc8 = (GPR_S64(ctx, 16) >= 0);
         if (branch_taken_0x2adbc8) {
             ctx->pc = 0x2ADBCCu;
             ctx->in_delay_slot = true;
@@ -169,7 +169,7 @@ label_2adbe0:
     // 0x2adbec: 0x6000167  bltz        $s0, . + 4 + (0x167 << 2)
     ctx->pc = 0x2ADBECu;
     {
-        const bool branch_taken_0x2adbec = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x2adbec = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x2ADBF0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2ADBECu;

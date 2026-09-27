@@ -121,7 +121,7 @@ void allocateOverrideChunk_0x274650(uint8_t* rdram, R5900Context* ctx, PS2Runtim
     // 0x2746a8: 0x442000d  bltzl       $v0, . + 4 + (0xD << 2)
     ctx->pc = 0x2746A8u;
     {
-        const bool branch_taken_0x2746a8 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2746a8 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2746a8) {
             ctx->pc = 0x2746ACu;
             ctx->in_delay_slot = true;
@@ -140,7 +140,7 @@ void allocateOverrideChunk_0x274650(uint8_t* rdram, R5900Context* ctx, PS2Runtim
     // 0x2746b4: 0x442000a  bltzl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x2746B4u;
     {
-        const bool branch_taken_0x2746b4 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2746b4 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2746b4) {
             ctx->pc = 0x2746B8u;
             ctx->in_delay_slot = true;
@@ -175,7 +175,7 @@ label_2746c0:
     // 0x2746d4: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2746D4u;
     {
-        const bool branch_taken_0x2746d4 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2746d4 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2746d4) {
             ctx->pc = 0x2746C0u;
             if (runtime->eeCheckpointDue()) {
@@ -445,7 +445,7 @@ label_274790:
     // 0x2747ac: 0x442000c  bltzl       $v0, . + 4 + (0xC << 2)
     ctx->pc = 0x2747ACu;
     {
-        const bool branch_taken_0x2747ac = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2747ac = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2747ac) {
             ctx->pc = 0x2747B0u;
             ctx->in_delay_slot = true;
@@ -464,7 +464,7 @@ label_274790:
     // 0x2747b8: 0x4420009  bltzl       $v0, . + 4 + (0x9 << 2)
     ctx->pc = 0x2747B8u;
     {
-        const bool branch_taken_0x2747b8 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2747b8 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2747b8) {
             ctx->pc = 0x2747BCu;
             ctx->in_delay_slot = true;
@@ -496,7 +496,7 @@ label_2747c0:
     // 0x2747d4: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2747D4u;
     {
-        const bool branch_taken_0x2747d4 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2747d4 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2747d4) {
             ctx->pc = 0x2747C0u;
             if (runtime->eeCheckpointDue()) {

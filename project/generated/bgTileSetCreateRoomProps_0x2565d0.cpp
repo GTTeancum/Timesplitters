@@ -50,7 +50,7 @@ void bgTileSetCreateRoomProps_0x2565d0(uint8_t* rdram, R5900Context* ctx, PS2Run
     // 0x2565ec: 0x1840001a  blez        $v0, . + 4 + (0x1A << 2)
     ctx->pc = 0x2565ECu;
     {
-        const bool branch_taken_0x2565ec = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2565ec = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2565F0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2565ECu;

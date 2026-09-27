@@ -79,7 +79,7 @@ void hologramPropTick_0x27b1d8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x27b214: 0x1840002a  blez        $v0, . + 4 + (0x2A << 2)
     ctx->pc = 0x27B214u;
     {
-        const bool branch_taken_0x27b214 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x27b214 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x27B218u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27B214u;
@@ -396,7 +396,7 @@ label_27b31c:
     // 0x27b334: 0x18a00030  blez        $a1, . + 4 + (0x30 << 2)
     ctx->pc = 0x27B334u;
     {
-        const bool branch_taken_0x27b334 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x27b334 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x27B338u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27B334u;
@@ -491,7 +491,7 @@ label_27b380:
     // 0x27b38c: 0x18600012  blez        $v1, . + 4 + (0x12 << 2)
     ctx->pc = 0x27B38Cu;
     {
-        const bool branch_taken_0x27b38c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x27b38c = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x27B390u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27B38Cu;

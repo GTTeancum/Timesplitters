@@ -43,7 +43,7 @@ void frontFocusTick_0x22c9e8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x22c9fc: 0x18e00018  blez        $a3, . + 4 + (0x18 << 2)
     ctx->pc = 0x22C9FCu;
     {
-        const bool branch_taken_0x22c9fc = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x22c9fc = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x22CA00u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x22C9FCu;

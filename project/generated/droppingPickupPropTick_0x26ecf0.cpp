@@ -145,7 +145,7 @@ void droppingPickupPropTick_0x26ecf0(uint8_t* rdram, R5900Context* ctx, PS2Runti
     // 0x26ed48: 0x1c400042  bgtz        $v0, . + 4 + (0x42 << 2)
     ctx->pc = 0x26ED48u;
     {
-        const bool branch_taken_0x26ed48 = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x26ed48 = (GPR_S64(ctx, 2) > 0);
         ctx->pc = 0x26ED4Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26ED48u;
@@ -360,7 +360,7 @@ label_26ede4:
     // 0x26edf4: 0x4400009  bltz        $v0, . + 4 + (0x9 << 2)
     ctx->pc = 0x26EDF4u;
     {
-        const bool branch_taken_0x26edf4 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x26edf4 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x26EDF8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26EDF4u;

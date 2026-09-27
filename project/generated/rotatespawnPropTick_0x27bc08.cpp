@@ -59,7 +59,7 @@ void rotatespawnPropTick_0x27bc08(uint8_t* rdram, R5900Context* ctx, PS2Runtime 
     // 0x27bc30: 0x18600010  blez        $v1, . + 4 + (0x10 << 2)
     ctx->pc = 0x27BC30u;
     {
-        const bool branch_taken_0x27bc30 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x27bc30 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x27BC34u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27BC30u;

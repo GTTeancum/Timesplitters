@@ -48,7 +48,7 @@ void ingamemenuCheckUnpause_0x212b98(uint8_t* rdram, R5900Context* ctx, PS2Runti
     // 0x212bb0: 0x4410005  bgez        $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x212BB0u;
     {
-        const bool branch_taken_0x212bb0 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x212bb0 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x212BB4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x212BB0u;
@@ -241,7 +241,7 @@ label_212c30:
     // 0x212c38: 0x4c0001e  bltz        $a2, . + 4 + (0x1E << 2)
     ctx->pc = 0x212C38u;
     {
-        const bool branch_taken_0x212c38 = (GPR_S32(ctx, 6) < 0);
+        const bool branch_taken_0x212c38 = (GPR_S64(ctx, 6) < 0);
         ctx->pc = 0x212C3Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x212C38u;
@@ -263,7 +263,7 @@ label_212c30:
     // 0x212c48: 0x18a00012  blez        $a1, . + 4 + (0x12 << 2)
     ctx->pc = 0x212C48u;
     {
-        const bool branch_taken_0x212c48 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x212c48 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x212C4Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x212C48u;

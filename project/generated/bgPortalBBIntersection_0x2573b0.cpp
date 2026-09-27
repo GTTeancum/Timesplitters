@@ -41,7 +41,7 @@ void bgPortalBBIntersection_0x2573b0(uint8_t* rdram, R5900Context* ctx, PS2Runti
     // 0x2573c0: 0x18600054  blez        $v1, . + 4 + (0x54 << 2)
     ctx->pc = 0x2573C0u;
     {
-        const bool branch_taken_0x2573c0 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2573c0 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2573C4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2573C0u;
@@ -265,7 +265,7 @@ label_2573d8:
     // 0x25748c: 0x1940000d  blez        $t2, . + 4 + (0xD << 2)
     ctx->pc = 0x25748Cu;
     {
-        const bool branch_taken_0x25748c = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x25748c = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x257490u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25748Cu;

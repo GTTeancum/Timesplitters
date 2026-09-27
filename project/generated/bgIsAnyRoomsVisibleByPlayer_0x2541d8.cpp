@@ -31,7 +31,7 @@ void bgIsAnyRoomsVisibleByPlayer_0x2541d8(uint8_t* rdram, R5900Context* ctx, PS2
     // 0x2541dc: 0x18c0001e  blez        $a2, . + 4 + (0x1E << 2)
     ctx->pc = 0x2541DCu;
     {
-        const bool branch_taken_0x2541dc = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x2541dc = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x2541E0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2541DCu;
@@ -100,7 +100,7 @@ label_254200:
     // 0x25421c: 0x4e2000a  bltzl       $a3, . + 4 + (0xA << 2)
     ctx->pc = 0x25421Cu;
     {
-        const bool branch_taken_0x25421c = (GPR_S32(ctx, 7) < 0);
+        const bool branch_taken_0x25421c = (GPR_S64(ctx, 7) < 0);
         if (branch_taken_0x25421c) {
             ctx->pc = 0x254220u;
             ctx->in_delay_slot = true;

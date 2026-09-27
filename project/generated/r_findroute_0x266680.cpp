@@ -31,7 +31,7 @@ void r_findroute_0x266680(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x266684: 0x4c0000b  bltz        $a2, . + 4 + (0xB << 2)
     ctx->pc = 0x266684u;
     {
-        const bool branch_taken_0x266684 = (GPR_S32(ctx, 6) < 0);
+        const bool branch_taken_0x266684 = (GPR_S64(ctx, 6) < 0);
         ctx->pc = 0x266688u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x266684u;
@@ -97,7 +97,7 @@ label_2666ac:
     // 0x2666ac: 0x4c1fff8  bgez        $a2, . + 4 + (-0x8 << 2)
     ctx->pc = 0x2666ACu;
     {
-        const bool branch_taken_0x2666ac = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x2666ac = (GPR_S64(ctx, 6) >= 0);
         ctx->pc = 0x2666B0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2666ACu;

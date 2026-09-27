@@ -90,7 +90,7 @@ void transformHead_0x2634c8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x263508: 0x440003a  bltz        $v0, . + 4 + (0x3A << 2)
     ctx->pc = 0x263508u;
     {
-        const bool branch_taken_0x263508 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x263508 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x26350Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x263508u;
@@ -346,7 +346,7 @@ label_2635e8:
     // 0x2635ec: 0x443ffca  bgezl       $v0, . + 4 + (-0x36 << 2)
     ctx->pc = 0x2635ECu;
     {
-        const bool branch_taken_0x2635ec = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2635ec = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2635ec) {
             ctx->pc = 0x2635F0u;
             ctx->in_delay_slot = true;

@@ -64,7 +64,7 @@ void gmBagTagTick_0x21d788(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x21d7b0: 0x18400013  blez        $v0, . + 4 + (0x13 << 2)
     ctx->pc = 0x21D7B0u;
     {
-        const bool branch_taken_0x21d7b0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x21d7b0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x21D7B4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D7B0u;
@@ -207,7 +207,7 @@ label_21d804:
     // 0x21d810: 0x4e0002c  bltz        $a3, . + 4 + (0x2C << 2)
     ctx->pc = 0x21D810u;
     {
-        const bool branch_taken_0x21d810 = (GPR_S32(ctx, 7) < 0);
+        const bool branch_taken_0x21d810 = (GPR_S64(ctx, 7) < 0);
         ctx->pc = 0x21D814u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D810u;
@@ -339,7 +339,7 @@ label_21d88c:
     // 0x21d88c: 0x1860000d  blez        $v1, . + 4 + (0xD << 2)
     ctx->pc = 0x21D88Cu;
     {
-        const bool branch_taken_0x21d88c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x21d88c = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x21D890u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D88Cu;
@@ -426,7 +426,7 @@ label_21d8c4:
     // 0x21d8c4: 0x4e0000e  bltz        $a3, . + 4 + (0xE << 2)
     ctx->pc = 0x21D8C4u;
     {
-        const bool branch_taken_0x21d8c4 = (GPR_S32(ctx, 7) < 0);
+        const bool branch_taken_0x21d8c4 = (GPR_S64(ctx, 7) < 0);
         ctx->pc = 0x21D8C8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D8C4u;

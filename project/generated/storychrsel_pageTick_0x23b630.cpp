@@ -946,7 +946,7 @@ label_23b8f8:
     // 0x23b910: 0x18a0000f  blez        $a1, . + 4 + (0xF << 2)
     ctx->pc = 0x23B910u;
     {
-        const bool branch_taken_0x23b910 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x23b910 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x23B914u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x23B910u;

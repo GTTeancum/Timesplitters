@@ -112,7 +112,7 @@ label_2952e0:
     // 0x2952e0: 0x621fff9  bgez        $s1, . + 4 + (-0x7 << 2)
     ctx->pc = 0x2952E0u;
     {
-        const bool branch_taken_0x2952e0 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x2952e0 = (GPR_S64(ctx, 17) >= 0);
         ctx->pc = 0x2952E4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2952E0u;
@@ -134,7 +134,7 @@ label_2952e0:
     // 0x2952ec: 0x1860fff2  blez        $v1, . + 4 + (-0xE << 2)
     ctx->pc = 0x2952ECu;
     {
-        const bool branch_taken_0x2952ec = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2952ec = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2952F0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2952ECu;

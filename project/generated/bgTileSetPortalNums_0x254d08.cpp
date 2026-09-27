@@ -35,7 +35,7 @@ void bgTileSetPortalNums_0x254d08(uint8_t* rdram, R5900Context* ctx, PS2Runtime 
     // 0x254d10: 0x1880001b  blez        $a0, . + 4 + (0x1B << 2)
     ctx->pc = 0x254D10u;
     {
-        const bool branch_taken_0x254d10 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x254d10 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x254D14u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x254D10u;
@@ -70,7 +70,7 @@ label_254d20:
     // 0x254d30: 0x18e0000e  blez        $a3, . + 4 + (0xE << 2)
     ctx->pc = 0x254D30u;
     {
-        const bool branch_taken_0x254d30 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x254d30 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x254D34u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x254D30u;

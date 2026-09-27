@@ -93,7 +93,7 @@ void FindPartCenterPos_0x285770(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x2857c4: 0x4420005  bltzl       $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x2857C4u;
     {
-        const bool branch_taken_0x2857c4 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2857c4 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2857c4) {
             ctx->pc = 0x2857C8u;
             ctx->in_delay_slot = true;
@@ -125,7 +125,7 @@ label_2857dc:
     // 0x2857e0: 0x4800004  bltz        $a0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2857E0u;
     {
-        const bool branch_taken_0x2857e0 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2857e0 = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x2857E4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2857E0u;
@@ -214,7 +214,7 @@ label_2857f8:
     // 0x28582c: 0x4400066  bltz        $v0, . + 4 + (0x66 << 2)
     ctx->pc = 0x28582Cu;
     {
-        const bool branch_taken_0x28582c = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x28582c = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x285830u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28582Cu;
@@ -258,7 +258,7 @@ label_285838:
     // 0x285858: 0x18c00056  blez        $a2, . + 4 + (0x56 << 2)
     ctx->pc = 0x285858u;
     {
-        const bool branch_taken_0x285858 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x285858 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x28585Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x285858u;
@@ -746,7 +746,7 @@ label_2859bc:
     // 0x2859c0: 0x443ff9d  bgezl       $v0, . + 4 + (-0x63 << 2)
     ctx->pc = 0x2859C0u;
     {
-        const bool branch_taken_0x2859c0 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2859c0 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2859c0) {
             ctx->pc = 0x2859C4u;
             ctx->in_delay_slot = true;

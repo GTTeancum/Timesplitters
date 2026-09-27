@@ -69,7 +69,7 @@ label_2c9a88:
     // 0x2c9a90: 0x18e0002f  blez        $a3, . + 4 + (0x2F << 2)
     ctx->pc = 0x2C9A90u;
     {
-        const bool branch_taken_0x2c9a90 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x2c9a90 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x2C9A94u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C9A90u;

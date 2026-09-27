@@ -62,7 +62,7 @@ void bgGetNeighbours_0x257520(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x25754c: 0x19600025  blez        $t3, . + 4 + (0x25 << 2)
     ctx->pc = 0x25754Cu;
     {
-        const bool branch_taken_0x25754c = (GPR_S32(ctx, 11) <= 0);
+        const bool branch_taken_0x25754c = (GPR_S64(ctx, 11) <= 0);
         ctx->pc = 0x257550u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25754Cu;
@@ -126,7 +126,7 @@ label_257580:
     // 0x257584: 0x1920000d  blez        $t1, . + 4 + (0xD << 2)
     ctx->pc = 0x257584u;
     {
-        const bool branch_taken_0x257584 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x257584 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x257588u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x257584u;

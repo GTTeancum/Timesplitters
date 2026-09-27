@@ -155,7 +155,7 @@ label_20fac4:
     // 0x20fad8: 0x1860000c  blez        $v1, . + 4 + (0xC << 2)
     ctx->pc = 0x20FAD8u;
     {
-        const bool branch_taken_0x20fad8 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x20fad8 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x20FADCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x20FAD8u;

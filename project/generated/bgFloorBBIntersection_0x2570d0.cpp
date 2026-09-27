@@ -37,7 +37,7 @@ void bgFloorBBIntersection_0x2570d0(uint8_t* rdram, R5900Context* ctx, PS2Runtim
     // 0x2570dc: 0x19200038  blez        $t1, . + 4 + (0x38 << 2)
     ctx->pc = 0x2570DCu;
     {
-        const bool branch_taken_0x2570dc = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2570dc = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2570E0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2570DCu;

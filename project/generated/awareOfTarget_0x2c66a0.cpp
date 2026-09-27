@@ -162,7 +162,7 @@ label_2c66f4:
     // 0x2c6700: 0x18e00025  blez        $a3, . + 4 + (0x25 << 2)
     ctx->pc = 0x2C6700u;
     {
-        const bool branch_taken_0x2c6700 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x2c6700 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x2C6704u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C6700u;

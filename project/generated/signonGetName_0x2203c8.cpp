@@ -69,7 +69,7 @@ label_2203ec:
     // 0x2203f0: 0x1a40000c  blez        $s2, . + 4 + (0xC << 2)
     ctx->pc = 0x2203F0u;
     {
-        const bool branch_taken_0x2203f0 = (GPR_S32(ctx, 18) <= 0);
+        const bool branch_taken_0x2203f0 = (GPR_S64(ctx, 18) <= 0);
         ctx->pc = 0x2203F4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2203F0u;

@@ -7,6 +7,7 @@
 #include "runtime/ps2_vfs.h"
 #include "ps2_recompiled_functions.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -117,8 +118,87 @@ namespace
                      GPR_U32(ctx, 7));
     }
 
+    // TS_LIBM_SELFTEST=1: call the game's own (recompiled) math routines with
+    // known inputs, compare with the host C library, print, and exit.
+    void libmSelfTest(PS2Runtime &runtime)
+    {
+        uint8_t *rdram = runtime.memory().getRDRAM();
+        auto fresh = [] {
+            R5900Context ctx;
+            R5900Context *ctxp = &ctx;
+            SET_GPR_U32(ctxp, 29, 0x01F80000u);
+            SET_GPR_U32(ctxp, 31, 0u);
+            return ctx;
+        };
+        auto bitsOf = [](double d) { uint64_t b; std::memcpy(&b, &d, 8); return b; };
+        auto asDouble = [](uint64_t b) { double d; std::memcpy(&d, &b, 8); return d; };
+        using Fn = void (*)(uint8_t *, R5900Context *, PS2Runtime *);
+        auto d1 = [&](const char *name, Fn fn, double a, double expected) {
+            R5900Context ctx = fresh();
+            R5900Context *ctxp = &ctx;
+            SET_GPR_U64(ctxp, 4, bitsOf(a));
+            fn(rdram, &ctx, &runtime);
+            const double got = asDouble(GPR_U64(ctxp, 2));
+            std::fprintf(stderr, "[TS:libm] %-8s(%g) = %.9g expected %.9g %s\n", name, a, got, expected,
+                         std::fabs(got - expected) <= 1e-6 * (1.0 + std::fabs(expected)) ? "ok" : "WRONG");
+        };
+        auto d2 = [&](const char *name, Fn fn, double a, double b, double expected) {
+            R5900Context ctx = fresh();
+            R5900Context *ctxp = &ctx;
+            SET_GPR_U64(ctxp, 4, bitsOf(a));
+            SET_GPR_U64(ctxp, 5, bitsOf(b));
+            fn(rdram, &ctx, &runtime);
+            const double got = asDouble(GPR_U64(ctxp, 2));
+            std::fprintf(stderr, "[TS:libm] %-8s(%g, %g) = %.9g expected %.9g %s\n", name, a, b, got, expected,
+                         std::fabs(got - expected) <= 1e-6 * (1.0 + std::fabs(expected)) ? "ok" : "WRONG");
+        };
+        auto f1 = [&](const char *name, Fn fn, float a, float expected) {
+            R5900Context ctx = fresh();
+            R5900Context *ctxp = &ctx;
+            ctx.f[12] = a;
+            fn(rdram, &ctx, &runtime);
+            const float got = ctx.f[0];
+            std::fprintf(stderr, "[TS:libm] %-8s(%g) = %.7g expected %.7g %s\n", name, a, got, expected,
+                         std::fabs(got - expected) <= 1e-5f * (1.0f + std::fabs(expected)) ? "ok" : "WRONG");
+        };
+        {
+            R5900Context ctx = fresh();
+            R5900Context *ctxp = &ctx;
+            ctx.f[12] = 1.5f;
+            fptodp_0x2e4608(rdram, &ctx, &runtime);
+            std::fprintf(stderr, "[TS:libm] fptodp(1.5) = %.9g %s\n", asDouble(GPR_U64(ctxp, 2)),
+                         asDouble(GPR_U64(ctxp, 2)) == 1.5 ? "ok" : "WRONG");
+            ctx = fresh();
+            SET_GPR_U64(ctxp, 4, bitsOf(2.25));
+            dptofp_0x2e3a10(rdram, &ctx, &runtime);
+            std::fprintf(stderr, "[TS:libm] dptofp(2.25) = %g %s\n", ctx.f[0], ctx.f[0] == 2.25f ? "ok" : "WRONG");
+        }
+        d2("dpadd", dpadd_0x2e3180, 1.5, 2.25, 3.75);
+        d2("dpsub", dpsub_0x2e31d8, 1.5, 2.25, -0.75);
+        d2("dpmul", dpmul_0x2e3240, 1.5, -2.25, -3.375);
+        d2("dpdiv", dpdiv_0x2e34e8, 1.0, 3.0, 1.0 / 3.0);
+        d1("sqrt", sqrt_0x2d7a58, 2.0, std::sqrt(2.0));
+        d1("atan", atan_0x2d6ba8, 1.0, std::atan(1.0));
+        d2("atan2", atan2_0x2d7510, 1.0, -1.0, std::atan2(1.0, -1.0));
+        d2("atan2", atan2_0x2d7510, -0.5, 2.0, std::atan2(-0.5, 2.0));
+        d2("pow", pow_0x2d7628, 2.0, 10.0, 1024.0);
+        d2("pow", pow_0x2d7628, 9.0, 0.5, 3.0);
+        d1("floor", floor_0x2d6ff0, 2.7, 2.0);
+        d1("floor", floor_0x2d6ff0, -2.7, -3.0);
+        d1("fabs", fabs_0x2d6fb8, -3.25, 3.25);
+        f1("sinf", sinf_0x2d7398, 0.5f, std::sin(0.5f));
+        f1("sinf", sinf_0x2d7398, 4.0f, std::sin(4.0f));
+        f1("cosf", cosf_0x2d71c8, 0.5f, std::cos(0.5f));
+        f1("cosf", cosf_0x2d71c8, 100.0f, std::cos(100.0f));
+        f1("sqrtf", sqrtf_0x2d8398, 2.0f, std::sqrt(2.0f));
+        f1("acosf", acosf_0x2d7b68, 0.25f, std::acos(0.25f));
+        std::exit(0);
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        if (const char *test = std::getenv("TS_LIBM_SELFTEST"); test && *test == '1')
+            libmSelfTest(runtime);
         if (const char *trace = std::getenv("TS_TRACE_DAMAGE"); trace && *trace == '1')
             runtime.replaceFunction(0x271998u, &tracedPropDamage);
         // The game links its own copy of libkernel's SIF RPC client. Its calls

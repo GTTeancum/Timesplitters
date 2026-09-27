@@ -149,7 +149,7 @@ label_279fac:
     // 0x27a000: 0x18400017  blez        $v0, . + 4 + (0x17 << 2)
     ctx->pc = 0x27A000u;
     {
-        const bool branch_taken_0x27a000 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x27a000 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x27A004u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27A000u;

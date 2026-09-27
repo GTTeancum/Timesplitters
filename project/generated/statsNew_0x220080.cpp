@@ -136,7 +136,7 @@ label_2200e8:
     // 0x2200fc: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2200FCu;
     {
-        const bool branch_taken_0x2200fc = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x2200fc = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x2200fc) {
             ctx->pc = 0x2200E8u;
             if (runtime->eeCheckpointDue()) {
@@ -278,7 +278,7 @@ label_220188:
     // 0x22019c: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x22019Cu;
     {
-        const bool branch_taken_0x22019c = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x22019c = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x22019c) {
             ctx->pc = 0x220188u;
             if (runtime->eeCheckpointDue()) {

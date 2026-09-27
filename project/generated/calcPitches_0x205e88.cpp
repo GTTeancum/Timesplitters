@@ -208,7 +208,7 @@ label_205f38:
     // 0x205f3c: 0x601ffee  bgez        $s0, . + 4 + (-0x12 << 2)
     ctx->pc = 0x205F3Cu;
     {
-        const bool branch_taken_0x205f3c = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x205f3c = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x205F40u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x205F3Cu;

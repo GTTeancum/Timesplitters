@@ -288,7 +288,7 @@ label_278b58:
     // 0x278b6c: 0x661fff6  bgez        $s3, . + 4 + (-0xA << 2)
     ctx->pc = 0x278B6Cu;
     {
-        const bool branch_taken_0x278b6c = (GPR_S32(ctx, 19) >= 0);
+        const bool branch_taken_0x278b6c = (GPR_S64(ctx, 19) >= 0);
         ctx->pc = 0x278B70u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x278B6Cu;

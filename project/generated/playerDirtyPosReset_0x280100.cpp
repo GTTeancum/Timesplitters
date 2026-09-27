@@ -50,7 +50,7 @@ void playerDirtyPosReset_0x280100(uint8_t* rdram, R5900Context* ctx, PS2Runtime 
     // 0x28011c: 0x1840000f  blez        $v0, . + 4 + (0xF << 2)
     ctx->pc = 0x28011Cu;
     {
-        const bool branch_taken_0x28011c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x28011c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x280120u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28011Cu;

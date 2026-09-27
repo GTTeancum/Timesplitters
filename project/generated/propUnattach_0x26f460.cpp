@@ -112,7 +112,7 @@ void propUnattach_0x26f460(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x26f4b4: 0x1840000d  blez        $v0, . + 4 + (0xD << 2)
     ctx->pc = 0x26F4B4u;
     {
-        const bool branch_taken_0x26f4b4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x26f4b4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x26F4B8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26F4B4u;

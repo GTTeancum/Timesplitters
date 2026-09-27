@@ -200,7 +200,7 @@ label_2c5044:
     // 0x2c5044: 0x603ffe2  bgezl       $s0, . + 4 + (-0x1E << 2)
     ctx->pc = 0x2C5044u;
     {
-        const bool branch_taken_0x2c5044 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2c5044 = (GPR_S64(ctx, 16) >= 0);
         if (branch_taken_0x2c5044) {
             ctx->pc = 0x2C5048u;
             ctx->in_delay_slot = true;
@@ -403,7 +403,7 @@ label_2c50d4:
     // 0x2c50d4: 0x601fff4  bgez        $s0, . + 4 + (-0xC << 2)
     ctx->pc = 0x2C50D4u;
     {
-        const bool branch_taken_0x2c50d4 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2c50d4 = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x2C50D8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C50D4u;
@@ -480,7 +480,7 @@ label_2c510c:
     // 0x2c510c: 0x601fff8  bgez        $s0, . + 4 + (-0x8 << 2)
     ctx->pc = 0x2C510Cu;
     {
-        const bool branch_taken_0x2c510c = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2c510c = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x2C5110u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C510Cu;

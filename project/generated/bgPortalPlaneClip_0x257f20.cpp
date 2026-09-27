@@ -74,7 +74,7 @@ void bgPortalPlaneClip_0x257f20(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x257f5c: 0x1840005e  blez        $v0, . + 4 + (0x5E << 2)
     ctx->pc = 0x257F5Cu;
     {
-        const bool branch_taken_0x257f5c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x257f5c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x257F60u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x257F5Cu;
@@ -96,7 +96,7 @@ void bgPortalPlaneClip_0x257f20(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x257f6c: 0x18400055  blez        $v0, . + 4 + (0x55 << 2)
     ctx->pc = 0x257F6Cu;
     {
-        const bool branch_taken_0x257f6c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x257f6c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x257F70u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x257F6Cu;

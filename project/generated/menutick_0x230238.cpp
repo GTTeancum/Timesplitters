@@ -407,7 +407,7 @@ label_230338:
     // 0x230364: 0x5c600007  bgtzl       $v1, . + 4 + (0x7 << 2)
     ctx->pc = 0x230364u;
     {
-        const bool branch_taken_0x230364 = (GPR_S32(ctx, 3) > 0);
+        const bool branch_taken_0x230364 = (GPR_S64(ctx, 3) > 0);
         if (branch_taken_0x230364) {
             ctx->pc = 0x230368u;
             ctx->in_delay_slot = true;

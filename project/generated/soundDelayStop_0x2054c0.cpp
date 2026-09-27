@@ -37,7 +37,7 @@ void soundDelayStop_0x2054c0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x2054cc: 0x480000c  bltz        $a0, . + 4 + (0xC << 2)
     ctx->pc = 0x2054CCu;
     {
-        const bool branch_taken_0x2054cc = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2054cc = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x2054D0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2054CCu;
@@ -68,7 +68,7 @@ void soundDelayStop_0x2054c0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x2054e8: 0x4800004  bltz        $a0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2054E8u;
     {
-        const bool branch_taken_0x2054e8 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2054e8 = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x2054ECu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2054E8u;

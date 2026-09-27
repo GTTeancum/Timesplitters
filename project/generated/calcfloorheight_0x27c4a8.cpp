@@ -89,7 +89,7 @@ label_27c4c8:
     // 0x27c4f8: 0x4e1fff3  bgez        $a3, . + 4 + (-0xD << 2)
     ctx->pc = 0x27C4F8u;
     {
-        const bool branch_taken_0x27c4f8 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x27c4f8 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x27C4FCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27C4F8u;

@@ -108,7 +108,7 @@ label_2a6df8:
     // 0x2a6e0c: 0x4a1fffa  bgez        $a1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2A6E0Cu;
     {
-        const bool branch_taken_0x2a6e0c = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2a6e0c = (GPR_S64(ctx, 5) >= 0);
         if (branch_taken_0x2a6e0c) {
             ctx->pc = 0x2A6DF8u;
             if (runtime->eeCheckpointDue()) {

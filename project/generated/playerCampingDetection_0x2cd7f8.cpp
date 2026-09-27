@@ -31,7 +31,7 @@ void playerCampingDetection_0x2cd7f8(uint8_t* rdram, R5900Context* ctx, PS2Runti
     // 0x2cd7fc: 0x1940002e  blez        $t2, . + 4 + (0x2E << 2)
     ctx->pc = 0x2CD7FCu;
     {
-        const bool branch_taken_0x2cd7fc = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x2cd7fc = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x2CD800u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CD7FCu;

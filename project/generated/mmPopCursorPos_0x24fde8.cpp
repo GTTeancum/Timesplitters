@@ -26,7 +26,7 @@ void mmPopCursorPos_0x24fde8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x24fdec: 0x1900001c  blez        $t0, . + 4 + (0x1C << 2)
     ctx->pc = 0x24FDECu;
     {
-        const bool branch_taken_0x24fdec = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x24fdec = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x24FDF0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24FDECu;

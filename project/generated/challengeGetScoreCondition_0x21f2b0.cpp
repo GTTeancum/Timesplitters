@@ -47,7 +47,7 @@ label_21f2c0:
     // 0x21f2c4: 0x18c0000e  blez        $a2, . + 4 + (0xE << 2)
     ctx->pc = 0x21F2C4u;
     {
-        const bool branch_taken_0x21f2c4 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x21f2c4 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x21F2C8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21F2C4u;

@@ -69,7 +69,7 @@ label_279dc4:
     // 0x279dc8: 0x5840000f  blezl       $v0, . + 4 + (0xF << 2)
     ctx->pc = 0x279DC8u;
     {
-        const bool branch_taken_0x279dc8 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x279dc8 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x279dc8) {
             ctx->pc = 0x279DCCu;
             ctx->in_delay_slot = true;

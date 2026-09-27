@@ -29,7 +29,7 @@ void mmSetLightFromRGB_0x246318(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x246320: 0x4420004  bltzl       $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x246320u;
     {
-        const bool branch_taken_0x246320 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x246320 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x246320) {
             ctx->pc = 0x246324u;
             ctx->in_delay_slot = true;
@@ -87,7 +87,7 @@ label_246340:
     // 0x246350: 0x4400005  bltz        $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x246350u;
     {
-        const bool branch_taken_0x246350 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x246350 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x246354u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x246350u;
@@ -151,7 +151,7 @@ label_246384:
     // 0x246388: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x246388u;
     {
-        const bool branch_taken_0x246388 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x246388 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x24638Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x246388u;

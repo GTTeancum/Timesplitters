@@ -297,7 +297,7 @@ label_2dc214:
     // 0x2dc214: 0x1860000e  blez        $v1, . + 4 + (0xE << 2)
     ctx->pc = 0x2DC214u;
     {
-        const bool branch_taken_0x2dc214 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2dc214 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2DC218u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2DC214u;

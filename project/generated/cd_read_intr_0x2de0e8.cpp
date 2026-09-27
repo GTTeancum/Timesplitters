@@ -38,7 +38,7 @@ void cd_read_intr_0x2de0e8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x2de0f4: 0x18600010  blez        $v1, . + 4 + (0x10 << 2)
     ctx->pc = 0x2DE0F4u;
     {
-        const bool branch_taken_0x2de0f4 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2de0f4 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2DE0F8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2DE0F4u;
@@ -60,7 +60,7 @@ void cd_read_intr_0x2de0e8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x2de104: 0x1860000c  blez        $v1, . + 4 + (0xC << 2)
     ctx->pc = 0x2DE104u;
     {
-        const bool branch_taken_0x2de104 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2de104 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2DE108u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2DE104u;
@@ -127,7 +127,7 @@ label_2de138:
     // 0x2de13c: 0x1860000e  blez        $v1, . + 4 + (0xE << 2)
     ctx->pc = 0x2DE13Cu;
     {
-        const bool branch_taken_0x2de13c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2de13c = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2DE140u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2DE13Cu;
@@ -146,7 +146,7 @@ label_2de138:
     // 0x2de148: 0x1860000b  blez        $v1, . + 4 + (0xB << 2)
     ctx->pc = 0x2DE148u;
     {
-        const bool branch_taken_0x2de148 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2de148 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2DE14Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2DE148u;

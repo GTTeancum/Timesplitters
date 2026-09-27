@@ -71,7 +71,7 @@ label_21ffc8:
     // 0x21ffe0: 0x4810004  bgez        $a0, . + 4 + (0x4 << 2)
     ctx->pc = 0x21FFE0u;
     {
-        const bool branch_taken_0x21ffe0 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x21ffe0 = (GPR_S64(ctx, 4) >= 0);
         ctx->pc = 0x21FFE4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21FFE0u;

@@ -54,7 +54,7 @@ void bgTileSetTextureNums_0x254d88(uint8_t* rdram, R5900Context* ctx, PS2Runtime
     // 0x254da8: 0x18400026  blez        $v0, . + 4 + (0x26 << 2)
     ctx->pc = 0x254DA8u;
     {
-        const bool branch_taken_0x254da8 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x254da8 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x254DACu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x254DA8u;

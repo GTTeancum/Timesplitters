@@ -1005,7 +1005,7 @@ label_224838:
     // 0x224838: 0x4e1fff1  bgez        $a3, . + 4 + (-0xF << 2)
     ctx->pc = 0x224838u;
     {
-        const bool branch_taken_0x224838 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x224838 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x22483Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x224838u;

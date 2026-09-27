@@ -283,7 +283,7 @@ label_2502ac:
     // 0x2502b4: 0x621fff6  bgez        $s1, . + 4 + (-0xA << 2)
     ctx->pc = 0x2502B4u;
     {
-        const bool branch_taken_0x2502b4 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x2502b4 = (GPR_S64(ctx, 17) >= 0);
         ctx->pc = 0x2502B8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2502B4u;

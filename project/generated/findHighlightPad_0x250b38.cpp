@@ -130,7 +130,7 @@ void findHighlightPad_0x250b38(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x250bb0: 0x18400068  blez        $v0, . + 4 + (0x68 << 2)
     ctx->pc = 0x250BB0u;
     {
-        const bool branch_taken_0x250bb0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x250bb0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x250BB4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x250BB0u;

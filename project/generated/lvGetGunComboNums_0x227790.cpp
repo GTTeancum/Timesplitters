@@ -142,7 +142,7 @@ label_2277f0:
     // 0x227804: 0x601fffa  bgez        $s0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x227804u;
     {
-        const bool branch_taken_0x227804 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x227804 = (GPR_S64(ctx, 16) >= 0);
         if (branch_taken_0x227804) {
             ctx->pc = 0x2277F0u;
             if (runtime->eeCheckpointDue()) {
@@ -560,7 +560,7 @@ label_2278f8:
     // 0x2278fc: 0x4800006  bltz        $a0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2278FCu;
     {
-        const bool branch_taken_0x2278fc = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2278fc = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x227900u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2278FCu;

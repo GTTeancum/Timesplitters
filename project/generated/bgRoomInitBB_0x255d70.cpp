@@ -35,7 +35,7 @@ void bgRoomInitBB_0x255d70(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x255d74: 0x19e000c8  blez        $t7, . + 4 + (0xC8 << 2)
     ctx->pc = 0x255D74u;
     {
-        const bool branch_taken_0x255d74 = (GPR_S32(ctx, 15) <= 0);
+        const bool branch_taken_0x255d74 = (GPR_S64(ctx, 15) <= 0);
         ctx->pc = 0x255D78u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x255D74u;
@@ -152,7 +152,7 @@ label_255de0:
     // 0x255e00: 0x4e1fff7  bgez        $a3, . + 4 + (-0x9 << 2)
     ctx->pc = 0x255E00u;
     {
-        const bool branch_taken_0x255e00 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x255e00 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x255E04u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x255E00u;

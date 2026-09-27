@@ -734,7 +734,7 @@ label_21d2d8:
     // 0x21d2d8: 0x600000c  bltz        $s0, . + 4 + (0xC << 2)
     ctx->pc = 0x21D2D8u;
     {
-        const bool branch_taken_0x21d2d8 = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x21d2d8 = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x21D2DCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21D2D8u;

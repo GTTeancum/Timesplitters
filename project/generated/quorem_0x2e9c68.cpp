@@ -364,7 +364,7 @@ label_2e9d9c:
     // 0x2e9d9c: 0x440002c  bltz        $v0, . + 4 + (0x2C << 2)
     ctx->pc = 0x2E9D9Cu;
     {
-        const bool branch_taken_0x2e9d9c = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2e9d9c = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2E9DA0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E9D9Cu;

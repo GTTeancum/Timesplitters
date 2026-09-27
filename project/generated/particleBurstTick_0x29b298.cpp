@@ -65,7 +65,7 @@ void particleBurstTick_0x29b298(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x29b2bc: 0x18400051  blez        $v0, . + 4 + (0x51 << 2)
     ctx->pc = 0x29B2BCu;
     {
-        const bool branch_taken_0x29b2bc = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x29b2bc = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x29B2C0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29B2BCu;
@@ -239,7 +239,7 @@ label_29b2e8:
     // 0x29b388: 0x18400018  blez        $v0, . + 4 + (0x18 << 2)
     ctx->pc = 0x29B388u;
     {
-        const bool branch_taken_0x29b388 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x29b388 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x29B38Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29B388u;

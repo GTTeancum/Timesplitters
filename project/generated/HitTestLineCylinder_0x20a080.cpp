@@ -1332,7 +1332,7 @@ label_20a5c8:
     // 0x20a5c8: 0x4400019  bltz        $v0, . + 4 + (0x19 << 2)
     ctx->pc = 0x20A5C8u;
     {
-        const bool branch_taken_0x20a5c8 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x20a5c8 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x20a5c8) {
             ctx->pc = 0x20A630u;
             goto label_20a630;

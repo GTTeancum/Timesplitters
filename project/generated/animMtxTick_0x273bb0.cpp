@@ -88,7 +88,7 @@ void animMtxTick_0x273bb0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x273bd0: 0x18a00193  blez        $a1, . + 4 + (0x193 << 2)
     ctx->pc = 0x273BD0u;
     {
-        const bool branch_taken_0x273bd0 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x273bd0 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x273BD4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x273BD0u;
@@ -123,7 +123,7 @@ label_273be0:
     // 0x273bf0: 0x4820188  bltzl       $a0, . + 4 + (0x188 << 2)
     ctx->pc = 0x273BF0u;
     {
-        const bool branch_taken_0x273bf0 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x273bf0 = (GPR_S64(ctx, 4) < 0);
         if (branch_taken_0x273bf0) {
             ctx->pc = 0x273BF4u;
             ctx->in_delay_slot = true;
@@ -306,7 +306,7 @@ label_273c80:
     // 0x273c88: 0x58600011  blezl       $v1, . + 4 + (0x11 << 2)
     ctx->pc = 0x273C88u;
     {
-        const bool branch_taken_0x273c88 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x273c88 = (GPR_S64(ctx, 3) <= 0);
         if (branch_taken_0x273c88) {
             ctx->pc = 0x273C8Cu;
             ctx->in_delay_slot = true;
@@ -463,7 +463,7 @@ label_273cfc:
     // 0x273d04: 0x5860000f  blezl       $v1, . + 4 + (0xF << 2)
     ctx->pc = 0x273D04u;
     {
-        const bool branch_taken_0x273d04 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x273d04 = (GPR_S64(ctx, 3) <= 0);
         if (branch_taken_0x273d04) {
             ctx->pc = 0x273D08u;
             ctx->in_delay_slot = true;
@@ -600,7 +600,7 @@ label_273d6c:
     // 0x273d74: 0x5860000f  blezl       $v1, . + 4 + (0xF << 2)
     ctx->pc = 0x273D74u;
     {
-        const bool branch_taken_0x273d74 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x273d74 = (GPR_S64(ctx, 3) <= 0);
         if (branch_taken_0x273d74) {
             ctx->pc = 0x273D78u;
             ctx->in_delay_slot = true;
@@ -737,7 +737,7 @@ label_273ddc:
     // 0x273de4: 0x1860010b  blez        $v1, . + 4 + (0x10B << 2)
     ctx->pc = 0x273DE4u;
     {
-        const bool branch_taken_0x273de4 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x273de4 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x273DE8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x273DE4u;
@@ -835,7 +835,7 @@ label_273e28:
     // 0x273e2c: 0x586000f9  blezl       $v1, . + 4 + (0xF9 << 2)
     ctx->pc = 0x273E2Cu;
     {
-        const bool branch_taken_0x273e2c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x273e2c = (GPR_S64(ctx, 3) <= 0);
         if (branch_taken_0x273e2c) {
             ctx->pc = 0x273E30u;
             ctx->in_delay_slot = true;
@@ -1403,7 +1403,7 @@ label_274004:
     // 0x274008: 0x18400011  blez        $v0, . + 4 + (0x11 << 2)
     ctx->pc = 0x274008u;
     {
-        const bool branch_taken_0x274008 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x274008 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x27400Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x274008u;
@@ -1616,7 +1616,7 @@ label_2740a0:
     // 0x2740a4: 0x1840000e  blez        $v0, . + 4 + (0xE << 2)
     ctx->pc = 0x2740A4u;
     {
-        const bool branch_taken_0x2740a4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2740a4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2740A8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2740A4u;
@@ -1806,7 +1806,7 @@ label_27412c:
     // 0x274130: 0x1840000f  blez        $v0, . + 4 + (0xF << 2)
     ctx->pc = 0x274130u;
     {
-        const bool branch_taken_0x274130 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x274130 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x274134u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x274130u;
@@ -1999,7 +1999,7 @@ label_2741bc:
     // 0x2741c0: 0x18400013  blez        $v0, . + 4 + (0x13 << 2)
     ctx->pc = 0x2741C0u;
     {
-        const bool branch_taken_0x2741c0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2741c0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2741C4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2741C0u;

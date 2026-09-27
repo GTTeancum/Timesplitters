@@ -180,7 +180,7 @@ label_29fec8:
     // 0x29fecc: 0x188000ed  blez        $a0, . + 4 + (0xED << 2)
     ctx->pc = 0x29FECCu;
     {
-        const bool branch_taken_0x29fecc = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x29fecc = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x29FED0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29FECCu;

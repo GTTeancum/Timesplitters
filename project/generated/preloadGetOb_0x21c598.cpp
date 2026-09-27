@@ -53,7 +53,7 @@ void preloadGetOb_0x21c598(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x21c5b8: 0x18c00015  blez        $a2, . + 4 + (0x15 << 2)
     ctx->pc = 0x21C5B8u;
     {
-        const bool branch_taken_0x21c5b8 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x21c5b8 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x21C5BCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21C5B8u;

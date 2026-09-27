@@ -69,7 +69,7 @@ void menumake_0x24c270(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x24c2a4: 0x18400032  blez        $v0, . + 4 + (0x32 << 2)
     ctx->pc = 0x24C2A4u;
     {
-        const bool branch_taken_0x24c2a4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x24c2a4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x24C2A8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24C2A4u;

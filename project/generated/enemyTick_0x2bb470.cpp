@@ -2633,7 +2633,7 @@ label_2bbb20:
     // 0x2bbb24: 0x18600003  blez        $v1, . + 4 + (0x3 << 2)
     ctx->pc = 0x2BBB24u;
     {
-        const bool branch_taken_0x2bbb24 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2bbb24 = (GPR_S64(ctx, 3) <= 0);
         if (branch_taken_0x2bbb24) {
             ctx->pc = 0x2BBB34u;
             goto label_2bbb34;

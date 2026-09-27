@@ -547,7 +547,7 @@ label_2964c0:
     // 0x2964c0: 0x4410004  bgez        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2964C0u;
     {
-        const bool branch_taken_0x2964c0 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2964c0 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2964C4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2964C0u;

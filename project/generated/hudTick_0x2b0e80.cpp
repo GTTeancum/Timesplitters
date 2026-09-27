@@ -209,7 +209,7 @@ label_2b0f1c:
     // 0x2b0f20: 0x4410002  bgez        $v0, . + 4 + (0x2 << 2)
     ctx->pc = 0x2B0F20u;
     {
-        const bool branch_taken_0x2b0f20 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2b0f20 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2B0F24u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B0F20u;
@@ -232,7 +232,7 @@ label_2b0f2c:
     // 0x2b0f30: 0x4410002  bgez        $v0, . + 4 + (0x2 << 2)
     ctx->pc = 0x2B0F30u;
     {
-        const bool branch_taken_0x2b0f30 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2b0f30 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2B0F34u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B0F30u;

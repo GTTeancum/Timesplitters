@@ -154,7 +154,7 @@ label_28d274:
     // 0x28d278: 0x440000c  bltz        $v0, . + 4 + (0xC << 2)
     ctx->pc = 0x28D278u;
     {
-        const bool branch_taken_0x28d278 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x28d278 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x28D27Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28D278u;

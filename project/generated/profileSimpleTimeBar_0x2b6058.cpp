@@ -288,7 +288,7 @@ label_2b6170:
     // 0x2b6174: 0x6a1fff0  bgez        $s5, . + 4 + (-0x10 << 2)
     ctx->pc = 0x2B6174u;
     {
-        const bool branch_taken_0x2b6174 = (GPR_S32(ctx, 21) >= 0);
+        const bool branch_taken_0x2b6174 = (GPR_S64(ctx, 21) >= 0);
         ctx->pc = 0x2B6178u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B6174u;

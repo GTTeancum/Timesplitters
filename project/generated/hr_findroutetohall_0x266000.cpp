@@ -31,7 +31,7 @@ void hr_findroutetohall_0x266000(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x266004: 0x4600011  bltz        $v1, . + 4 + (0x11 << 2)
     ctx->pc = 0x266004u;
     {
-        const bool branch_taken_0x266004 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x266004 = (GPR_S64(ctx, 3) < 0);
         ctx->pc = 0x266008u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x266004u;
@@ -115,7 +115,7 @@ label_266044:
     // 0x266044: 0x461fff4  bgez        $v1, . + 4 + (-0xC << 2)
     ctx->pc = 0x266044u;
     {
-        const bool branch_taken_0x266044 = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x266044 = (GPR_S64(ctx, 3) >= 0);
         ctx->pc = 0x266048u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x266044u;

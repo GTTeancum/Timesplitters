@@ -323,7 +323,7 @@ label_280268:
     // 0x280288: 0x18e0000d  blez        $a3, . + 4 + (0xD << 2)
     ctx->pc = 0x280288u;
     {
-        const bool branch_taken_0x280288 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x280288 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x28028Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x280288u;

@@ -57,7 +57,7 @@ label_20137c:
     // 0x20137c: 0x1840000a  blez        $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x20137Cu;
     {
-        const bool branch_taken_0x20137c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x20137c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x201380u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x20137Cu;

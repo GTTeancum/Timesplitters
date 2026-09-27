@@ -512,7 +512,7 @@ label_23bd58:
     // 0x23bd58: 0x18800005  blez        $a0, . + 4 + (0x5 << 2)
     ctx->pc = 0x23BD58u;
     {
-        const bool branch_taken_0x23bd58 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x23bd58 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x23BD5Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x23BD58u;

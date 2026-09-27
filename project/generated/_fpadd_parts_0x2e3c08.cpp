@@ -578,7 +578,7 @@ label_2e3d84:
     // 0x2e3d84: 0x4400005  bltz        $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x2E3D84u;
     {
-        const bool branch_taken_0x2e3d84 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2e3d84 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2E3D88u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E3D84u;
@@ -741,7 +741,7 @@ label_2e3e0c:
     // 0x2e3e10: 0x4a10008  bgez        $a1, . + 4 + (0x8 << 2)
     ctx->pc = 0x2E3E10u;
     {
-        const bool branch_taken_0x2e3e10 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2e3e10 = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x2E3E14u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E3E10u;

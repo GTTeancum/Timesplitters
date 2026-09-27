@@ -37,7 +37,7 @@ void bgRoomBBIntersection_0x256fd0(uint8_t* rdram, R5900Context* ctx, PS2Runtime
     // 0x256fdc: 0x19200039  blez        $t1, . + 4 + (0x39 << 2)
     ctx->pc = 0x256FDCu;
     {
-        const bool branch_taken_0x256fdc = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x256fdc = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x256FE0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256FDCu;

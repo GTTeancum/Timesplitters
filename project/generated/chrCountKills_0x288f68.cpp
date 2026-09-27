@@ -41,7 +41,7 @@ void chrCountKills_0x288f68(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x288f78: 0x18400014  blez        $v0, . + 4 + (0x14 << 2)
     ctx->pc = 0x288F78u;
     {
-        const bool branch_taken_0x288f78 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x288f78 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x288F7Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x288F78u;
@@ -179,7 +179,7 @@ label_288fd4:
     // 0x288fe4: 0x1940000e  blez        $t2, . + 4 + (0xE << 2)
     ctx->pc = 0x288FE4u;
     {
-        const bool branch_taken_0x288fe4 = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x288fe4 = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x288FE8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x288FE4u;

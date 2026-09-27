@@ -191,7 +191,7 @@ label_21cb10:
     // 0x21cb58: 0x1a000008  blez        $s0, . + 4 + (0x8 << 2)
     ctx->pc = 0x21CB58u;
     {
-        const bool branch_taken_0x21cb58 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x21cb58 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x21CB5Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21CB58u;
@@ -262,7 +262,7 @@ label_21cb7c:
     // 0x21cb84: 0x5a20000c  blezl       $s1, . + 4 + (0xC << 2)
     ctx->pc = 0x21CB84u;
     {
-        const bool branch_taken_0x21cb84 = (GPR_S32(ctx, 17) <= 0);
+        const bool branch_taken_0x21cb84 = (GPR_S64(ctx, 17) <= 0);
         if (branch_taken_0x21cb84) {
             ctx->pc = 0x21CB88u;
             ctx->in_delay_slot = true;

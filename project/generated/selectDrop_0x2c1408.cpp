@@ -34,7 +34,7 @@ void selectDrop_0x2c1408(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime)
     // 0x2c1410: 0x19400018  blez        $t2, . + 4 + (0x18 << 2)
     ctx->pc = 0x2C1410u;
     {
-        const bool branch_taken_0x2c1410 = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x2c1410 = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x2C1414u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2C1410u;

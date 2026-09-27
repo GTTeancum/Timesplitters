@@ -293,7 +293,7 @@ label_22ac6c:
     // 0x22ac70: 0x18400058  blez        $v0, . + 4 + (0x58 << 2)
     ctx->pc = 0x22AC70u;
     {
-        const bool branch_taken_0x22ac70 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x22ac70 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x22AC74u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x22AC70u;

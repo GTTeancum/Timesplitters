@@ -55,7 +55,7 @@ label_27040c:
     // 0x27040c: 0x18a00005  blez        $a1, . + 4 + (0x5 << 2)
     ctx->pc = 0x27040Cu;
     {
-        const bool branch_taken_0x27040c = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x27040c = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x270410u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27040Cu;

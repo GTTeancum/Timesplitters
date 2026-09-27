@@ -96,7 +96,7 @@ label_2566a0:
     // 0x2566a0: 0x18800028  blez        $a0, . + 4 + (0x28 << 2)
     ctx->pc = 0x2566A0u;
     {
-        const bool branch_taken_0x2566a0 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x2566a0 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x2566A4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2566A0u;
@@ -210,7 +210,7 @@ label_2566f8:
     // 0x25670c: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x25670Cu;
     {
-        const bool branch_taken_0x25670c = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x25670c = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x25670c) {
             ctx->pc = 0x2566F8u;
             if (runtime->eeCheckpointDue()) {

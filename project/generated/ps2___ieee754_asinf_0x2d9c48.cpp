@@ -811,7 +811,7 @@ label_2d9fb8:
     // 0x2d9fb8: 0x1e200002  bgtz        $s1, . + 4 + (0x2 << 2)
     ctx->pc = 0x2D9FB8u;
     {
-        const bool branch_taken_0x2d9fb8 = (GPR_S32(ctx, 17) > 0);
+        const bool branch_taken_0x2d9fb8 = (GPR_S64(ctx, 17) > 0);
         ctx->pc = 0x2D9FBCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2D9FB8u;

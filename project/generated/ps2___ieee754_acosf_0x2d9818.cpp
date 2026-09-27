@@ -81,7 +81,7 @@ void ps2___ieee754_acosf_0x2d9818(uint8_t* rdram, R5900Context* ctx, PS2Runtime 
     // 0x2d9850: 0x1c8000f8  bgtz        $a0, . + 4 + (0xF8 << 2)
     ctx->pc = 0x2D9850u;
     {
-        const bool branch_taken_0x2d9850 = (GPR_S32(ctx, 4) > 0);
+        const bool branch_taken_0x2d9850 = (GPR_S64(ctx, 4) > 0);
         ctx->pc = 0x2D9854u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2D9850u;
@@ -450,7 +450,7 @@ label_2d99cc:
     // 0x2d99cc: 0x481004a  bgez        $a0, . + 4 + (0x4A << 2)
     ctx->pc = 0x2D99CCu;
     {
-        const bool branch_taken_0x2d99cc = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x2d99cc = (GPR_S64(ctx, 4) >= 0);
         if (branch_taken_0x2d99cc) {
             ctx->pc = 0x2D9AF8u;
             goto label_2d9af8;

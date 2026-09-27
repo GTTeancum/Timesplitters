@@ -28,7 +28,7 @@ void FDiv_0x24b9a0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x24b9a0: 0x4810002  bgez        $a0, . + 4 + (0x2 << 2)
     ctx->pc = 0x24B9A0u;
     {
-        const bool branch_taken_0x24b9a0 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x24b9a0 = (GPR_S64(ctx, 4) >= 0);
         ctx->pc = 0x24B9A4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24B9A0u;
@@ -51,7 +51,7 @@ label_24b9ac:
     // 0x24b9b0: 0x4a10002  bgez        $a1, . + 4 + (0x2 << 2)
     ctx->pc = 0x24B9B0u;
     {
-        const bool branch_taken_0x24b9b0 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x24b9b0 = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x24B9B4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24B9B0u;

@@ -127,7 +127,7 @@ void hr_addnewroutes_0x2661a8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x266220: 0x1880005e  blez        $a0, . + 4 + (0x5E << 2)
     ctx->pc = 0x266220u;
     {
-        const bool branch_taken_0x266220 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x266220 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x266224u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x266220u;
@@ -351,7 +351,7 @@ label_2662d0:
     // 0x2662d4: 0x4a10009  bgez        $a1, . + 4 + (0x9 << 2)
     ctx->pc = 0x2662D4u;
     {
-        const bool branch_taken_0x2662d4 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2662d4 = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x2662D8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2662D4u;
@@ -388,7 +388,7 @@ label_2662e8:
     // 0x2662ec: 0x4a00021  bltz        $a1, . + 4 + (0x21 << 2)
     ctx->pc = 0x2662ECu;
     {
-        const bool branch_taken_0x2662ec = (GPR_S32(ctx, 5) < 0);
+        const bool branch_taken_0x2662ec = (GPR_S64(ctx, 5) < 0);
         ctx->pc = 0x2662F0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2662ECu;

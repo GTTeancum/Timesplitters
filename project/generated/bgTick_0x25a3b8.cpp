@@ -92,7 +92,7 @@ void bgTick_0x25a3b8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x25a408: 0x18a0005c  blez        $a1, . + 4 + (0x5C << 2)
     ctx->pc = 0x25A408u;
     {
-        const bool branch_taken_0x25a408 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x25a408 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x25A40Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A408u;

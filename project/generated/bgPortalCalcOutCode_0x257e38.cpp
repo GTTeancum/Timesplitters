@@ -77,7 +77,7 @@ label_257e60:
     // 0x257e60: 0x4430005  bgezl       $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x257E60u;
     {
-        const bool branch_taken_0x257e60 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x257e60 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x257e60) {
             ctx->pc = 0x257E64u;
             ctx->in_delay_slot = true;

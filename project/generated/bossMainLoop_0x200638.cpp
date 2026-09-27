@@ -293,7 +293,7 @@ label_2006cc:
     // 0x2006d0: 0x18400022  blez        $v0, . + 4 + (0x22 << 2)
     ctx->pc = 0x2006D0u;
     {
-        const bool branch_taken_0x2006d0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2006d0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2006D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2006D0u;

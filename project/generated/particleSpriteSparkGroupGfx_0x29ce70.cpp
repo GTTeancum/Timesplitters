@@ -157,7 +157,7 @@ void particleSpriteSparkGroupGfx_0x29ce70(uint8_t* rdram, R5900Context* ctx, PS2
     // 0x29cf18: 0x1860014f  blez        $v1, . + 4 + (0x14F << 2)
     ctx->pc = 0x29CF18u;
     {
-        const bool branch_taken_0x29cf18 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x29cf18 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x29CF1Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29CF18u;

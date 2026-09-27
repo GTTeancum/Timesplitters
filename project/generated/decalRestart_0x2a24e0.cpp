@@ -69,7 +69,7 @@ void decalRestart_0x2a24e0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x2a2510: 0x1c400003  bgtz        $v0, . + 4 + (0x3 << 2)
     ctx->pc = 0x2A2510u;
     {
-        const bool branch_taken_0x2a2510 = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x2a2510 = (GPR_S64(ctx, 2) > 0);
         ctx->pc = 0x2A2514u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A2510u;
@@ -150,7 +150,7 @@ label_2a2550:
     // 0x2a2550: 0x1880000b  blez        $a0, . + 4 + (0xB << 2)
     ctx->pc = 0x2A2550u;
     {
-        const bool branch_taken_0x2a2550 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x2a2550 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x2A2554u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A2550u;
@@ -233,7 +233,7 @@ label_2a2590:
     // 0x2a25a4: 0x4a1fffa  bgez        $a1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2A25A4u;
     {
-        const bool branch_taken_0x2a25a4 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2a25a4 = (GPR_S64(ctx, 5) >= 0);
         if (branch_taken_0x2a25a4) {
             ctx->pc = 0x2A2590u;
             if (runtime->eeCheckpointDue()) {
@@ -246,7 +246,7 @@ label_2a2590:
     // 0x2a25ac: 0x1900000d  blez        $t0, . + 4 + (0xD << 2)
     ctx->pc = 0x2A25ACu;
     {
-        const bool branch_taken_0x2a25ac = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x2a25ac = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x2A25B0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A25ACu;
@@ -397,7 +397,7 @@ label_2a2620:
     // 0x2a2634: 0x4a1fffa  bgez        $a1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2A2634u;
     {
-        const bool branch_taken_0x2a2634 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2a2634 = (GPR_S64(ctx, 5) >= 0);
         if (branch_taken_0x2a2634) {
             ctx->pc = 0x2A2620u;
             if (runtime->eeCheckpointDue()) {

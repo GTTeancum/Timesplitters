@@ -109,7 +109,7 @@ label_2b19f4:
     // 0x2b1a08: 0x18a00009  blez        $a1, . + 4 + (0x9 << 2)
     ctx->pc = 0x2B1A08u;
     {
-        const bool branch_taken_0x2b1a08 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x2b1a08 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x2B1A0Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B1A08u;

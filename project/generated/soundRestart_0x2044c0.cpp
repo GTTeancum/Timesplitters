@@ -79,7 +79,7 @@ label_2044e0:
     // 0x2044f4: 0x601fffa  bgez        $s0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2044F4u;
     {
-        const bool branch_taken_0x2044f4 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2044f4 = (GPR_S64(ctx, 16) >= 0);
         if (branch_taken_0x2044f4) {
             ctx->pc = 0x2044E0u;
             if (runtime->eeCheckpointDue()) {

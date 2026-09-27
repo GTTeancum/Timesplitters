@@ -87,7 +87,7 @@ void gunPlayerFire_0x28f010(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x28f05c: 0x18a00096  blez        $a1, . + 4 + (0x96 << 2)
     ctx->pc = 0x28F05Cu;
     {
-        const bool branch_taken_0x28f05c = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x28f05c = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x28F060u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28F05Cu;
@@ -243,7 +243,7 @@ label_28f0b4:
     // 0x28f0d0: 0x18a00031  blez        $a1, . + 4 + (0x31 << 2)
     ctx->pc = 0x28F0D0u;
     {
-        const bool branch_taken_0x28f0d0 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x28f0d0 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x28F0D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28F0D0u;
@@ -508,7 +508,7 @@ label_28f190:
     // 0x28f190: 0x1ca00018  bgtz        $a1, . + 4 + (0x18 << 2)
     ctx->pc = 0x28F190u;
     {
-        const bool branch_taken_0x28f190 = (GPR_S32(ctx, 5) > 0);
+        const bool branch_taken_0x28f190 = (GPR_S64(ctx, 5) > 0);
         ctx->pc = 0x28F194u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28F190u;
@@ -550,7 +550,7 @@ label_28f198:
     // 0x28f1ac: 0x5c400008  bgtzl       $v0, . + 4 + (0x8 << 2)
     ctx->pc = 0x28F1ACu;
     {
-        const bool branch_taken_0x28f1ac = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x28f1ac = (GPR_S64(ctx, 2) > 0);
         if (branch_taken_0x28f1ac) {
             ctx->pc = 0x28F1B0u;
             ctx->in_delay_slot = true;
@@ -706,7 +706,7 @@ label_28f1f4:
     // 0x28f224: 0x1ca00003  bgtz        $a1, . + 4 + (0x3 << 2)
     ctx->pc = 0x28F224u;
     {
-        const bool branch_taken_0x28f224 = (GPR_S32(ctx, 5) > 0);
+        const bool branch_taken_0x28f224 = (GPR_S64(ctx, 5) > 0);
         ctx->pc = 0x28F228u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28F224u;
@@ -837,7 +837,7 @@ label_28f298:
     // 0x28f298: 0x5c400004  bgtzl       $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x28F298u;
     {
-        const bool branch_taken_0x28f298 = (GPR_S32(ctx, 2) > 0);
+        const bool branch_taken_0x28f298 = (GPR_S64(ctx, 2) > 0);
         if (branch_taken_0x28f298) {
             ctx->pc = 0x28F29Cu;
             ctx->in_delay_slot = true;

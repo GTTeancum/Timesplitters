@@ -454,7 +454,7 @@ void vtxlistWaterxyzPre_0x278400(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x278618: 0x4400022  bltz        $v0, . + 4 + (0x22 << 2)
     ctx->pc = 0x278618u;
     {
-        const bool branch_taken_0x278618 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x278618 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x27861Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x278618u;
@@ -473,7 +473,7 @@ void vtxlistWaterxyzPre_0x278400(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x278624: 0x440001f  bltz        $v0, . + 4 + (0x1F << 2)
     ctx->pc = 0x278624u;
     {
-        const bool branch_taken_0x278624 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x278624 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x278624) {
             ctx->pc = 0x2786A4u;
             goto label_2786a4;
@@ -502,7 +502,7 @@ label_278630:
     // 0x278644: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x278644u;
     {
-        const bool branch_taken_0x278644 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x278644 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x278644) {
             ctx->pc = 0x278630u;
             if (runtime->eeCheckpointDue()) {
@@ -564,7 +564,7 @@ label_278654:
     // 0x27866c: 0x440000d  bltz        $v0, . + 4 + (0xD << 2)
     ctx->pc = 0x27866Cu;
     {
-        const bool branch_taken_0x27866c = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x27866c = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x278670u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27866Cu;
@@ -583,7 +583,7 @@ label_278654:
     // 0x278678: 0x440000a  bltz        $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x278678u;
     {
-        const bool branch_taken_0x278678 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x278678 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x278678) {
             ctx->pc = 0x2786A4u;
             goto label_2786a4;
@@ -609,7 +609,7 @@ label_278680:
     // 0x278694: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x278694u;
     {
-        const bool branch_taken_0x278694 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x278694 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x278694) {
             ctx->pc = 0x278680u;
             if (runtime->eeCheckpointDue()) {
@@ -725,7 +725,7 @@ label_2786ec:
     // 0x2786ec: 0x1aa00059  blez        $s5, . + 4 + (0x59 << 2)
     ctx->pc = 0x2786ECu;
     {
-        const bool branch_taken_0x2786ec = (GPR_S32(ctx, 21) <= 0);
+        const bool branch_taken_0x2786ec = (GPR_S64(ctx, 21) <= 0);
         ctx->pc = 0x2786F0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2786ECu;

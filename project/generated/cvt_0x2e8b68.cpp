@@ -171,7 +171,7 @@ label_2e8be0:
     // 0x2e8be8: 0x4430007  bgezl       $v0, . + 4 + (0x7 << 2)
     ctx->pc = 0x2E8BE8u;
     {
-        const bool branch_taken_0x2e8be8 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2e8be8 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2e8be8) {
             ctx->pc = 0x2E8BECu;
             ctx->in_delay_slot = true;

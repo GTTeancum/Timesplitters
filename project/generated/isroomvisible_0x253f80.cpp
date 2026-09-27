@@ -56,7 +56,7 @@ void isroomvisible_0x253f80(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x253fac: 0x4a00005  bltz        $a1, . + 4 + (0x5 << 2)
     ctx->pc = 0x253FACu;
     {
-        const bool branch_taken_0x253fac = (GPR_S32(ctx, 5) < 0);
+        const bool branch_taken_0x253fac = (GPR_S64(ctx, 5) < 0);
         ctx->pc = 0x253FB0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x253FACu;

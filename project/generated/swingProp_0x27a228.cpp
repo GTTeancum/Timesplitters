@@ -621,7 +621,7 @@ label_27a438:
     // 0x27a438: 0x4420001  bltzl       $v0, . + 4 + (0x1 << 2)
     ctx->pc = 0x27A438u;
     {
-        const bool branch_taken_0x27a438 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x27a438 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x27a438) {
             ctx->pc = 0x27A43Cu;
             ctx->in_delay_slot = true;
@@ -730,7 +730,7 @@ label_27a490:
     // 0x27a490: 0x4430001  bgezl       $v0, . + 4 + (0x1 << 2)
     ctx->pc = 0x27A490u;
     {
-        const bool branch_taken_0x27a490 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x27a490 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x27a490) {
             ctx->pc = 0x27A494u;
             ctx->in_delay_slot = true;

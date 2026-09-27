@@ -108,7 +108,7 @@ void particleSmokeGfx_0x29dc40(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x29dca8: 0x18800176  blez        $a0, . + 4 + (0x176 << 2)
     ctx->pc = 0x29DCA8u;
     {
-        const bool branch_taken_0x29dca8 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x29dca8 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x29DCACu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29DCA8u;

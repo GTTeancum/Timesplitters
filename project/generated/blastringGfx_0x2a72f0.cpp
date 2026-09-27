@@ -112,7 +112,7 @@ void blastringGfx_0x2a72f0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x2a734c: 0x1860012a  blez        $v1, . + 4 + (0x12A << 2)
     ctx->pc = 0x2A734Cu;
     {
-        const bool branch_taken_0x2a734c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2a734c = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2A7350u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A734Cu;
@@ -691,7 +691,7 @@ label_2a7590:
     // 0x2a75c4: 0x4e1fff2  bgez        $a3, . + 4 + (-0xE << 2)
     ctx->pc = 0x2A75C4u;
     {
-        const bool branch_taken_0x2a75c4 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x2a75c4 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x2A75C8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A75C4u;
@@ -787,7 +787,7 @@ label_2a7600:
     // 0x2a7620: 0x4e1fff7  bgez        $a3, . + 4 + (-0x9 << 2)
     ctx->pc = 0x2A7620u;
     {
-        const bool branch_taken_0x2a7620 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x2a7620 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x2A7624u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A7620u;
@@ -1103,7 +1103,7 @@ label_2a7700:
     // 0x2a7788: 0x641ffdd  bgez        $s2, . + 4 + (-0x23 << 2)
     ctx->pc = 0x2A7788u;
     {
-        const bool branch_taken_0x2a7788 = (GPR_S32(ctx, 18) >= 0);
+        const bool branch_taken_0x2a7788 = (GPR_S64(ctx, 18) >= 0);
         ctx->pc = 0x2A778Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A7788u;
@@ -1168,7 +1168,7 @@ label_2a77b0:
     // 0x2a77cc: 0x4c1fff8  bgez        $a2, . + 4 + (-0x8 << 2)
     ctx->pc = 0x2A77CCu;
     {
-        const bool branch_taken_0x2a77cc = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x2a77cc = (GPR_S64(ctx, 6) >= 0);
         ctx->pc = 0x2A77D0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A77CCu;

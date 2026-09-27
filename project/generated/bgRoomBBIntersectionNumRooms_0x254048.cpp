@@ -34,7 +34,7 @@ void bgRoomBBIntersectionNumRooms_0x254048(uint8_t* rdram, R5900Context* ctx, PS
     // 0x254050: 0x18e0002f  blez        $a3, . + 4 + (0x2F << 2)
     ctx->pc = 0x254050u;
     {
-        const bool branch_taken_0x254050 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x254050 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x254054u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x254050u;

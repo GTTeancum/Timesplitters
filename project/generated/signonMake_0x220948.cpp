@@ -159,7 +159,7 @@ label_2209a8:
     // 0x2209bc: 0x601fffa  bgez        $s0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2209BCu;
     {
-        const bool branch_taken_0x2209bc = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2209bc = (GPR_S64(ctx, 16) >= 0);
         if (branch_taken_0x2209bc) {
             ctx->pc = 0x2209A8u;
             if (runtime->eeCheckpointDue()) {

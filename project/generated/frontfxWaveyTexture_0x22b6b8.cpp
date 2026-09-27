@@ -1197,7 +1197,7 @@ label_22bbd8:
     // 0x22bc70: 0x5c1ffd9  bgez        $t6, . + 4 + (-0x27 << 2)
     ctx->pc = 0x22BC70u;
     {
-        const bool branch_taken_0x22bc70 = (GPR_S32(ctx, 14) >= 0);
+        const bool branch_taken_0x22bc70 = (GPR_S64(ctx, 14) >= 0);
         ctx->pc = 0x22BC74u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x22BC70u;

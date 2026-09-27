@@ -179,7 +179,7 @@ label_23e524:
     // 0x23e528: 0x18600003  blez        $v1, . + 4 + (0x3 << 2)
     ctx->pc = 0x23E528u;
     {
-        const bool branch_taken_0x23e528 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x23e528 = (GPR_S64(ctx, 3) <= 0);
         if (branch_taken_0x23e528) {
             ctx->pc = 0x23E538u;
             goto label_23e538;

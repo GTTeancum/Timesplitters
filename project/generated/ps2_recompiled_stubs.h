@@ -158,15 +158,6 @@ void scePadGetSlotMax_0x2d5860(uint8_t* rdram, R5900Context* ctx, PS2Runtime* ru
 void scePadGetModVersion_0x2d5938(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void _sceVu0ecossin_0x2d61b0(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void sceVpu0Reset_0x2d6b48(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void atan_0x2d6ba8(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void fabs_0x2d6fb8(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void floor_0x2d6ff0(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void atan2_0x2d7510(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void pow_0x2d7628(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void sqrt_0x2d7a58(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void ps2___ieee754_rem_pio2f_0x2dab60(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void ps2___kernel_cosf_0x2db078(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void ps2___kernel_sinf_0x2dbb20(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void sceMcInit_0x2dc7e8(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void sceMcOpen_0x2dc968(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void sceMcMkdir_0x2dca50(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
@@ -228,7 +219,6 @@ void sceCdStPause_0x2e0628(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtim
 void sceCdStResume_0x2e0678(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void sceCdStStat_0x2e06d0(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void sceCdStream_0x2e0718(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
-void ps2___divdi3_0x2e1350(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void exit_0x2e1a40(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void malloc_0x2e4a50(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);
 void free_0x2e4a78(uint8_t* rdram, R5900Context* ctx, PS2Runtime* runtime);

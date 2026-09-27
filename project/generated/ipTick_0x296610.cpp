@@ -95,7 +95,7 @@ label_296640:
     // 0x296668: 0x4e1fff5  bgez        $a3, . + 4 + (-0xB << 2)
     ctx->pc = 0x296668u;
     {
-        const bool branch_taken_0x296668 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x296668 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x29666Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x296668u;

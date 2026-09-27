@@ -78,7 +78,7 @@ void IsFileInDir_0x2b37b0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x2b37ec: 0x18a0003e  blez        $a1, . + 4 + (0x3E << 2)
     ctx->pc = 0x2B37ECu;
     {
-        const bool branch_taken_0x2b37ec = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x2b37ec = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x2B37F0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B37ECu;

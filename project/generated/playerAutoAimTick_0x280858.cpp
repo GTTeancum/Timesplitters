@@ -105,7 +105,7 @@ void playerAutoAimTick_0x280858(uint8_t* rdram, R5900Context* ctx, PS2Runtime *r
     // 0x2808ac: 0x184000a1  blez        $v0, . + 4 + (0xA1 << 2)
     ctx->pc = 0x2808ACu;
     {
-        const bool branch_taken_0x2808ac = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2808ac = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2808B0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2808ACu;

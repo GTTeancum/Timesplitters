@@ -57,7 +57,7 @@ void textReset_0x2020b0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) 
     // 0x2020c4: 0x1920001a  blez        $t1, . + 4 + (0x1A << 2)
     ctx->pc = 0x2020C4u;
     {
-        const bool branch_taken_0x2020c4 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2020c4 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2020C8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2020C4u;
@@ -201,7 +201,7 @@ label_202154:
     // 0x202154: 0x1940000f  blez        $t2, . + 4 + (0xF << 2)
     ctx->pc = 0x202154u;
     {
-        const bool branch_taken_0x202154 = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x202154 = (GPR_S64(ctx, 10) <= 0);
         if (branch_taken_0x202154) {
             ctx->pc = 0x202194u;
             goto label_202194;
@@ -268,7 +268,7 @@ label_202194:
     // 0x202194: 0x1960000f  blez        $t3, . + 4 + (0xF << 2)
     ctx->pc = 0x202194u;
     {
-        const bool branch_taken_0x202194 = (GPR_S32(ctx, 11) <= 0);
+        const bool branch_taken_0x202194 = (GPR_S64(ctx, 11) <= 0);
         ctx->pc = 0x202198u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x202194u;
@@ -341,7 +341,7 @@ label_2021d4:
     // 0x2021d4: 0x1980000f  blez        $t4, . + 4 + (0xF << 2)
     ctx->pc = 0x2021D4u;
     {
-        const bool branch_taken_0x2021d4 = (GPR_S32(ctx, 12) <= 0);
+        const bool branch_taken_0x2021d4 = (GPR_S64(ctx, 12) <= 0);
         ctx->pc = 0x2021D8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2021D4u;
@@ -414,7 +414,7 @@ label_202214:
     // 0x202214: 0x19a0000f  blez        $t5, . + 4 + (0xF << 2)
     ctx->pc = 0x202214u;
     {
-        const bool branch_taken_0x202214 = (GPR_S32(ctx, 13) <= 0);
+        const bool branch_taken_0x202214 = (GPR_S64(ctx, 13) <= 0);
         ctx->pc = 0x202218u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x202214u;

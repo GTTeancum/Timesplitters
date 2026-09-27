@@ -35,7 +35,7 @@ void campingPad_0x2cd8c0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime)
     // 0x2cd8c8: 0x19600026  blez        $t3, . + 4 + (0x26 << 2)
     ctx->pc = 0x2CD8C8u;
     {
-        const bool branch_taken_0x2cd8c8 = (GPR_S32(ctx, 11) <= 0);
+        const bool branch_taken_0x2cd8c8 = (GPR_S64(ctx, 11) <= 0);
         ctx->pc = 0x2CD8CCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CD8C8u;
@@ -98,7 +98,7 @@ label_2cd8d8:
     // 0x2cd900: 0x18400014  blez        $v0, . + 4 + (0x14 << 2)
     ctx->pc = 0x2CD900u;
     {
-        const bool branch_taken_0x2cd900 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2cd900 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2CD904u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CD900u;

@@ -40,7 +40,7 @@ void nullOverridePointers_0x274400(uint8_t* rdram, R5900Context* ctx, PS2Runtime
     // 0x274410: 0x18400012  blez        $v0, . + 4 + (0x12 << 2)
     ctx->pc = 0x274410u;
     {
-        const bool branch_taken_0x274410 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x274410 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x274414u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x274410u;

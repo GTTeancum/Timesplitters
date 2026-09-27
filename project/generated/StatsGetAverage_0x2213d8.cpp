@@ -59,7 +59,7 @@ void StatsGetAverage_0x2213d8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x221400: 0x1a20000c  blez        $s1, . + 4 + (0xC << 2)
     ctx->pc = 0x221400u;
     {
-        const bool branch_taken_0x221400 = (GPR_S32(ctx, 17) <= 0);
+        const bool branch_taken_0x221400 = (GPR_S64(ctx, 17) <= 0);
         ctx->pc = 0x221404u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x221400u;

@@ -131,7 +131,7 @@ void hudRadarGfx_0x2b2258(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x2b22d0: 0x1840004f  blez        $v0, . + 4 + (0x4F << 2)
     ctx->pc = 0x2B22D0u;
     {
-        const bool branch_taken_0x2b22d0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2b22d0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2B22D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B22D0u;
@@ -532,7 +532,7 @@ label_2b2430:
     // 0x2b2434: 0x18a0003d  blez        $a1, . + 4 + (0x3D << 2)
     ctx->pc = 0x2B2434u;
     {
-        const bool branch_taken_0x2b2434 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x2b2434 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x2B2438u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B2434u;
@@ -1437,7 +1437,7 @@ label_2b27fc:
     // 0x2b27fc: 0x1aa0003d  blez        $s5, . + 4 + (0x3D << 2)
     ctx->pc = 0x2B27FCu;
     {
-        const bool branch_taken_0x2b27fc = (GPR_S32(ctx, 21) <= 0);
+        const bool branch_taken_0x2b27fc = (GPR_S64(ctx, 21) <= 0);
         ctx->pc = 0x2B2800u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B27FCu;

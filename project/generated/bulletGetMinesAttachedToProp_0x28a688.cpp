@@ -229,7 +229,7 @@ label_28a718:
     // 0x28a71c: 0x523ffe4  bgezl       $t1, . + 4 + (-0x1C << 2)
     ctx->pc = 0x28A71Cu;
     {
-        const bool branch_taken_0x28a71c = (GPR_S32(ctx, 9) >= 0);
+        const bool branch_taken_0x28a71c = (GPR_S64(ctx, 9) >= 0);
         if (branch_taken_0x28a71c) {
             ctx->pc = 0x28A720u;
             ctx->in_delay_slot = true;

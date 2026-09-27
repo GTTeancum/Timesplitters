@@ -59,7 +59,7 @@ void teamGetScore_0x289078(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x2890a0: 0x18400027  blez        $v0, . + 4 + (0x27 << 2)
     ctx->pc = 0x2890A0u;
     {
-        const bool branch_taken_0x2890a0 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2890a0 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2890A4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2890A0u;

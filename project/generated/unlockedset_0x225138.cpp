@@ -50,7 +50,7 @@ void unlockedset_0x225138(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x225154: 0x1840000d  blez        $v0, . + 4 + (0xD << 2)
     ctx->pc = 0x225154u;
     {
-        const bool branch_taken_0x225154 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x225154 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x225158u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x225154u;

@@ -26,7 +26,7 @@ void bossIsNextParm_0x200140(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x200144: 0x18a0000c  blez        $a1, . + 4 + (0xC << 2)
     ctx->pc = 0x200144u;
     {
-        const bool branch_taken_0x200144 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x200144 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x200148u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x200144u;

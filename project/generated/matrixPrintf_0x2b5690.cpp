@@ -58,7 +58,7 @@ label_2b56a0:
     // 0x2b56b4: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2B56B4u;
     {
-        const bool branch_taken_0x2b56b4 = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x2b56b4 = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x2b56b4) {
             ctx->pc = 0x2B56A0u;
             if (runtime->eeCheckpointDue()) {

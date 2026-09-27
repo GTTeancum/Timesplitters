@@ -69,7 +69,7 @@ label_21a5bc:
     // 0x21a5c0: 0x6010003  bgez        $s0, . + 4 + (0x3 << 2)
     ctx->pc = 0x21A5C0u;
     {
-        const bool branch_taken_0x21a5c0 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x21a5c0 = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x21A5C4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21A5C0u;

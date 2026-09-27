@@ -536,7 +536,7 @@ label_2ec540:
     // 0x2ec540: 0x5a800006  blezl       $s4, . + 4 + (0x6 << 2)
     ctx->pc = 0x2EC540u;
     {
-        const bool branch_taken_0x2ec540 = (GPR_S32(ctx, 20) <= 0);
+        const bool branch_taken_0x2ec540 = (GPR_S64(ctx, 20) <= 0);
         if (branch_taken_0x2ec540) {
             ctx->pc = 0x2EC544u;
             ctx->in_delay_slot = true;

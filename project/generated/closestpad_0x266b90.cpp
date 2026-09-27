@@ -89,7 +89,7 @@ label_266bc0:
     // 0x266bc4: 0x18c00021  blez        $a2, . + 4 + (0x21 << 2)
     ctx->pc = 0x266BC4u;
     {
-        const bool branch_taken_0x266bc4 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x266bc4 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x266BC8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x266BC4u;

@@ -143,7 +143,7 @@ label_271558:
     // 0x271558: 0x1a400024  blez        $s2, . + 4 + (0x24 << 2)
     ctx->pc = 0x271558u;
     {
-        const bool branch_taken_0x271558 = (GPR_S32(ctx, 18) <= 0);
+        const bool branch_taken_0x271558 = (GPR_S64(ctx, 18) <= 0);
         ctx->pc = 0x27155Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x271558u;

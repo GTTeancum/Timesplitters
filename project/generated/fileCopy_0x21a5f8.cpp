@@ -98,7 +98,7 @@ label_21a634:
     // 0x21a634: 0x1a00000e  blez        $s0, . + 4 + (0xE << 2)
     ctx->pc = 0x21A634u;
     {
-        const bool branch_taken_0x21a634 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x21a634 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x21A638u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21A634u;

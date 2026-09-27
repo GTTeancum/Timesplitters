@@ -74,7 +74,7 @@ void disconnect_0x2892d0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime)
     // 0x289304: 0x4800010  bltz        $a0, . + 4 + (0x10 << 2)
     ctx->pc = 0x289304u;
     {
-        const bool branch_taken_0x289304 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x289304 = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x289308u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x289304u;
@@ -135,7 +135,7 @@ label_289334:
     // 0x289338: 0x4a1fffb  bgez        $a1, . + 4 + (-0x5 << 2)
     ctx->pc = 0x289338u;
     {
-        const bool branch_taken_0x289338 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x289338 = (GPR_S64(ctx, 5) >= 0);
         ctx->pc = 0x28933Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x289338u;
@@ -402,7 +402,7 @@ label_289408:
     // 0x289408: 0x6400008  bltz        $s2, . + 4 + (0x8 << 2)
     ctx->pc = 0x289408u;
     {
-        const bool branch_taken_0x289408 = (GPR_S32(ctx, 18) < 0);
+        const bool branch_taken_0x289408 = (GPR_S64(ctx, 18) < 0);
         ctx->pc = 0x28940Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x289408u;
@@ -463,7 +463,7 @@ label_28943c:
     // 0x28943c: 0x6200008  bltz        $s1, . + 4 + (0x8 << 2)
     ctx->pc = 0x28943Cu;
     {
-        const bool branch_taken_0x28943c = (GPR_S32(ctx, 17) < 0);
+        const bool branch_taken_0x28943c = (GPR_S64(ctx, 17) < 0);
         ctx->pc = 0x289440u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28943Cu;

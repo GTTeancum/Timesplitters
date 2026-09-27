@@ -86,7 +86,7 @@ label_230160:
     // 0x230174: 0x460000a  bltz        $v1, . + 4 + (0xA << 2)
     ctx->pc = 0x230174u;
     {
-        const bool branch_taken_0x230174 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x230174 = (GPR_S64(ctx, 3) < 0);
         ctx->pc = 0x230178u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x230174u;

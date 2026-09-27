@@ -285,7 +285,7 @@ label_2ed34c:
     }
     ctx->pc = 0x2ED348u;
     {
-        const bool branch_taken_0x2ed348 = (GPR_S32(ctx, 3) > 0);
+        const bool branch_taken_0x2ed348 = (GPR_S64(ctx, 3) > 0);
         if (branch_taken_0x2ed348) {
             ctx->pc = 0x2ED364u;
             goto label_2ed364;

@@ -139,7 +139,7 @@ label_24efa4:
     // 0x24efa4: 0x18400007  blez        $v0, . + 4 + (0x7 << 2)
     ctx->pc = 0x24EFA4u;
     {
-        const bool branch_taken_0x24efa4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x24efa4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x24EFA8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24EFA4u;
@@ -707,7 +707,7 @@ label_24f178:
     // 0x24f17c: 0x18400011  blez        $v0, . + 4 + (0x11 << 2)
     ctx->pc = 0x24F17Cu;
     {
-        const bool branch_taken_0x24f17c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x24f17c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x24F180u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24F17Cu;

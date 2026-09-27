@@ -34,7 +34,7 @@ void isRoomVisibleByAnyPlayer_0x253fd0(uint8_t* rdram, R5900Context* ctx, PS2Run
     // 0x253fd8: 0x18e00018  blez        $a3, . + 4 + (0x18 << 2)
     ctx->pc = 0x253FD8u;
     {
-        const bool branch_taken_0x253fd8 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x253fd8 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x253FDCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x253FD8u;
@@ -78,7 +78,7 @@ label_253fe8:
     // 0x254004: 0x462000a  bltzl       $v1, . + 4 + (0xA << 2)
     ctx->pc = 0x254004u;
     {
-        const bool branch_taken_0x254004 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x254004 = (GPR_S64(ctx, 3) < 0);
         if (branch_taken_0x254004) {
             ctx->pc = 0x254008u;
             ctx->in_delay_slot = true;

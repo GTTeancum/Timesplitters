@@ -267,7 +267,7 @@ label_28d394:
     // 0x28d394: 0x4e1ffd6  bgez        $a3, . + 4 + (-0x2A << 2)
     ctx->pc = 0x28D394u;
     {
-        const bool branch_taken_0x28d394 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x28d394 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x28D398u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x28D394u;

@@ -235,7 +235,7 @@ label_296090:
     // 0x296090: 0x663ffdb  bgezl       $s3, . + 4 + (-0x25 << 2)
     ctx->pc = 0x296090u;
     {
-        const bool branch_taken_0x296090 = (GPR_S32(ctx, 19) >= 0);
+        const bool branch_taken_0x296090 = (GPR_S64(ctx, 19) >= 0);
         if (branch_taken_0x296090) {
             ctx->pc = 0x296094u;
             ctx->in_delay_slot = true;

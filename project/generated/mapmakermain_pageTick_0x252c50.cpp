@@ -260,7 +260,7 @@ label_252cec:
     // 0x252cfc: 0x461000c  bgez        $v1, . + 4 + (0xC << 2)
     ctx->pc = 0x252CFCu;
     {
-        const bool branch_taken_0x252cfc = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x252cfc = (GPR_S64(ctx, 3) >= 0);
         ctx->pc = 0x252D00u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x252CFCu;

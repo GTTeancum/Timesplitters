@@ -912,7 +912,7 @@ label_241478:
     // 0x2414b0: 0x621fff1  bgez        $s1, . + 4 + (-0xF << 2)
     ctx->pc = 0x2414B0u;
     {
-        const bool branch_taken_0x2414b0 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x2414b0 = (GPR_S64(ctx, 17) >= 0);
         ctx->pc = 0x2414B4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2414B0u;
@@ -965,7 +965,7 @@ label_2414d0:
     // 0x2414e4: 0x621fffa  bgez        $s1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2414E4u;
     {
-        const bool branch_taken_0x2414e4 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x2414e4 = (GPR_S64(ctx, 17) >= 0);
         if (branch_taken_0x2414e4) {
             ctx->pc = 0x2414D0u;
             if (runtime->eeCheckpointDue()) {

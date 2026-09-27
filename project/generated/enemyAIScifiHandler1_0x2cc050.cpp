@@ -345,7 +345,7 @@ label_2cc100:
     // 0x2cc108: 0x1920000c  blez        $t1, . + 4 + (0xC << 2)
     ctx->pc = 0x2CC108u;
     {
-        const bool branch_taken_0x2cc108 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2cc108 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2CC10Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CC108u;

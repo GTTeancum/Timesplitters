@@ -605,7 +605,7 @@ label_280d94:
     // 0x280dac: 0x18400067  blez        $v0, . + 4 + (0x67 << 2)
     ctx->pc = 0x280DACu;
     {
-        const bool branch_taken_0x280dac = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x280dac = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x280DB0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x280DACu;
@@ -1099,7 +1099,7 @@ label_280f74:
     // 0x280f7c: 0x184000a3  blez        $v0, . + 4 + (0xA3 << 2)
     ctx->pc = 0x280F7Cu;
     {
-        const bool branch_taken_0x280f7c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x280f7c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x280F80u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x280F7Cu;

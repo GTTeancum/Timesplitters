@@ -67,7 +67,7 @@ void bglightGet_0x25a7d0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime)
     // 0x25a804: 0x19000005  blez        $t0, . + 4 + (0x5 << 2)
     ctx->pc = 0x25A804u;
     {
-        const bool branch_taken_0x25a804 = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x25a804 = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x25A808u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A804u;
@@ -144,7 +144,7 @@ label_25a81c:
     // 0x25a840: 0x440001f  bltz        $v0, . + 4 + (0x1F << 2)
     ctx->pc = 0x25A840u;
     {
-        const bool branch_taken_0x25a840 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x25a840 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x25A844u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A840u;
@@ -261,7 +261,7 @@ label_25a8c0:
     // 0x25a8c0: 0x500001e  bltz        $t0, . + 4 + (0x1E << 2)
     ctx->pc = 0x25A8C0u;
     {
-        const bool branch_taken_0x25a8c0 = (GPR_S32(ctx, 8) < 0);
+        const bool branch_taken_0x25a8c0 = (GPR_S64(ctx, 8) < 0);
         ctx->pc = 0x25A8C4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A8C0u;
@@ -409,7 +409,7 @@ label_25a93c:
     // 0x25a95c: 0x1980005d  blez        $t4, . + 4 + (0x5D << 2)
     ctx->pc = 0x25A95Cu;
     {
-        const bool branch_taken_0x25a95c = (GPR_S32(ctx, 12) <= 0);
+        const bool branch_taken_0x25a95c = (GPR_S64(ctx, 12) <= 0);
         ctx->pc = 0x25A960u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25A95Cu;

@@ -38,7 +38,7 @@ void emPrintStats_0x2b6ba0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x2b6bac: 0x1840000e  blez        $v0, . + 4 + (0xE << 2)
     ctx->pc = 0x2B6BACu;
     {
-        const bool branch_taken_0x2b6bac = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2b6bac = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2B6BB0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2B6BACu;
@@ -122,7 +122,7 @@ label_2b6be8:
     // 0x2b6bec: 0x4800009  bltz        $a0, . + 4 + (0x9 << 2)
     ctx->pc = 0x2B6BECu;
     {
-        const bool branch_taken_0x2b6bec = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2b6bec = (GPR_S64(ctx, 4) < 0);
         if (branch_taken_0x2b6bec) {
             ctx->pc = 0x2B6C14u;
             goto label_2b6c14;
@@ -151,7 +151,7 @@ label_2b6bf8:
     // 0x2b6c0c: 0x481fffa  bgez        $a0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2B6C0Cu;
     {
-        const bool branch_taken_0x2b6c0c = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x2b6c0c = (GPR_S64(ctx, 4) >= 0);
         if (branch_taken_0x2b6c0c) {
             ctx->pc = 0x2B6BF8u;
             if (runtime->eeCheckpointDue()) {

@@ -93,7 +93,7 @@ void rint_0x2dbf40(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x2dbf84: 0x501002c  bgez        $t0, . + 4 + (0x2C << 2)
     ctx->pc = 0x2DBF84u;
     {
-        const bool branch_taken_0x2dbf84 = (GPR_S32(ctx, 8) >= 0);
+        const bool branch_taken_0x2dbf84 = (GPR_S64(ctx, 8) >= 0);
         ctx->pc = 0x2DBF88u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2DBF84u;

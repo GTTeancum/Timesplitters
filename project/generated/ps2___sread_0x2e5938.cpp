@@ -73,7 +73,7 @@ label_2e5960:
     // 0x2e5968: 0x4620005  bltzl       $v1, . + 4 + (0x5 << 2)
     ctx->pc = 0x2E5968u;
     {
-        const bool branch_taken_0x2e5968 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x2e5968 = (GPR_S64(ctx, 3) < 0);
         if (branch_taken_0x2e5968) {
             ctx->pc = 0x2E596Cu;
             ctx->in_delay_slot = true;

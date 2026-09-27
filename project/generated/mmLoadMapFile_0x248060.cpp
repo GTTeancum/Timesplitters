@@ -334,7 +334,7 @@ label_24814c:
     // 0x24814c: 0x1bc0002f  blez        $fp, . + 4 + (0x2F << 2)
     ctx->pc = 0x24814Cu;
     {
-        const bool branch_taken_0x24814c = (GPR_S32(ctx, 30) <= 0);
+        const bool branch_taken_0x24814c = (GPR_S64(ctx, 30) <= 0);
         ctx->pc = 0x248150u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x24814Cu;

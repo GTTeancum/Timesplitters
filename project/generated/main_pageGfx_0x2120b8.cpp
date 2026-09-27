@@ -270,7 +270,7 @@ label_212104:
     }
     ctx->pc = 0x212100u;
     {
-        const bool branch_taken_0x212100 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x212100 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x212100) {
             ctx->pc = 0x212118u;
             goto label_212118;
@@ -558,7 +558,7 @@ label_212198:
     }
     ctx->pc = 0x212194u;
     {
-        const bool branch_taken_0x212194 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x212194 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x212194) {
             ctx->pc = 0x2121A4u;
             goto label_2121a4;

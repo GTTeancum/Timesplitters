@@ -89,7 +89,7 @@ label_2d5c7c:
     // 0x2d5c7c: 0x4430005  bgezl       $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x2D5C7Cu;
     {
-        const bool branch_taken_0x2d5c7c = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2d5c7c = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2d5c7c) {
             ctx->pc = 0x2D5C80u;
             ctx->in_delay_slot = true;

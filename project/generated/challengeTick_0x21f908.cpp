@@ -324,7 +324,7 @@ label_21f94c:
     }
     ctx->pc = 0x21F948u;
     {
-        const bool branch_taken_0x21f948 = (GPR_S32(ctx, 4) <= 0);
+        const bool branch_taken_0x21f948 = (GPR_S64(ctx, 4) <= 0);
         ctx->pc = 0x21F94Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x21F948u;

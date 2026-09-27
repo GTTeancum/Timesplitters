@@ -58,7 +58,7 @@ void roomlightTick_0x2a7d20(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x2a7d44: 0x1840009f  blez        $v0, . + 4 + (0x9F << 2)
     ctx->pc = 0x2A7D44u;
     {
-        const bool branch_taken_0x2a7d44 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2a7d44 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2A7D48u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A7D44u;
@@ -426,7 +426,7 @@ label_2a7e80:
     // 0x2a7e80: 0x4400004  bltz        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2A7E80u;
     {
-        const bool branch_taken_0x2a7e80 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2a7e80 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x2A7E84u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A7E80u;

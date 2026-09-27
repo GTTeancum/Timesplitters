@@ -583,7 +583,7 @@ label_23cb5c:
     // 0x23cb68: 0x6e10008  bgez        $s7, . + 4 + (0x8 << 2)
     ctx->pc = 0x23CB68u;
     {
-        const bool branch_taken_0x23cb68 = (GPR_S32(ctx, 23) >= 0);
+        const bool branch_taken_0x23cb68 = (GPR_S64(ctx, 23) >= 0);
         ctx->pc = 0x23CB6Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x23CB68u;

@@ -78,7 +78,7 @@ void propGfxRoom_0x26fe08(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x26fe48: 0x18600026  blez        $v1, . + 4 + (0x26 << 2)
     ctx->pc = 0x26FE48u;
     {
-        const bool branch_taken_0x26fe48 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x26fe48 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x26FE4Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26FE48u;

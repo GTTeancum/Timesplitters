@@ -80,7 +80,7 @@ label_2d08cc:
     // 0x2d08d4: 0x4c1fff6  bgez        $a2, . + 4 + (-0xA << 2)
     ctx->pc = 0x2D08D4u;
     {
-        const bool branch_taken_0x2d08d4 = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x2d08d4 = (GPR_S64(ctx, 6) >= 0);
         ctx->pc = 0x2D08D8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2D08D4u;

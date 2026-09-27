@@ -34,7 +34,7 @@ void propGetNewExtref_0x2692f0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x2692f8: 0x1900000e  blez        $t0, . + 4 + (0xE << 2)
     ctx->pc = 0x2692F8u;
     {
-        const bool branch_taken_0x2692f8 = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x2692f8 = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x2692FCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2692F8u;

@@ -142,7 +142,7 @@ label_25ef18:
     // 0x25ef28: 0x440000e  bltz        $v0, . + 4 + (0xE << 2)
     ctx->pc = 0x25EF28u;
     {
-        const bool branch_taken_0x25ef28 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x25ef28 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x25EF2Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25EF28u;
@@ -186,7 +186,7 @@ label_25ef40:
     // 0x25ef54: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x25EF54u;
     {
-        const bool branch_taken_0x25ef54 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x25ef54 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x25ef54) {
             ctx->pc = 0x25EF40u;
             if (runtime->eeCheckpointDue()) {
@@ -263,7 +263,7 @@ label_25ef8c:
     // 0x25ef90: 0x1a20010c  blez        $s1, . + 4 + (0x10C << 2)
     ctx->pc = 0x25EF90u;
     {
-        const bool branch_taken_0x25ef90 = (GPR_S32(ctx, 17) <= 0);
+        const bool branch_taken_0x25ef90 = (GPR_S64(ctx, 17) <= 0);
         ctx->pc = 0x25EF94u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25EF90u;
@@ -706,7 +706,7 @@ label_25f184:
     // 0x25f188: 0x1a20008e  blez        $s1, . + 4 + (0x8E << 2)
     ctx->pc = 0x25F188u;
     {
-        const bool branch_taken_0x25f188 = (GPR_S32(ctx, 17) <= 0);
+        const bool branch_taken_0x25f188 = (GPR_S64(ctx, 17) <= 0);
         ctx->pc = 0x25F18Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25F188u;

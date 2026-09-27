@@ -80,7 +80,7 @@ label_22a3c0:
     // 0x22a3c0: 0x603fffb  bgezl       $s0, . + 4 + (-0x5 << 2)
     ctx->pc = 0x22A3C0u;
     {
-        const bool branch_taken_0x22a3c0 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x22a3c0 = (GPR_S64(ctx, 16) >= 0);
         if (branch_taken_0x22a3c0) {
             ctx->pc = 0x22A3C4u;
             ctx->in_delay_slot = true;
@@ -175,7 +175,7 @@ label_22a408:
     // 0x22a408: 0x623fffb  bgezl       $s1, . + 4 + (-0x5 << 2)
     ctx->pc = 0x22A408u;
     {
-        const bool branch_taken_0x22a408 = (GPR_S32(ctx, 17) >= 0);
+        const bool branch_taken_0x22a408 = (GPR_S64(ctx, 17) >= 0);
         if (branch_taken_0x22a408) {
             ctx->pc = 0x22A40Cu;
             ctx->in_delay_slot = true;

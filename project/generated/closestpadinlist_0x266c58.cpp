@@ -65,7 +65,7 @@ void closestpadinlist_0x266c58(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x266c88: 0x18a00027  blez        $a1, . + 4 + (0x27 << 2)
     ctx->pc = 0x266C88u;
     {
-        const bool branch_taken_0x266c88 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x266c88 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x266C8Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x266C88u;

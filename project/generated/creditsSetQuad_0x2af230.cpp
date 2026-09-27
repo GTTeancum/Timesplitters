@@ -212,7 +212,7 @@ label_2af304:
     // 0x2af304: 0x442000a  bltzl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x2AF304u;
     {
-        const bool branch_taken_0x2af304 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2af304 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2af304) {
             ctx->pc = 0x2AF308u;
             ctx->in_delay_slot = true;

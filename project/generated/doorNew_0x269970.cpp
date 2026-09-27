@@ -171,7 +171,7 @@ label_2699ec:
     // 0x269a08: 0x6400006  bltz        $s2, . + 4 + (0x6 << 2)
     ctx->pc = 0x269A08u;
     {
-        const bool branch_taken_0x269a08 = (GPR_S32(ctx, 18) < 0);
+        const bool branch_taken_0x269a08 = (GPR_S64(ctx, 18) < 0);
         ctx->pc = 0x269A0Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x269A08u;

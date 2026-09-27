@@ -32,7 +32,7 @@ void bgPortalCalcInit_0x257680(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x257684: 0x19600017  blez        $t3, . + 4 + (0x17 << 2)
     ctx->pc = 0x257684u;
     {
-        const bool branch_taken_0x257684 = (GPR_S32(ctx, 11) <= 0);
+        const bool branch_taken_0x257684 = (GPR_S64(ctx, 11) <= 0);
         ctx->pc = 0x257688u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x257684u;
@@ -149,7 +149,7 @@ label_2576f0:
     // 0x2576f0: 0x19800019  blez        $t4, . + 4 + (0x19 << 2)
     ctx->pc = 0x2576F0u;
     {
-        const bool branch_taken_0x2576f0 = (GPR_S32(ctx, 12) <= 0);
+        const bool branch_taken_0x2576f0 = (GPR_S64(ctx, 12) <= 0);
         ctx->pc = 0x2576F4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2576F0u;

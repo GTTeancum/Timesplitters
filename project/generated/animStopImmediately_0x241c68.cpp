@@ -47,7 +47,7 @@ void animStopImmediately_0x241c68(uint8_t* rdram, R5900Context* ctx, PS2Runtime 
     // 0x241c80: 0x18c0001c  blez        $a2, . + 4 + (0x1C << 2)
     ctx->pc = 0x241C80u;
     {
-        const bool branch_taken_0x241c80 = (GPR_S32(ctx, 6) <= 0);
+        const bool branch_taken_0x241c80 = (GPR_S64(ctx, 6) <= 0);
         ctx->pc = 0x241C84u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x241C80u;

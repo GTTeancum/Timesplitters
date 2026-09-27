@@ -205,7 +205,7 @@ label_298080:
     // 0x298080: 0x4400005  bltz        $v0, . + 4 + (0x5 << 2)
     ctx->pc = 0x298080u;
     {
-        const bool branch_taken_0x298080 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x298080 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x298084u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x298080u;

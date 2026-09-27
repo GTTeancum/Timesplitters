@@ -37,7 +37,7 @@ void frontGetBox_0x22c470(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x22c47c: 0x18e0000a  blez        $a3, . + 4 + (0xA << 2)
     ctx->pc = 0x22C47Cu;
     {
-        const bool branch_taken_0x22c47c = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x22c47c = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x22C480u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x22C47Cu;

@@ -151,7 +151,7 @@ void particleGunSparkGroupGfx_0x29c810(uint8_t* rdram, R5900Context* ctx, PS2Run
     // 0x29c8b0: 0x1860015f  blez        $v1, . + 4 + (0x15F << 2)
     ctx->pc = 0x29C8B0u;
     {
-        const bool branch_taken_0x29c8b0 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x29c8b0 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x29C8B4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x29C8B0u;

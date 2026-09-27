@@ -123,7 +123,7 @@ label_2d2c98:
     // 0x2d2ce0: 0x4800006  bltz        $a0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2D2CE0u;
     {
-        const bool branch_taken_0x2d2ce0 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2d2ce0 = (GPR_S64(ctx, 4) < 0);
         if (branch_taken_0x2d2ce0) {
             ctx->pc = 0x2D2CFCu;
             goto label_2d2cfc;

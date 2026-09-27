@@ -663,7 +663,7 @@ label_2eb7d4:
     }
     ctx->pc = 0x2EB7D0u;
     {
-        const bool branch_taken_0x2eb7d0 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2eb7d0 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2EB7D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2EB7D0u;
@@ -1308,7 +1308,7 @@ label_2eb8f4:
     }
     ctx->pc = 0x2EB8F0u;
     {
-        const bool branch_taken_0x2eb8f0 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2eb8f0 = (GPR_S64(ctx, 16) <= 0);
         if (branch_taken_0x2eb8f0) {
             ctx->pc = 0x2EB8F4u;
             ctx->in_delay_slot = true;
@@ -1971,7 +1971,7 @@ label_2eba34:
     }
     ctx->pc = 0x2EBA30u;
     {
-        const bool branch_taken_0x2eba30 = (GPR_S32(ctx, 16) <= 0);
+        const bool branch_taken_0x2eba30 = (GPR_S64(ctx, 16) <= 0);
         ctx->pc = 0x2EBA34u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2EBA30u;

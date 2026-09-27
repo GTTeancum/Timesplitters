@@ -53,7 +53,7 @@ void bgGetRoomsTick_0x256c58(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x256c70: 0x184000c5  blez        $v0, . + 4 + (0xC5 << 2)
     ctx->pc = 0x256C70u;
     {
-        const bool branch_taken_0x256c70 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x256c70 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x256C74u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256C70u;
@@ -126,7 +126,7 @@ label_256cb4:
     // 0x256cb4: 0x4600010  bltz        $v1, . + 4 + (0x10 << 2)
     ctx->pc = 0x256CB4u;
     {
-        const bool branch_taken_0x256cb4 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x256cb4 = (GPR_S64(ctx, 3) < 0);
         ctx->pc = 0x256CB8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256CB4u;
@@ -372,7 +372,7 @@ label_256d94:
     // 0x256d9c: 0x5000033  bltz        $t0, . + 4 + (0x33 << 2)
     ctx->pc = 0x256D9Cu;
     {
-        const bool branch_taken_0x256d9c = (GPR_S32(ctx, 8) < 0);
+        const bool branch_taken_0x256d9c = (GPR_S64(ctx, 8) < 0);
         ctx->pc = 0x256DA0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256D9Cu;
@@ -401,7 +401,7 @@ label_256da8:
     // 0x256db4: 0x19600029  blez        $t3, . + 4 + (0x29 << 2)
     ctx->pc = 0x256DB4u;
     {
-        const bool branch_taken_0x256db4 = (GPR_S32(ctx, 11) <= 0);
+        const bool branch_taken_0x256db4 = (GPR_S64(ctx, 11) <= 0);
         ctx->pc = 0x256DB8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256DB4u;
@@ -469,7 +469,7 @@ label_256dd0:
     // 0x256e00: 0x4620011  bltzl       $v1, . + 4 + (0x11 << 2)
     ctx->pc = 0x256E00u;
     {
-        const bool branch_taken_0x256e00 = (GPR_S32(ctx, 3) < 0);
+        const bool branch_taken_0x256e00 = (GPR_S64(ctx, 3) < 0);
         if (branch_taken_0x256e00) {
             ctx->pc = 0x256E04u;
             ctx->in_delay_slot = true;
@@ -601,7 +601,7 @@ label_256e64:
     // 0x256e64: 0x501ffd0  bgez        $t0, . + 4 + (-0x30 << 2)
     ctx->pc = 0x256E64u;
     {
-        const bool branch_taken_0x256e64 = (GPR_S32(ctx, 8) >= 0);
+        const bool branch_taken_0x256e64 = (GPR_S64(ctx, 8) >= 0);
         ctx->pc = 0x256E68u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256E64u;
@@ -686,7 +686,7 @@ label_256ea4:
     // 0x256ea8: 0x19a00032  blez        $t5, . + 4 + (0x32 << 2)
     ctx->pc = 0x256EA8u;
     {
-        const bool branch_taken_0x256ea8 = (GPR_S32(ctx, 13) <= 0);
+        const bool branch_taken_0x256ea8 = (GPR_S64(ctx, 13) <= 0);
         ctx->pc = 0x256EACu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256EA8u;
@@ -718,7 +718,7 @@ label_256eb8:
     // 0x256ec4: 0x18400018  blez        $v0, . + 4 + (0x18 << 2)
     ctx->pc = 0x256EC4u;
     {
-        const bool branch_taken_0x256ec4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x256ec4 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x256EC8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x256EC4u;

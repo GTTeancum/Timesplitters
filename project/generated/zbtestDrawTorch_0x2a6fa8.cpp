@@ -26,7 +26,7 @@ void zbtestDrawTorch_0x2a6fa8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x2a6fac: 0x5010014  bgez        $t0, . + 4 + (0x14 << 2)
     ctx->pc = 0x2A6FACu;
     {
-        const bool branch_taken_0x2a6fac = (GPR_S32(ctx, 8) >= 0);
+        const bool branch_taken_0x2a6fac = (GPR_S64(ctx, 8) >= 0);
         ctx->pc = 0x2A6FB0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A6FACu;

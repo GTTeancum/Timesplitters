@@ -80,7 +80,7 @@ void blastspawnPropTick_0x27bcb8(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x27bcfc: 0x1860000f  blez        $v1, . + 4 + (0xF << 2)
     ctx->pc = 0x27BCFCu;
     {
-        const bool branch_taken_0x27bcfc = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x27bcfc = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x27BD00u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27BCFCu;

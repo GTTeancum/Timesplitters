@@ -686,7 +686,7 @@ label_273970:
     // 0x273988: 0x481fff9  bgez        $a0, . + 4 + (-0x7 << 2)
     ctx->pc = 0x273988u;
     {
-        const bool branch_taken_0x273988 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x273988 = (GPR_S64(ctx, 4) >= 0);
         ctx->pc = 0x27398Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x273988u;

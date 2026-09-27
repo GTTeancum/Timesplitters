@@ -116,7 +116,7 @@ label_2e683c:
     // 0x2e6840: 0x6000006  bltz        $s0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2E6840u;
     {
-        const bool branch_taken_0x2e6840 = (GPR_S32(ctx, 16) < 0);
+        const bool branch_taken_0x2e6840 = (GPR_S64(ctx, 16) < 0);
         ctx->pc = 0x2E6844u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2E6840u;

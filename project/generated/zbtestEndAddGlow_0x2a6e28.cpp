@@ -60,7 +60,7 @@ void zbtestEndAddGlow_0x2a6e28(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x2a6e4c: 0x18400002  blez        $v0, . + 4 + (0x2 << 2)
     ctx->pc = 0x2A6E4Cu;
     {
-        const bool branch_taken_0x2a6e4c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2a6e4c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2A6E50u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A6E4Cu;

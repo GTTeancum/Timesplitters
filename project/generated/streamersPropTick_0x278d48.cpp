@@ -169,7 +169,7 @@ label_278da4:
     // 0x278ddc: 0x19400041  blez        $t2, . + 4 + (0x41 << 2)
     ctx->pc = 0x278DDCu;
     {
-        const bool branch_taken_0x278ddc = (GPR_S32(ctx, 10) <= 0);
+        const bool branch_taken_0x278ddc = (GPR_S64(ctx, 10) <= 0);
         ctx->pc = 0x278DE0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x278DDCu;

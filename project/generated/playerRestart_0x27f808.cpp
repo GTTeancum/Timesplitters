@@ -81,7 +81,7 @@ void playerRestart_0x27f808(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runti
     // 0x27f834: 0x184001c5  blez        $v0, . + 4 + (0x1C5 << 2)
     ctx->pc = 0x27F834u;
     {
-        const bool branch_taken_0x27f834 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x27f834 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x27F838u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27F834u;
@@ -658,7 +658,7 @@ label_27fa64:
     // 0x27fa64: 0x440000f  bltz        $v0, . + 4 + (0xF << 2)
     ctx->pc = 0x27FA64u;
     {
-        const bool branch_taken_0x27fa64 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x27fa64 = (GPR_S64(ctx, 2) < 0);
         ctx->pc = 0x27FA68u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27FA64u;
@@ -774,7 +774,7 @@ label_27fac0:
     // 0x27fad4: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x27FAD4u;
     {
-        const bool branch_taken_0x27fad4 = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x27fad4 = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x27fad4) {
             ctx->pc = 0x27FAC0u;
             if (runtime->eeCheckpointDue()) {
@@ -1855,7 +1855,7 @@ label_27feb8:
     // 0x27fecc: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x27FECCu;
     {
-        const bool branch_taken_0x27fecc = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x27fecc = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x27fecc) {
             ctx->pc = 0x27FEB8u;
             if (runtime->eeCheckpointDue()) {

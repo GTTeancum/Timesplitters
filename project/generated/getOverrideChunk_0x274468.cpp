@@ -128,7 +128,7 @@ label_274498:
     // 0x2744b0: 0x442000d  bltzl       $v0, . + 4 + (0xD << 2)
     ctx->pc = 0x2744B0u;
     {
-        const bool branch_taken_0x2744b0 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2744b0 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2744b0) {
             ctx->pc = 0x2744B4u;
             ctx->in_delay_slot = true;
@@ -147,7 +147,7 @@ label_274498:
     // 0x2744bc: 0x442000a  bltzl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x2744BCu;
     {
-        const bool branch_taken_0x2744bc = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2744bc = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2744bc) {
             ctx->pc = 0x2744C0u;
             ctx->in_delay_slot = true;
@@ -182,7 +182,7 @@ label_2744c8:
     // 0x2744dc: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2744DCu;
     {
-        const bool branch_taken_0x2744dc = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2744dc = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2744dc) {
             ctx->pc = 0x2744C8u;
             if (runtime->eeCheckpointDue()) {
@@ -441,7 +441,7 @@ label_274570:
     // 0x274588: 0x442000d  bltzl       $v0, . + 4 + (0xD << 2)
     ctx->pc = 0x274588u;
     {
-        const bool branch_taken_0x274588 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x274588 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x274588) {
             ctx->pc = 0x27458Cu;
             ctx->in_delay_slot = true;
@@ -460,7 +460,7 @@ label_274570:
     // 0x274594: 0x442000a  bltzl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x274594u;
     {
-        const bool branch_taken_0x274594 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x274594 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x274594) {
             ctx->pc = 0x274598u;
             ctx->in_delay_slot = true;
@@ -495,7 +495,7 @@ label_2745a0:
     // 0x2745b4: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2745B4u;
     {
-        const bool branch_taken_0x2745b4 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2745b4 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2745b4) {
             ctx->pc = 0x2745A0u;
             if (runtime->eeCheckpointDue()) {

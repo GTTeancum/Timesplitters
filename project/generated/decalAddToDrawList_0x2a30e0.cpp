@@ -114,7 +114,7 @@ label_2a3124:
     // 0x2a3144: 0x18a0001d  blez        $a1, . + 4 + (0x1D << 2)
     ctx->pc = 0x2A3144u;
     {
-        const bool branch_taken_0x2a3144 = (GPR_S32(ctx, 5) <= 0);
+        const bool branch_taken_0x2a3144 = (GPR_S64(ctx, 5) <= 0);
         ctx->pc = 0x2A3148u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A3144u;

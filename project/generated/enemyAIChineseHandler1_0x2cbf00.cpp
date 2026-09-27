@@ -63,7 +63,7 @@ void enemyAIChineseHandler1_0x2cbf00(uint8_t* rdram, R5900Context* ctx, PS2Runti
     // 0x2cbf1c: 0x1920000b  blez        $t1, . + 4 + (0xB << 2)
     ctx->pc = 0x2CBF1Cu;
     {
-        const bool branch_taken_0x2cbf1c = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2cbf1c = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2CBF20u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CBF1Cu;

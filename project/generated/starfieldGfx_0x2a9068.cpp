@@ -1001,7 +1001,7 @@ label_2a9488:
     // 0x2a949c: 0x601ffd4  bgez        $s0, . + 4 + (-0x2C << 2)
     ctx->pc = 0x2A949Cu;
     {
-        const bool branch_taken_0x2a949c = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2a949c = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x2A94A0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A949Cu;

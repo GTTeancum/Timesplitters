@@ -62,7 +62,7 @@ void enemyAITombHandler1_0x2cbe50(uint8_t* rdram, R5900Context* ctx, PS2Runtime 
     // 0x2cbe68: 0x1920000c  blez        $t1, . + 4 + (0xC << 2)
     ctx->pc = 0x2CBE68u;
     {
-        const bool branch_taken_0x2cbe68 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2cbe68 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2CBE6Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CBE68u;

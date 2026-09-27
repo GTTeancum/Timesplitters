@@ -133,7 +133,7 @@ label_2ed140:
     // 0x2ed154: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2ED154u;
     {
-        const bool branch_taken_0x2ed154 = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x2ed154 = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x2ed154) {
             ctx->pc = 0x2ED140u;
             if (runtime->eeCheckpointDue()) {

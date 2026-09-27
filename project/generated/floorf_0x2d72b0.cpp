@@ -62,7 +62,7 @@ void floorf_0x2d72b0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x2d72d0: 0x4a30012  bgezl       $a1, . + 4 + (0x12 << 2)
     ctx->pc = 0x2D72D0u;
     {
-        const bool branch_taken_0x2d72d0 = (GPR_S32(ctx, 5) >= 0);
+        const bool branch_taken_0x2d72d0 = (GPR_S64(ctx, 5) >= 0);
         if (branch_taken_0x2d72d0) {
             ctx->pc = 0x2D72D4u;
             ctx->in_delay_slot = true;
@@ -106,7 +106,7 @@ void floorf_0x2d72b0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x2d72f8: 0x4800003  bltz        $a0, . + 4 + (0x3 << 2)
     ctx->pc = 0x2D72F8u;
     {
-        const bool branch_taken_0x2d72f8 = (GPR_S32(ctx, 4) < 0);
+        const bool branch_taken_0x2d72f8 = (GPR_S64(ctx, 4) < 0);
         ctx->pc = 0x2D72FCu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2D72F8u;
@@ -234,7 +234,7 @@ label_2d7338:
     // 0x2d7358: 0x4810005  bgez        $a0, . + 4 + (0x5 << 2)
     ctx->pc = 0x2D7358u;
     {
-        const bool branch_taken_0x2d7358 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x2d7358 = (GPR_S64(ctx, 4) >= 0);
         ctx->pc = 0x2D735Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2D7358u;

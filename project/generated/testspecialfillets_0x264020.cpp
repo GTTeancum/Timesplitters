@@ -34,7 +34,7 @@ void testspecialfillets_0x264020(uint8_t* rdram, R5900Context* ctx, PS2Runtime *
     // 0x264028: 0x18400008  blez        $v0, . + 4 + (0x8 << 2)
     ctx->pc = 0x264028u;
     {
-        const bool branch_taken_0x264028 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x264028 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x264028) {
             ctx->pc = 0x26404Cu;
             goto label_26404c;

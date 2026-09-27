@@ -183,7 +183,7 @@ label_27ca94:
     // 0x27cab0: 0x1a600017  blez        $s3, . + 4 + (0x17 << 2)
     ctx->pc = 0x27CAB0u;
     {
-        const bool branch_taken_0x27cab0 = (GPR_S32(ctx, 19) <= 0);
+        const bool branch_taken_0x27cab0 = (GPR_S64(ctx, 19) <= 0);
         ctx->pc = 0x27CAB4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27CAB0u;

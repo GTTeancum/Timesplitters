@@ -26,7 +26,7 @@ void enemyPlayActivationSound_0x2cb5b8(uint8_t* rdram, R5900Context* ctx, PS2Run
     // 0x2cb5bc: 0x1840001f  blez        $v0, . + 4 + (0x1F << 2)
     ctx->pc = 0x2CB5BCu;
     {
-        const bool branch_taken_0x2cb5bc = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2cb5bc = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2CB5C0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2CB5BCu;

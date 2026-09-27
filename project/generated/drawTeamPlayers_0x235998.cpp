@@ -70,7 +70,7 @@ void drawTeamPlayers_0x235998(uint8_t* rdram, R5900Context* ctx, PS2Runtime *run
     // 0x2359cc: 0x18e00042  blez        $a3, . + 4 + (0x42 << 2)
     ctx->pc = 0x2359CCu;
     {
-        const bool branch_taken_0x2359cc = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x2359cc = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x2359D0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2359CCu;
@@ -172,7 +172,7 @@ label_235a04:
     // 0x235a1c: 0x6800026  bltz        $s4, . + 4 + (0x26 << 2)
     ctx->pc = 0x235A1Cu;
     {
-        const bool branch_taken_0x235a1c = (GPR_S32(ctx, 20) < 0);
+        const bool branch_taken_0x235a1c = (GPR_S64(ctx, 20) < 0);
         ctx->pc = 0x235A20u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x235A1Cu;

@@ -940,7 +940,7 @@ label_2bc870:
     // 0x2bc88c: 0x1900001a  blez        $t0, . + 4 + (0x1A << 2)
     ctx->pc = 0x2BC88Cu;
     {
-        const bool branch_taken_0x2bc88c = (GPR_S32(ctx, 8) <= 0);
+        const bool branch_taken_0x2bc88c = (GPR_S64(ctx, 8) <= 0);
         ctx->pc = 0x2BC890u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2BC88Cu;
@@ -1266,7 +1266,7 @@ label_2bc998:
     // 0x2bc998: 0x4410004  bgez        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2BC998u;
     {
-        const bool branch_taken_0x2bc998 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2bc998 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2BC99Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2BC998u;
@@ -1322,7 +1322,7 @@ label_2bc9bc:
     // 0x2bc9bc: 0x4420035  bltzl       $v0, . + 4 + (0x35 << 2)
     ctx->pc = 0x2BC9BCu;
     {
-        const bool branch_taken_0x2bc9bc = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2bc9bc = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2bc9bc) {
             ctx->pc = 0x2BC9C0u;
             ctx->in_delay_slot = true;
@@ -1381,7 +1381,7 @@ label_2bc9e4:
     // 0x2bc9e4: 0x4430006  bgezl       $v0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2BC9E4u;
     {
-        const bool branch_taken_0x2bc9e4 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2bc9e4 = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2bc9e4) {
             ctx->pc = 0x2BC9E8u;
             ctx->in_delay_slot = true;
@@ -1461,7 +1461,7 @@ label_2bca1c:
     // 0x2bca1c: 0x5840000a  blezl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x2BCA1Cu;
     {
-        const bool branch_taken_0x2bca1c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2bca1c = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x2bca1c) {
             ctx->pc = 0x2BCA20u;
             ctx->in_delay_slot = true;
@@ -1731,7 +1731,7 @@ label_2bcae8:
     // 0x2bcae8: 0x4410004  bgez        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2BCAE8u;
     {
-        const bool branch_taken_0x2bcae8 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2bcae8 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2BCAECu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2BCAE8u;
@@ -1787,7 +1787,7 @@ label_2bcb0c:
     // 0x2bcb0c: 0x1840001d  blez        $v0, . + 4 + (0x1D << 2)
     ctx->pc = 0x2BCB0Cu;
     {
-        const bool branch_taken_0x2bcb0c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2bcb0c = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2BCB10u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2BCB0Cu;
@@ -1998,7 +1998,7 @@ label_2bcbac:
     // 0x2bcbac: 0x4430006  bgezl       $v0, . + 4 + (0x6 << 2)
     ctx->pc = 0x2BCBACu;
     {
-        const bool branch_taken_0x2bcbac = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2bcbac = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x2bcbac) {
             ctx->pc = 0x2BCBB0u;
             ctx->in_delay_slot = true;
@@ -2078,7 +2078,7 @@ label_2bcbe4:
     // 0x2bcbe4: 0x5840000a  blezl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x2BCBE4u;
     {
-        const bool branch_taken_0x2bcbe4 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2bcbe4 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x2bcbe4) {
             ctx->pc = 0x2BCBE8u;
             ctx->in_delay_slot = true;
@@ -3050,7 +3050,7 @@ label_2bcf20:
     // 0x2bcf20: 0x4410004  bgez        $v0, . + 4 + (0x4 << 2)
     ctx->pc = 0x2BCF20u;
     {
-        const bool branch_taken_0x2bcf20 = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x2bcf20 = (GPR_S64(ctx, 2) >= 0);
         ctx->pc = 0x2BCF24u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2BCF20u;
@@ -3136,7 +3136,7 @@ label_2bcf60:
     // 0x2bcf60: 0x5840000a  blezl       $v0, . + 4 + (0xA << 2)
     ctx->pc = 0x2BCF60u;
     {
-        const bool branch_taken_0x2bcf60 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2bcf60 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x2bcf60) {
             ctx->pc = 0x2BCF64u;
             ctx->in_delay_slot = true;

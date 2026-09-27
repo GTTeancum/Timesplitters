@@ -31,7 +31,7 @@ void hr_findroute_0x265fc0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtim
     // 0x265fc4: 0x4c0000b  bltz        $a2, . + 4 + (0xB << 2)
     ctx->pc = 0x265FC4u;
     {
-        const bool branch_taken_0x265fc4 = (GPR_S32(ctx, 6) < 0);
+        const bool branch_taken_0x265fc4 = (GPR_S64(ctx, 6) < 0);
         ctx->pc = 0x265FC8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x265FC4u;
@@ -97,7 +97,7 @@ label_265fec:
     // 0x265fec: 0x4c1fff8  bgez        $a2, . + 4 + (-0x8 << 2)
     ctx->pc = 0x265FECu;
     {
-        const bool branch_taken_0x265fec = (GPR_S32(ctx, 6) >= 0);
+        const bool branch_taken_0x265fec = (GPR_S64(ctx, 6) >= 0);
         ctx->pc = 0x265FF0u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x265FECu;

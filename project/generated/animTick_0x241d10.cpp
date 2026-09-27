@@ -3296,7 +3296,7 @@ label_2428a0:
     // 0x2428bc: 0x463000e  bgezl       $v1, . + 4 + (0xE << 2)
     ctx->pc = 0x2428BCu;
     {
-        const bool branch_taken_0x2428bc = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x2428bc = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x2428bc) {
             ctx->pc = 0x2428C0u;
             ctx->in_delay_slot = true;

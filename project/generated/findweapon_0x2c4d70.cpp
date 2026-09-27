@@ -175,7 +175,7 @@ label_2c4dd4:
     // 0x2c4de4: 0x4400008  bltz        $v0, . + 4 + (0x8 << 2)
     ctx->pc = 0x2C4DE4u;
     {
-        const bool branch_taken_0x2c4de4 = (GPR_S32(ctx, 2) < 0);
+        const bool branch_taken_0x2c4de4 = (GPR_S64(ctx, 2) < 0);
         if (branch_taken_0x2c4de4) {
             ctx->pc = 0x2C4E08u;
             goto label_2c4e08;

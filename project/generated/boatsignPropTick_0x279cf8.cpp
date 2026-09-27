@@ -69,7 +69,7 @@ label_279d1c:
     // 0x279d20: 0x5840000f  blezl       $v0, . + 4 + (0xF << 2)
     ctx->pc = 0x279D20u;
     {
-        const bool branch_taken_0x279d20 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x279d20 = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x279d20) {
             ctx->pc = 0x279D24u;
             ctx->in_delay_slot = true;

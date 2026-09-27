@@ -226,7 +226,7 @@ label_25383c:
     // 0x253848: 0x1b00001c  blez        $t8, . + 4 + (0x1C << 2)
     ctx->pc = 0x253848u;
     {
-        const bool branch_taken_0x253848 = (GPR_S32(ctx, 24) <= 0);
+        const bool branch_taken_0x253848 = (GPR_S64(ctx, 24) <= 0);
         ctx->pc = 0x25384Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x253848u;

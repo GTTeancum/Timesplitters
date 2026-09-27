@@ -183,7 +183,7 @@ label_25fc18:
     // 0x25fc1c: 0x18600016  blez        $v1, . + 4 + (0x16 << 2)
     ctx->pc = 0x25FC1Cu;
     {
-        const bool branch_taken_0x25fc1c = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x25fc1c = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x25FC20u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x25FC1Cu;

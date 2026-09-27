@@ -124,7 +124,7 @@ label_22e2b0:
     // 0x22e2b0: 0x601fff7  bgez        $s0, . + 4 + (-0x9 << 2)
     ctx->pc = 0x22E2B0u;
     {
-        const bool branch_taken_0x22e2b0 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x22e2b0 = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x22E2B4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x22E2B0u;

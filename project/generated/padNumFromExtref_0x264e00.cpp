@@ -31,7 +31,7 @@ void padNumFromExtref_0x264e00(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x264e04: 0x18e0000e  blez        $a3, . + 4 + (0xE << 2)
     ctx->pc = 0x264E04u;
     {
-        const bool branch_taken_0x264e04 = (GPR_S32(ctx, 7) <= 0);
+        const bool branch_taken_0x264e04 = (GPR_S64(ctx, 7) <= 0);
         ctx->pc = 0x264E08u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x264E04u;

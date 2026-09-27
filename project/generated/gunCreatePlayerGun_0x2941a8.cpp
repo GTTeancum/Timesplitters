@@ -486,7 +486,7 @@ label_294340:
     // 0x294354: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x294354u;
     {
-        const bool branch_taken_0x294354 = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x294354 = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x294354) {
             ctx->pc = 0x294340u;
             if (runtime->eeCheckpointDue()) {

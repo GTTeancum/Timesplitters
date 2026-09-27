@@ -63,7 +63,7 @@ label_203150:
     // 0x203164: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x203164u;
     {
-        const bool branch_taken_0x203164 = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x203164 = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x203164) {
             ctx->pc = 0x203150u;
             if (runtime->eeCheckpointDue()) {

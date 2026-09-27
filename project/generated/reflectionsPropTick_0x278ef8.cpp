@@ -136,7 +136,7 @@ label_278f4c:
     // 0x278f60: 0x19200039  blez        $t1, . + 4 + (0x39 << 2)
     ctx->pc = 0x278F60u;
     {
-        const bool branch_taken_0x278f60 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x278f60 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x278F64u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x278F60u;

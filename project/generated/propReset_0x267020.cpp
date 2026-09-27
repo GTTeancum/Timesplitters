@@ -266,7 +266,7 @@ label_2670d8:
     // 0x2670ec: 0x481fffa  bgez        $a0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2670ECu;
     {
-        const bool branch_taken_0x2670ec = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x2670ec = (GPR_S64(ctx, 4) >= 0);
         if (branch_taken_0x2670ec) {
             ctx->pc = 0x2670D8u;
             if (runtime->eeCheckpointDue()) {
@@ -304,7 +304,7 @@ label_267100:
     // 0x267114: 0x481fffa  bgez        $a0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x267114u;
     {
-        const bool branch_taken_0x267114 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x267114 = (GPR_S64(ctx, 4) >= 0);
         if (branch_taken_0x267114) {
             ctx->pc = 0x267100u;
             if (runtime->eeCheckpointDue()) {
@@ -366,7 +366,7 @@ label_267140:
     // 0x267154: 0x481fffa  bgez        $a0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x267154u;
     {
-        const bool branch_taken_0x267154 = (GPR_S32(ctx, 4) >= 0);
+        const bool branch_taken_0x267154 = (GPR_S64(ctx, 4) >= 0);
         if (branch_taken_0x267154) {
             ctx->pc = 0x267140u;
             if (runtime->eeCheckpointDue()) {

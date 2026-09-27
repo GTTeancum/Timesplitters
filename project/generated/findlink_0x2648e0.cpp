@@ -58,7 +58,7 @@ void findlink_0x2648e0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime) {
     // 0x264908: 0x19200019  blez        $t1, . + 4 + (0x19 << 2)
     ctx->pc = 0x264908u;
     {
-        const bool branch_taken_0x264908 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x264908 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x26490Cu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x264908u;

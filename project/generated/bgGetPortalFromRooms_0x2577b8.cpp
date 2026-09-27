@@ -46,7 +46,7 @@ void bgGetPortalFromRooms_0x2577b8(uint8_t* rdram, R5900Context* ctx, PS2Runtime
     // 0x2577d0: 0x19200010  blez        $t1, . + 4 + (0x10 << 2)
     ctx->pc = 0x2577D0u;
     {
-        const bool branch_taken_0x2577d0 = (GPR_S32(ctx, 9) <= 0);
+        const bool branch_taken_0x2577d0 = (GPR_S64(ctx, 9) <= 0);
         ctx->pc = 0x2577D4u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2577D0u;

@@ -800,7 +800,7 @@ label_2c7d10:
     // 0x2c7d24: 0x681fffa  bgez        $s4, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2C7D24u;
     {
-        const bool branch_taken_0x2c7d24 = (GPR_S32(ctx, 20) >= 0);
+        const bool branch_taken_0x2c7d24 = (GPR_S64(ctx, 20) >= 0);
         if (branch_taken_0x2c7d24) {
             ctx->pc = 0x2C7D10u;
             if (runtime->eeCheckpointDue()) {

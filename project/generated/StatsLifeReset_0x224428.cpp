@@ -105,7 +105,7 @@ label_224478:
     // 0x22448c: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x22448Cu;
     {
-        const bool branch_taken_0x22448c = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x22448c = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x22448c) {
             ctx->pc = 0x224478u;
             if (runtime->eeCheckpointDue()) {
@@ -149,7 +149,7 @@ label_2244a8:
     // 0x2244bc: 0x461fffa  bgez        $v1, . + 4 + (-0x6 << 2)
     ctx->pc = 0x2244BCu;
     {
-        const bool branch_taken_0x2244bc = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x2244bc = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x2244bc) {
             ctx->pc = 0x2244A8u;
             if (runtime->eeCheckpointDue()) {

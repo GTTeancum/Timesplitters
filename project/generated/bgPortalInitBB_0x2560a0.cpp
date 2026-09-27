@@ -33,7 +33,7 @@ void bgPortalInitBB_0x2560a0(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runt
     // 0x2560a4: 0x1960004e  blez        $t3, . + 4 + (0x4E << 2)
     ctx->pc = 0x2560A4u;
     {
-        const bool branch_taken_0x2560a4 = (GPR_S32(ctx, 11) <= 0);
+        const bool branch_taken_0x2560a4 = (GPR_S64(ctx, 11) <= 0);
         ctx->pc = 0x2560A8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2560A4u;
@@ -123,7 +123,7 @@ label_2560f8:
     // 0x25610c: 0x441fffa  bgez        $v0, . + 4 + (-0x6 << 2)
     ctx->pc = 0x25610Cu;
     {
-        const bool branch_taken_0x25610c = (GPR_S32(ctx, 2) >= 0);
+        const bool branch_taken_0x25610c = (GPR_S64(ctx, 2) >= 0);
         if (branch_taken_0x25610c) {
             ctx->pc = 0x2560F8u;
             if (runtime->eeCheckpointDue()) {
@@ -142,7 +142,7 @@ label_2560f8:
     // 0x25611c: 0x5840002d  blezl       $v0, . + 4 + (0x2D << 2)
     ctx->pc = 0x25611Cu;
     {
-        const bool branch_taken_0x25611c = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x25611c = (GPR_S64(ctx, 2) <= 0);
         if (branch_taken_0x25611c) {
             ctx->pc = 0x256120u;
             ctx->in_delay_slot = true;

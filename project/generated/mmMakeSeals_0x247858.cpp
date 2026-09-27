@@ -102,7 +102,7 @@ void mmMakeSeals_0x247858(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x2478b4: 0x18600045  blez        $v1, . + 4 + (0x45 << 2)
     ctx->pc = 0x2478B4u;
     {
-        const bool branch_taken_0x2478b4 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x2478b4 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x2478B8u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2478B4u;

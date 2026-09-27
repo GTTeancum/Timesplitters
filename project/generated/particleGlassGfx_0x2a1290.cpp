@@ -97,7 +97,7 @@ void particleGlassGfx_0x2a1290(uint8_t* rdram, R5900Context* ctx, PS2Runtime *ru
     // 0x2a12e8: 0x18400160  blez        $v0, . + 4 + (0x160 << 2)
     ctx->pc = 0x2A12E8u;
     {
-        const bool branch_taken_0x2a12e8 = (GPR_S32(ctx, 2) <= 0);
+        const bool branch_taken_0x2a12e8 = (GPR_S64(ctx, 2) <= 0);
         ctx->pc = 0x2A12ECu;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A12E8u;

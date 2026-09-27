@@ -87,7 +87,7 @@ label_2a6768:
     // 0x2a6770: 0x601fff9  bgez        $s0, . + 4 + (-0x7 << 2)
     ctx->pc = 0x2A6770u;
     {
-        const bool branch_taken_0x2a6770 = (GPR_S32(ctx, 16) >= 0);
+        const bool branch_taken_0x2a6770 = (GPR_S64(ctx, 16) >= 0);
         ctx->pc = 0x2A6774u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x2A6770u;

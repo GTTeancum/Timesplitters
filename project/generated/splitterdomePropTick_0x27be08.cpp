@@ -62,7 +62,7 @@ void splitterdomePropTick_0x27be08(uint8_t* rdram, R5900Context* ctx, PS2Runtime
     // 0x27be34: 0x18600011  blez        $v1, . + 4 + (0x11 << 2)
     ctx->pc = 0x27BE34u;
     {
-        const bool branch_taken_0x27be34 = (GPR_S32(ctx, 3) <= 0);
+        const bool branch_taken_0x27be34 = (GPR_S64(ctx, 3) <= 0);
         ctx->pc = 0x27BE38u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x27BE34u;

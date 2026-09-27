@@ -436,7 +436,7 @@ label_2153c0:
     // 0x2153e8: 0x5cc00004  bgtzl       $a2, . + 4 + (0x4 << 2)
     ctx->pc = 0x2153E8u;
     {
-        const bool branch_taken_0x2153e8 = (GPR_S32(ctx, 6) > 0);
+        const bool branch_taken_0x2153e8 = (GPR_S64(ctx, 6) > 0);
         if (branch_taken_0x2153e8) {
             ctx->pc = 0x2153ECu;
             ctx->in_delay_slot = true;

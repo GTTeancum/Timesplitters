@@ -63,7 +63,7 @@ label_26fd58:
     // 0x26fd6c: 0x541fffa  bgez        $t2, . + 4 + (-0x6 << 2)
     ctx->pc = 0x26FD6Cu;
     {
-        const bool branch_taken_0x26fd6c = (GPR_S32(ctx, 10) >= 0);
+        const bool branch_taken_0x26fd6c = (GPR_S64(ctx, 10) >= 0);
         if (branch_taken_0x26fd6c) {
             ctx->pc = 0x26FD58u;
             if (runtime->eeCheckpointDue()) {
@@ -76,7 +76,7 @@ label_26fd58:
     // 0x26fd74: 0x19a00022  blez        $t5, . + 4 + (0x22 << 2)
     ctx->pc = 0x26FD74u;
     {
-        const bool branch_taken_0x26fd74 = (GPR_S32(ctx, 13) <= 0);
+        const bool branch_taken_0x26fd74 = (GPR_S64(ctx, 13) <= 0);
         ctx->pc = 0x26FD78u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x26FD74u;

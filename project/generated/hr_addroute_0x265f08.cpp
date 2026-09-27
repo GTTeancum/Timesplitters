@@ -49,7 +49,7 @@ void hr_addroute_0x265f08(uint8_t* rdram, R5900Context* ctx, PS2Runtime *runtime
     // 0x265f24: 0x4e10005  bgez        $a3, . + 4 + (0x5 << 2)
     ctx->pc = 0x265F24u;
     {
-        const bool branch_taken_0x265f24 = (GPR_S32(ctx, 7) >= 0);
+        const bool branch_taken_0x265f24 = (GPR_S64(ctx, 7) >= 0);
         ctx->pc = 0x265F28u;
         ctx->in_delay_slot = true;
         ctx->branch_pc = 0x265F24u;
@@ -152,7 +152,7 @@ label_265f70:
     // 0x265f74: 0x4e20008  bltzl       $a3, . + 4 + (0x8 << 2)
     ctx->pc = 0x265F74u;
     {
-        const bool branch_taken_0x265f74 = (GPR_S32(ctx, 7) < 0);
+        const bool branch_taken_0x265f74 = (GPR_S64(ctx, 7) < 0);
         if (branch_taken_0x265f74) {
             ctx->pc = 0x265F78u;
             ctx->in_delay_slot = true;

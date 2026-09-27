@@ -404,7 +404,7 @@ label_20e340:
     // 0x20e36c: 0x4630007  bgezl       $v1, . + 4 + (0x7 << 2)
     ctx->pc = 0x20E36Cu;
     {
-        const bool branch_taken_0x20e36c = (GPR_S32(ctx, 3) >= 0);
+        const bool branch_taken_0x20e36c = (GPR_S64(ctx, 3) >= 0);
         if (branch_taken_0x20e36c) {
             ctx->pc = 0x20E370u;
             ctx->in_delay_slot = true;

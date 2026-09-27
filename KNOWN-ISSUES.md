@@ -6,16 +6,21 @@ Reported 2026-09-26 in hands-on play (Windows Release build, OpenGL
 renderer, asynchronous VIF1): enemies do no damage to the player, and the
 player cannot damage enemies.
 
-Findings so far (`TS_TRACE_DAMAGE=1` logs every `propDamage` call with the
-target's and attacker's type, flags and health before/after):
-- Arcade (bots): characters (type 8, flags 0x40000031) take damage and die
-  normally, both from bots and the player.
-- The old "amount 0.3, health 1 -> 1" evidence from Story mode was the player
-  shooting scenery (type 2, flags 0x01000021, no damageable flag 0x10);
-  `propDamage` correctly ignores that.
-- Not yet reproduced: damage between the player and Story-mode enemies. The
-  scripted Story run never met an enemy. Need the mode/level where it
-  happens.
+Cause found (2026-09-27): a hands-on Story session (damage-log.txt) showed
+every bullet, the player's and the enemy's, hitting indestructible scenery
+behind the characters, and the enemy "teleporting" and failing to aim. Bullet
+hits on characters use chrLineTestChr (matrix/vector maths); AI aiming uses
+the same maths. Two faults:
+- The EE context default constructor zeroed VU0 VF0, which the hardware
+  hard-wires to (0,0,0,1). Only the main context set it, so every other guest
+  thread ran VU0 macro code with VF0 = 0.
+- 39 of 40 libvu0 functions ran on SDK HLE replacements, several of which
+  differ from the original code (Normalize/InnerProduct include W, etc.).
+Fixed: VF0 is set in every context, and all libvu0 functions now run the
+game's original VU0 code (regenerated with ps2_recomp). Needs a hands-on
+Story confirmation. `TS_TRACE_DAMAGE=1` (or RUN-TIMESPLITTERS-DAMAGE-LOG.bat)
+logs every propDamage call; arcade bot damage goes through gunChrFire
+(no bullet collision) and always worked.
 
 ## Sound
 

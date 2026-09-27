@@ -193,6 +193,7 @@ void main()
 uniform sampler2D uSource;
 uniform int uMode;  // 0: 32-bit colour, 1: 16-bit colour, 2: depth
 uniform int uFirst; // first target row
+uniform int uScale; // render scale (sample the top-left texel of each GS pixel)
 out uint oValue;
 uint channel(float v, float scale)
 {
@@ -200,7 +201,7 @@ uint channel(float v, float scale)
 }
 void main()
 {
-    vec4 t = texelFetch(uSource, ivec2(int(gl_FragCoord.x), int(gl_FragCoord.y) + uFirst), 0);
+    vec4 t = texelFetch(uSource, ivec2(int(gl_FragCoord.x), int(gl_FragCoord.y) + uFirst) * uScale, 0);
     if (uMode == 2)
     {
         float z = t.r * 4294967296.0;
@@ -228,6 +229,45 @@ void main()
         }
         return shader;
     }
+}
+
+namespace
+{
+    std::mutex g_hdMutex;
+    struct
+    {
+        unsigned texture = 0;
+        int width = 0, height = 0;
+        GLsync fence = nullptr;
+        uint64_t sequence = 0;
+    } g_hdFrame;
+
+    void publishHdFrame(GLuint texture, int width, int height, GLsync fence)
+    {
+        std::lock_guard<std::mutex> lock(g_hdMutex);
+        if (g_hdFrame.fence)
+            glDeleteSync(g_hdFrame.fence);
+        g_hdFrame.texture = texture;
+        g_hdFrame.width = width;
+        g_hdFrame.height = height;
+        g_hdFrame.fence = fence;
+        ++g_hdFrame.sequence;
+    }
+}
+
+bool GSGpuBackend::LatestHdFrame(unsigned &texture, int &width, int &height)
+{
+    std::lock_guard<std::mutex> lock(g_hdMutex);
+    if (!g_hdFrame.texture)
+        return false;
+    if (g_hdFrame.fence)
+    {
+        glWaitSync(g_hdFrame.fence, 0, GL_TIMEOUT_IGNORED);
+    }
+    texture = g_hdFrame.texture;
+    width = g_hdFrame.width;
+    height = g_hdFrame.height;
+    return true;
 }
 
 struct GSGpuBackend::Impl
@@ -300,6 +340,21 @@ struct GSGpuBackend::Impl
     unsigned drainers = 0; // threads waiting in drain (the GL thread must notify)
 
     GSCpuBackend cpu;
+    // Render targets are `scale` times the GS resolution in each direction
+    // (timesplitters.ini render_scale); write-backs to local memory sample
+    // one texel per GS pixel, loads from local memory are blown up.
+    int scale = 1;
+    GLuint uploadColor = 0, uploadDepth = 0, uploadColorFbo = 0, uploadDepthFbo = 0, blitDepthFbo = 0;
+    int uploadWidth = 0, uploadHeight = 0;
+    // High-resolution presentation (scale > 1): the displayed buffer is
+    // copied from its GPU target into one of these for the window to draw.
+    struct HdSlot
+    {
+        GLuint texture = 0, fbo = 0;
+        int width = 0, height = 0;
+    };
+    std::array<HdSlot, 3> hdSlots{};
+    unsigned hdNext = 0;
     uint8_t *vram = nullptr;
     uint32_t vramSize = 0;
     GSTransferSnapshot lastTransfer{};
@@ -307,7 +362,7 @@ struct GSGpuBackend::Impl
     // --------------------------------------------------------------- GL
     GLuint program = 0, vao = 0, vbo = 0;
     GLuint packProgram = 0, packVao = 0, packTexture = 0, packFbo = 0;
-    GLint uPackSource = -1, uPackMode = -1, uPackFirst = -1;
+    GLint uPackSource = -1, uPackMode = -1, uPackFirst = -1, uPackScale = -1;
     int packWidth = 0;
     std::vector<uint32_t> packValues;
     GLint uTarget = -1, uTexture = -1, uTme = -1, uCoordMode = -1, uTexSize = -1, uLinear = -1, uWrap = -1,
@@ -398,6 +453,86 @@ struct GSGpuBackend::Impl
         }
         c.done = nullptr;
         presentWake.notify_all();
+    }
+
+    // Copies the displayed buffer's region from its (scaled) GPU target into a
+    // presentation texture the window draws instead of the native frame.
+    // Mirrors GSCpuBackend::PresentFromLocalMemory for the single-circuit
+    // case; other setups keep the native frame.
+    bool presentHd(const GSPresentationRequest &request)
+    {
+        const bool enable1 = (request.pmode & 1ull) != 0ull, enable2 = (request.pmode & 2ull) != 0ull;
+        // Both circuits on is fine when they show the same buffer (this game
+        // does); anything else keeps the native frame.
+        if (!enable1 && !enable2)
+            return false;
+        if (enable1 && enable2 && (request.dispfb1 != request.dispfb2 || request.display1 != request.display2))
+            return false;
+        const uint64_t dispfb = enable1 ? request.dispfb1 : request.dispfb2;
+        const uint64_t display = enable1 ? request.display1 : request.display2;
+        uint32_t fbp = uint32_t(dispfb & 0x1FFu), fbw = uint32_t((dispfb >> 9) & 0x3Fu), psm = uint32_t((dispfb >> 15) & 0x1Fu);
+        uint32_t originX = uint32_t((dispfb >> 32) & 0x7FFu), originY = uint32_t((dispfb >> 43) & 0x7FFu);
+        const uint32_t dw = uint32_t((display >> 32) & 0x0FFFu), dh = uint32_t((display >> 44) & 0x07FFu);
+        const uint32_t magh = uint32_t((display >> 23) & 0x0Fu);
+        uint32_t width = (dw + 1u) / (magh + 1u), height = dh + 1u;
+        if (width < 64u || height < 64u)
+        {
+            width = 640u;
+            height = 448u;
+        }
+        width = std::min<uint32_t>(width, 640u);
+        height = std::min<uint32_t>(height, 512u);
+        if (request.hasPreferredSource && request.preferredDestFbp == fbp && request.preferredSource.fbw != 0u)
+        {
+            fbp = request.preferredSource.fbp;
+            fbw = request.preferredSource.fbw;
+            psm = request.preferredSource.psm;
+            originX = originY = 0u;
+        }
+        const int index = findTarget(false, fbp, std::max<uint32_t>(fbw, 1u), psm);
+        if (index < 0)
+            return false;
+        const Target &t = targets[size_t(index)];
+        const int x0 = int(originX) * scale, y0 = int(originY) * scale;
+        const int w = int(width) * scale, h = int(height) * scale;
+        HdSlot &slot = hdSlots[hdNext];
+        hdNext = (hdNext + 1u) % unsigned(hdSlots.size());
+        if (slot.width != w || slot.height != h)
+        {
+            if (!slot.texture)
+            {
+                glGenTextures(1, &slot.texture);
+                glGenFramebuffers(1, &slot.fbo);
+            }
+            glBindTexture(GL_TEXTURE_2D, slot.texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glBindFramebuffer(GL_FRAMEBUFFER, slot.fbo);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, slot.texture, 0);
+            slot.width = w;
+            slot.height = h;
+        }
+        glDisable(GL_SCISSOR_TEST);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, t.fbo);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, slot.fbo);
+        glBlitFramebuffer(x0, y0, x0 + w, y0 + h, 0, 0, w, h, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        // The display ignores frame-buffer alpha: make the copy opaque, as the
+        // native path does, so the window's alpha blending shows it as-is.
+        glBindFramebuffer(GL_FRAMEBUFFER, slot.fbo);
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        glFlush();
+        publishHdFrame(slot.texture, w, h, fence);
+        return true;
     }
 
     // ------------------------------------------------------------ worker
@@ -522,6 +657,7 @@ struct GSGpuBackend::Impl
         glDeleteShader(pvs);
         glDeleteShader(pfs);
         uPackSource = glGetUniformLocation(packProgram, "uSource");
+        uPackScale = glGetUniformLocation(packProgram, "uScale");
         uPackMode = glGetUniformLocation(packProgram, "uMode");
         uPackFirst = glGetUniformLocation(packProgram, "uFirst");
         glGenVertexArrays(1, &packVao);
@@ -558,6 +694,7 @@ struct GSGpuBackend::Impl
         const bool sixteen = t.psm == GS_PSM_CT16 || t.psm == GS_PSM_CT16S;
         glUniform1i(uPackMode, t.depth ? 2 : sixteen ? 1 : 0);
         glUniform1i(uPackFirst, first);
+        glUniform1i(uPackScale, scale);
         glBindVertexArray(packVao);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         packValues.resize(size_t(width) * size_t(rows));
@@ -635,8 +772,13 @@ struct GSGpuBackend::Impl
                     const uint32_t z = cpu.ReadVram(t.psm, t.base * 32u, t.fbw, uint32_t(x), from + uint32_t(y));
                     depth[size_t(y) * width + x] = float(double(z) / 4294967296.0);
                 }
-            glBindTexture(GL_TEXTURE_2D, t.texture);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, int(from), width, count, GL_DEPTH_COMPONENT, GL_FLOAT, depth.data());
+            if (scale == 1)
+            {
+                glBindTexture(GL_TEXTURE_2D, t.texture);
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, int(from), width, count, GL_DEPTH_COMPONENT, GL_FLOAT, depth.data());
+            }
+            else
+                uploadScaled(t, int(from), width, count, depth.data());
             return;
         }
         const bool sixteen = t.psm == GS_PSM_CT16 || t.psm == GS_PSM_CT16S;
@@ -654,8 +796,69 @@ struct GSGpuBackend::Impl
                 p[2] = float((v >> 16) & 0xFFu) / 255.0f;
                 p[3] = float(t.psm == GS_PSM_CT24 ? 0x80u : (v >> 24) & 0xFFu) / 128.0f;
             }
-        glBindTexture(GL_TEXTURE_2D, t.texture);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, int(from), width, count, GL_RGBA, GL_FLOAT, pixels.data());
+        if (scale == 1)
+        {
+            glBindTexture(GL_TEXTURE_2D, t.texture);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, int(from), width, count, GL_RGBA, GL_FLOAT, pixels.data());
+        }
+        else
+            uploadScaled(t, int(from), width, count, pixels.data());
+    }
+
+    // Uploads native-resolution rows into a scaled target: through a native
+    // staging texture, then a nearest-neighbour blit.
+    void uploadScaled(Target &t, int from, int width, int count, const float *data)
+    {
+        if (width > uploadWidth || count > uploadHeight)
+        {
+            uploadWidth = std::max(uploadWidth, width);
+            uploadHeight = std::max(uploadHeight, count);
+            if (!uploadColor)
+            {
+                glGenTextures(1, &uploadColor);
+                glGenTextures(1, &uploadDepth);
+                glGenFramebuffers(1, &uploadColorFbo);
+                glGenFramebuffers(1, &uploadDepthFbo);
+                glGenFramebuffers(1, &blitDepthFbo);
+            }
+            glBindTexture(GL_TEXTURE_2D, uploadColor);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, uploadWidth, uploadHeight, 0, GL_RGBA, GL_FLOAT, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glBindTexture(GL_TEXTURE_2D, uploadDepth);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, uploadWidth, uploadHeight, 0, GL_DEPTH_COMPONENT,
+                         GL_FLOAT, nullptr);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glBindFramebuffer(GL_FRAMEBUFFER, uploadColorFbo);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, uploadColor, 0);
+            glBindFramebuffer(GL_FRAMEBUFFER, uploadDepthFbo);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, uploadDepth, 0);
+            glDrawBuffer(GL_NONE);
+            glReadBuffer(GL_NONE);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        }
+        glBindTexture(GL_TEXTURE_2D, t.depth ? uploadDepth : uploadColor);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, count, t.depth ? GL_DEPTH_COMPONENT : GL_RGBA, GL_FLOAT, data);
+        glDisable(GL_SCISSOR_TEST);
+        if (t.depth)
+        {
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, blitDepthFbo);
+            glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, t.texture, 0);
+            glDrawBuffer(GL_NONE);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, uploadDepthFbo);
+            glBlitFramebuffer(0, 0, width, count, 0, from * scale, width * scale, (from + count) * scale,
+                              GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+        }
+        else
+        {
+            glBindFramebuffer(GL_DRAW_FRAMEBUFFER, t.fbo);
+            glBindFramebuffer(GL_READ_FRAMEBUFFER, uploadColorFbo);
+            glReadBuffer(GL_COLOR_ATTACHMENT0);
+            glBlitFramebuffer(0, 0, width, count, 0, from * scale, width * scale, (from + count) * scale,
+                              GL_COLOR_BUFFER_BIT, GL_NEAREST);
+        }
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     void dropTarget(size_t index)
@@ -748,9 +951,11 @@ struct GSGpuBackend::Impl
         glGenTextures(1, &t.texture);
         glBindTexture(GL_TEXTURE_2D, t.texture);
         if (depth)
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width, kTargetHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, width * scale, kTargetHeight * scale, 0,
+                         GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
         else
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width, kTargetHeight, 0, GL_RGBA, GL_FLOAT, nullptr);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, width * scale, kTargetHeight * scale, 0, GL_RGBA, GL_FLOAT,
+                         nullptr);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         if (!depth)
@@ -850,9 +1055,10 @@ struct GSGpuBackend::Impl
         else
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, 0, 0);
         const int width = int(color.fbw * 64u);
-        glViewport(0, 0, width, kTargetHeight);
+        glViewport(0, 0, width * scale, kTargetHeight * scale);
         glEnable(GL_SCISSOR_TEST);
-        glScissor(k.scissorX0, k.scissorY0, k.scissorX1 - k.scissorX0 + 1, k.scissorY1 - k.scissorY0 + 1);
+        glScissor(k.scissorX0 * scale, k.scissorY0 * scale, (k.scissorX1 - k.scissorX0 + 1) * scale,
+                  (k.scissorY1 - k.scissorY0 + 1) * scale);
         glUseProgram(program);
         glUniform2f(uTarget, float(width), float(kTargetHeight));
         glUniform1i(uTexture, 0);
@@ -1198,6 +1404,8 @@ struct GSGpuBackend::Impl
             for (Target &t : targets)
                 if (!t.depth)
                     writeBack(t);
+            if (scale > 1 && !presentHd(c.request))
+                publishHdFrame(0, 0, 0, nullptr); // the window shows the native frame
             queuePresent(c);
             break;
         }
@@ -1234,8 +1442,9 @@ struct GSGpuBackend::Impl
             a |= 0x80u;
         glBindFramebuffer(GL_FRAMEBUFFER, t.fbo);
         glEnable(GL_SCISSOR_TEST);
-        glScissor(ctx.scissor.x0, ctx.scissor.y0, std::max(ctx.scissor.x0, ctx.scissor.x1) - ctx.scissor.x0 + 1,
-                  std::max(ctx.scissor.y0, ctx.scissor.y1) - ctx.scissor.y0 + 1);
+        glScissor(int(ctx.scissor.x0) * scale, int(ctx.scissor.y0) * scale,
+                  (std::max(ctx.scissor.x0, ctx.scissor.x1) - ctx.scissor.x0 + 1) * scale,
+                  (std::max(ctx.scissor.y0, ctx.scissor.y1) - ctx.scissor.y0 + 1) * scale);
         const uint32_t msk = ctx.frame.fbmsk;
         glColorMask((msk & 0xFFu) != 0xFFu, (msk & 0xFF00u) != 0xFF00u, (msk & 0xFF0000u) != 0xFF0000u,
                     (msk & 0xFF000000u) != 0xFF000000u && ctx.frame.psm != GS_PSM_CT24);
@@ -1267,10 +1476,11 @@ GLFWwindow *GSGpuBackend::CreateSharedContextWindow()
     return window;
 }
 
-GSGpuBackend::GSGpuBackend(GLFWwindow *contextWindow)
+GSGpuBackend::GSGpuBackend(GLFWwindow *contextWindow, int renderScale)
     : m(std::make_unique<Impl>())
 {
     m->window = contextWindow;
+    m->scale = std::clamp(renderScale, 1, 4);
     m->presenter = std::thread([this] { m->presenterLoop(); });
     m->thread = std::thread([this] { m->run(); });
     // TS_SAMPLE_PROFILE_GPU=1: profile the GL thread instead of the EE.

@@ -1,5 +1,6 @@
 #include "ps2_runtime.h"
 #include "runtime/ps2_sample_profiler.h"
+#include "runtime/ps2_host_settings.h"
 #include "runtime/gs/gs_threaded_backend.h"
 #include "runtime/gs/gs_gpu_backend.h"
 #include "runtime/gs/gs_cpu_backend.h"
@@ -31,6 +32,7 @@
 #include <thread>
 #include <unordered_map>
 #include <sstream>
+#include "rlgl.h" // after raylib.h (rlDrawRenderBatchActive)
 
 namespace ps2_stubs
 {
@@ -392,6 +394,42 @@ struct FrameUploadState
     std::vector<uint8_t> s_uploadBuffer = std::vector<uint8_t>(DEFAULT_FB_SIZE, 0u);
 
 };
+
+namespace
+{
+    // FXAA (after Timothy Lottes' FXAA 3.x "console" variant): smooths
+    // high-contrast edges of the finished frame.
+    const char *kFxaaFragmentShader = R"(#version 330
+in vec2 fragTexCoord;
+in vec4 fragColor;
+uniform sampler2D texture0;
+uniform vec2 texelSize;
+out vec4 finalColor;
+void main()
+{
+    const vec3 luma = vec3(0.299, 0.587, 0.114);
+    vec3 rgbNW = texture(texture0, fragTexCoord + vec2(-1.0, -1.0) * texelSize).rgb;
+    vec3 rgbNE = texture(texture0, fragTexCoord + vec2(1.0, -1.0) * texelSize).rgb;
+    vec3 rgbSW = texture(texture0, fragTexCoord + vec2(-1.0, 1.0) * texelSize).rgb;
+    vec3 rgbSE = texture(texture0, fragTexCoord + vec2(1.0, 1.0) * texelSize).rgb;
+    vec3 rgbM = texture(texture0, fragTexCoord).rgb;
+    float lumaNW = dot(rgbNW, luma), lumaNE = dot(rgbNE, luma);
+    float lumaSW = dot(rgbSW, luma), lumaSE = dot(rgbSE, luma), lumaM = dot(rgbM, luma);
+    float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+    float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+    vec2 dir = vec2(-((lumaNW + lumaNE) - (lumaSW + lumaSE)), (lumaNW + lumaSW) - (lumaNE + lumaSE));
+    float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 / 8.0), 1.0 / 128.0);
+    float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+    dir = clamp(dir * rcpDirMin, vec2(-8.0), vec2(8.0)) * texelSize;
+    vec3 rgbA = 0.5 * (texture(texture0, fragTexCoord + dir * (1.0 / 3.0 - 0.5)).rgb +
+                       texture(texture0, fragTexCoord + dir * (2.0 / 3.0 - 0.5)).rgb);
+    vec3 rgbB = rgbA * 0.5 + 0.25 * (texture(texture0, fragTexCoord - dir * 0.5).rgb +
+                                     texture(texture0, fragTexCoord + dir * 0.5).rgb);
+    float lumaB = dot(rgbB, luma);
+    finalColor = vec4((lumaB < lumaMin || lumaB > lumaMax) ? rgbA : rgbB, 1.0) * fragColor;
+}
+)";
+}
 
 static void UploadFrame(Texture2D &tex, PS2Runtime *rt, uint32_t &outWidth, uint32_t &outHeight, FrameUploadState &state)
 {
@@ -761,7 +799,10 @@ bool PS2Runtime::initialize(const char *title)
 #else
         SetConfigFlags(FLAG_WINDOW_RESIZABLE |
             (std::getenv("TS_TEST_HIDDEN") ? FLAG_WINDOW_HIDDEN : 0));
-        InitWindow(HOST_WINDOW_WIDTH, HOST_WINDOW_HEIGHT, title);
+        // Window size and fullscreen come from timesplitters.ini.
+        InitWindow(hostSettings().windowWidth, hostSettings().windowHeight, title);
+        if (hostSettings().fullscreen && !std::getenv("TS_TEST_HIDDEN"))
+            ToggleBorderlessWindowed();
         InitAudioDevice();
         m_audioBackend.setAudioReady(IsAudioDeviceReady());
 #endif
@@ -774,7 +815,7 @@ bool PS2Runtime::initialize(const char *title)
         if (!(gpu && *gpu == '0') && !(sync && *sync == '1'))
         {
             if (GLFWwindow *context = GSGpuBackend::CreateSharedContextWindow())
-                m_gs.setRasterBackend(std::make_unique<GSGpuBackend>(context));
+                m_gs.setRasterBackend(std::make_unique<GSGpuBackend>(context, hostSettings().renderScale));
             else
                 std::cerr << "[TS:gs-gpu] no GL context; using the CPU rasterizer\n";
         }
@@ -2490,8 +2531,13 @@ void PS2Runtime::run()
     // A blank image to use as a framebuffer
     Image blank = GenImageColor(FB_WIDTH, FB_HEIGHT, BLANK);
     Texture2D frameTex = LoadTextureFromImage(blank);
+    SetTextureFilter(frameTex, TEXTURE_FILTER_BILINEAR);
     FrameUploadState uploadState;
     UnloadImage(blank);
+    Shader fxaaShader = LoadShaderFromMemory(nullptr, kFxaaFragmentShader);
+    Texture2D lastDrawTex = frameTex; // what was last drawn (screenshots)
+    float lastDrawWidth = 0.0f, lastDrawHeight = 0.0f;
+    const int fxaaTexelSize = GetShaderLocation(fxaaShader, "texelSize");
 
     std::atomic<bool> gameThreadFinished{false};
     std::exception_ptr gameFailure; // published by joining gameThread
@@ -2586,13 +2632,36 @@ void PS2Runtime::run()
         captureWidth = presentWidth;
         captureHeight = presentHeight;
 
+        // F9: FXAA on/off. F10: widescreen on/off.
+        if (IsKeyPressed(KEY_F9))
+            hostSettings().fxaa = !hostSettings().fxaa;
+        if (IsKeyPressed(KEY_F10))
+            hostSettings().widescreen = !hostSettings().widescreen;
+        const float outputAspect = hostSettings().widescreen ? 16.0f / 9.0f : m_hostAspectRatio;
+
         BeginDrawing();
         ClearBackground(BLACK);
-        const float srcWidth = static_cast<float>(std::max<uint32_t>(1u, presentWidth));
-        const float srcHeight = static_cast<float>(std::max<uint32_t>(1u, presentHeight));
+        // render_scale > 1: draw the GPU renderer's high-resolution frame.
+        Texture2D drawTex = frameTex;
+        float srcWidth = static_cast<float>(std::max<uint32_t>(1u, presentWidth));
+        float srcHeight = static_cast<float>(std::max<uint32_t>(1u, presentHeight));
+        if (hostSettings().renderScale > 1)
+        {
+            unsigned hdTexture = 0;
+            int hdWidth = 0, hdHeight = 0;
+            if (GSGpuBackend::LatestHdFrame(hdTexture, hdWidth, hdHeight))
+            {
+                drawTex = Texture2D{hdTexture, hdWidth, hdHeight, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+                srcWidth = static_cast<float>(hdWidth);
+                srcHeight = static_cast<float>(hdHeight);
+            }
+        }
+        lastDrawTex = drawTex;
+        lastDrawWidth = srcWidth;
+        lastDrawHeight = srcHeight;
         const float screenWidth = static_cast<float>(GetScreenWidth());
         const float screenHeight = static_cast<float>(GetScreenHeight());
-        const float displayWidth = m_hostAspectRatio > 0.0f ? srcHeight * m_hostAspectRatio : srcWidth;
+        const float displayWidth = outputAspect > 0.0f ? srcHeight * outputAspect : srcWidth;
         const float scale = std::min(screenWidth / displayWidth, screenHeight / srcHeight);
         const float dstWidth = displayWidth * scale;
         const float dstHeight = srcHeight * scale;
@@ -2602,10 +2671,36 @@ void PS2Runtime::run()
             (screenHeight - dstHeight) * 0.5f,
             dstWidth,
             dstHeight};
-        DrawTexturePro(frameTex, srcRect, dstRect, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+        const bool fxaa = hostSettings().fxaa && fxaaShader.id != 0;
+        if (fxaa)
+        {
+            const float texel[2] = {1.0f / static_cast<float>(drawTex.width), 1.0f / static_cast<float>(drawTex.height)};
+            SetShaderValue(fxaaShader, fxaaTexelSize, texel, SHADER_UNIFORM_VEC2);
+            BeginShaderMode(fxaaShader);
+        }
+        DrawTexturePro(drawTex, srcRect, dstRect, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
+        if (fxaa)
+            EndShaderMode();
         if (m_debugUiInitialized && m_debugUiDrawCallback)
         {
             m_debugUiDrawCallback(*this, m_debugUiUserData);
+        }
+        // TS_CAPTURE_WINDOW=<png> with TS_CAPTURE_WINDOW_FRAME=<n>: save what the
+        // window shows (after scaling and FXAA) on host frame n.
+        {
+            static uint64_t hostFrame = 0;
+            static const char *windowCapture = std::getenv("TS_CAPTURE_WINDOW");
+            static const uint64_t windowCaptureFrame = [] {
+                const char *v = std::getenv("TS_CAPTURE_WINDOW_FRAME");
+                return v ? std::strtoull(v, nullptr, 10) : 0ull;
+            }();
+            if (windowCapture && ++hostFrame == windowCaptureFrame)
+            {
+                rlDrawRenderBatchActive(); // draw what is queued before reading it back
+                Image shot = LoadImageFromScreen();
+                ExportImage(shot, windowCapture);
+                UnloadImage(shot);
+            }
         }
         EndDrawing();
 
@@ -2634,13 +2729,23 @@ void PS2Runtime::run()
     {
         Image frame = LoadImageFromTexture(frameTex);
         ImageCrop(&frame, Rectangle{0, 0, static_cast<float>(captureWidth), static_cast<float>(captureHeight)});
+        if (lastDrawTex.id != frameTex.id && lastDrawWidth > 0.0f)
+        {
+            // High-resolution frame: save it at full size.
+            UnloadImage(frame);
+            frame = LoadImageFromTexture(lastDrawTex);
+            captureWidth = static_cast<uint32_t>(lastDrawWidth);
+            captureHeight = static_cast<uint32_t>(lastDrawHeight);
+        }
         // Match the window: games often draw half-height (field) buffers that
         // the display stretches to the host aspect ratio.
         if (m_hostAspectRatio > 0.0f && captureWidth > 0u)
         {
             const int aspectHeight = static_cast<int>(static_cast<float>(captureWidth) / m_hostAspectRatio + 0.5f);
-            if (aspectHeight > 0 && aspectHeight != static_cast<int>(captureHeight))
-                ImageResize(&frame, static_cast<int>(captureWidth), aspectHeight);
+            const float outputAspect = hostSettings().widescreen ? 16.0f / 9.0f : m_hostAspectRatio;
+            const int aspectWidth = static_cast<int>(static_cast<float>(aspectHeight) * outputAspect + 0.5f);
+            if (aspectHeight > 0 && (aspectHeight != static_cast<int>(captureHeight) || aspectWidth != static_cast<int>(captureWidth)))
+                ImageResize(&frame, aspectWidth, aspectHeight);
         }
         const bool saved = ExportImage(frame, capture);
         UnloadImage(frame);

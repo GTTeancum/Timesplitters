@@ -35,3 +35,18 @@ mixed into the SPU2 output. `TS_NATIVE_MUSIC=0` turns it off.
 `TS_SIF_RPC_BRIDGE=1` instead drives the original IOP driver through the
 runtime's RPC bridge (streams through the emulated SPU2; output still
 wrong).
+
+## Display options (timesplitters.ini)
+
+`resolution`, `fullscreen`, `widescreen`, `fxaa` and `render_scale` are read
+from `timesplitters.ini` in the working directory (F9 toggles FXAA and F10
+widescreen while playing).
+- Widescreen scales the aspect passed to the game's `matrixPerspective`
+  (0x2B5258) by 4/3 and shows the frame at 16:9. 2D elements (HUD, menus)
+  are drawn for 4:3 and appear stretched sideways.
+- render_scale > 1 draws the GPU renderer's targets at that multiple; the
+  displayed buffer is copied from its target straight to the window
+  (single circuit, or both circuits showing the same buffer, as this game
+  does). Other display setups fall back to the native frame. Write-backs to
+  GS memory stay at native resolution (one sample per GS pixel), so effects
+  that read the frame buffer back work at native detail.

@@ -5,6 +5,7 @@
 #include "runtime/ps2_audio.h"
 #include "runtime/ps2_music.h"
 #include "runtime/ps2_vfs.h"
+#include "runtime/ps2_host_settings.h"
 #include "ps2_recompiled_functions.h"
 
 #include <cmath>
@@ -195,8 +196,19 @@ namespace
         std::exit(0);
     }
 
+    // Widescreen: matrixPerspective(m, aspect f12, fovy f13, near f14, far f15)
+    // builds every 3D projection (camTick, SetWindow). Scaling the aspect by
+    // 4/3 widens the horizontal view; the 640-wide frame is then shown at 16:9.
+    void widescreenMatrixPerspective(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        if (hostSettings().widescreen)
+            ctx->f[12] *= 4.0f / 3.0f;
+        matrixPerspective_0x2b5258(rdram, ctx, runtime);
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        runtime.replaceFunction(0x2B5258u, &widescreenMatrixPerspective);
         if (const char *test = std::getenv("TS_LIBM_SELFTEST"); test && *test == '1')
             libmSelfTest(runtime);
         if (const char *trace = std::getenv("TS_TRACE_DAMAGE"); trace && *trace == '1')

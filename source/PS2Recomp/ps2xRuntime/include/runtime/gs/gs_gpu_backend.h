@@ -24,7 +24,8 @@ public:
     // current (raylib) context. Call on the main thread after InitWindow.
     static GLFWwindow *CreateSharedContextWindow();
 
-    explicit GSGpuBackend(GLFWwindow *contextWindow);
+    // renderScale: internal resolution multiplier (1..4).
+    explicit GSGpuBackend(GLFWwindow *contextWindow, int renderScale = 1);
     ~GSGpuBackend() override;
 
     void Initialize(uint8_t *vram, uint32_t vramSize) override;
@@ -49,6 +50,10 @@ public:
     void WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y, uint32_t value) override;
     void SnapshotVram(std::vector<uint8_t> &out) const override;
     GSTransferSnapshot GetTransferSnapshot() const override;
+
+    // Latest high-resolution presented frame (render_scale > 1): a GL texture
+    // shared with the window's context. Call on the window's thread.
+    static bool LatestHdFrame(unsigned &texture, int &width, int &height);
 
     // Sets the CLUT buffer (replaying a GS command capture).
     void SetClutState(const std::array<uint16_t, 512> &clut, const std::array<uint32_t, 2> &cbp);

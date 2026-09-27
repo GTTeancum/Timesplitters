@@ -91,3 +91,19 @@ if(MSVC)
 else()
     target_compile_options(timesplitters_matrix_reference PRIVATE -msse4.1 -mavx2)
 endif()
+
+# The game opens only its window (no console); logs still go to stdout/stderr
+# when they are redirected.
+if(MSVC)
+    target_link_options(timesplitters PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+endif()
+
+# Stage the game into the repository root after every build, so the
+# timesplitters.exe there (double-clicked, no arguments) is always current.
+option(TS_STAGE_TO_ROOT "Copy the built game and its DLLs into the repository root" ON)
+if(TS_STAGE_TO_ROOT)
+    add_custom_command(TARGET timesplitters POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" "-DSRC=$<TARGET_FILE_DIR:timesplitters>" "-DEXE=$<TARGET_FILE:timesplitters>"
+                "-DDST=${CMAKE_CURRENT_SOURCE_DIR}/../.." -P "${CMAKE_CURRENT_SOURCE_DIR}/stage.cmake"
+        VERBATIM)
+endif()

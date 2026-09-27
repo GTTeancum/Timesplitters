@@ -9,6 +9,8 @@
 #include <atomic>
 #include <stdexcept>
 #include <cstdlib>
+#include <string>
+#include <vector>
 #include "native_self_test.h"
 #include "native_mc_test.h"
 #include "native_image_test.h"
@@ -18,9 +20,28 @@
 #include "native_audio_memory_test.h"
 #include "../../source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.h"
 
+// Started without arguments (double-clicked): play from the folder the
+// executable is in - its game data, disc image, timesplitters.ini and memory
+// cards - with no time limit.
+static std::vector<std::string> defaultArguments(const char *argv0) {
+    std::error_code ec;
+    const std::filesystem::path dir = std::filesystem::absolute(argv0, ec).parent_path();
+    std::filesystem::current_path(dir, ec);
+    return {argv0, (dir / "project" / "game-data" / "SLUS_200.90").string(), "0",
+            (dir / "project" / "disc" / "TimeSplitters.iso").string()};
+}
+
 int main(int argc, char** argv) {
     std::cout << std::unitbuf; std::cerr << std::unitbuf;
-    if (argc < 2 || argc > 4) {std::cerr << "Usage: timesplitters SLUS_200.90 [seconds=15] [data-sector.iso]\n";return 2;}
+    std::vector<std::string> defaults;
+    std::vector<char *> defaultArgv;
+    if (argc == 1) {
+        defaults = defaultArguments(argv[0]);
+        for (auto &a : defaults) defaultArgv.push_back(a.data());
+        argc = static_cast<int>(defaultArgv.size());
+        argv = defaultArgv.data();
+    }
+    if (argc < 2 || argc > 4) {std::cerr << "Usage: timesplitters SLUS_200.90 [seconds=15, 0=no limit] [data-sector.iso]\n";return 2;}
     try {
         if(argc==3 && std::string(argv[1])=="--self-test") return nativeSelfTest(argv[2]);
         if(argc==3 && std::string(argv[1])=="--mc-self-test") return nativeMcTest(argv[2]);
@@ -30,11 +51,11 @@ int main(int argc, char** argv) {
         if(argc==3 && std::string(argv[1])=="--matrix-self-test") return nativeMatrixTest(argv[2]);
         if(argc==3 && std::string(argv[1])=="--math-self-test") return nativeMathTest(argv[2]);
         const int seconds = argc >= 3 ? std::stoi(argv[2]) : 15;
-        if (seconds < 1 || seconds > 3600) throw std::runtime_error("seconds must be 1..3600");
+        if (seconds < 0 || seconds > 3600) throw std::runtime_error("seconds must be 0 (no limit) or 1..3600");
         PS2Runtime rt;
         rt.setMissingFunctionPolicy(PS2Runtime::MissingFunctionPolicy::Stop);
         std::cout << "[TS:native] original-EE AOT via PS2Recomp; missing functions STOP; no EE interpreter fallback\n";
-        if (!rt.initialize("TimeSplitters — native Linux bring-up")) return 3;
+        if (!rt.initialize("TimeSplitters")) return 3;
         if (!rt.loadELF(argv[1])) return 4;
         rt.gs().setHostPresentationMode(GS::HostPresentationMode::Signal);
         rt.setHostAspectRatio(4.0f / 3.0f);
@@ -238,7 +259,7 @@ int main(int argc, char** argv) {
         }
         std::thread watchdog([&]{
           const auto end=std::chrono::steady_clock::now()+std::chrono::seconds(seconds);
-          while(!done.load()) { if(std::chrono::steady_clock::now()>=end) {limit=true;rt.requestStop();break;} std::this_thread::sleep_for(std::chrono::milliseconds(20)); }
+          while(!done.load()) { if(seconds>0 && std::chrono::steady_clock::now()>=end) {limit=true;rt.requestStop();break;} std::this_thread::sleep_for(std::chrono::milliseconds(20)); }
         });
         std::exception_ptr failure;
         try { rt.run(); } catch(...) {failure=std::current_exception();}

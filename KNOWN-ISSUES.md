@@ -41,13 +41,20 @@ wrong).
 `resolution`, `fullscreen`, `widescreen`, `fxaa` and `render_scale` are read
 from `timesplitters.ini` in the working directory (F9 toggles FXAA and F10
 widescreen while playing).
+- The game's own Audio / Video Options page shows them after Screen Adjust
+  (Widescreen, Edge smoothing, Resolution, Full screen, Render quality).
+  ts_overrides.cpp wraps menutick/std_menumake for that page and substitutes
+  an extended copy of its menu built at 0x7E000 (unused kernel RAM); values
+  apply at once and are written back to the ini. Render quality applies on
+  the next start. TS_DISPLAY_MENU=0 keeps the original page.
+- An element that spans two screen thirds may be split between two anchors;
+  consecutive glyphs on one line share their row's anchor.
 - Widescreen scales the aspect passed to the game's `matrixPerspective`
   (0x2B5258) by 4/3 and shows the frame at 16:9. During gameplay the HUD
   is narrowed back to 4:3 proportions and pinned to the left margin, right
   margin or centre (GS::adjustWidescreenHud: overlay primitives with no
   depth test/write, flat or pixel-addressed texture, entirely on screen).
-  Menus keep the stretched full-screen layout. An element that spans two
-  screen thirds may be split between two anchors.
+  Menus keep the stretched full-screen layout.
 - render_scale > 1 draws the GPU renderer's targets at that multiple; the
   displayed buffer is copied from its target straight to the window
   (single circuit, or both circuits showing the same buffer, as this game

@@ -1,6 +1,12 @@
 #include "ps2_runtime.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_host_settings.h"
+
+namespace
+{
+    // The GPU renderer's resolution multiplier, fixed when it is created.
+    int s_runningRenderScale = 1;
+}
 #include "runtime/gs/gs_threaded_backend.h"
 #include "runtime/gs/gs_gpu_backend.h"
 #include "runtime/gs/gs_cpu_backend.h"
@@ -815,7 +821,10 @@ bool PS2Runtime::initialize(const char *title)
         if (!(gpu && *gpu == '0') && !(sync && *sync == '1'))
         {
             if (GLFWwindow *context = GSGpuBackend::CreateSharedContextWindow())
-                m_gs.setRasterBackend(std::make_unique<GSGpuBackend>(context, hostSettings().renderScale));
+            {
+                s_runningRenderScale = hostSettings().renderScale;
+                m_gs.setRasterBackend(std::make_unique<GSGpuBackend>(context, s_runningRenderScale));
+            }
             else
                 std::cerr << "[TS:gs-gpu] no GL context; using the CPU rasterizer\n";
         }
@@ -2632,6 +2641,26 @@ void PS2Runtime::run()
         captureWidth = presentWidth;
         captureHeight = presentHeight;
 
+        // Window size or fullscreen changed in the game's options menu.
+        {
+            static unsigned appliedWindowChanges = 0;
+            const unsigned changes = hostSettings().windowChanges.load();
+            if (changes != appliedWindowChanges && !std::getenv("TS_TEST_HIDDEN"))
+            {
+                appliedWindowChanges = changes;
+                const bool wantFullscreen = hostSettings().fullscreen;
+                if (IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE) != wantFullscreen)
+                    ToggleBorderlessWindowed();
+                if (!wantFullscreen)
+                {
+                    const int width = hostSettings().windowWidth, height = hostSettings().windowHeight;
+                    SetWindowSize(width, height);
+                    const int monitor = GetCurrentMonitor();
+                    SetWindowPosition(std::max(0, (GetMonitorWidth(monitor) - width) / 2),
+                                      std::max(0, (GetMonitorHeight(monitor) - height) / 2));
+                }
+            }
+        }
         // F9: FXAA on/off. F10: widescreen on/off.
         if (IsKeyPressed(KEY_F9))
             hostSettings().fxaa = !hostSettings().fxaa;
@@ -2645,7 +2674,7 @@ void PS2Runtime::run()
         Texture2D drawTex = frameTex;
         float srcWidth = static_cast<float>(std::max<uint32_t>(1u, presentWidth));
         float srcHeight = static_cast<float>(std::max<uint32_t>(1u, presentHeight));
-        if (hostSettings().renderScale > 1)
+        if (s_runningRenderScale > 1)
         {
             unsigned hdTexture = 0;
             int hdWidth = 0, hdHeight = 0;

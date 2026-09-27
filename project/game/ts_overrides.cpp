@@ -8,12 +8,15 @@
 #include "runtime/ps2_host_settings.h"
 #include "ps2_recompiled_functions.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -206,8 +209,273 @@ namespace
         matrixPerspective_0x2b5258(rdram, ctx, runtime);
     }
 
+
+    // The game's Audio / Video Options page (audiovideo_pageTick) runs the
+    // generic menutick and std_menumake on audiovideo_menu: a 16-byte header
+    // and 32-byte items {text, 0, id, flags, gv*, up id, down id}, each item
+    // editing a 40-byte "gv" value {value, min, max, flags, choices*, ...}.
+    // Text below 0x4DE is a language-table id, anything else a string
+    // pointer. The two calls are wrapped so the page uses an extended copy of
+    // the menu with the PC display settings added after Screen Adjust; after
+    // each tick the chosen values are applied and saved to timesplitters.ini.
+    constexpr uint32_t kMenuTick = 0x230238u;
+    constexpr uint32_t kStdMenuMake = 0x22DAF8u;
+    constexpr uint32_t kAudioVideoMenu = 0x353C08u;
+    constexpr uint32_t kGvPlaySound = 0x353798u; // on/off template
+    constexpr uint32_t kDispOnOff = 0x352D60u;
+    constexpr uint32_t kOriginalItems = 5u;       // before the page-link item
+    constexpr uint32_t kItemSize = 32u, kGvSize = 40u;
+
+    struct Resolution
+    {
+        int width, height;
+    };
+
+    struct DisplayMenu
+    {
+        uint32_t menu = 0;
+        uint32_t gvWidescreen = 0, gvFxaa = 0, gvResolution = 0, gvFullscreen = 0, gvScale = 0;
+        uint32_t scaleLabel = 0; // notes when the change waits for a restart
+        std::vector<Resolution> resolutions;
+        int startupScale = 1;
+    };
+    DisplayMenu g_displayMenu;
+
+    uint32_t &guestWord(uint8_t *rdram, uint32_t address)
+    {
+        return *reinterpret_cast<uint32_t *>(rdram + (address & 0x1FFFFFCu));
+    }
+
+    uint16_t &guestHalf(uint8_t *rdram, uint32_t address)
+    {
+        return *reinterpret_cast<uint16_t *>(rdram + (address & 0x1FFFFFEu));
+    }
+
+    void writeGuestString(uint8_t *rdram, uint32_t address, const std::string &text)
+    {
+        std::memcpy(rdram + address, text.c_str(), text.size() + 1);
+    }
+
+    // Returns 0 if guest memory could not be found.
+    uint32_t buildDisplayMenu(uint8_t *rdram)
+    {
+        DisplayMenu &m = g_displayMenu;
+        HostSettings &settings = hostSettings();
+        m.startupScale = settings.renderScale;
+        m.resolutions = {{1280, 720}, {1600, 900}, {1920, 1080}, {2560, 1440}, {3840, 2160}};
+        if (std::none_of(m.resolutions.begin(), m.resolutions.end(), [&](const Resolution &r) {
+                return r.width == settings.windowWidth && r.height == settings.windowHeight;
+            }))
+            m.resolutions.push_back({settings.windowWidth, settings.windowHeight});
+
+        // The game's own allocator owns the heap it sets up, so this uses the
+        // unused kernel-reserved RAM just below the HLE callback arena.
+        constexpr uint32_t block = 0x7E000u;
+        for (uint32_t i = 0; i < 0x800u; i += 4u)
+        {
+            if (guestWord(rdram, block + i) != 0u)
+            {
+                std::fprintf(stderr, "[TS:menu] RAM at 0x%x is in use; display options not added\n", block + i);
+                return 0;
+            }
+        }
+        uint32_t cursor = block;
+        auto take = [&](uint32_t bytes) {
+            const uint32_t at = cursor;
+            cursor += (bytes + 15u) & ~15u;
+            return at;
+        };
+        auto text = [&](const std::string &value, uint32_t room = 0) {
+            const uint32_t at = take(std::max<uint32_t>(room, static_cast<uint32_t>(value.size()) + 1u));
+            writeGuestString(rdram, at, value);
+            return at;
+        };
+        auto choices = [&](const std::vector<uint32_t> &texts) {
+            const uint32_t at = take(static_cast<uint32_t>(texts.size() + 1u) * 8u);
+            for (uint32_t i = 0; i < texts.size(); ++i)
+            {
+                guestWord(rdram, at + i * 8u) = i;
+                guestWord(rdram, at + i * 8u + 4u) = texts[i];
+            }
+            return at;
+        };
+        auto gv = [&](uint32_t max, uint32_t list) {
+            const uint32_t at = take(kGvSize);
+            std::memcpy(rdram + at, rdram + kGvPlaySound, kGvSize);
+            guestWord(rdram, at + 0u) = 0u;
+            guestWord(rdram, at + 4u) = 0u;
+            guestWord(rdram, at + 8u) = max;
+            guestWord(rdram, at + 16u) = list;
+            guestWord(rdram, at + 20u) = 0u; // no onchange: applied after the tick
+            return at;
+        };
+
+        std::vector<uint32_t> resolutionTexts;
+        for (const Resolution &r : m.resolutions)
+            resolutionTexts.push_back(text(std::to_string(r.width) + "x" + std::to_string(r.height)));
+        m.gvWidescreen = gv(1u, kDispOnOff);
+        m.gvFxaa = gv(1u, kDispOnOff);
+        m.gvResolution = gv(static_cast<uint32_t>(m.resolutions.size() - 1u), choices(resolutionTexts));
+        m.gvFullscreen = gv(1u, kDispOnOff);
+        m.gvScale = gv(3u, choices({text("Original"), text("2x"), text("3x"), text("4x")}));
+
+        struct NewItem
+        {
+            const char *label;
+            uint32_t gv;
+        };
+        const NewItem added[] = {
+            {"Widescreen", m.gvWidescreen},
+            {"Edge smoothing", m.gvFxaa},
+            {"Resolution", m.gvResolution},
+            {"Full screen", m.gvFullscreen},
+            {"Render quality", m.gvScale},
+        };
+        const uint32_t itemCount = kOriginalItems + static_cast<uint32_t>(std::size(added));
+        uint32_t labels[std::size(added)];
+        for (size_t i = 0; i < std::size(added); ++i)
+            labels[i] = text(added[i].label, 48u);
+        m.scaleLabel = labels[std::size(added) - 1];
+
+        m.menu = take(16u + (itemCount + 1u) * kItemSize);
+        std::memcpy(rdram + m.menu, rdram + kAudioVideoMenu, 16u + kOriginalItems * kItemSize);
+        guestWord(rdram, m.menu) = itemCount + 1u;
+        const uint32_t items = m.menu + 16u;
+        for (size_t i = 0; i < std::size(added); ++i)
+        {
+            const uint32_t item = items + (kOriginalItems + static_cast<uint32_t>(i)) * kItemSize;
+            const uint16_t id = static_cast<uint16_t>(kOriginalItems + 1u + i);
+            guestWord(rdram, item + 0u) = labels[i];
+            guestHalf(rdram, item + 8u) = id;
+            guestHalf(rdram, item + 10u) = 0x24u; // same as the Sound on/off item
+            guestWord(rdram, item + 12u) = added[i].gv;
+        }
+        for (uint32_t i = 0; i < itemCount; ++i)
+        {
+            const uint32_t item = items + i * kItemSize;
+            guestHalf(rdram, item + 16u) = static_cast<uint16_t>(i == 0u ? itemCount : i);          // up
+            guestHalf(rdram, item + 18u) = static_cast<uint16_t>(i + 1u == itemCount ? 1u : i + 2u); // down
+        }
+        // The page-link item that ends the list.
+        std::memcpy(rdram + items + itemCount * kItemSize, rdram + kAudioVideoMenu + 16u + kOriginalItems * kItemSize,
+                    kItemSize);
+        if (cursor > block + 0x800u)
+            std::fprintf(stderr, "[TS:menu] display options overflowed their block\n");
+        return m.menu;
+    }
+
+    int resolutionIndex(const DisplayMenu &m, const HostSettings &settings)
+    {
+        for (size_t i = 0; i < m.resolutions.size(); ++i)
+        {
+            if (m.resolutions[i].width == settings.windowWidth && m.resolutions[i].height == settings.windowHeight)
+                return static_cast<int>(i);
+        }
+        return static_cast<int>(m.resolutions.size()) - 1;
+    }
+
+    // Copies the settings into the menu's values and refreshes texts and the
+    // original items' greyed-out flags (the page sets them on the original).
+    void syncDisplayMenuFromSettings(uint8_t *rdram)
+    {
+        const DisplayMenu &m = g_displayMenu;
+        const HostSettings &settings = hostSettings();
+        guestWord(rdram, m.gvWidescreen) = settings.widescreen ? 1u : 0u;
+        guestWord(rdram, m.gvFxaa) = settings.fxaa ? 1u : 0u;
+        guestWord(rdram, m.gvResolution) = static_cast<uint32_t>(resolutionIndex(m, settings));
+        guestWord(rdram, m.gvFullscreen) = settings.fullscreen ? 1u : 0u;
+        guestWord(rdram, m.gvScale) = static_cast<uint32_t>(std::clamp(settings.renderScale.load(), 1, 4) - 1);
+        writeGuestString(rdram, m.scaleLabel,
+                         settings.renderScale == m.startupScale ? "Render quality" : "Render quality (on restart)");
+        for (uint32_t i = 0; i < kOriginalItems; ++i)
+            guestHalf(rdram, m.menu + 16u + i * kItemSize + 10u) =
+                guestHalf(rdram, kAudioVideoMenu + 16u + i * kItemSize + 10u);
+    }
+
+    void applyDisplayMenuToSettings(uint8_t *rdram)
+    {
+        const DisplayMenu &m = g_displayMenu;
+        HostSettings &settings = hostSettings();
+        bool changed = false, windowChanged = false;
+        const bool widescreen = guestWord(rdram, m.gvWidescreen) != 0u;
+        const bool fxaa = guestWord(rdram, m.gvFxaa) != 0u;
+        const bool fullscreen = guestWord(rdram, m.gvFullscreen) != 0u;
+        const int scale = std::clamp(static_cast<int>(guestWord(rdram, m.gvScale)) + 1, 1, 4);
+        const int resolution = std::clamp(static_cast<int>(guestWord(rdram, m.gvResolution)), 0,
+                                          static_cast<int>(m.resolutions.size()) - 1);
+        if (widescreen != settings.widescreen)
+        {
+            settings.widescreen = widescreen;
+            changed = true;
+        }
+        if (fxaa != settings.fxaa)
+        {
+            settings.fxaa = fxaa;
+            changed = true;
+        }
+        if (scale != settings.renderScale)
+        {
+            settings.renderScale = scale;
+            changed = true;
+        }
+        if (fullscreen != settings.fullscreen)
+        {
+            settings.fullscreen = fullscreen;
+            changed = windowChanged = true;
+        }
+        if (resolution != resolutionIndex(m, settings))
+        {
+            settings.windowWidth = m.resolutions[resolution].width;
+            settings.windowHeight = m.resolutions[resolution].height;
+            changed = windowChanged = true;
+        }
+        if (windowChanged)
+            ++settings.windowChanges;
+        if (changed)
+            saveHostSettings();
+    }
+
+    bool useDisplayMenu(uint8_t *rdram, R5900Context *ctx)
+    {
+        if (GPR_U32(ctx, 5) != kAudioVideoMenu)
+            return false;
+        if (!g_displayMenu.menu && !buildDisplayMenu(rdram))
+            return false;
+        syncDisplayMenuFromSettings(rdram);
+        SET_GPR_U32(ctx, 5, g_displayMenu.menu);
+        return true;
+    }
+
+    void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
+        static uint32_t lastMenu = 0;
+        if (trace) // also left in guest RAM for pad scripts (wait_u32 0x7eff0)
+            guestWord(rdram, 0x7EFF0u) = GPR_U32(ctx, 5);
+        if (trace && GPR_U32(ctx, 5) != lastMenu)
+        {
+            lastMenu = GPR_U32(ctx, 5);
+            std::fprintf(stderr, "[TS:menu] page %08x menu %08x\n", GPR_U32(ctx, 4), lastMenu);
+        }
+        const bool ours = useDisplayMenu(rdram, ctx);
+        menutick_0x230238(rdram, ctx, runtime);
+        if (ours)
+            applyDisplayMenuToSettings(rdram);
+    }
+
+    void displayMenuMake(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        useDisplayMenu(rdram, ctx);
+        std_menumake_0x22daf8(rdram, ctx, runtime);
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        if (const char *menu = std::getenv("TS_DISPLAY_MENU"); !(menu && *menu == '0'))
+        {
+            runtime.replaceFunction(kMenuTick, &displayMenuTick);
+            runtime.replaceFunction(kStdMenuMake, &displayMenuMake);
+        }
         runtime.replaceFunction(0x2B5258u, &widescreenMatrixPerspective);
         if (const char *test = std::getenv("TS_LIBM_SELFTEST"); test && *test == '1')
             libmSelfTest(runtime);

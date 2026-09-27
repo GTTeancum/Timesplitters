@@ -5,7 +5,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iterator>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace
 {
@@ -24,10 +27,28 @@ namespace
         return value == "1" || value == "true" || value == "on" || value == "yes";
     }
 
-    void load(HostSettings &settings)
+    std::string settingsPath()
     {
         const char *path = std::getenv("TS_SETTINGS");
-        std::ifstream file(path && *path ? path : "timesplitters.ini");
+        return path && *path ? path : "timesplitters.ini";
+    }
+
+    std::string lowerKey(const std::string &line)
+    {
+        std::string key = line;
+        if (const size_t comment = key.find_first_of("#;"); comment != std::string::npos)
+            key.erase(comment);
+        const size_t equals = key.find('=');
+        if (equals == std::string::npos)
+            return {};
+        key = trim(key.substr(0, equals));
+        std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
+        return key;
+    }
+
+    void load(HostSettings &settings)
+    {
+        std::ifstream file(settingsPath());
         if (!file)
             return;
         std::string line;
@@ -68,4 +89,43 @@ HostSettings &hostSettings()
     static const bool loaded = (load(settings), true);
     (void)loaded;
     return settings;
+}
+
+void saveHostSettings()
+{
+    const HostSettings &settings = hostSettings();
+    const std::pair<std::string, std::string> values[] = {
+        {"resolution", std::to_string(settings.windowWidth.load()) + "x" + std::to_string(settings.windowHeight.load())},
+        {"fullscreen", settings.fullscreen ? "1" : "0"},
+        {"widescreen", settings.widescreen ? "1" : "0"},
+        {"fxaa", settings.fxaa ? "1" : "0"},
+        {"render_scale", std::to_string(settings.renderScale.load())},
+    };
+    std::vector<std::string> lines;
+    {
+        std::ifstream in(settingsPath());
+        for (std::string line; std::getline(in, line);)
+            lines.push_back(line);
+    }
+    bool written[std::size(values)] = {};
+    for (std::string &line : lines)
+    {
+        const std::string key = lowerKey(line);
+        for (size_t i = 0; i < std::size(values); ++i)
+        {
+            if (key == values[i].first && !written[i])
+            {
+                line = values[i].first + " = " + values[i].second;
+                written[i] = true;
+            }
+        }
+    }
+    for (size_t i = 0; i < std::size(values); ++i)
+    {
+        if (!written[i])
+            lines.push_back(values[i].first + " = " + values[i].second);
+    }
+    std::ofstream out(settingsPath(), std::ios::trunc);
+    for (const std::string &line : lines)
+        out << line << '\n';
 }

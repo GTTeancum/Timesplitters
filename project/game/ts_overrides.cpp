@@ -1,26 +1,110 @@
 // TimeSplitters-specific runtime overrides.
 #include "game_overrides.h"
+#include "ps2_runtime.h"
+#include "ps2_runtime_macros.h"
+#include "runtime/ps2_audio.h"
+#include "runtime/ps2_music.h"
+#include "runtime/ps2_vfs.h"
 
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <string>
 
 namespace
 {
-    // The game links its own copy of libkernel's SIF RPC client. Its calls
-    // write SIF command packets into IOP memory, but nothing on the emulated
-    // IOP side reads those packets, so RPC servers running as IOP guest code
-    // (the FRD music stream driver, sid 0x534A4521) never saw a request and
-    // the game had no music. TS_SIF_RPC_BRIDGE=1 routes bind/call through the
-    // runtime's SIF RPC bridge, which dispatches to IOP guest servers. It is
-    // off by default: the driver then streams through the emulated SPU2 but
-    // does not yet play correct audio (see KNOWN-ISSUES.md).
+    // stream_RPC(command, argument) is the game's single entry to the FRD
+    // music stream driver on the IOP; it returns the first word of the
+    // driver's reply. Commands (from musicOpen/Start/Stop/SetVol/...):
+    //   0x7FF0, 0x8000  init          0x8020  open (argument: filename)
+    //   0x80, 0x81      channel setup 0x8050  play    0x8060  resume
+    //   0x8070          pause         0x80F0  stop    0x80E0  status
+    //   0xB0, 0xC0      volume (left << 16 | right, 0..0x3FFF)
+    //   0x30            close
+    // Status 0x5000 means playing; 0 means stopped.
+    constexpr uint32_t kStreamRpc = 0x205DE8u;
+    constexpr uint32_t kStatusPlaying = 0x5000u;
+
+    std::string readGuestString(uint8_t *rdram, uint32_t address)
+    {
+        std::string text;
+        for (uint32_t i = 0; i < 256u; ++i)
+        {
+            const char c = static_cast<char>(rdram[(address + i) & 0x1FFFFFFu]);
+            if (c == '\0')
+                break;
+            text.push_back(c);
+        }
+        return text;
+    }
+
+    bool resolveDiscPath(PS2Runtime &runtime, std::string guestPath, std::filesystem::path &hostPath)
+    {
+        const PS2Runtime::IoPaths &paths = PS2Runtime::getIoPaths();
+        const PS2VfsMounts mounts{paths.hostRoot, paths.cdRoot, paths.mcRoot};
+        if (guestPath.find(':') == std::string::npos)
+            guestPath = "cdrom0:" + guestPath;
+        if (runtime.vfs().resolveHostPath(guestPath, mounts, hostPath) && std::filesystem::exists(hostPath))
+            return true;
+        if (const size_t semicolon = guestPath.rfind(';'); semicolon != std::string::npos)
+        {
+            guestPath.erase(semicolon);
+            if (runtime.vfs().resolveHostPath(guestPath, mounts, hostPath) && std::filesystem::exists(hostPath))
+                return true;
+        }
+        return false;
+    }
+
+    void nativeStreamRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const uint32_t command = GPR_U32(ctx, 4);
+        const uint32_t argument = GPR_U32(ctx, 5);
+        Ps2Music &music = runtime->audioBackend().music();
+        uint32_t result = 0u;
+        switch (command)
+        {
+        case 0x8020:
+        {
+            const std::string name = readGuestString(rdram, argument);
+            std::filesystem::path hostPath;
+            const bool opened = resolveDiscPath(*runtime, name, hostPath) && music.open(hostPath.string());
+            std::fprintf(stderr, "[TS:music] open %s -> %s\n", name.c_str(), opened ? hostPath.string().c_str() : "failed");
+            break;
+        }
+        case 0x8050: music.play(); break;
+        case 0x8060: music.resume(); break;
+        case 0x8070: music.pause(); break;
+        case 0x80F0: music.stop(); break;
+        case 0x80E0: result = music.playing() ? kStatusPlaying : 0u; break;
+        case 0xB0:
+        case 0xC0: music.setVolume(argument >> 16, argument & 0xFFFFu); break;
+        case 0x30: music.close(); break;
+        default: break; // init and channel setup need nothing here
+        }
+        SET_GPR_U32(ctx, 2, result);
+        ctx->pc = GPR_U32(ctx, 31);
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        // The game links its own copy of libkernel's SIF RPC client. Its calls
+        // write SIF command packets into IOP memory that the emulated IOP never
+        // services, so the FRD music driver never got a request.
+        // TS_SIF_RPC_BRIDGE=1 routes bind/call through the runtime's RPC bridge
+        // to the real driver (which streams through the emulated SPU2 but does
+        // not yet play correct audio). By default music is played natively.
         const char *bridge = std::getenv("TS_SIF_RPC_BRIDGE");
-        if (!(bridge && *bridge == '1'))
+        if (bridge && *bridge == '1')
+        {
+            ps2_game_overrides::bindAddressHandler(runtime, 0x2D2B58u, "sceSifBindRpc");
+            ps2_game_overrides::bindAddressHandler(runtime, 0x2D2D08u, "sceSifCallRpc");
             return;
-        ps2_game_overrides::bindAddressHandler(runtime, 0x2D2B58u, "sceSifBindRpc");
-        ps2_game_overrides::bindAddressHandler(runtime, 0x2D2D08u, "sceSifCallRpc");
+        }
+        const char *native = std::getenv("TS_NATIVE_MUSIC");
+        if (!(native && *native == '0'))
+            runtime.replaceFunction(kStreamRpc, &nativeStreamRpc);
     }
 }
 
-PS2_REGISTER_GAME_OVERRIDE("TimeSplitters SIF RPC", "SLUS_200.90", 0u, 0u, applyTimeSplittersOverrides)
+PS2_REGISTER_GAME_OVERRIDE("TimeSplitters music", "SLUS_200.90", 0u, 0u, applyTimeSplittersOverrides)

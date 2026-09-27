@@ -21,20 +21,18 @@ may work there; compare that path with the one used in hands-on play.
 Next step: trace `propDamage` with `TS_TRACE_COMBAT=1` during a hands-on
 shot and step through the health update in the generated code.
 
-## Sound: effects play, music does not yet
+## Sound
 
-An SPU2 model (`ps2_spu2.cpp`) now mixes the game's voices: ADPCM decode,
+Sound effects play through the SPU2 model (`ps2_spu2.cpp`): ADPCM decode,
 pitch, ADSR, looping, per-voice and master volume, driven by the game's
-`sceSdRemote` commands (including batches read from IOP memory) and by SPU2
-register writes, DMA and IRQs from IOP code. Sound effects play. Not yet
-modelled: reverb, noise, pitch modulation. Clicks were visible in held
-tones in an early recording (not yet re-checked).
+`sceSdRemote` commands and by SPU2 register writes, DMA and IRQs from IOP
+code. Not yet modelled: reverb, noise, pitch modulation. Clicks were
+visible in held tones in an early recording (not yet re-checked).
 
-Music: the game sends its music commands to the FRD stream driver on the
-IOP through its own copy of the SIF RPC client, which the emulated IOP
-never serviced. `TS_SIF_RPC_BRIDGE=1` routes them through the runtime's
-RPC bridge; the driver then opens `MUSIC/*.MSC` (ioman open/read/lseek are
-now emulated) and streams, but the output is wrong (noise instead of
-music). Plan: play music natively instead, by intercepting `musicStart`,
-`musicStop`, `musicSetVol` and streaming the `.MSC` files (raw PS2 ADPCM,
-stereo interleave ~0x4000) directly.
+Music plays natively (`ps2_music.cpp`): `stream_RPC` (0x205DE8, the game's
+only entry to the FRD stream driver) is replaced, and `MUSIC/*.MSC` tracks
+(raw PS2 ADPCM, 0x8000-byte stereo interleave, 44.1 kHz) are decoded and
+mixed into the SPU2 output. `TS_NATIVE_MUSIC=0` turns it off.
+`TS_SIF_RPC_BRIDGE=1` instead drives the original IOP driver through the
+runtime's RPC bridge (streams through the emulated SPU2; output still
+wrong).

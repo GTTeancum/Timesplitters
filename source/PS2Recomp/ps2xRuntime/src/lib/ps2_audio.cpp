@@ -1,5 +1,6 @@
 #include "runtime/ps2_audio.h"
 #include "runtime/ps2_spu2.h"
+#include "runtime/ps2_music.h"
 #include <atomic>
 #include <cstdlib>
 #include <cstdio>
@@ -84,6 +85,7 @@ struct PS2AudioBackend::Impl
     std::vector<uint8_t> spuRam = std::vector<uint8_t>(SpuRamBytes, 0u);
     mutable SpuMemoryStats spuStats;
     std::unique_ptr<Spu2> spu;
+    Ps2Music music;
     AudioStream stream{};
     bool streamStarted = false;
 };
@@ -91,6 +93,7 @@ struct PS2AudioBackend::Impl
 namespace
 {
     std::atomic<Spu2 *> g_outputSpu{nullptr};
+    std::atomic<Ps2Music *> g_outputMusic{nullptr};
 
     void spu2StreamCallback(void *buffer, unsigned int frames)
     {
@@ -99,6 +102,8 @@ namespace
             spu->mix(static_cast<int16_t *>(buffer), frames);
         else
             std::memset(buffer, 0, size_t(frames) * 4u);
+        if (Ps2Music *music = g_outputMusic.load(std::memory_order_acquire))
+            music->mix(static_cast<int16_t *>(buffer), frames);
         // TS_SPU2_RAW=<file>: also record the output (raw 48 kHz stereo s16).
         static FILE *raw = [] {
             const char *path = std::getenv("TS_SPU2_RAW");
@@ -110,6 +115,12 @@ namespace
             std::fflush(raw);
         }
     }
+}
+
+Ps2Music &PS2AudioBackend::music()
+{
+    (void)spu2(); // starts the output stream
+    return m_impl->music;
 }
 
 Spu2 &PS2AudioBackend::spu2()
@@ -126,6 +137,7 @@ Spu2 &PS2AudioBackend::spu2()
             SetAudioStreamBufferSizeDefault(1024);
             impl.stream = LoadAudioStream(48000, 16, 2);
             g_outputSpu.store(impl.spu.get(), std::memory_order_release);
+            g_outputMusic.store(&impl.music, std::memory_order_release);
             SetAudioStreamCallback(impl.stream, spu2StreamCallback);
             PlayAudioStream(impl.stream);
         }
@@ -142,6 +154,7 @@ PS2AudioBackend::~PS2AudioBackend()
     if (m_impl && m_impl->streamStarted && g_outputSpu.load())
     {
         g_outputSpu.store(nullptr, std::memory_order_release);
+        g_outputMusic.store(nullptr, std::memory_order_release);
         StopAudioStream(m_impl->stream);
         UnloadAudioStream(m_impl->stream);
     }

@@ -5,6 +5,7 @@
 #include "runtime/ps2_audio.h"
 #include "runtime/ps2_music.h"
 #include "runtime/ps2_vfs.h"
+#include "ps2_recompiled_functions.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -86,8 +87,40 @@ namespace
         ctx->pc = GPR_U32(ctx, 31);
     }
 
+    // TS_TRACE_DAMAGE=1: log every propDamage call (target, attacker, amount,
+    // the target's health at +0x208 before and after).
+    float readGuestFloat(uint8_t *rdram, uint32_t address)
+    {
+        float value = 0.0f;
+        std::memcpy(&value, rdram + (address & 0x1FFFFFCu), sizeof(value));
+        return value;
+    }
+
+    void tracedPropDamage(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const uint32_t target = GPR_U32(ctx, 4), attacker = GPR_U32(ctx, 5), caller = GPR_U32(ctx, 31);
+        float amount = 0.0f;
+        std::memcpy(&amount, &ctx->f[12], sizeof(amount));
+        const float before = target ? readGuestFloat(rdram, target + 0x208u) : 0.0f;
+        propDamage_0x271998(rdram, ctx, runtime);
+        const float after = target ? readGuestFloat(rdram, target + 0x208u) : 0.0f;
+        auto word = [rdram](uint32_t address) {
+            uint32_t value = 0;
+            std::memcpy(&value, rdram + (address & 0x1FFFFFCu), sizeof(value));
+            return value;
+        };
+        std::fprintf(stderr,
+                     "[TS:damage] caller=%08x target=%08x (type %u flags %08x) attacker=%08x (type %u flags %08x) "
+                     "amount=%g health %g -> %g a3=%08x\n",
+                     caller, target, target ? word(target + 8u) : 0u, target ? word(target + 0x10u) : 0u, attacker,
+                     attacker ? word(attacker + 8u) : 0u, attacker ? word(attacker + 0x10u) : 0u, amount, before, after,
+                     GPR_U32(ctx, 7));
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        if (const char *trace = std::getenv("TS_TRACE_DAMAGE"); trace && *trace == '1')
+            runtime.replaceFunction(0x271998u, &tracedPropDamage);
         // The game links its own copy of libkernel's SIF RPC client. Its calls
         // write SIF command packets into IOP memory that the emulated IOP never
         // services, so the FRD music driver never got a request.

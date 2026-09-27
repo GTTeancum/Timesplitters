@@ -6,20 +6,16 @@ Reported 2026-09-26 in hands-on play (Windows Release build, OpenGL
 renderer, asynchronous VIF1): enemies do no damage to the player, and the
 player cannot damage enemies.
 
-Earlier evidence (see `TimeSplitters-PS2Recomp-CANONICAL-HANDOFF.md`,
-`TS_TRACE_COMBAT=1`): a shot reached the original `propDamage` with
-`amount=0.3` but `health_before=1 health_after=1`. So hits are detected
-and the damage routine runs; the health reduction itself does not happen.
-Suspects: the recompiled `propDamage` path (FPU/COP1 semantics such as
-float compare, conversion or clamping), or a difficulty/multiplier value
-read from memory that is zero.
-
-Note: in automated arcade runs the idle test player was sometimes shown
-dead (death camera) near the end of a 15-minute match, so some damage path
-may work there; compare that path with the one used in hands-on play.
-
-Next step: trace `propDamage` with `TS_TRACE_COMBAT=1` during a hands-on
-shot and step through the health update in the generated code.
+Findings so far (`TS_TRACE_DAMAGE=1` logs every `propDamage` call with the
+target's and attacker's type, flags and health before/after):
+- Arcade (bots): characters (type 8, flags 0x40000031) take damage and die
+  normally, both from bots and the player.
+- The old "amount 0.3, health 1 -> 1" evidence from Story mode was the player
+  shooting scenery (type 2, flags 0x01000021, no damageable flag 0x10);
+  `propDamage` correctly ignores that.
+- Not yet reproduced: damage between the player and Story-mode enemies. The
+  scripted Story run never met an enemy. Need the mode/level where it
+  happens.
 
 ## Sound
 

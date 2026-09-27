@@ -1,4 +1,8 @@
 #include "iop_emulator.h"
+#include <cstdio>
+#include <cstdlib>
+#include <map>
+#include <string>
 #include "imports/iop_cdvd.h"
 #include "core/iop_cpu.h"
 #include "imports/iop_heaplib.h"
@@ -105,12 +109,17 @@ namespace ps2x::iop::detail
               heaplib(memory),
               intrman(memory),
               timrman(),
-              ioman(memory),
+              ioman(memory, host),
               cpuCore(memory),
               imports(memory),
               loadcore(memory, imports)
         {
             reset();
+            IopMemory::SpuBus bus;
+            bus.write = [this](uint32_t offset, uint16_t value) { host.spu2WriteRegister(offset, value); };
+            bus.read = [this](uint32_t offset, uint16_t &value) { return host.spu2ReadRegister(offset, value); };
+            bus.dma = [this](unsigned core, const uint8_t *data, uint32_t bytes) { host.spu2Dma(core, data, bytes); };
+            memory.setSpuBus(std::move(bus));
         }
 
         void reset()
@@ -244,6 +253,7 @@ namespace ps2x::iop::detail
             {
                 cpu.gpr[2] = value;
             };
+
 
             if (iequals(call.library, "sysmem") && sysmem.dispatchImport(call.ordinal, cpu))
                 return ImportDisposition::Handled;
@@ -560,6 +570,13 @@ namespace ps2x::iop::detail
                 const uint64_t target = totalCycles + cycles;
                 while (totalCycles < target)
                 {
+                    // SPU2 interrupt (IRQA reached): INTC line 9.
+                    if (!servicingSpuInterrupt && host.spu2TakeIrq())
+                    {
+                        servicingSpuInterrupt = true;
+                        (void)intrman.dispatchInterrupt(9, *this);
+                        servicingSpuInterrupt = false;
+                    }
                     servicePendingDmaInterrupts();
                     servicePendingGuestCallbacks();
                     timrman.serviceDue(totalCycles, *this);
@@ -680,6 +697,7 @@ namespace ps2x::iop::detail
         }
 
         IopHost &host;
+        bool servicingSpuInterrupt = false;
         IopMemory memory;
         IopSysmem sysmem;
         IopKernel kernel;

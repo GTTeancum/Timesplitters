@@ -18,6 +18,7 @@
 #include "ps2_iop_host.h"
 #include "ps2x/iop/iop_subsystem.h"
 
+#include <map>
 #include <iostream>
 #include <stdexcept>
 #include <fstream>
@@ -1460,6 +1461,25 @@ bool PS2Runtime::dispatchGuestBranch(uint8_t *rdram,
     }
 
     RecompiledFunction targetFn = lookupFunction(targetPc);
+    { // TS_TRACE_CALLS=hex,hex,...: log calls to these guest functions (first 200 each)
+        static const std::vector<uint32_t> traced = [] {
+            std::vector<uint32_t> list;
+            if (const char *v = std::getenv("TS_TRACE_CALLS"))
+                for (const char *p = v; *p;)
+                {
+                    char *end = nullptr;
+                    list.push_back(static_cast<uint32_t>(std::strtoul(p, &end, 16)));
+                    p = (*end == ',') ? end + 1 : end;
+                    if (end == p && *p == '\0') break;
+                }
+            return list;
+        }();
+        static std::map<uint32_t, int> tracedCounts;
+        if (!traced.empty() && std::find(traced.begin(), traced.end(), targetPc) != traced.end() &&
+            tracedCounts[targetPc]++ < 200)
+            std::fprintf(stderr, "[TS:call] %08x from %08x a0=%08x a1=%08x a2=%08x a3=%08x\n", targetPc, sourcePc,
+                         GPR_U32(ctx, 4), GPR_U32(ctx, 5), GPR_U32(ctx, 6), GPR_U32(ctx, 7));
+    }
     const uint32_t entryPc = ctx->pc;
     // Measure host time in direct boss-loop calls, including dispatcher unwind.
     // A yielded segment is not a completed guest call; keep that explicit.

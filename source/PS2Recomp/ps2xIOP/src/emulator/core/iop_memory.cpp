@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cstring>
+#include <cstdio>
+#include <cstdlib>
 
 namespace ps2x::iop::detail
 {
@@ -58,6 +60,12 @@ namespace ps2x::iop::detail
     uint16_t IopMemory::read16(uint32_t address) const
     {
         const uint32_t phys = physicalAddress(address);
+        if (phys >= Spu2Base && phys < Spu2Base + 0x800u && m_spuBus.read)
+        {
+            uint16_t value = 0;
+            if (m_spuBus.read(phys - Spu2Base, value))
+                return value;
+        }
         if (phys + 1u < RamSize)
         {
             uint16_t value;
@@ -82,6 +90,8 @@ namespace ps2x::iop::detail
             std::memcpy(&value, m_scratch.data() + (phys - ScratchBase), sizeof(value));
             return value;
         }
+        if ((phys & 3u) == 0u && phys >= Spu2Base && phys < Spu2Base + 0x800u && m_spuBus.read)
+            return static_cast<uint32_t>(read16(address)) | (static_cast<uint32_t>(read16(address + 2u)) << 16u);
         if ((phys & 3u) == 0u && isHardwareAddress(phys))
             return readHardware32(phys);
 
@@ -115,6 +125,8 @@ namespace ps2x::iop::detail
     void IopMemory::write16(uint32_t address, uint16_t value)
     {
         const uint32_t phys = physicalAddress(address);
+        if (phys >= Spu2Base && phys < Spu2Base + 0x800u && m_spuBus.write)
+            m_spuBus.write(phys - Spu2Base, value);
         if (phys + 1u < RamSize)
         {
             std::memcpy(m_ram.data() + phys, &value, sizeof(value));
@@ -141,6 +153,11 @@ namespace ps2x::iop::detail
         }
         if ((phys & 3u) == 0u)
         {
+            if (phys >= Spu2Base && phys < Spu2Base + 0x800u && m_spuBus.write)
+            {
+                m_spuBus.write(phys - Spu2Base, static_cast<uint16_t>(value));
+                m_spuBus.write(phys - Spu2Base + 2u, static_cast<uint16_t>(value >> 16u));
+            }
             writeHardware32(phys, value);
             return;
         }
@@ -269,6 +286,14 @@ namespace ps2x::iop::detail
         const uint32_t wordsPerBlock = std::max<uint32_t>(blockControl & 0xFFFFu, 1u);
         const uint32_t blockCount = std::max<uint32_t>(blockControl >> 16u, 1u);
         const uint64_t transferWords = static_cast<uint64_t>(wordsPerBlock) * blockCount;
+        // CHCR bit 0: RAM -> device. Copy the bytes into sound RAM.
+        const uint32_t madrAddress = address - 2u * sizeof(uint32_t);
+        uint32_t madr = 0u;
+        if (const auto current = m_hardware.find(madrAddress); current != m_hardware.end())
+            madr = current->second & 0x1FFFFFu;
+        const uint64_t transferBytes = transferWords * 4u;
+        if ((value & 1u) != 0u && m_spuBus.dma && madr < RamSize && transferBytes <= RamSize - madr)
+            m_spuBus.dma(secondCore ? 1u : 0u, m_ram.data() + madr, static_cast<uint32_t>(transferBytes));
         m_dmaStart = DmaStart{
             secondCore ? kDmaSpu1Irq : kDmaSpu0Irq,
             std::max<uint64_t>(transferWords * 2u, 64u),

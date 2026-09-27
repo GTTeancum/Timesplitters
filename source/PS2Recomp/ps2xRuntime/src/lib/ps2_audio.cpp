@@ -1,4 +1,8 @@
 #include "runtime/ps2_audio.h"
+#include "runtime/ps2_spu2.h"
+#include <atomic>
+#include <cstdlib>
+#include <cstdio>
 #include "runtime/ps2_memory.h"
 #include "ps2_host_backend.h"
 #include <cstring>
@@ -79,7 +83,55 @@ struct PS2AudioBackend::Impl
     std::vector<TrackedSound> activeSounds;
     std::vector<uint8_t> spuRam = std::vector<uint8_t>(SpuRamBytes, 0u);
     mutable SpuMemoryStats spuStats;
+    std::unique_ptr<Spu2> spu;
+    AudioStream stream{};
+    bool streamStarted = false;
 };
+
+namespace
+{
+    std::atomic<Spu2 *> g_outputSpu{nullptr};
+
+    void spu2StreamCallback(void *buffer, unsigned int frames)
+    {
+        Spu2 *spu = g_outputSpu.load(std::memory_order_acquire);
+        if (spu)
+            spu->mix(static_cast<int16_t *>(buffer), frames);
+        else
+            std::memset(buffer, 0, size_t(frames) * 4u);
+        // TS_SPU2_RAW=<file>: also record the output (raw 48 kHz stereo s16).
+        static FILE *raw = [] {
+            const char *path = std::getenv("TS_SPU2_RAW");
+            return path && *path ? std::fopen(path, "wb") : nullptr;
+        }();
+        if (raw)
+        {
+            std::fwrite(buffer, 4u, frames, raw);
+            std::fflush(raw);
+        }
+    }
+}
+
+Spu2 &PS2AudioBackend::spu2()
+{
+    Impl &impl = *m_impl;
+    if (!impl.spu)
+        impl.spu = std::make_unique<Spu2>(impl.spuRam.data());
+    if (!impl.streamStarted && IsAudioDeviceReady())
+    {
+        impl.streamStarted = true;
+        const char *mode = std::getenv("TS_SPU2");
+        if (!(mode && *mode == '0'))
+        {
+            SetAudioStreamBufferSizeDefault(1024);
+            impl.stream = LoadAudioStream(48000, 16, 2);
+            g_outputSpu.store(impl.spu.get(), std::memory_order_release);
+            SetAudioStreamCallback(impl.stream, spu2StreamCallback);
+            PlayAudioStream(impl.stream);
+        }
+    }
+    return *impl.spu;
+}
 
 PS2AudioBackend::PS2AudioBackend() : m_impl(std::make_unique<Impl>())
 {
@@ -87,6 +139,12 @@ PS2AudioBackend::PS2AudioBackend() : m_impl(std::make_unique<Impl>())
 
 PS2AudioBackend::~PS2AudioBackend()
 {
+    if (m_impl && m_impl->streamStarted && g_outputSpu.load())
+    {
+        g_outputSpu.store(nullptr, std::memory_order_release);
+        StopAudioStream(m_impl->stream);
+        UnloadAudioStream(m_impl->stream);
+    }
     if (m_impl)
         stopAll();
 }

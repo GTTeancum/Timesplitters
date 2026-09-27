@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <vector>
 
+class Spu2;
+
 class PS2AudioBackend
 {
 public:
@@ -25,6 +27,10 @@ public:
     void stop(uint32_t voiceId);
     void stopAll();
     void setAudioReady(bool ready) { m_audioReady = ready; }
+
+    // SPU2 emulation over the sound RAM below; its output starts playing on
+    // the host audio device the first time it is used (TS_SPU2=0 mutes it).
+    Spu2 &spu2();
 
     // SPU2's two cores share one 2 MiB sound RAM. This data path is independent
     // of a host playback device and does not imply voice mixing or audible output.

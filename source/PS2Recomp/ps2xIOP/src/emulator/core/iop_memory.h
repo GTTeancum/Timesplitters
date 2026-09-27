@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <span>
 #include <string>
@@ -38,6 +39,15 @@ namespace ps2x::iop::detail
         };
 
         IopMemory();
+
+        // SPU2 register/DMA bus (see IopHost::spu2*).
+        struct SpuBus
+        {
+            std::function<void(uint32_t offset, uint16_t value)> write;
+            std::function<bool(uint32_t offset, uint16_t &value)> read;
+            std::function<void(unsigned core, const uint8_t *data, uint32_t bytes)> dma;
+        };
+        void setSpuBus(SpuBus bus) { m_spuBus = std::move(bus); }
 
         void reset();
 
@@ -87,5 +97,6 @@ namespace ps2x::iop::detail
         uint32_t m_interruptMask = 0;
         uint32_t m_interruptControl = 1;
         std::optional<DmaStart> m_dmaStart;
+        SpuBus m_spuBus;
     };
 }

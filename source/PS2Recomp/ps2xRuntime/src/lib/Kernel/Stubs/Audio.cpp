@@ -1,5 +1,7 @@
 #include "Common.h"
 #include "Audio.h"
+#include "runtime/ps2_spu2.h"
+#include <cstring>
 
 namespace ps2_stubs
 {
@@ -54,6 +56,76 @@ namespace ps2_stubs
             g_audio_stub_state = {};
         }
 
+        // libsd register commands (sdrdrv numbering) and batches, applied to
+        // the SPU2 emulation. Returns false for commands handled elsewhere.
+        bool handleSpu2Command(PS2Runtime *runtime, R5900Context *ctx, Spu2 &spu, uint32_t cmd, uint32_t a0,
+                               uint32_t a1, uint32_t a2, uint32_t a3)
+        {
+            auto apply = [&spu](uint32_t func, uint32_t entry, uint32_t value) -> uint32_t {
+                switch (func)
+                {
+                case 0x01: spu.setParam(entry, value); return 0;
+                case 0x02: spu.setSwitch(entry, value); return 0;
+                case 0x03: spu.setAddr(entry, value); return 0;
+                case 0x04: spu.setCoreAttr(entry, value); return 0;
+                case 0x10: return spu.getParam(entry);
+                case 0x12: return spu.getSwitch(entry);
+                case 0x13: return spu.getAddr(entry);
+                case 0x14: return spu.getCoreAttr(entry);
+                default: return 0;
+                }
+            };
+            switch (cmd)
+            {
+            case 0x8010: spu.setParam(a0, a1); setReturnU32(ctx, 0); return true;
+            case 0x8020: setReturnU32(ctx, spu.getParam(a0)); return true;
+            case 0x8030: spu.setSwitch(a0, a1); setReturnU32(ctx, 0); return true;
+            case 0x8040: setReturnU32(ctx, spu.getSwitch(a0)); return true;
+            case 0x8050: spu.setAddr(a0, a1); setReturnU32(ctx, 0); return true;
+            case 0x8060: setReturnU32(ctx, spu.getAddr(a0)); return true;
+            case 0x8070: spu.setCoreAttr(a0, a1); setReturnU32(ctx, 0); return true;
+            case 0x8080: setReturnU32(ctx, spu.getCoreAttr(a0)); return true;
+            case 0x80B0: // ProcBatch(batch, returns, count)
+            case 0x80C0: // ProcBatchEx(batch, returns, count, voice mask)
+            {
+                static const bool trace = std::getenv("TS_SPU2_TRACE") != nullptr;
+                const uint32_t count = std::min<uint32_t>(a2, 512u);
+                uint32_t done = 0;
+                for (uint32_t i = 0; i < count; ++i)
+                {
+                    // The batch lives in IOP memory (the EE sent it there).
+                    uint8_t item[8];
+                    if (!runtime->readIopMemory(a0 + i * 8u, item, sizeof(item)))
+                        break;
+                    uint16_t func, entry;
+                    uint32_t value;
+                    std::memcpy(&func, item, 2);
+                    std::memcpy(&entry, item + 2, 2);
+                    std::memcpy(&value, item + 4, 4);
+                    if (trace)
+                        std::cerr << "[TS:sd-batch] func=" << std::hex << func << " entry=" << entry
+                                  << " value=" << value << std::dec << '\n';
+                    uint32_t result = 0;
+                    if (cmd == 0x80C0 && (func & 0xF0u) == 0u && func <= 4u)
+                    {
+                        for (uint32_t voice = 0; voice < 24; ++voice)
+                            if (a3 & (1u << voice))
+                                apply(func, (entry & ~0x3Eu) | (voice << 1), value);
+                    }
+                    else
+                        result = apply(func, entry, value);
+                    if (a1)
+                        (void)runtime->writeIopMemory(a1 + i * 4u, &result, sizeof(result));
+                    ++done;
+                }
+                setReturnU32(ctx, done);
+                return true;
+            }
+            default:
+                return false;
+            }
+        }
+
         uint32_t currentBlockStatus(const BlockTransferState &transfer)
         {
             const uint32_t position = (transfer.base + transfer.offset) & kAudioPositionMask;
@@ -85,6 +157,9 @@ namespace ps2_stubs
         const uint32_t arg4 = getRegU32(ctx, 8);
         const uint32_t arg5 = getRegU32(ctx, 9);
         const uint32_t arg6 = getRegU32(ctx, 10);
+
+        if (runtime && handleSpu2Command(runtime, ctx, runtime->audioBackend().spu2(), cmd, cmdArg0, cmdArg1, arg4, arg5))
+            return;
 
         std::lock_guard<std::mutex> lock(g_audio_stub_mutex);
         g_audio_stub_state.initialized = true;

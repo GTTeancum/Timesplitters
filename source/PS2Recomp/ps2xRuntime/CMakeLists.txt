@@ -384,6 +384,7 @@ add_library(ps2_runtime STATIC
     src/lib/gs/ps2_gif_arbiter.cpp
     src/lib/ps2_audio.cpp
     src/lib/ps2_audio_vag.cpp
+    src/lib/ps2_spu2.cpp
     src/lib/gs/ps2_gs_memory.cpp
     src/lib/gs/gs_frontend.cpp
     src/lib/gs/gs_cpu_backend.cpp

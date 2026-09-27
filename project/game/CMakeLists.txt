@@ -13,7 +13,7 @@ if(MSVC)
 else()
     target_compile_options(ts_vu_generated PRIVATE -O2 -mavx2)
 endif()
-add_executable(timesplitters ${TS_GENERATED} $<TARGET_OBJECTS:ts_vu_generated> main.cpp)
+add_executable(timesplitters ${TS_GENERATED} $<TARGET_OBJECTS:ts_vu_generated> main.cpp ts_overrides.cpp)
 target_link_libraries(timesplitters PRIVATE ps2_runtime)
 
 option(PS2X_VU_GAME_REFERENCE "Link reference VU objects for local game comparisons" OFF)

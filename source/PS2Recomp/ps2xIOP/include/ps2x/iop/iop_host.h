@@ -130,6 +130,27 @@ namespace ps2x::iop
             return false;
         }
 
+        // SPU2 hardware (offset = physical address - 0x1F900000). The host
+        // owns the sound processor; defaults leave the IOP's stored values.
+        virtual void spu2WriteRegister(uint32_t offset, uint16_t value)
+        {
+            (void)offset;
+            (void)value;
+        }
+        virtual bool spu2ReadRegister(uint32_t offset, uint16_t &value)
+        {
+            (void)offset;
+            (void)value;
+            return false;
+        }
+        virtual void spu2Dma(unsigned core, const uint8_t *data, uint32_t bytes)
+        {
+            (void)core;
+            (void)data;
+            (void)bytes;
+        }
+        virtual bool spu2TakeIrq() { return false; }
+
         virtual void log(LogLevel level, std::string_view message) = 0;
     };
 }

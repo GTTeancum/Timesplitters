@@ -84,6 +84,10 @@ public:
                              uint32_t *resultAddress) override;
     bool sendSifCommand(uint32_t commandId, const void *packet, size_t packetSize) override;
 
+    void spu2WriteRegister(uint32_t offset, uint16_t value) override;
+    bool spu2ReadRegister(uint32_t offset, uint16_t &value) override;
+    void spu2Dma(unsigned core, const uint8_t *data, uint32_t bytes) override;
+    bool spu2TakeIrq() override;
     void log(ps2x::iop::LogLevel level, std::string_view message) override;
 
 private:

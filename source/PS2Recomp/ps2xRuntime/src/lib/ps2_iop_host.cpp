@@ -1,4 +1,5 @@
 #include "ps2_iop_host.h"
+#include "runtime/ps2_spu2.h"
 
 #include "ps2_runtime.h"
 #include "ps2_stubs.h"
@@ -515,6 +516,26 @@ bool PS2IopHostAdapter::sendSifCommand(uint32_t commandId,
                                          commandId,
                                          packet,
                                          packetSize);
+}
+
+void PS2IopHostAdapter::spu2WriteRegister(uint32_t offset, uint16_t value)
+{
+    m_runtime.audioBackend().spu2().writeRegister(offset, value);
+}
+
+bool PS2IopHostAdapter::spu2ReadRegister(uint32_t offset, uint16_t &value)
+{
+    return m_runtime.audioBackend().spu2().readRegister(offset, value);
+}
+
+void PS2IopHostAdapter::spu2Dma(unsigned core, const uint8_t *data, uint32_t bytes)
+{
+    m_runtime.audioBackend().spu2().dmaWrite(core, data, bytes);
+}
+
+bool PS2IopHostAdapter::spu2TakeIrq()
+{
+    return m_runtime.audioBackend().spu2().takeIrq();
 }
 
 void PS2IopHostAdapter::log(ps2x::iop::LogLevel level, std::string_view message)

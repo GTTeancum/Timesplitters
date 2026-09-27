@@ -178,6 +178,8 @@ private:
     void processImageData(const uint8_t *data, uint32_t sizeBytes);
     bool tryProcessNativeImageUploadPacket(const uint8_t *data, uint32_t sizeBytes);
     GSPrimitiveBatch buildDrawBatch(int vertexCount) const;
+    void adjustWidescreenHud(GSPrimitiveBatch &batch);
+    uint64_t m_drawCounter = 0, m_lastPerspectiveDraw = 0;
     void updatePreferredDisplaySourceForDraw(const GSPrimitiveBatch &batch);
     GSPresentationRequest buildPresentationRequestUnlocked() const;
 

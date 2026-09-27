@@ -1,7 +1,9 @@
 #include "runtime/gs/gs_frontend.h"
+#include "runtime/ps2_host_settings.h"
 #include "runtime/gs/gs_cpu_backend.h"
 #include "ps2_log.h"
 #include "runtime/ps2_memory.h"
+#include <chrono>
 #include <atomic>
 #include <algorithm>
 #include <cmath>
@@ -1561,6 +1563,7 @@ void GS::vertexKick(bool drawing)
     if (drawing && m_backend)
     {
         GSPrimitiveBatch batch = buildDrawBatch(needed);
+        adjustWidescreenHud(batch);
         updatePreferredDisplaySourceForDraw(batch);
         m_backend->Submit(batch);
         recordDrawDebugEventUnlocked(needed);
@@ -1658,6 +1661,49 @@ void GS::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_
     std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
     if (m_backend)
         m_backend->WriteVram(psm, base, bw, x, y, value);
+}
+
+// Widescreen (timesplitters.ini): the 3D view is widened and the frame shown
+// at 16:9, which would stretch 2D overlays sideways. During gameplay (a
+// perspective-textured, depth-tested draw was seen recently), overlay
+// primitives - no depth test or write, flat or pixel-addressed texture,
+// entirely on screen - are narrowed back to their 4:3 width, pinned to the
+// left margin, the right margin or the centre by where they sit.
+void GS::adjustWidescreenHud(GSPrimitiveBatch &batch)
+{
+    const GSDrawState &state = batch.state;
+    const GSContext &ctx = state.context;
+    const uint32_t ztst = static_cast<uint32_t>((ctx.test >> 17) & 3u);
+    ++m_drawCounter;
+    if (state.prim.tme && !state.prim.fst && ztst >= 2u)
+        m_lastPerspectiveDraw = m_drawCounter;
+    if (!hostSettings().widescreen || m_drawCounter - m_lastPerspectiveDraw > 20000u)
+        return;
+    if (ztst != 1u || !ctx.zbuf.zmask || (state.prim.tme && !state.prim.fst) || batch.vertexCount == 0u)
+        return;
+    const float ofx = static_cast<float>(ctx.xyoffset.ofx >> 4);
+    const float ofy = static_cast<float>(ctx.xyoffset.ofy >> 4);
+    const float width = static_cast<float>(std::max<uint32_t>(ctx.frame.fbw, 1u) * 64u);
+    const float height = static_cast<float>(std::max(ctx.scissor.y0, ctx.scissor.y1) + 1);
+    float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+    for (uint32_t i = 0; i < batch.vertexCount; ++i)
+    {
+        const float x = batch.vertices[i].x - ofx, y = batch.vertices[i].y - ofy;
+        x0 = std::min(x0, x);
+        x1 = std::max(x1, x);
+        y0 = std::min(y0, y);
+        y1 = std::max(y1, y);
+    }
+    if (x0 < 0.0f || x1 > width || y0 < 0.0f || y1 > height)
+        return; // full-screen effects reach past the edges
+    const float centre = (x0 + x1) * 0.5f;
+    const float anchor = centre < width / 3.0f ? 0.0f : centre > width * 2.0f / 3.0f ? width : width * 0.5f;
+    constexpr float kNarrow = 3.0f / 4.0f;
+    for (uint32_t i = 0; i < batch.vertexCount; ++i)
+    {
+        const float x = batch.vertices[i].x - ofx;
+        batch.vertices[i].x = anchor + (x - anchor) * kNarrow + ofx;
+    }
 }
 
 GSPrimitiveBatch GS::buildDrawBatch(int vertexCount) const

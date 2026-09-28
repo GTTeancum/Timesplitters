@@ -9,6 +9,7 @@
 #include "ps2_recompiled_functions.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -581,8 +582,83 @@ namespace
         std_menumake_0x22daf8(rdram, ctx, runtime);
     }
 
+
+    // Cheat: a sign-on named "time2split" (any case) has everything unlocked.
+    // unlockedEx(condition, ...) decides every unlock (characters, levels,
+    // story difficulties, bot and weapon sets, challenge modes, cheats); the
+    // game's own hidden cheat1 makes it pass every condition by setting the
+    // word at gp-0x6510. challengeAvail(n) separately requires the previous
+    // challenge to be won. Both answer yes while the cheat profile is the
+    // one being checked. Nothing is written to the profile or the card.
+    //
+    // Sign-on records are 0xB78 bytes each at *(gp-0x6228), name first;
+    // *(gp-0x48EC) (statsGet) points at the stats being checked, inside the
+    // current record. signonGet(0), the table at 0x1FBC158, is the fallback.
+    constexpr uint32_t kUnlockedEx = 0x2251A8u;
+    constexpr uint32_t kChallengeAvail = 0x225038u;
+    constexpr uint32_t kSignonSize = 0xB78u;
+    constexpr uint32_t kSignonSlots = 16u;
+
+    bool cheatProfileActive(uint8_t *rdram, R5900Context *ctx)
+    {
+        const uint32_t gp = GPR_U32(ctx, 28);
+        const uint32_t base = guestWord(rdram, gp - 0x6228u);
+        if (base < 0x100000u || base >= 0x2000000u)
+            return false;
+        uint32_t record = 0;
+        const uint32_t stats = guestWord(rdram, gp - 0x48ECu);
+        if (stats >= base && stats < base + kSignonSlots * kSignonSize)
+            record = base + (stats - base) / kSignonSize * kSignonSize;
+        else
+        {
+            const uint32_t index = guestWord(rdram, 0x1FBC158u);
+            if (index >= kSignonSlots)
+                return false;
+            record = base + index * kSignonSize;
+        }
+        static const char kName[] = "time2split";
+        for (uint32_t i = 0; i < sizeof(kName); ++i)
+        {
+            const char c = static_cast<char>(rdram[record + i]);
+            if (std::tolower(static_cast<unsigned char>(c)) != kName[i])
+                return false;
+        }
+        static bool announced = false;
+        if (!announced)
+        {
+            announced = true;
+            std::fprintf(stderr, "[TS:cheat] time2split: everything unlocked\n");
+        }
+        return true;
+    }
+
+    void cheatUnlockedEx(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        // Same condition as the game's own switch: condition type 0 is left alone.
+        if (guestWord(rdram, GPR_U32(ctx, 4)) != 0u && cheatProfileActive(rdram, ctx))
+        {
+            SET_GPR_U32(ctx, 2, 1u);
+            ctx->pc = GPR_U32(ctx, 31);
+            return;
+        }
+        unlockedEx_0x2251a8(rdram, ctx, runtime);
+    }
+
+    void cheatChallengeAvail(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        if (cheatProfileActive(rdram, ctx))
+        {
+            SET_GPR_U32(ctx, 2, 1u);
+            ctx->pc = GPR_U32(ctx, 31);
+            return;
+        }
+        challengeAvail_0x225038(rdram, ctx, runtime);
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        runtime.replaceFunction(kUnlockedEx, &cheatUnlockedEx);
+        runtime.replaceFunction(kChallengeAvail, &cheatChallengeAvail);
         if (const char *menu = std::getenv("TS_DISPLAY_MENU"); !(menu && *menu == '0'))
         {
             runtime.replaceFunction(kMenuTick, &displayMenuTick);

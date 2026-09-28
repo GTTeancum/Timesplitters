@@ -83,3 +83,14 @@ widescreen while playing).
   does). Other display setups fall back to the native frame. Write-backs to
   GS memory stay at native resolution (one sample per GS pixel), so effects
   that read the frame buffer back work at native detail.
+
+## Cheat: time2split
+
+A sign-on named `time2split` (any case) has everything unlocked: every
+story level and difficulty, characters, bot and weapon sets, challenge
+modes and challenges, and the cheats menu. ts_overrides.cpp answers yes
+from unlockedEx (0x2251A8, which decides every unlock condition; the game's
+own hidden cheat1 does the same via the word at gp-0x6510) and
+challengeAvail (0x225038) while the sign-on record holding the stats being
+checked (*(gp-0x48EC) within the 0xB78-byte records at *(gp-0x6228)) is
+named time2split. Nothing is written to the profile or memory card.

@@ -449,9 +449,7 @@ namespace
 
     // "Exit Game" on the Select Game Type page (gamemode_menu). The item is a
     // page link back to the same page, so the game itself never leaves it;
-    // the menutick wrapper sees Select pressed on it and stops the game.
-    // Menu button events are the word at +0xC of the struct *(gp - 0x5FFC):
-    // 0x80 is Cross (select), 0x4..0x20 directions.
+    // the menutick wrapper sees Cross pressed on it and stops the game.
     constexpr uint32_t kGameModeMenu = 0x354FE0u;
     constexpr uint32_t kGameTypePage = 0x3550F0u;
     constexpr uint32_t kGameModeLinks = 6u; // items before the two 0x8000 items
@@ -521,19 +519,26 @@ namespace
         return true;
     }
 
-    // True when Select is pressed with Exit Game highlighted (the page state
-    // in a0 holds the highlighted item id at +4).
+    // True when Cross is newly pressed with Exit Game highlighted (the page
+    // state in a0 holds the highlighted item id at +4). Like menutick, this
+    // reads joyNewBut(pad) & 0x40, where pad is the first word of the menu
+    // input struct *(gp - 0x5FFC): the pad slot is remapped through the
+    // table at 0x31DF68 and each 0x180-byte pad record at 0x31C740 keeps
+    // its newly pressed buttons at +0x124.
     bool exitGameChosen(uint8_t *rdram, R5900Context *ctx)
     {
         if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) != kExitGameId)
             return false;
         const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
-        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
-        if (trace && input && guestWord(rdram, input + 0xCu))
-            std::fprintf(stderr, "[TS:menu] exit item input %08x: %08x %08x %08x %08x\n", input,
-                         guestWord(rdram, input), guestWord(rdram, input + 4u), guestWord(rdram, input + 8u),
-                         guestWord(rdram, input + 0xCu));
-        return input != 0u && (guestWord(rdram, input + 0xCu) & 0x80u) != 0u;
+        if (!input)
+            return false;
+        const uint32_t pad = guestWord(rdram, input);
+        if (pad > 7u)
+            return false;
+        const uint32_t record = guestWord(rdram, 0x31DF68u + pad * 4u);
+        if (record > 7u)
+            return false;
+        return (guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) & 0x40u) != 0u;
     }
 
     void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
@@ -550,8 +555,6 @@ namespace
         if (useGameModeMenu(rdram, ctx) && exitGameChosen(rdram, ctx))
         {
             std::fprintf(stderr, "[TS:menu] Exit Game chosen\n");
-            const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
-            guestWord(rdram, input + 0xCu) &= ~0x80u;
             runtime->requestStop();
         }
         const bool ours = useDisplayMenu(rdram, ctx);

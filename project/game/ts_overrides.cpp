@@ -552,6 +552,17 @@ namespace
             lastMenu = GPR_U32(ctx, 5);
             std::fprintf(stderr, "[TS:menu] page %08x menu %08x\n", GPR_U32(ctx, 4), lastMenu);
         }
+        // The page's tick sets the "Select" button hint (the text of the
+        // last item) only for its own entries; show it on Exit Game too. The
+        // text is entry 0x80 of the current language's table.
+        if (GPR_U32(ctx, 5) == kGameModeMenu && guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == kExitGameId)
+        {
+            const uint32_t language = guestWord(rdram, GPR_U32(ctx, 28) - 0x6CACu);
+            const uint32_t table = guestWord(rdram, 0x2F2C18u + language * 4u);
+            if (language < 8u && table)
+                guestWord(rdram, kGameModeMenu + 16u + (kGameModeLinks + 1u) * kItemSize) =
+                    guestWord(rdram, table + 0x200u);
+        }
         if (useGameModeMenu(rdram, ctx) && exitGameChosen(rdram, ctx))
         {
             std::fprintf(stderr, "[TS:menu] Exit Game chosen\n");

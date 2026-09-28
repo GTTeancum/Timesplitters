@@ -309,6 +309,8 @@ struct GSGpuBackend::Impl
         GLuint texture;
         bool renderTarget = false; // drawn by the GPU: never dumped or replaced
         GLuint replacement = 0;    // from textures/replacements, or 0
+        uint64_t contentHash = 0;
+        uint8_t dumpedAs = 0;      // bit 0: dumped as 3D, bit 1: as flat 2D
     };
     // Replacement images by content hash (0: looked up, none exists).
     std::unordered_map<uint64_t, GLuint> replacementTextures;
@@ -1025,6 +1027,8 @@ struct GSGpuBackend::Impl
                     uploadTexture(e, state, texW, texH);
                     e.versionSum = versions;
                 }
+                else
+                    dumpIfNew(e, state, texW, texH);
                 e.lastUse = ++textureTick;
                 replaced = e.replacement != 0;
                 return replaced ? e.replacement : e.texture;
@@ -1047,16 +1051,49 @@ struct GSGpuBackend::Impl
         return replaced ? e.replacement : e.texture;
     }
 
+    // Menus, HUD and text: drawn with no depth test or depth write.
+    static bool flatDraw(const GSDrawState &state)
+    {
+        const uint64_t test = state.context.test;
+        const bool depthTested = ((test >> 16) & 1u) != 0u && ((test >> 17) & 3u) != 1u;
+        return !depthTested && state.context.zbuf.zmask;
+    }
+
+    void dumpTexels(TextureEntry &e, const GSDrawState &state, const std::vector<uint32_t> &texels, uint32_t w, uint32_t h)
+    {
+        const bool flat = flatDraw(state);
+        const uint8_t bit = flat ? 2u : 1u;
+        if (e.dumpedAs & bit)
+            return;
+        e.dumpedAs |= bit;
+        gs_texture_replacement::dump(e.contentHash, texels.data(), w, h, flat,
+                                     gs_texture_replacement::rawAlpha(texels.data(), w, h));
+    }
+
+    // A texture first drawn in the world and later on screen (or the other
+    // way round) is dumped to both folders.
+    void dumpIfNew(TextureEntry &e, const GSDrawState &state, uint32_t w, uint32_t h)
+    {
+        if (e.renderTarget || !gs_texture_replacement::dumping() || (e.dumpedAs & (flatDraw(state) ? 2u : 1u)))
+            return;
+        std::vector<uint32_t> texels;
+        cpu.DecodeTexture(state, texels);
+        if (texels.size() >= size_t(w) * h)
+            dumpTexels(e, state, texels, w, h);
+    }
+
     void uploadTexture(TextureEntry &e, const GSDrawState &state, uint32_t w, uint32_t h)
     {
         std::vector<uint32_t> texels;
         cpu.DecodeTexture(state, texels);
         e.replacement = 0;
+        e.dumpedAs = 0;
         if (!e.renderTarget && texels.size() >= size_t(w) * h && gs_texture_replacement::active())
         {
-            const uint64_t contentHash = gs_texture_replacement::hash(texels.data(), w, h);
-            gs_texture_replacement::dump(contentHash, texels.data(), w, h);
-            e.replacement = replacementTexture(contentHash);
+            e.contentHash = gs_texture_replacement::hash(texels.data(), w, h);
+            if (gs_texture_replacement::dumping())
+                dumpTexels(e, state, texels, w, h);
+            e.replacement = replacementTexture(e.contentHash, gs_texture_replacement::rawAlpha(texels.data(), w, h));
         }
         glBindTexture(GL_TEXTURE_2D, e.texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, int(w), int(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, texels.data());
@@ -1064,14 +1101,14 @@ struct GSGpuBackend::Impl
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     }
 
-    GLuint replacementTexture(uint64_t contentHash)
+    GLuint replacementTexture(uint64_t contentHash, bool rawAlpha)
     {
         if (const auto found = replacementTextures.find(contentHash); found != replacementTextures.end())
             return found->second;
         GLuint texture = 0;
         std::vector<uint32_t> texels;
         int width = 0, height = 0;
-        if (gs_texture_replacement::load(contentHash, texels, width, height))
+        if (gs_texture_replacement::load(contentHash, rawAlpha, texels, width, height))
         {
             glGenTextures(1, &texture);
             glBindTexture(GL_TEXTURE_2D, texture);

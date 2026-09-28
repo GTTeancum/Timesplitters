@@ -1,0 +1,26 @@
+# Menu / UI / HUD replacement pack: which method each texture uses.
+# build_ui_pack.py upscales every texture in textures/dump/2d plus the
+# "extra" ones below (menu backgrounds the game draws as 3D planes) into
+# textures/replacements/ui. Everything uses the AI upscaler unless listed
+# as smooth here (soft art: glows, flares, rings, clouds, motion blur, and
+# the title logo layers the game also spreads into its glow).
+
+extra 42a0d7dbd01ba225   # menu background, marble swirl
+extra a343ab2d691ba225   # menu background, clouds
+
+smooth a343ab2d691ba225  # clouds
+smooth ab3c3752879ee3a5  # title logo, motion-blurred layer
+smooth a7248e8e159ee3a5  # title logo layer (right half)
+smooth db3437871e9ee3a5  # title logo layer (left half)
+smooth c6bb47f0eeefd765  # small title logo
+smooth 4708846005654c76  # logo streak
+smooth 32741e1b0ee083a5  # star flare
+smooth d6a98be7c2e35971  # lens flare
+smooth 1ebb64fdd549bb65  # soft disc
+smooth 7a89266f5749bb65  # noise
+smooth 873ec99c4349bb65  # ring
+smooth a63a12646549bb65  # soft disc
+smooth d1356cd5bc49bb65  # glass disc
+smooth 022edd403c181afc  # arrow right
+smooth fc62e8d908bbe2ad  # arrow left
+smooth 0fdd00b27b7468f4  # dot

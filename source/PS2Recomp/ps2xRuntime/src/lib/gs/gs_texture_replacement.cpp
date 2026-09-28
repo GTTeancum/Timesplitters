@@ -43,10 +43,14 @@ namespace
         {
             uint64_t hash;
             uint32_t width, height;
+            bool flat;
+            bool rawAlpha;
             std::vector<uint32_t> texels;
         };
         std::deque<Job> jobs;
-        std::unordered_set<uint64_t> dumped;
+        std::unordered_set<uint64_t> dumped; // key(): hash and folder
+
+        static uint64_t key(uint64_t hash, bool flat) { return hash * 2u + (flat ? 1u : 0u); }
         std::thread worker;
 
         State()
@@ -78,12 +82,16 @@ namespace
             }
             if (dumping)
             {
-                fs::create_directories(kDumpDir, ec);
-                for (const auto &entry : fs::directory_iterator(kDumpDir, ec))
+                for (const bool flat : {false, true})
                 {
-                    const std::string stem = entry.path().stem().string();
-                    if (stem.size() == 16u)
-                        dumped.insert(std::strtoull(stem.c_str(), nullptr, 16));
+                    const fs::path dir = kDumpDir / (flat ? "2d" : "3d");
+                    fs::create_directories(dir, ec);
+                    for (const auto &entry : fs::directory_iterator(dir, ec))
+                    {
+                        const std::string stem = entry.path().stem().string();
+                        if (stem.size() == 16u)
+                            dumped.insert(key(std::strtoull(stem.c_str(), nullptr, 16), flat));
+                    }
                 }
                 worker = std::thread([this] { run(); });
                 worker.detach();
@@ -105,12 +113,14 @@ namespace
                 // GS alpha 0..128 -> PNG 0..255.
                 for (uint32_t &texel : job.texels)
                 {
+                    if (job.rawAlpha)
+                        break;
                     const uint32_t a = std::min<uint32_t>(255u, (texel >> 24) * 2u);
                     texel = (texel & 0x00FFFFFFu) | (a << 24);
                 }
                 Image image{job.texels.data(), static_cast<int>(job.width), static_cast<int>(job.height), 1,
                             PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
-                const std::string path = (kDumpDir / (hashName(job.hash) + ".png")).string();
+                const std::string path = (kDumpDir / (job.flat ? "2d" : "3d") / (hashName(job.hash) + ".png")).string();
                 ExportImage(image, path.c_str());
             }
         }
@@ -131,6 +141,11 @@ namespace gs_texture_replacement
         return s.dumping || !s.replacements.empty();
     }
 
+    bool dumping()
+    {
+        return state().dumping;
+    }
+
     uint64_t hash(const uint32_t *texels, uint32_t width, uint32_t height)
     {
         // FNV-1a over 64-bit words, seeded with the size.
@@ -148,19 +163,28 @@ namespace gs_texture_replacement
         return h;
     }
 
-    void dump(uint64_t hash, const uint32_t *texels, uint32_t width, uint32_t height)
+    bool rawAlpha(const uint32_t *texels, uint32_t width, uint32_t height)
+    {
+        const size_t count = size_t(width) * height;
+        for (size_t i = 0; i < count; ++i)
+            if ((texels[i] >> 24) > 0x80u)
+                return true;
+        return false;
+    }
+
+    void dump(uint64_t hash, const uint32_t *texels, uint32_t width, uint32_t height, bool flat, bool rawAlpha)
     {
         State &s = state();
         if (!s.dumping)
             return;
         std::lock_guard<std::mutex> lock(s.mutex);
-        if (!s.dumped.insert(hash).second)
+        if (!s.dumped.insert(State::key(hash, flat)).second)
             return;
-        s.jobs.push_back({hash, width, height, std::vector<uint32_t>(texels, texels + size_t(width) * height)});
+        s.jobs.push_back({hash, width, height, flat, rawAlpha, std::vector<uint32_t>(texels, texels + size_t(width) * height)});
         s.wake.notify_one();
     }
 
-    bool load(uint64_t hash, std::vector<uint32_t> &texels, int &width, int &height)
+    bool load(uint64_t hash, bool rawAlpha, std::vector<uint32_t> &texels, int &width, int &height)
     {
         const State &s = state();
         const auto found = s.replacements.find(hash);
@@ -178,6 +202,8 @@ namespace gs_texture_replacement
         // PNG alpha 0..255 -> GS 0..128.
         for (uint32_t &texel : texels)
         {
+            if (rawAlpha)
+                break;
             const uint32_t a = ((texel >> 24) + 1u) / 2u;
             texel = (texel & 0x00FFFFFFu) | (a << 24);
         }

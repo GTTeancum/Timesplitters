@@ -62,12 +62,21 @@ widescreen while playing).
 - Texture replacement (GPU renderer): every texture decoded from GS memory
   is identified by a 64-bit FNV hash of its decoded RGBA pixels and size,
   so each palette of an indexed texture is separate. texture_dump=1 saves
-  new ones to textures/dump/<hash>.png (worker thread, alpha 0..128 scaled
-  to 0..255); PNGs named <hash>.png anywhere under textures/replacements/
+  new ones to textures/dump/2d/<hash>.png when drawn without depth test or
+  write (menus, HUD, fonts) and textures/dump/3d/ otherwise (worker thread;
+  alpha 0..128 scaled to 0..255, except textures whose alpha exceeds 128,
+  which keep raw GS alpha so double-strength blending survives); PNGs named <hash>.png anywhere under textures/replacements/
   are loaded (mipmapped, filtered, any size) and sampled with normalised
   coordinates after the GS wrap/clamp in texel space. Textures that
   overlap a GPU render target are never dumped or replaced. With no
   replacements and dumping off nothing is hashed.
+- UI pack: tools/build_ui_pack.py upscales textures/dump/2d (plus the menu
+  backgrounds listed in tools/ui_pack.txt) 4x into textures/replacements/ui
+  with tools/upscale_textures.py: AI (Upscayl's upscayl-bin, digital-art-4x,
+  64px tiles) for icons, fonts and artwork, Lanczos for soft art listed in
+  ui_pack.txt; faint font glyphs fall back to Lanczos because the AI
+  invents shapes in them. The pack is built locally from the game's own
+  textures and is not committed.
 - render_scale > 1 draws the GPU renderer's targets at that multiple; the
   displayed buffer is copied from its target straight to the window
   (single circuit, or both circuits showing the same buffer, as this game

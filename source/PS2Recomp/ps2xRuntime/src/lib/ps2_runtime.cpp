@@ -2661,6 +2661,13 @@ void PS2Runtime::run()
                 }
             }
         }
+        // F11: fullscreen on/off (saved, like the options menu).
+        if (IsKeyPressed(KEY_F11))
+        {
+            hostSettings().fullscreen = !hostSettings().fullscreen;
+            ++hostSettings().windowChanges;
+            saveHostSettings();
+        }
         // F9: FXAA on/off. F10: widescreen on/off.
         if (IsKeyPressed(KEY_F9))
             hostSettings().fxaa = !hostSettings().fxaa;
@@ -2745,7 +2752,24 @@ void PS2Runtime::run()
         }
         EndDrawing();
 
-        if (WindowShouldClose())
+        // Quitting without a title bar (fullscreen): Esc (raylib's exit key),
+        // Alt+F4, or holding Select + Start on the controller for 2 seconds.
+        bool quitRequested = false;
+        {
+            const bool alt = IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT);
+            if (alt && IsKeyPressed(KEY_F4))
+                quitRequested = true;
+            static double comboSince = -1.0;
+            const bool combo = IsGamepadAvailable(0) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_LEFT) &&
+                               IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_RIGHT);
+            if (!combo)
+                comboSince = -1.0;
+            else if (comboSince < 0.0)
+                comboSince = GetTime();
+            else if (GetTime() - comboSince >= 2.0)
+                quitRequested = true;
+        }
+        if (quitRequested || WindowShouldClose())
         {
             RUNTIME_LOG("[run] window close requested, breaking out of loop");
             requestStop();

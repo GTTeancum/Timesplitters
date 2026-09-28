@@ -446,6 +446,96 @@ namespace
         return true;
     }
 
+
+    // "Exit Game" on the Select Game Type page (gamemode_menu). The item is a
+    // page link back to the same page, so the game itself never leaves it;
+    // the menutick wrapper sees Select pressed on it and stops the game.
+    // Menu button events are the word at +0xC of the struct *(gp - 0x5FFC):
+    // 0x80 is Cross (select), 0x4..0x20 directions.
+    constexpr uint32_t kGameModeMenu = 0x354FE0u;
+    constexpr uint32_t kGameTypePage = 0x3550F0u;
+    constexpr uint32_t kGameModeLinks = 6u; // items before the two 0x8000 items
+    constexpr uint32_t kGameModeTail = 2u;
+    constexpr uint16_t kExitGameId = 7u;
+
+    constexpr uint32_t kGameModeBlock = 0x7E800u;
+
+    bool gameModeBlockFree(uint8_t *rdram)
+    {
+        for (uint32_t i = 0; i < 0x400u; i += 4u)
+        {
+            if (guestWord(rdram, kGameModeBlock + i) != 0u)
+            {
+                std::fprintf(stderr, "[TS:menu] RAM at 0x%x is in use; Exit Game not added\n", kGameModeBlock + i);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // The page's tick rewrites the original items every frame (positions,
+    // links, which entries show), so the copy is rebuilt from it each time.
+    uint32_t layoutGameModeMenu(uint8_t *rdram)
+    {
+        const uint32_t label = kGameModeBlock;
+        writeGuestString(rdram, label, "Exit Game");
+        const uint32_t menu = kGameModeBlock + 0x20u;
+        const uint32_t items = menu + 16u;
+        // Header and the six link items, then Exit Game, then the tail.
+        std::memcpy(rdram + menu, rdram + kGameModeMenu, 16u + kGameModeLinks * kItemSize);
+        std::memcpy(rdram + items + (kGameModeLinks + 1u) * kItemSize,
+                    rdram + kGameModeMenu + 16u + kGameModeLinks * kItemSize, kGameModeTail * kItemSize);
+        guestWord(rdram, menu) = kGameModeLinks + 1u + kGameModeTail;
+        const uint32_t exitItem = items + kGameModeLinks * kItemSize;
+        const uint32_t above = exitItem - kItemSize; // Audio / Video Options
+        std::memset(rdram + exitItem, 0, kItemSize);
+        guestWord(rdram, exitItem + 0u) = label;
+        // Same column as the item above, one line (11 units) lower.
+        guestHalf(rdram, exitItem + 4u) = guestHalf(rdram, above + 4u);
+        guestHalf(rdram, exitItem + 6u) = static_cast<uint16_t>(guestHalf(rdram, above + 6u) + 11u);
+        guestHalf(rdram, exitItem + 8u) = kExitGameId;
+        guestHalf(rdram, exitItem + 10u) = guestHalf(rdram, above + 10u);
+        guestWord(rdram, exitItem + 12u) = kGameTypePage;
+        const uint16_t aboveId = guestHalf(rdram, above + 8u);
+        guestHalf(rdram, exitItem + 16u) = aboveId;                          // up
+        guestHalf(rdram, exitItem + 18u) = guestHalf(rdram, above + 18u);    // down: where the item above led
+        guestHalf(rdram, above + 18u) = kExitGameId;
+        // Whichever item pointed up at Audio / Video now points up at Exit Game.
+        for (uint32_t i = 0; i < kGameModeLinks; ++i)
+        {
+            const uint32_t item = items + i * kItemSize;
+            if (item != above && guestHalf(rdram, item + 16u) == aboveId)
+                guestHalf(rdram, item + 16u) = kExitGameId;
+        }
+        return menu;
+    }
+
+    bool useGameModeMenu(uint8_t *rdram, R5900Context *ctx)
+    {
+        if (GPR_U32(ctx, 5) != kGameModeMenu)
+            return false;
+        static const bool usable = gameModeBlockFree(rdram);
+        if (!usable)
+            return false;
+        SET_GPR_U32(ctx, 5, layoutGameModeMenu(rdram));
+        return true;
+    }
+
+    // True when Select is pressed with Exit Game highlighted (the page state
+    // in a0 holds the highlighted item id at +4).
+    bool exitGameChosen(uint8_t *rdram, R5900Context *ctx)
+    {
+        if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) != kExitGameId)
+            return false;
+        const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
+        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
+        if (trace && input && guestWord(rdram, input + 0xCu))
+            std::fprintf(stderr, "[TS:menu] exit item input %08x: %08x %08x %08x %08x\n", input,
+                         guestWord(rdram, input), guestWord(rdram, input + 4u), guestWord(rdram, input + 8u),
+                         guestWord(rdram, input + 0xCu));
+        return input != 0u && (guestWord(rdram, input + 0xCu) & 0x80u) != 0u;
+    }
+
     void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
@@ -457,6 +547,13 @@ namespace
             lastMenu = GPR_U32(ctx, 5);
             std::fprintf(stderr, "[TS:menu] page %08x menu %08x\n", GPR_U32(ctx, 4), lastMenu);
         }
+        if (useGameModeMenu(rdram, ctx) && exitGameChosen(rdram, ctx))
+        {
+            std::fprintf(stderr, "[TS:menu] Exit Game chosen\n");
+            const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
+            guestWord(rdram, input + 0xCu) &= ~0x80u;
+            runtime->requestStop();
+        }
         const bool ours = useDisplayMenu(rdram, ctx);
         menutick_0x230238(rdram, ctx, runtime);
         if (ours)
@@ -465,7 +562,8 @@ namespace
 
     void displayMenuMake(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
-        useDisplayMenu(rdram, ctx);
+        if (!useDisplayMenu(rdram, ctx))
+            useGameModeMenu(rdram, ctx);
         std_menumake_0x22daf8(rdram, ctx, runtime);
     }
 

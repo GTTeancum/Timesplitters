@@ -47,6 +47,10 @@ widescreen while playing).
   an extended copy of its menu built at 0x7E000 (unused kernel RAM); values
   apply at once and are written back to the ini. Render quality applies on
   the next start. TS_DISPLAY_MENU=0 keeps the original page.
+- Select Game Type gets an "Exit Game" item under Audio / Video Options
+  (same wrapper, a copy of gamemode_menu rebuilt each tick at 0x7E800
+  because the page's tick rewrites its items). Esc, Alt+F4 and holding
+  Select + Start for 2 seconds also quit; F11 toggles fullscreen.
 - An element that spans two screen thirds may be split between two anchors;
   consecutive glyphs on one line share their row's anchor.
 - Widescreen scales the aspect passed to the game's `matrixPerspective`

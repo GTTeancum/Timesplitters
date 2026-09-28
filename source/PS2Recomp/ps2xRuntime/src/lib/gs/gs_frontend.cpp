@@ -1677,7 +1677,8 @@ void GS::adjustWidescreenHud(GSPrimitiveBatch &batch)
     ++m_drawCounter;
     if (state.prim.tme && !state.prim.fst && ztst >= 2u)
         m_lastPerspectiveDraw = m_drawCounter;
-    if (!hostSettings().widescreen || m_drawCounter - m_lastPerspectiveDraw > 20000u)
+    // m_lastPerspectiveDraw stays 0 until the first 3D draw: nothing before it is gameplay.
+    if (!hostSettings().widescreen || m_lastPerspectiveDraw == 0u || m_drawCounter - m_lastPerspectiveDraw > 20000u)
         return;
     if (ztst != 1u || !ctx.zbuf.zmask || (state.prim.tme && !state.prim.fst) || batch.vertexCount == 0u)
         return;

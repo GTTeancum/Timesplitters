@@ -655,8 +655,31 @@ namespace
         challengeAvail_0x225038(rdram, ctx, runtime);
     }
 
+    std::string guestString(uint8_t *rdram, uint32_t address)
+    {
+        std::string text;
+        for (uint32_t i = 0; address != 0u && i < 256u; ++i)
+        {
+            const char c = static_cast<char>(rdram[(address + i) & 0x1FFFFFFu]);
+            if (!c)
+                break;
+            text.push_back(c);
+        }
+        return text;
+    }
+
+    // The game's assert(): report which check failed (its own message goes to
+    // a stream the runtime does not show), then abort as the game would.
+    void loggedAssert(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        std::fprintf(stderr, "[TS:assert] %s:%u: %s (ra %08x)\n", guestString(rdram, GPR_U32(ctx, 4)).c_str(),
+                     GPR_U32(ctx, 5), guestString(rdram, GPR_U32(ctx, 6)).c_str(), GPR_U32(ctx, 31));
+        ps2___assert_0x2e46a8(rdram, ctx, runtime);
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        runtime.replaceFunction(0x2E46A8u, &loggedAssert);
         runtime.replaceFunction(kUnlockedEx, &cheatUnlockedEx);
         runtime.replaceFunction(kChallengeAvail, &cheatChallengeAvail);
         if (const char *menu = std::getenv("TS_DISPLAY_MENU"); !(menu && *menu == '0'))

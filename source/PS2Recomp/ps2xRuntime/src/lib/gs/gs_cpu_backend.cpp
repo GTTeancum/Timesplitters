@@ -1,4 +1,5 @@
 #include "runtime/gs/gs_cpu_backend.h"
+#include "ps2x/exceptions.h"
 #include "runtime/gs/gs_color_rounding.h"
 #include "runtime/gs/ps2_gs_common.h"
 #include "runtime/gs/ps2_gs_psmct16.h"
@@ -510,15 +511,18 @@ namespace
     {
         if (pixels.empty() || width == 0u || height < 2u)
             return;
-        const std::vector<uint8_t> source = pixels;
-        for (uint32_t y = 0; y < height; ++y)
+        // Each pair of rows shows one field's row. In place: the source row is
+        // always one of the pair (or the last row), so nothing is overwritten
+        // before it is read.
+        const size_t rowBytes = static_cast<size_t>(kHostFrameWidth) * 4u;
+        for (uint32_t y = 0; y < height; y += 2u)
         {
-            uint32_t sourceY = ((y >> 1u) << 1u) + (oddField ? 1u : 0u);
+            uint32_t sourceY = y + (oddField ? 1u : 0u);
             if (sourceY >= height)
                 sourceY = height - 1u;
-            std::memcpy(pixels.data() + y * kHostFrameWidth * 4u,
-                        source.data() + sourceY * kHostFrameWidth * 4u,
-                        width * 4u);
+            for (uint32_t row = y; row < y + 2u && row < height; ++row)
+                if (row != sourceY)
+                    std::memcpy(pixels.data() + row * rowBytes, pixels.data() + sourceY * rowBytes, width * 4u);
         }
     }
 
@@ -628,7 +632,7 @@ GSCpuBackend::GSCpuBackend()
 void GSCpuBackend::Initialize(uint8_t *vram, uint32_t vramSize)
 {
     if (vram && vramSize < GSMem::MEMORY_SIZE)
-        throw std::invalid_argument("GS CPU backend requires at least 4 MiB of VRAM");
+        PS2X_THROW(std::invalid_argument("GS CPU backend requires at least 4 MiB of VRAM"));
 
     std::lock_guard<std::mutex> lock(m_mutex);
     m_vram = vram;
@@ -2241,7 +2245,10 @@ bool GSCpuBackend::CopyFrameToHostRgba(const GSFrameReg &frame,
     if (!m_vram || m_vramSize == 0u)
         return false;
 
-    outPixels.assign(kHostFrameWidth * kHostFrameHeight * 4u, 0u);
+    // Rows up to the displayed height only (the host frame's full 512 rows
+    // cost 1.3 MB per buffer, which the 64 MB Xbox cannot spare).
+    height = std::min(height, kHostFrameHeight);
+    outPixels.assign(static_cast<size_t>(kHostFrameWidth) * height * 4u, 0u);
     const uint32_t baseBytes = frameBaseIsPages ? frame.fbp * 8192u : frame.fbp * 256u;
     const uint32_t basePtr = frameBaseIsPages ? GSInternal::framePageBaseToBlock(frame.fbp) : frame.fbp;
     const uint32_t fbw = frame.fbw ? frame.fbw : kHostFrameWidth / 64u;
@@ -2308,6 +2315,16 @@ bool GSCpuBackend::CopyFrameToHostRgba(const GSFrameReg &frame,
 
 PresentationFrame GSCpuBackend::Present(const GSPresentationRequest &request)
 {
+#if defined(PLATFORM_XBOX)
+    // 64 MB and drawing on the game thread: read local memory in place
+    // instead of copying all 4 MB of it for every frame.
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_vram || m_vramSize == 0u)
+            return {};
+        return PresentFromLocalMemory(request);
+    }
+#endif
     const auto start = profileRaster ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
     // Snapshot local memory under the backend lock, then perform the expensive
     // display conversion without holding the producer-side raster lock.
@@ -2410,22 +2427,25 @@ PresentationFrame GSCpuBackend::PresentFromLocalMemory(const GSPresentationReque
         {
             result.width = std::max(width1, width2);
             result.height = std::max(height1, height2);
-            result.pixels.assign(kHostFrameWidth * kHostFrameHeight * 4u, 0u);
             const uint8_t bgR = static_cast<uint8_t>(request.bgcolor);
             const uint8_t bgG = static_cast<uint8_t>(request.bgcolor >> 8u);
             const uint8_t bgB = static_cast<uint8_t>(request.bgcolor >> 16u);
+            // Composed in CRT2's buffer (the full host frame size): background
+            // where CRT2 is not shown, CRT2's own pixels elsewhere. Saves a
+            // frame-sized buffer, which matters on the 64 MB Xbox.
+            crt2.resize(static_cast<size_t>(kHostFrameWidth) * result.height * 4u, 0u);
             for (uint32_t y = 0; y < result.height; ++y)
                 for (uint32_t x = 0; x < result.width; ++x)
                 {
-                    uint8_t *dst = result.pixels.data() + (y * kHostFrameWidth + x) * 4u;
+                    if (!pmode.slbg && y < height2 && x < width2)
+                        continue;
+                    uint8_t *dst = crt2.data() + (y * kHostFrameWidth + x) * 4u;
                     dst[0] = bgR;
                     dst[1] = bgG;
                     dst[2] = bgB;
                     dst[3] = pmode.alp;
                 }
-            if (!pmode.slbg)
-                for (uint32_t y = 0; y < height2; ++y)
-                    std::memcpy(result.pixels.data() + y * kHostFrameWidth * 4u, crt2.data() + y * kHostFrameWidth * 4u, width2 * 4u);
+            result.pixels = std::move(crt2);
             for (uint32_t y = 0; y < height1; ++y)
                 for (uint32_t x = 0; x < width1; ++x)
                 {

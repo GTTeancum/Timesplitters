@@ -1,4 +1,6 @@
 #include "ps2_runtime.h"
+#include "runtime/ps2_io_stats.h"
+#include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_host_settings.h"
 
@@ -397,7 +399,11 @@ struct FrameUploadState
     uint32_t s_lastHeight = 0u;
     bool s_hasUploadedFrame = false;
     std::vector<uint8_t> s_scratch;
+#if defined(PLATFORM_XBOX)
+    std::vector<uint8_t> s_uploadBuffer; // unused: frames go to the presenter as packed rows
+#else
     std::vector<uint8_t> s_uploadBuffer = std::vector<uint8_t>(DEFAULT_FB_SIZE, 0u);
+#endif
 
 };
 
@@ -504,6 +510,12 @@ static void UploadFrame(Texture2D &tex, PS2Runtime *rt, uint32_t &outWidth, uint
     state.s_lastWidth = width;
     state.s_lastHeight = height;
 
+#if defined(PLATFORM_XBOX)
+    // 64 MB: no padded copy. The Xbox presenter draws straight from the packed
+    // rows, which stay valid until the next upload.
+    if (!state.s_scratch.empty() && width != 0u && height != 0u)
+        UpdateTextureRec(tex, Rectangle{0.0f, 0.0f, float(width), float(height)}, state.s_scratch.data());
+#else
     std::fill(state.s_uploadBuffer.begin(), state.s_uploadBuffer.end(), 0u);
     if (!state.s_scratch.empty() && width != 0u && height != 0u)
     {
@@ -526,6 +538,7 @@ static void UploadFrame(Texture2D &tex, PS2Runtime *rt, uint32_t &outWidth, uint
     }
 
     UpdateTexture(tex, state.s_uploadBuffer.data());
+#endif
     outWidth = width;
     outHeight = height;
     state.s_hasUploadedFrame = true;
@@ -580,7 +593,7 @@ void PS2Runtime::setDebugUiCallbacks(DebugUiCallback initCallback,
 
 PS2Runtime::~PS2Runtime()
 {
-    try
+    PS2X_TRY
     {
         requestStop();
         m_iopSubsystem.reset();
@@ -608,11 +621,11 @@ PS2Runtime::~PS2Runtime()
 
         m_loadedModules.clear();
     }
-    catch (const std::exception &e)
+    PS2X_CATCH(const std::exception &, e)
     {
         std::cerr << "[~PS2Runtime] cleanup exception: " << e.what() << std::endl;
     }
-    catch (...)
+    PS2X_CATCH_ALL
     {
         std::cerr << "[~PS2Runtime] cleanup exception: unknown" << std::endl;
     }
@@ -721,8 +734,10 @@ bool PS2Runtime::syncCoreSubsystems()
     m_gs.init(gsVram, static_cast<uint32_t>(PS2_GS_VRAM_SIZE), &m_memory.gs());
     // Rasterize on a worker thread so the EE/VU work of the next draws
     // overlaps pixel work. TS_GS_SYNC=1 keeps drawing on the game thread.
+#if !defined(PLATFORM_XBOX) // one core and 64 MB: draw on the game thread
     if (const char *sync = std::getenv("TS_GS_SYNC"); !(sync && *sync == '1'))
         m_gs.setRasterBackend(std::make_unique<GSThreadedBackend>());
+#endif
     m_gifArbiter.setProcessPathPacketFn([this](GifPathId path, const uint8_t *data, uint32_t size)
                                     { m_gs.processGIFPacket(data, size, path); });
     m_memory.setGifArbiter(&m_gifArbiter);
@@ -787,7 +802,7 @@ bool PS2Runtime::syncCoreSubsystems()
 
 bool PS2Runtime::initialize(const char *title)
 {
-    try
+    PS2X_TRY
     {
         if (!m_memory.initialize())
         {
@@ -813,7 +828,7 @@ bool PS2Runtime::initialize(const char *title)
         m_audioBackend.setAudioReady(IsAudioDeviceReady());
 #endif
         SetTargetFPS(60);
-#if !defined(PLATFORM_VITA)
+#if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
         // Draw on the GPU (OpenGL, needs the window's context) unless
         // TS_GS_GPU=0 or TS_GS_SYNC=1 asks for the CPU rasterizer.
         const char *gpu = std::getenv("TS_GS_GPU");
@@ -837,11 +852,11 @@ bool PS2Runtime::initialize(const char *title)
 
         return true;
     }
-    catch (const std::exception &e)
+    PS2X_CATCH(const std::exception &, e)
     {
         std::cerr << "Failed to initialize PS2 runtime: " << e.what() << std::endl;
     }
-    catch (...)
+    PS2X_CATCH_ALL
     {
         std::cerr << "Failed to initialize PS2 runtime: unknown exception" << std::endl;
     }
@@ -960,11 +975,11 @@ bool PS2Runtime::loadELF(const std::string &elfPath)
             ph.vaddr < (PS2_SCRATCHPAD_BASE + PS2_SCRATCHPAD_SIZE);
 
         uint32_t physAddr = 0u;
-        try
+        PS2X_TRY
         {
             physAddr = m_memory.translateAddress(ph.vaddr);
         }
-        catch (const std::exception &e)
+        PS2X_CATCH(const std::exception &, e)
         {
             std::cerr << "Failed to translate ELF segment " << i
                       << " virtual address 0x" << std::hex << ph.vaddr
@@ -1184,6 +1199,10 @@ void PS2Runtime::configureIoPathsFromElf(const std::string &elfPath)
     setIoPaths(paths);
 }
 
+#if defined(PLATFORM_XBOX)
+extern const uint32_t g_ps2RecompiledFunctionAddresses[];
+#endif
+
 namespace
 {
     bool generatedFunctionTableSlot(uint32_t address, uint32_t &slot)
@@ -1198,6 +1217,17 @@ namespace
             return false;
         }
 
+#if defined(PLATFORM_XBOX)
+        // The Xbox table holds only the used entries, sorted by address
+        // (src/xbox/tools/compact_function_table.py).
+        const uint32_t *first = g_ps2RecompiledFunctionAddresses;
+        const uint32_t *last = first + g_ps2RecompiledFunctionTableSlotCount;
+        const uint32_t *found = std::lower_bound(first, last, address);
+        if (found == last || *found != address)
+            return false;
+        slot = static_cast<uint32_t>(found - first);
+        return true;
+#endif
         const uint32_t offset = address - g_ps2RecompiledFunctionTableBase;
         slot = offset >> 2;
         return slot < g_ps2RecompiledFunctionTableSlotCount;
@@ -1628,14 +1658,16 @@ void PS2Runtime::handleSyscall(uint8_t *rdram, R5900Context *ctx, uint32_t encod
 {
     if (ctx->in_delay_slot)
     {
-        throw std::runtime_error("Attempted to execute a syscall inside a branch delay slot! "
-                                 "This breaks the atomic basic block model and is structurally unsupported by the emulator.");
+        PS2X_THROW(std::runtime_error("Attempted to execute a syscall inside a branch delay slot! "
+                                 "This breaks the atomic basic block model and is structurally unsupported by the emulator."));
     }
 
     const uint32_t syscallId = (encodedSyscallId != 0u)
                                    ? encodedSyscallId
                                    : getRegU32(ctx, 3); // $v1 / $3 is the EE kernel syscall number
 
+    ps2x::guestCallProbe().lastSyscall.store(syscallId, std::memory_order_relaxed);
+    ps2x::guestCallProbe().syscalls.fetch_add(1, std::memory_order_relaxed);
     if (ps2_syscalls::dispatchNumericSyscall(syscallId, rdram, ctx, this))
     {
         return;
@@ -2195,11 +2227,11 @@ uint32_t PS2Runtime::reserveAsyncCallbackStack(uint32_t size, uint32_t alignment
 
 uint8_t PS2Runtime::Load8(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 {
-    try
+    PS2X_TRY
     {
         return m_memory.read8(vaddr);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_LOAD);
         return 0;
@@ -2208,11 +2240,11 @@ uint8_t PS2Runtime::Load8(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 
 uint16_t PS2Runtime::Load16(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 {
-    try
+    PS2X_TRY
     {
         return m_memory.read16(vaddr);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_LOAD);
         return 0;
@@ -2221,11 +2253,11 @@ uint16_t PS2Runtime::Load16(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 
 uint32_t PS2Runtime::Load32(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 {
-    try
+    PS2X_TRY
     {
         return m_memory.read32(vaddr);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_LOAD);
         return 0;
@@ -2234,11 +2266,11 @@ uint32_t PS2Runtime::Load32(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 
 uint64_t PS2Runtime::Load64(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 {
-    try
+    PS2X_TRY
     {
         return m_memory.read64(vaddr);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_LOAD);
         return 0;
@@ -2247,11 +2279,11 @@ uint64_t PS2Runtime::Load64(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 
 __m128i PS2Runtime::Load128(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 {
-    try
+    PS2X_TRY
     {
         return m_memory.read128(vaddr);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_LOAD);
         return _mm_setzero_si128();
@@ -2261,11 +2293,11 @@ __m128i PS2Runtime::Load128(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)
 void PS2Runtime::Store8(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, uint8_t value)
 {
     ps2TraceGuestWrite(rdram, vaddr, 1u, value, 0u, "WRITE8", ctx);
-    try
+    PS2X_TRY
     {
         m_memory.write8(vaddr, value);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_STORE);
     }
@@ -2274,11 +2306,11 @@ void PS2Runtime::Store8(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, uint8
 void PS2Runtime::Store16(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, uint16_t value)
 {
     ps2TraceGuestWrite(rdram, vaddr, 2u, value, 0u, "WRITE16", ctx);
-    try
+    PS2X_TRY
     {
         m_memory.write16(vaddr, value);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_STORE);
     }
@@ -2287,12 +2319,12 @@ void PS2Runtime::Store16(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, uint
 void PS2Runtime::Store32(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, uint32_t value)
 {
     ps2TraceGuestWrite(rdram, vaddr, 4u, value, 0u, "WRITE32", ctx);
-    try
+    PS2X_TRY
     {
         m_memory.write32(vaddr, value);
         drainCompletedDmacHandlers(rdram);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_STORE);
     }
@@ -2301,11 +2333,11 @@ void PS2Runtime::Store32(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, uint
 void PS2Runtime::Store64(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, uint64_t value)
 {
     ps2TraceGuestWrite(rdram, vaddr, 8u, value, 0u, "WRITE64", ctx);
-    try
+    PS2X_TRY
     {
         m_memory.write64(vaddr, value);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_STORE);
     }
@@ -2316,11 +2348,11 @@ void PS2Runtime::Store128(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr, __m
     alignas(16) uint64_t _parts[2];
     _mm_storeu_si128(reinterpret_cast<__m128i *>(_parts), value);
     ps2TraceGuestWrite(rdram, vaddr, 16u, _parts[0], _parts[1], "WRITE128", ctx);
-    try
+    PS2X_TRY
     {
         m_memory.write128(vaddr, value);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         SignalException(ctx, EXCEPTION_ADDRESS_ERROR_STORE);
     }
@@ -2549,12 +2581,14 @@ void PS2Runtime::run()
     const int fxaaTexelSize = GetShaderLocation(fxaaShader, "texelSize");
 
     std::atomic<bool> gameThreadFinished{false};
+#if !defined(PS2X_NO_EXCEPTIONS) // nxdk asserts on any std::exception_ptr
     std::exception_ptr gameFailure; // published by joining gameThread
+#endif
 
     std::thread gameThread([&]()
                            {
         ThreadNaming::SetCurrentThreadName("GameThread");
-        try
+        PS2X_TRY
         {
             m_eeScheduler->reset(m_memory.getRDRAM(), m_cpuContext);
             m_eeScheduler->run();
@@ -2562,6 +2596,7 @@ void PS2Runtime::run()
             RUNTIME_LOG("Game thread returned. PC=0x" << std::hex << pc
                       << " RA=0x" << static_cast<uint32_t>(_mm_extract_epi32(m_cpuContext.r[31], 0)) << std::dec << std::endl);
         }
+#if !defined(PS2X_NO_EXCEPTIONS)
         catch (const std::exception &e)
         {
             gameFailure = std::current_exception();
@@ -2572,6 +2607,7 @@ void PS2Runtime::run()
             gameFailure = std::current_exception();
             std::cerr << "Error during program execution: unknown exception" << std::endl;
         }
+#endif
         gameThreadFinished.store(true, std::memory_order_release); });
     // Other threads can be profiled instead (TS_SAMPLE_PROFILE_GS/_GPU/_VIF1).
     if (!std::getenv("TS_SAMPLE_PROFILE_GS") && !std::getenv("TS_SAMPLE_PROFILE_GPU") &&
@@ -2681,6 +2717,7 @@ void PS2Runtime::run()
         Texture2D drawTex = frameTex;
         float srcWidth = static_cast<float>(std::max<uint32_t>(1u, presentWidth));
         float srcHeight = static_cast<float>(std::max<uint32_t>(1u, presentHeight));
+#if !defined(PLATFORM_XBOX)
         if (s_runningRenderScale > 1)
         {
             unsigned hdTexture = 0;
@@ -2692,6 +2729,7 @@ void PS2Runtime::run()
                 srcHeight = static_cast<float>(hdHeight);
             }
         }
+#endif
         lastDrawTex = drawTex;
         lastDrawWidth = srcWidth;
         lastDrawHeight = srcHeight;
@@ -2778,6 +2816,26 @@ void PS2Runtime::run()
     }
 
     requestStop();
+    // TS_RDRAM_USAGE=1: report which 64 KiB blocks of EE RAM hold nonzero data.
+    if (const char *usage = std::getenv("TS_RDRAM_USAGE"); usage && *usage == '1')
+    {
+        const uint8_t *ram = m_memory.getRDRAM();
+        uint32_t used = 0;
+        std::string map;
+        for (uint32_t block = 0; block < PS2_RAM_SIZE / 0x10000u; ++block)
+        {
+            bool any = false;
+            for (uint32_t i = 0; i < 0x10000u && !any; i += 8u)
+            {
+                uint64_t v;
+                std::memcpy(&v, ram + block * 0x10000u + i, 8);
+                any = v != 0;
+            }
+            used += any ? 1u : 0u;
+            map.push_back(any ? '#' : '.');
+        }
+        std::fprintf(stderr, "[TS:rdram] %u of %u 64KiB blocks nonzero\n%s\n", used, PS2_RAM_SIZE / 0x10000u, map.c_str());
+    }
     ps2_sample_profiler::stop();
     if (gameThread.joinable())
     {
@@ -2820,7 +2878,9 @@ void PS2Runtime::run()
     CloseWindow();
 
     RUNTIME_LOG("[run] exiting loop");
+#if !defined(PS2X_NO_EXCEPTIONS)
     if (gameFailure) std::rethrow_exception(gameFailure);
+#endif
     if (m_missingFunctionReported.load() && missingFunctionPolicy() == MissingFunctionPolicy::Stop)
-        throw std::runtime_error("Native EE stopped on an unresolved function; see preceding guest context");
+        PS2X_THROW(std::runtime_error("Native EE stopped on an unresolved function; see preceding guest context"));
 }

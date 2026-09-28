@@ -1,6 +1,6 @@
 #include "runtime/ps2_sample_profiler.h"
 
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(NXDK)
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>

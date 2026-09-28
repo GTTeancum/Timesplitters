@@ -625,6 +625,26 @@ bool GS::copyLatchedHostPresentationFrame(std::vector<uint8_t> &outPixels,
         *outUsedPreferred = m_hostPresentationUsedPreferred;
 
     const size_t packedRowBytes = static_cast<size_t>(outWidth) * 4u;
+#if defined(PLATFORM_XBOX)
+    // 64 MB: hand the frame over instead of copying it. Rows are packed in
+    // place, and the caller's previous buffer is released rather than kept.
+    // The frame is only taken once per publication, so it is safe to consume.
+    {
+        auto &frame = const_cast<std::vector<uint8_t> &>(m_hostPresentationFrame);
+        const size_t sourceRowBytes = static_cast<size_t>(kHostFrameWidth) * 4u;
+        if (outWidth > kHostFrameWidth || static_cast<size_t>(outHeight) * sourceRowBytes > frame.size())
+        {
+            outPixels.clear();
+            outWidth = outHeight = 0u;
+            return false;
+        }
+        for (uint32_t y = 1; y < outHeight && packedRowBytes != sourceRowBytes; ++y)
+            std::memmove(frame.data() + y * packedRowBytes, frame.data() + y * sourceRowBytes, packedRowBytes);
+        outPixels.swap(frame);
+        std::vector<uint8_t>().swap(frame);
+        return true;
+    }
+#endif
     outPixels.resize(packedRowBytes * static_cast<size_t>(outHeight));
     if (outWidth != 0u && outHeight != 0u)
     {

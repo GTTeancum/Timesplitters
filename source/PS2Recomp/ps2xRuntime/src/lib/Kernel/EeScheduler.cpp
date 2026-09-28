@@ -1,4 +1,6 @@
 #include "runtime/ee_scheduler.h"
+#include "ps2x/exceptions.h"
+#include "runtime/ps2_io_stats.h"
 
 #include "ps2_log.h"
 #include "ps2_runtime_macros.h"
@@ -205,13 +207,7 @@ void EeScheduler::run()
         {
             auto completion = std::move(running->resumeCompletion);
             running->resumeCompletion = {};
-            try
-            {
-                completion(running->activeContext());
-            }
-            catch (const EeDispatcherTransfer &)
-            {
-            }
+            runTransferable([&] { completion(running->activeContext()); });
             if (m_currentThreadId == 0)
             {
                 continue;
@@ -239,13 +235,7 @@ void EeScheduler::run()
                 running->invocations.pop_back();
                 if (completed.onComplete)
                 {
-                    try
-                    {
-                        completed.onComplete(completed.context, running->activeContext());
-                    }
-                    catch (const EeDispatcherTransfer &)
-                    {
-                    }
+                    runTransferable([&] { completed.onComplete(completed.context, running->activeContext()); });
                 }
                 continue;
             }
@@ -298,20 +288,15 @@ void EeScheduler::run()
         const uint32_t profilePc = context.pc;
         const auto dispatchStart = profileDispatch ? std::chrono::steady_clock::now()
                                                   : std::chrono::steady_clock::time_point{};
-        try
+        PS2X_TRY
         {
             m_insideInterrupt = !running->invocations.empty() && running->invocations.back().kind == GuestInvocationKind::Interrupt;
             m_guestExecuting.store(true, std::memory_order_release);
-            function(m_rdram, &context, &m_runtime);
+            runTransferable([&] { function(m_rdram, &context, &m_runtime); });
             m_guestExecuting.store(false, std::memory_order_release);
             m_insideInterrupt = false;
         }
-        catch (const EeDispatcherTransfer &)
-        {
-            m_guestExecuting.store(false, std::memory_order_release);
-            m_insideInterrupt = false;
-        }
-        catch (...)
+        PS2X_CATCH_ALL
         {
             m_guestExecuting.store(false, std::memory_order_release);
             m_running.store(false, std::memory_order_release);
@@ -324,7 +309,7 @@ void EeScheduler::run()
                       << std::dec
                       << " invocations=" << running->invocations.size()
                       << '\n';
-            throw;
+            PS2X_RETHROW;
         }
 
         if (profileDispatch)
@@ -351,6 +336,17 @@ void EeScheduler::run()
     m_running.store(false, std::memory_order_release);
     copyMainContextToRuntime();
     publishSnapshot();
+}
+
+void EeScheduler::transferToDispatcher()
+{
+#if defined(PS2X_NO_EXCEPTIONS)
+    if (!m_transferTarget)
+        ps2x::fatalError("EE thread switch requested outside the dispatcher");
+    std::longjmp(*m_transferTarget, 1);
+#else
+    throw EeDispatcherTransfer{};
+#endif
 }
 
 void EeScheduler::requestStop()
@@ -412,8 +408,20 @@ bool EeScheduler::checkpointDue(uint32_t cycles) noexcept
 
 void EeScheduler::accountCycles(uint32_t cycles) noexcept
 {
-    const uint64_t elapsed = std::max<uint64_t>(1u, cycles);
+    uint64_t elapsed = std::max<uint64_t>(1u, cycles);
     m_eeCycle += elapsed;
+#if defined(PS2X_DEVICE_CYCLE_BATCH)
+    // Slow hosts: loops report a few dozen cycles at every back-edge, and
+    // advancing the EE timers and the IOP costs more than that much guest
+    // work. Hand them the cycles in batches instead. (Only the executor
+    // thread accounts cycles.)
+    static uint64_t deviceCycleCarry = 0;
+    deviceCycleCarry += elapsed;
+    if (deviceCycleCarry < PS2X_DEVICE_CYCLE_BATCH)
+        return;
+    elapsed = deviceCycleCarry;
+    deviceCycleCarry = 0;
+#endif
     m_pendingEeTimerInterrupts |= m_runtime.memory().advanceEeTimers(elapsed);
     m_runtime.advanceIopEeCycles(elapsed);
     if (m_pendingEeTimerInterrupts != 0u)
@@ -548,7 +556,7 @@ int EeScheduler::startThread(int id, uint32_t arg, const R5900Context &caller, b
         m_runtime.guestFree(ownedStack);
     }
     publishSnapshot();
-    throw EeDispatcherTransfer{};
+    transferToDispatcher();
 }
 
 int EeScheduler::terminateThread(int id, uint32_t &ownedStack, bool interruptSafe)
@@ -837,7 +845,7 @@ void EeScheduler::transferIfRequested(bool interruptSafe)
     m_rescheduleRequested = false;
     m_timeSliceExpired = false;
     publishSnapshot();
-    throw EeDispatcherTransfer{};
+    transferToDispatcher();
 }
 
 int EeScheduler::createSemaphore(int initCount, int maxCount, uint32_t attr, uint32_t option)
@@ -1140,7 +1148,7 @@ void EeScheduler::queueInvocation(GuestInvocation invocation)
     invocation.sequence = ++m_invocationSequence;
     owner->invocations.push_back(std::move(invocation));
     publishSnapshot();
-    throw EeDispatcherTransfer{};
+    transferToDispatcher();
 }
 
 [[noreturn]] void EeScheduler::invokeCurrentSequence(std::vector<GuestInvocation> invocations)
@@ -1159,7 +1167,7 @@ void EeScheduler::queueInvocation(GuestInvocation invocation)
         owner->invocations.push_back(std::move(*it));
     }
     publishSnapshot();
-    throw EeDispatcherTransfer{};
+    transferToDispatcher();
 }
 
 bool EeScheduler::hasInvocation(GuestInvocationKind kind, uint64_t tag) const
@@ -1182,7 +1190,7 @@ uint32_t EeScheduler::invocationStackTop()
     const GuestThread *owner = currentThread();
     if (!owner)
     {
-        throw std::logic_error("EE invocation stack requested without a current guest context");
+        PS2X_THROW(std::logic_error("EE invocation stack requested without a current guest context"));
     }
     const size_t depth = owner ? owner->invocations.size() : 0u;
     const uint64_t key = (static_cast<uint64_t>(static_cast<uint32_t>(owner->id)) << 32u) |
@@ -1196,7 +1204,7 @@ uint32_t EeScheduler::invocationStackTop()
     const uint32_t top = m_runtime.reserveAsyncCallbackStack(kInvocationStackSize, 16u);
     if (top == 0u)
     {
-        throw std::runtime_error("EE invocation stack space exhausted");
+        PS2X_THROW(std::runtime_error("EE invocation stack space exhausted"));
     }
     m_invocationStackTops.emplace(key, top);
     return top;
@@ -1727,7 +1735,7 @@ void EeScheduler::blockCurrent(EeWaitState wait)
     self->status = self->suspendCount == 0 ? EeThreadStatus::Waiting : EeThreadStatus::WaitingSuspended;
     m_currentThreadId = 0;
     publishSnapshot();
-    throw EeDispatcherTransfer{};
+    transferToDispatcher();
 }
 
 void EeScheduler::makeReady(GuestThread &item, int result, bool interruptSafe)
@@ -1859,6 +1867,7 @@ void EeScheduler::processDueDeadlines()
 
             if (now < pacingDeadline)
             {
+                const ps2x::SchedulerWaitScope waitScope(1, pacingDeadline);
                 m_eventCv.wait_until(lock, pacingDeadline, [this]()
                                      { return !m_events.empty() ||
                                               m_stopRequested.load(std::memory_order_acquire); });
@@ -2066,6 +2075,7 @@ void EeScheduler::waitForEvent()
     const bool hasTimerDeadline = timerCycles != std::numeric_limits<uint64_t>::max();
     if (m_deadlines.empty() && !hasTimerDeadline)
     {
+        const ps2x::SchedulerWaitScope waitScope(2, std::chrono::steady_clock::time_point::max());
         m_eventCv.wait(lock, [this]()
                        { return !m_events.empty() || m_stopRequested.load(std::memory_order_acquire); });
         return;
@@ -2097,9 +2107,13 @@ void EeScheduler::waitForEvent()
         }
     }
 
-    const bool signaled = m_eventCv.wait_until(lock, hostDeadline, [this]()
+    bool signaled;
+    {
+    const ps2x::SchedulerWaitScope waitScope(3, hostDeadline);
+    signaled = m_eventCv.wait_until(lock, hostDeadline, [this]()
                                                { return !m_events.empty() ||
                                                         m_stopRequested.load(std::memory_order_acquire); });
+    }
     if (!signaled)
     {
         const uint64_t elapsed = deadlineCycle > m_eeCycle ? deadlineCycle - m_eeCycle : 0u;

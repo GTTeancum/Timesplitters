@@ -4,7 +4,7 @@
 #include "runtime/ps2_sample_profiler.h"
 
 #include <algorithm>
-#include <immintrin.h>
+#include "ps2_simd.h"
 #include <cstdlib>
 #include <string>
 #include <cstring>

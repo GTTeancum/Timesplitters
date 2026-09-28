@@ -1,3 +1,4 @@
+#include "runtime/ps2_io_stats.h"
 #include "Common.h"
 #include "LibC.h"
 #include "ps2_log.h"
@@ -93,6 +94,7 @@ namespace ps2_stubs
         uint32_t srcAddr = getRegU32(ctx, 5);  // $a1
         uint32_t size = getRegU32(ctx, 6);     // $a2
         size = sanitizeMemTransferSize(size, "memcpy");
+        const ps2x::CopyTimer copyTimer(size);
 
         uint32_t copied = 0u;
         uint32_t curDst = destAddr;

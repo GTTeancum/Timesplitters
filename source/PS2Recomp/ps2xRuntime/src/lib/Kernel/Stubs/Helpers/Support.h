@@ -1,4 +1,6 @@
 #include <algorithm>
+#include "ps2x/exceptions.h"
+#include "runtime/ps2_io_stats.h"
 #include <cctype>
 
 namespace
@@ -140,7 +142,7 @@ namespace
         const std::string normalized = normalizeCdPathNoPrefix(relative.generic_string());
         if (normalized.empty())
         {
-            throw std::runtime_error("cdLoosePathKeyFromRelative: normalized path is empty");
+            PS2X_THROW(std::runtime_error("cdLoosePathKeyFromRelative: normalized path is empty"));
         }
 
         const std::filesystem::path relPath(normalized);
@@ -412,6 +414,7 @@ namespace
             return true;
         }
 
+        ps2x::IoReadTimer timer(byteCount);
         std::memset(dst, 0, byteCount);
         std::ifstream file(path, std::ios::binary);
         if (!file.is_open())
@@ -622,7 +625,7 @@ namespace
 
         if (runtime)
         {
-            try
+            PS2X_TRY
             {
                 PS2Memory &mem = runtime->memory();
                 outWord = static_cast<uint32_t>(mem.read8(addr + 0u)) |
@@ -631,7 +634,7 @@ namespace
                           (static_cast<uint32_t>(mem.read8(addr + 3u)) << 24u);
                 return true;
             }
-            catch (...)
+            PS2X_CATCH_ALL
             {
                 return false;
             }
@@ -650,12 +653,12 @@ namespace
 
         if (runtime)
         {
-            try
+            PS2X_TRY
             {
                 outByte = runtime->memory().read8(addr);
                 return true;
             }
-            catch (...)
+            PS2X_CATCH_ALL
             {
                 return false;
             }
@@ -693,7 +696,7 @@ namespace
 
         if (runtime)
         {
-            try
+            PS2X_TRY
             {
                 PS2Memory &mem = runtime->memory();
                 for (size_t i = 0; i < len; ++i)
@@ -707,7 +710,7 @@ namespace
                 }
                 return true;
             }
-            catch (...)
+            PS2X_CATCH_ALL
             {
                 return false;
             }

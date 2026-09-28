@@ -1,5 +1,6 @@
 #include "ps2_iop_host.h"
 #include "runtime/ps2_spu2.h"
+#include "runtime/ps2_io_stats.h"
 
 #include "ps2_runtime.h"
 #include "ps2_stubs.h"
@@ -305,7 +306,7 @@ uint64_t PS2IopHostAdapter::openHostFile(std::string_view path)
     }
 
     const std::filesystem::path hostPath{std::string(path)};
-#if defined(_WIN32)
+#if defined(_WIN32) && !defined(NXDK)
     std::FILE *stream = ::_wfopen(hostPath.c_str(), L"rb");
 #else
     std::FILE *stream = std::fopen(hostPath.string().c_str(), "rb");
@@ -365,9 +366,14 @@ bool PS2IopHostAdapter::readHostFile(uint64_t handle,
         return false;
     }
 
-#if defined(_WIN32)
+ps2x::IoReadTimer timer(size);
+#if defined(_WIN32) && !defined(NXDK)
     if (offset > static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) ||
         _fseeki64(it->second.stream, static_cast<int64_t>(offset), SEEK_SET) != 0)
+#elif defined(NXDK)
+    // 32-bit offsets: no file on the Xbox disc reaches 2 GB.
+    if (offset > static_cast<uint64_t>(std::numeric_limits<long>::max()) ||
+        std::fseek(it->second.stream, static_cast<long>(offset), SEEK_SET) != 0)
 #else
     if (offset > static_cast<uint64_t>(std::numeric_limits<off_t>::max()) ||
         fseeko(it->second.stream, static_cast<off_t>(offset), SEEK_SET) != 0)

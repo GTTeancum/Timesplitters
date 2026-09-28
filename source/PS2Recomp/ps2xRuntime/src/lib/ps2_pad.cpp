@@ -1,4 +1,5 @@
 #include "runtime/ps2_pad.h"
+#include "ps2x/exceptions.h"
 #if defined(_WIN32)
 using XInputWord = uint16_t;
 using XInputByte = uint8_t;
@@ -81,7 +82,7 @@ namespace
         const unsigned long value = std::stoul(text, &consumed, 0);
         if (consumed != text.size() || value > 255ul)
         {
-            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected byte value 0..255");
+            PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected byte value 0..255"));
         }
         return static_cast<uint8_t>(value);
     }
@@ -92,7 +93,7 @@ namespace
         const unsigned long value = std::stoul(text, &consumed, 0);
         if (consumed != text.size() || value == 0ul || value > 1000000ul)
         {
-            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected read count 1..1000000");
+            PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected read count 1..1000000"));
         }
         return static_cast<uint32_t>(value);
     }
@@ -103,7 +104,7 @@ namespace
         const double value = std::stod(text, &consumed);
         if (consumed != text.size() || !std::isfinite(value) || value < 0.0 || value > 3600.0)
         {
-            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected seconds value 0..3600");
+            PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected seconds value 0..3600"));
         }
         return value;
     }
@@ -114,7 +115,7 @@ namespace
         const unsigned long value = std::stoul(text, &consumed, 0);
         if (consumed != text.size() || value > 0xFFFFFFFFul)
         {
-            throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected " + label + " u32 value");
+            PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected " + label + " u32 value"));
         }
         return static_cast<uint32_t>(value);
     }
@@ -135,7 +136,7 @@ namespace
             return PSPadBackend::ScriptCompare::Greater;
         if (text == ">=" || text == "ge")
             return PSPadBackend::ScriptCompare::GreaterOrEqual;
-        throw std::runtime_error("line " + std::to_string(lineNumber) + ": unknown wait_u32 comparison '" + text + "'");
+        PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": unknown wait_u32 comparison '" + text + "'"));
     }
 
     bool compareU32(uint32_t left, PSPadBackend::ScriptCompare compare, uint32_t right)
@@ -204,7 +205,7 @@ namespace
             const auto it = kButtons.find(name);
             if (it == kButtons.end())
             {
-                throw std::runtime_error("line " + std::to_string(lineNumber) + ": unknown pad button '" + name + "'");
+                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": unknown pad button '" + name + "'"));
             }
             clearButton(buttons, it->second);
         }
@@ -272,7 +273,7 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
     bool modeKnown = false;
     bool timed = false;
 
-    try
+    PS2X_TRY
     {
         while (std::getline(input, line))
         {
@@ -301,11 +302,11 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
             }
             else if (!lineWaitU32 && lineTimed != timed)
             {
-                throw std::runtime_error("line " + std::to_string(lineNumber) + ": cannot mix timed and read-count pad script frames");
+                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": cannot mix timed and read-count pad script frames"));
             }
             if (lineWaitU32 && timed)
             {
-                throw std::runtime_error("line " + std::to_string(lineNumber) + ": wait_u32 is only supported in read-count pad scripts");
+                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": wait_u32 is only supported in read-count pad scripts"));
             }
 
             if (lineWaitU32)
@@ -315,12 +316,12 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
                 std::string valueText;
                 if (!(tokens >> addressText >> compareText >> valueText))
                 {
-                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected wait_u32 address comparison value");
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected wait_u32 address comparison value"));
                 }
                 std::string extra;
                 if (tokens >> extra)
                 {
-                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields");
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields"));
                 }
                 ScriptFrame frame{};
                 frame.kind = ScriptFrame::Kind::WaitU32;
@@ -336,12 +337,12 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
             {
                 if (!(tokens >> secondsText))
                 {
-                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected seconds token");
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected seconds token"));
                 }
             }
             if (!(tokens >> buttonsText))
             {
-                throw std::runtime_error("line " + std::to_string(lineNumber) + ": expected buttons token");
+                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected buttons token"));
             }
 
             ScriptFrame frame{};
@@ -350,7 +351,7 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
                 frame.atSeconds = parseSecondsValue(secondsText, lineNumber);
                 if (!frames.empty() && frame.atSeconds <= frames.back().atSeconds)
                 {
-                    throw std::runtime_error("line " + std::to_string(lineNumber) + ": timed frames must be strictly increasing");
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": timed frames must be strictly increasing"));
                 }
             }
             else
@@ -369,12 +370,12 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
                 frame.ry = parseByteValue(value, lineNumber);
             if (tokens >> value)
             {
-                throw std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields");
+                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields"));
             }
             frames.push_back(frame);
         }
     }
-    catch (const std::exception &e)
+    PS2X_CATCH(const std::exception &, e)
     {
         clearScript();
         if (error)
@@ -428,7 +429,7 @@ void PSPadBackend::setScriptTimeScale(double scale)
 {
     if (!std::isfinite(scale) || scale <= 0.0 || scale > 1000.0)
     {
-        throw std::runtime_error("pad script time scale must be > 0 and <= 1000");
+        PS2X_THROW(std::runtime_error("pad script time scale must be > 0 and <= 1000"));
     }
     m_scriptTimeScale = scale;
 }

@@ -1,3 +1,4 @@
+#include "runtime/ps2_io_stats.h"
 #include "Common.h"
 #include "RPC.h"
 #include "../../ps2_iop_transport.h"
@@ -348,6 +349,9 @@ namespace ps2_syscalls
         const uint32_t mode = getRegU32(ctx, 6);
         const uint32_t sendBuf = getRegU32(ctx, 7);
         const uint32_t stackPointer = getRegU32(ctx, 29);
+        ps2x::guestCallProbe().lastRpcClient.store(clientPtr, std::memory_order_relaxed);
+        ps2x::guestCallProbe().lastRpcNumber.store(rpcNum, std::memory_order_relaxed);
+        ps2x::guestCallProbe().rpcs.fetch_add(1, std::memory_order_relaxed);
 
         const uint32_t sendSizeRegisters = getRegU32(ctx, 8);
         const uint32_t receiveBufferRegisters = getRegU32(ctx, 9);

@@ -88,7 +88,7 @@ namespace ps2x::iop::detail
         void markOwned(uint32_t address, size_t size);
 
         std::vector<uint8_t> m_ram;
-        std::vector<uint8_t> m_owned;
+        std::vector<bool> m_owned; // one bit per RAM byte: 256 KB instead of 2 MB
         std::vector<uint8_t> m_scratch;
         std::unordered_map<uint32_t, uint32_t> m_hardware;
         std::vector<Allocation> m_allocations;

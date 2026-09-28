@@ -1,5 +1,8 @@
 #pragma once
 
+#include <csetjmp>
+#include "ps2x/exceptions.h"
+
 #include "ps2_runtime.h"
 
 #include <array>
@@ -18,6 +21,9 @@
 
 // This exception is the EE equivalent of a longjmp to the dispatcher.  It is
 // not an error and must only be caught at EeScheduler::run().
+// Unwinds from inside guest code back to EeScheduler::run() after a thread
+// switch. Thrown with C++ exceptions; without them (PS2X_NO_EXCEPTIONS, the
+// Xbox) the same jump is a longjmp to the innermost runTransferable().
 struct EeDispatcherTransfer final
 {
 };
@@ -361,6 +367,42 @@ public:
     void publishSnapshot();
 
 private:
+    [[noreturn]] void transferToDispatcher();
+
+    // Runs f; returns false when it ended in a thread switch.
+    template <class F>
+    bool runTransferable(F &&f)
+    {
+#if defined(PS2X_NO_EXCEPTIONS)
+        std::jmp_buf target;
+        std::jmp_buf *const previous = m_transferTarget;
+        m_transferTarget = &target;
+        if (setjmp(target) != 0)
+        {
+            m_transferTarget = previous;
+            return false;
+        }
+        f();
+        m_transferTarget = previous;
+        return true;
+#else
+        try
+        {
+            f();
+            return true;
+        }
+        catch (const EeDispatcherTransfer &)
+        {
+            return false;
+        }
+#endif
+    }
+
+#if defined(PS2X_NO_EXCEPTIONS)
+    std::jmp_buf *m_transferTarget = nullptr;
+#endif
+
+
     struct ScheduledEvent
     {
         uint64_t deadlineCycle = 0;

@@ -1,4 +1,5 @@
 #include "runtime/ps2_memory.h"
+#include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_address.h"
 #include "runtime/gs/gs_frontend.h"
@@ -20,7 +21,7 @@ namespace
     {
         if (static_cast<uint64_t>(offset) + static_cast<uint64_t>(bytes) > static_cast<uint64_t>(regionSize))
         {
-            throw std::runtime_error(std::string(op) + " out-of-bounds at address: 0x" + std::to_string(address));
+            PS2X_THROW(std::runtime_error(std::string(op) + " out-of-bounds at address: 0x" + std::to_string(address)));
         }
     }
 
@@ -338,7 +339,7 @@ bool PS2Memory::initialize(size_t ramSize)
     m_vif1PendingPath2DirectHl = false;
     resetEeTimers();
 
-    try
+    PS2X_TRY
     {
         // Allocate main RAM
         m_rdram = new uint8_t[ramSize];
@@ -352,11 +353,9 @@ bool PS2Memory::initialize(size_t ramSize)
         // Initialize EE TLB entries (R5900 has 48 entries).
         m_tlbEntries.assign(48, TLBEntry{0, 0, 0, false});
 
-        // Allocate IOP RAM
-        iop_ram = new uint8_t[2 * 1024 * 1024]; // 2MB
-
-        // Initialize IOP RAM with zeros
-        std::memset(iop_ram, 0, 2 * 1024 * 1024);
+        // IOP RAM lives in the IOP emulator (ps2xIOP IopMemory); this legacy
+        // buffer had no readers, so it is no longer allocated.
+        iop_ram = nullptr;
 
         // Initialize I/O registers
         m_ioRegisters.clear();
@@ -396,7 +395,7 @@ bool PS2Memory::initialize(size_t ramSize)
 
         return true;
     }
-    catch (const std::exception &e)
+    PS2X_CATCH(const std::exception &, e)
     {
         std::cerr << "Error initializing PS2 memory: " << e.what() << std::endl;
         cleanup();
@@ -616,7 +615,7 @@ uint32_t PS2Memory::translateAddress(uint32_t virtualAddress)
                 }
             }
         }
-        throw std::runtime_error("TLB miss for address: 0x" + std::to_string(virtualAddress));
+        PS2X_THROW(std::runtime_error("TLB miss for address: 0x" + std::to_string(virtualAddress)));
     }
 
     return virtualAddress;
@@ -711,7 +710,7 @@ uint16_t PS2Memory::read16(uint32_t address)
     syncVif1ForAddress(address);
     if (address & 1)
     {
-        throw std::runtime_error("Unaligned 16-bit read at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 16-bit read at address: 0x" + std::to_string(address)));
     }
 
     const bool scratch = isScratchpad(address);
@@ -747,7 +746,7 @@ uint32_t PS2Memory::read32(uint32_t address)
     syncVif1ForAddress(address);
     if (address & 3)
     {
-        throw std::runtime_error("Unaligned 32-bit read at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 32-bit read at address: 0x" + std::to_string(address)));
     }
 
     if (isGsPrivReg(address))
@@ -796,7 +795,7 @@ uint64_t PS2Memory::read64(uint32_t address)
     syncVif1ForAddress(address);
     if (address & 7)
     {
-        throw std::runtime_error("Unaligned 64-bit read at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 64-bit read at address: 0x" + std::to_string(address)));
     }
 
     if (isGsPrivReg(address))
@@ -844,7 +843,7 @@ __m128i PS2Memory::read128(uint32_t address)
     syncVif1ForAddress(address);
     if (address & 15)
     {
-        throw std::runtime_error("Unaligned 128-bit read at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 128-bit read at address: 0x" + std::to_string(address)));
     }
 
     const bool scratch = isScratchpad(address);
@@ -918,7 +917,7 @@ void PS2Memory::write16(uint32_t address, uint16_t value)
     syncVif1ForAddress(address);
     if (address & 1)
     {
-        throw std::runtime_error("Unaligned 16-bit write at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 16-bit write at address: 0x" + std::to_string(address)));
     }
 
     const bool scratch = isScratchpad(address);
@@ -961,7 +960,7 @@ void PS2Memory::write32(uint32_t address, uint32_t value)
     syncVif1ForAddress(address);
     if (address & 3)
     {
-        throw std::runtime_error("Unaligned 32-bit write at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 32-bit write at address: 0x" + std::to_string(address)));
     }
 
     if (isGsPrivReg(address))
@@ -1022,7 +1021,7 @@ void PS2Memory::write64(uint32_t address, uint64_t value)
     syncVif1ForAddress(address);
     if (address & 7)
     {
-        throw std::runtime_error("Unaligned 64-bit write at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 64-bit write at address: 0x" + std::to_string(address)));
     }
 
     if (isGsPrivReg(address))
@@ -1079,7 +1078,7 @@ void PS2Memory::write128(uint32_t address, __m128i value)
     syncVif1ForAddress(address);
     if (address & 15)
     {
-        throw std::runtime_error("Unaligned 128-bit write at address: 0x" + std::to_string(address));
+        PS2X_THROW(std::runtime_error("Unaligned 128-bit write at address: 0x" + std::to_string(address)));
     }
 
     const bool scratch = isScratchpad(address);
@@ -1331,9 +1330,9 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                 // VIF1 reverse DMA consumes GS local-to-host pixels. Never run
                 // the destination RAM through the forward VIF command decoder.
                 if (((value >> 2u) & 3u) != 0u || (gs_regs.busdir & 1u) == 0u)
-                    throw std::runtime_error("Unsupported VIF1 reverse DMA mode or GS BUSDIR");
+                    PS2X_THROW(std::runtime_error("Unsupported VIF1 reverse DMA mode or GS BUSDIR"));
                 if (!m_gsReadbackCallback)
-                    throw std::runtime_error("VIF1 reverse DMA has no GS readback backend");
+                    PS2X_THROW(std::runtime_error("VIF1 reverse DMA has no GS readback backend"));
                 processPendingTransfers(); // commit preceding GIF/VIF setup first
                 const uint64_t bytes64 = static_cast<uint64_t>(qwc) * 16ull;
                 const uint32_t offset = translateAddress(madr);
@@ -1341,11 +1340,11 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                 uint8_t *destination = scratch ? m_scratchpad : m_rdram;
                 const uint32_t limit = scratch ? PS2_SCRATCHPAD_SIZE : PS2_RAM_SIZE;
                 if (!destination || offset >= limit || bytes64 > limit - offset)
-                    throw std::runtime_error("VIF1 reverse DMA destination exceeds guest memory");
+                    PS2X_THROW(std::runtime_error("VIF1 reverse DMA destination exceeds guest memory"));
                 const uint32_t bytes = static_cast<uint32_t>(bytes64);
                 const uint32_t received = m_gsReadbackCallback(destination + offset, bytes);
                 if (received != bytes)
-                    throw std::runtime_error("VIF1 reverse DMA GS readback was shorter than QWC");
+                    PS2X_THROW(std::runtime_error("VIF1 reverse DMA GS readback was shorter than QWC"));
                 m_ioRegisters[channelBase + 0x10u] = madr + bytes;
                 m_ioRegisters[channelBase + 0x20u] = 0u;
                 m_ioRegisters[channelBase] = value & ~0x100u;
@@ -1457,7 +1456,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     {
                         const uint64_t bytes64 = static_cast<uint64_t>(qwCount) * 16ull;
                         if (bytes64 > kMaxBufferedDmaBytes - chainBuf.size())
-                            throw std::runtime_error("DMA chain exceeds host buffering budget");
+                            PS2X_THROW(std::runtime_error("DMA chain exceeds host buffering budget"));
                         uint32_t bytes = (bytes64 > 0xFFFFFFFFull) ? 0xFFFFFFFFu : static_cast<uint32_t>(bytes64);
                         const bool scratch = isScratchpad(srcAddr);
                         uint32_t src = 0;
@@ -1504,7 +1503,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         // CHCR.TTE sends the DMAtag's upper 64 bits to the channel before
                         // the tag payload. VIF chains use those bytes for two VIFcodes.
                         if (chainBuf.size() > kMaxBufferedDmaBytes - 8u)
-                            throw std::runtime_error("DMA chain exceeds host buffering budget");
+                            PS2X_THROW(std::runtime_error("DMA chain exceeds host buffering budget"));
                         chainBuf.insert(chainBuf.end(), localBase + tagPhys + 8u, localBase + tagPhys + 16u);
                     };
 
@@ -1518,21 +1517,21 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     for (;;)
                     {
                         if (asp > 2u)
-                            throw std::runtime_error("invalid DMA return-stack depth");
+                            PS2X_THROW(std::runtime_error("invalid DMA return-stack depth"));
                         const std::array<uint32_t, 4> state{
                             tagAddr, asp, asp > 0u ? asr0 : 0u, asp > 1u ? asr1 : 0u};
                         if (!chainStates.insert(state))
-                            throw std::runtime_error("cyclic DMA chain at TADR=" + std::to_string(tagAddr));
+                            PS2X_THROW(std::runtime_error("cyclic DMA chain at TADR=" + std::to_string(tagAddr)));
                         if (chainStates.size() > kMaxDmaControlStates)
-                            throw std::runtime_error("DMA chain exceeds host control-state budget");
+                            PS2X_THROW(std::runtime_error("DMA chain exceeds host control-state budget"));
                         const uint32_t currentTagAddr = tagAddr;
                         const bool tagInSPR = isScratchpad(tagAddr);
                         uint32_t physTag = 0;
-                        try
+                        PS2X_TRY
                         {
                             physTag = translateAddress(tagAddr);
                         }
-                        catch (...)
+                        PS2X_CATCH_ALL
                         {
                             break;
                         }
@@ -1599,7 +1598,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                                     asp = 2u;
                                 }
                                 else
-                                    throw std::runtime_error("DMA CALL exceeds two-entry return stack");
+                                    PS2X_THROW(std::runtime_error("DMA CALL exceeds two-entry return stack"));
                             }
                             tagAddr = addr;
                             break;
@@ -1726,11 +1725,11 @@ bool PS2Memory::tryProcessScratchpadDma(uint32_t channelBase, uint32_t chcr)
     const uint32_t originalSadr = m_ioRegisters[channelBase + 0x80u] & 0x3FF0u;
 
     uint32_t mainOffset = 0u;
-    try
+    PS2X_TRY
     {
         mainOffset = translateAddress(originalMadr);
     }
-    catch (const std::exception &)
+    PS2X_CATCH_TYPE(const std::exception &)
     {
         return false;
     }
@@ -1829,11 +1828,11 @@ void PS2Memory::processPendingTransfers()
             const uint64_t bytes64 = static_cast<uint64_t>(p.qwc) * 16ull;
             uint32_t sizeBytes = (bytes64 > 0xFFFFFFFFull) ? 0xFFFFFFFFu : static_cast<uint32_t>(bytes64);
             uint32_t srcPhys = 0;
-            try
+            PS2X_TRY
             {
                 srcPhys = translateAddress(p.srcAddr);
             }
-            catch (const std::exception &)
+            PS2X_CATCH_TYPE(const std::exception &)
             {
                 continue;
             }
@@ -1891,11 +1890,11 @@ void PS2Memory::processPendingTransfers()
             uint32_t srcPhys = 0;
             const uint64_t bytes64 = static_cast<uint64_t>(p.qwc) * 16ull;
             uint32_t sizeBytes = (bytes64 > 0xFFFFFFFFull) ? 0xFFFFFFFFu : static_cast<uint32_t>(bytes64);
-            try
+            PS2X_TRY
             {
                 srcPhys = translateAddress(p.srcAddr);
             }
-            catch (const std::exception &)
+            PS2X_CATCH_TYPE(const std::exception &)
             {
                 continue;
             }
@@ -1949,11 +1948,11 @@ void PS2Memory::processPendingTransfers()
             uint32_t srcPhys = 0;
             const uint64_t bytes64 = static_cast<uint64_t>(p.qwc) * 16ull;
             uint32_t sizeBytes = (bytes64 > 0xFFFFFFFFull) ? 0xFFFFFFFFu : static_cast<uint32_t>(bytes64);
-            try
+            PS2X_TRY
             {
                 srcPhys = translateAddress(p.srcAddr);
             }
-            catch (const std::exception &)
+            PS2X_CATCH_TYPE(const std::exception &)
             {
                 continue;
             }
@@ -2055,8 +2054,12 @@ bool PS2Memory::startVif1Async()
 {
     if (m_vif1AsyncMode < 0)
     {
+#if defined(PLATFORM_XBOX)
+        m_vif1AsyncMode = 0; // one core: a worker thread only costs memory
+#else
         const char *mode = std::getenv("TS_VIF1_ASYNC");
         m_vif1AsyncMode = (mode && *mode == '0') ? 0 : 1;
+#endif
     }
     if (m_vif1AsyncMode == 0)
         return false;
@@ -2076,11 +2079,11 @@ bool PS2Memory::startVif1Async()
         if (p.qwc == 0)
             continue;
         uint32_t srcPhys = 0;
-        try
+        PS2X_TRY
         {
             srcPhys = translateAddress(p.srcAddr);
         }
-        catch (const std::exception &)
+        PS2X_CATCH_TYPE(const std::exception &)
         {
             continue;
         }
@@ -2205,8 +2208,12 @@ bool PS2Memory::gsStageSubmit(GifPathId path, const uint8_t *data, uint32_t size
 {
     if (m_gsStageMode < 0)
     {
+#if defined(PLATFORM_XBOX)
+        m_gsStageMode = 0; // one core: a worker thread only costs memory
+#else
         const char *mode = std::getenv("TS_GS_STAGE");
         m_gsStageMode = (mode && *mode == '0') ? 0 : 1;
+#endif
     }
     if (m_gsStageMode == 0)
         return false;
@@ -2427,7 +2434,7 @@ bool PS2Memory::tryProcessNativeGifImageUploadChain(GS &gs, uint32_t tadr, uint3
 
     auto resolveContiguous = [&](uint32_t guestAddr, uint32_t bytes, const uint8_t *&out) -> bool
     {
-        try
+        PS2X_TRY
         {
             const bool scratch = isScratchpad(guestAddr);
             const uint32_t phys = translateAddress(guestAddr);
@@ -2438,7 +2445,7 @@ bool PS2Memory::tryProcessNativeGifImageUploadChain(GS &gs, uint32_t tadr, uint3
             out = base + phys;
             return true;
         }
-        catch (const std::exception &)
+        PS2X_CATCH_TYPE(const std::exception &)
         {
             return false;
         }
@@ -2619,7 +2626,7 @@ bool PS2Memory::tryProcessNativeGifPackedChain(GS &gs, uint32_t tadr, uint32_t c
 
     auto resolveContiguous = [&](uint32_t guestAddr, uint32_t bytes, const uint8_t *&out) -> bool
     {
-        try
+        PS2X_TRY
         {
             const bool scratch = isScratchpad(guestAddr);
             const uint32_t phys = translateAddress(guestAddr);
@@ -2630,7 +2637,7 @@ bool PS2Memory::tryProcessNativeGifPackedChain(GS &gs, uint32_t tadr, uint32_t c
             out = base + phys;
             return true;
         }
-        catch (const std::exception &)
+        PS2X_CATCH_TYPE(const std::exception &)
         {
             return false;
         }

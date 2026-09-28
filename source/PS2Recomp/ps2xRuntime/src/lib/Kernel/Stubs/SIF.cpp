@@ -1,4 +1,5 @@
 #include "Common.h"
+#include "ps2x/exceptions.h"
 #include "SIF.h"
 #include "../Syscalls/RPC.h"
 #include "../../ps2_iop_transport.h"
@@ -262,7 +263,7 @@ namespace ps2_stubs
         ps2TraceGuestRangeWrite(rdram, packetAddress, static_cast<uint32_t>(packetSize), "SIF command packet", nullptr);
         std::memcpy(first, packet, packetSize);
 
-        try
+        PS2X_TRY
         {
             GuestInvocation invocation{};
             invocation.kind = GuestInvocationKind::SifCommand;
@@ -282,7 +283,7 @@ namespace ps2_stubs
             runtime->eeScheduler().queueInvocation(std::move(invocation));
             return true;
         }
-        catch (...)
+        PS2X_CATCH_ALL
         {
             runtime->guestFree(packetAddress);
             return false;

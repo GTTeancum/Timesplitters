@@ -30,7 +30,7 @@ namespace ps2x::iop::detail
     void IopMemory::reset()
     {
         std::fill(m_ram.begin(), m_ram.end(), uint8_t{0});
-        std::fill(m_owned.begin(), m_owned.end(), uint8_t{0});
+        std::fill(m_owned.begin(), m_owned.end(), false);
         std::fill(m_scratch.begin(), m_scratch.end(), uint8_t{0});
         m_hardware.clear();
         m_allocations.clear();
@@ -209,15 +209,15 @@ namespace ps2x::iop::detail
         if (phys > RamSize || size > RamSize - phys)
             return false;
         return std::all_of(m_owned.begin() + phys, m_owned.begin() + phys + size,
-                           [](uint8_t value)
-                           { return value != 0u; });
+                           [](bool value)
+                           { return value; });
     }
 
     void IopMemory::markOwned(uint32_t address, size_t size)
     {
         if (address > RamSize || size > RamSize - address)
             return;
-        std::fill(m_owned.begin() + address, m_owned.begin() + address + size, uint8_t{1});
+        std::fill(m_owned.begin() + address, m_owned.begin() + address + size, true);
     }
 
     bool IopMemory::isHardwareAddress(uint32_t address) const
@@ -357,7 +357,7 @@ namespace ps2x::iop::detail
             return false;
         std::fill(m_owned.begin() + block->address,
                   m_owned.begin() + block->address + block->size,
-                  uint8_t{0});
+                  false);
         m_allocations.erase(block);
         return true;
     }

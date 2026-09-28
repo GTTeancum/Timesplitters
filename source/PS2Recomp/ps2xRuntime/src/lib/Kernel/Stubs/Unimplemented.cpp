@@ -1,4 +1,5 @@
 #include "Common.h"
+#include "ps2x/exceptions.h"
 #include "Unimplemented.h"
 
 namespace ps2_stubs
@@ -44,6 +45,6 @@ namespace ps2_stubs
                   << ", $a3=0x" << getRegU32(ctx, 7) << std::dec << std::endl;
 
         //TODO maybe a macro to disable the exception and just return an success just to see it where goes.
-        throw std::runtime_error("Unimplemented PS2 stub called: " + stubName);
+        PS2X_THROW(std::runtime_error("Unimplemented PS2 stub called: " + stubName));
     }
 }

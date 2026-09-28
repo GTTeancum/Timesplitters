@@ -1,4 +1,5 @@
 #include "iop_emulator.h"
+#include "ps2x/exceptions.h"
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -509,15 +510,15 @@ namespace ps2x::iop::detail
                 completed.push_back(it->first);
                 it = pendingDmaInterrupts.erase(it);
             }
-            try
+            PS2X_TRY
             {
                 for (const int irq : completed)
                     (void)intrman.dispatchInterrupt(irq, *this);
             }
-            catch (...)
+            PS2X_CATCH_ALL
             {
                 servicingDmaInterrupts = false;
-                throw;
+                PS2X_RETHROW;
             }
             servicingDmaInterrupts = false;
         }
@@ -539,7 +540,7 @@ namespace ps2x::iop::detail
                 return;
 
             servicingGuestCallbacks = true;
-            try
+            PS2X_TRY
             {
                 for (const ScheduledGuestCallback &callback : callbacks)
                 {
@@ -555,17 +556,17 @@ namespace ps2x::iop::detail
                     }
                 }
             }
-            catch (...)
+            PS2X_CATCH_ALL
             {
                 servicingGuestCallbacks = false;
-                throw;
+                PS2X_RETHROW;
             }
             servicingGuestCallbacks = false;
         }
 
         void runCycles(uint64_t cycles) noexcept
         {
-            try
+            PS2X_TRY
             {
                 const uint64_t target = totalCycles + cycles;
                 while (totalCycles < target)
@@ -600,7 +601,7 @@ namespace ps2x::iop::detail
                         ++totalCycles;
                 }
             }
-            catch (...)
+            PS2X_CATCH_ALL
             {
                 // Runtime scheduling must never throw through EeScheduler::accountCycles().
             }

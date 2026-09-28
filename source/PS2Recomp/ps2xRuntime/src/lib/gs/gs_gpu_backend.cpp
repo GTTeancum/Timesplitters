@@ -20,7 +20,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <climits>
-#include <immintrin.h>
+#include "ps2_simd.h"
 #include <cstring>
 #include <deque>
 #include <mutex>

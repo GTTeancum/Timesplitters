@@ -14,14 +14,7 @@
 #include <thread>
 
 #include "gs/ps2_gif_arbiter.h"
-#if defined(_MSC_VER)
-#include <intrin.h>
-#elif defined(USE_SSE2NEON)
-#include "sse2neon.h"
-#else
-#include <immintrin.h> // For SSE/AVX instructions
-#include <smmintrin.h> // For SSE4.1 instructions
-#endif
+#include "ps2_simd.h"
 
 class GS;
 

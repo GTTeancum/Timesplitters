@@ -4,13 +4,7 @@
 #include <cmath>
 #include <cstring>
 #include <bit>
-#if defined(_MSC_VER)
-#include <intrin.h>
-#elif defined(USE_SSE2NEON)
-#include "sse2neon.h"
-#else
-#include <immintrin.h> // For SSE/AVX intrinsics
-#endif
+#include "ps2_simd.h"
 
 #include "ps2_runtime.h"
 
@@ -743,7 +737,11 @@ static inline void Ps2SetGprLow64(R5900Context *ctx, int reg, __m128i new_low)
 {
     if (reg != 0)
     {
+#if defined(PS2X_SCALAR_SIMD)
+        ctx->r[reg][0] = new_low[0]; // __m128i is a plain two-lane vector here
+#else
         ctx->r[reg] = _mm_castpd_si128(_mm_move_sd(_mm_castsi128_pd(ctx->r[reg]), _mm_castsi128_pd(new_low)));
+#endif
     }
 }
 

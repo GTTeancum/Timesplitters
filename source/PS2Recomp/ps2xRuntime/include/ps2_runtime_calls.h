@@ -26,7 +26,7 @@ namespace ps2_runtime_calls
             std::string_view name,
             const std::string_view (&entries)[N])
         {
-            const auto it = std::ranges::find(entries, name);
+            const auto it = std::find(std::begin(entries), std::end(entries), name);
             return (it == std::end(entries)) ? std::string_view{} : *it;
         }
 

@@ -9,6 +9,7 @@
 
 #include "runtime/gs/gs_gpu_backend.h"
 #include "runtime/gs/gs_cpu_backend.h"
+#include "runtime/gs/gs_texture_replacement.h"
 #include "ThreadNaming.h"
 #include "runtime/ps2_sample_profiler.h"
 
@@ -24,6 +25,7 @@
 #include <deque>
 #include <mutex>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 namespace
@@ -69,6 +71,7 @@ uniform ivec2 uTexSize;
 uniform int uLinear;
 uniform ivec2 uWrap;        // GS CLAMP modes
 uniform ivec4 uRegion;      // minU, maxU, minV, maxV
+uniform int uReplaced;      // uTexture is a replacement image (any size, normalised coordinates)
 uniform int uTfx;
 uniform int uTcc;
 uniform int uIip;
@@ -109,7 +112,17 @@ void main()
                                          vTex.y / (abs(vTex.z) > 1e-8 ? vTex.z : 1.0) * float(uTexSize.y))
                                  : vTex.xy;
         vec4 tc;
-        if (uLinear != 0)
+        if (uReplaced != 0)
+        {
+            // Wrap in the original texture's texel space, then sample the
+            // replacement filtered at the same relative position.
+            vec2 size = vec2(uTexSize);
+            vec2 p = t;
+            p.x = uWrap.x == 1 ? clamp(p.x, 0.0, size.x) : uWrap.x == 2 ? clamp(p.x, float(uRegion.x), float(uRegion.y) + 1.0) : p.x;
+            p.y = uWrap.y == 1 ? clamp(p.y, 0.0, size.y) : uWrap.y == 2 ? clamp(p.y, float(uRegion.z), float(uRegion.w) + 1.0) : p.y;
+            tc = floor(texture(uTexture, p / size) * 255.0 + 0.5);
+        }
+        else if (uLinear != 0)
         {
             vec2 p = t - 0.5;
             vec2 b = floor(p);
@@ -294,7 +307,11 @@ struct GSGpuBackend::Impl
         uint64_t clutHash, versionSum, lastUse;
         GSCpuBackend::VramRange range;
         GLuint texture;
+        bool renderTarget = false; // drawn by the GPU: never dumped or replaced
+        GLuint replacement = 0;    // from textures/replacements, or 0
     };
+    // Replacement images by content hash (0: looked up, none exists).
+    std::unordered_map<uint64_t, GLuint> replacementTextures;
     std::vector<TextureEntry> textures;
     uint64_t textureTick = 0;
     std::array<uint32_t, kPageCount> pageVersion{};
@@ -365,7 +382,7 @@ struct GSGpuBackend::Impl
     GLint uPackSource = -1, uPackMode = -1, uPackFirst = -1, uPackScale = -1;
     int packWidth = 0;
     std::vector<uint32_t> packValues;
-    GLint uTarget = -1, uTexture = -1, uTme = -1, uCoordMode = -1, uTexSize = -1, uLinear = -1, uWrap = -1,
+    GLint uTarget = -1, uTexture = -1, uTme = -1, uCoordMode = -1, uTexSize = -1, uLinear = -1, uWrap = -1, uReplaced = -1,
           uRegion = -1, uTfx = -1, uTcc = -1, uIip = -1, uAtest = -1, uAref = -1, uAfail = -1, uFge = -1,
           uFogColor = -1, uFba = -1, uPabe = -1, uFactor = -1;
 
@@ -375,7 +392,7 @@ struct GSGpuBackend::Impl
         int colorTarget, depthTarget;
         GLuint texture;
         GLenum topology;
-        int tme, coordMode, texW, texH, linear, wrapU, wrapV, regionMinU, regionMaxU, regionMinV, regionMaxV;
+        int tme, coordMode, texW, texH, linear, wrapU, wrapV, regionMinU, regionMaxU, regionMinV, regionMaxV, replaced;
         int tfx, tcc, iip, atest, aref, afail, fge, fogR, fogG, fogB, fba, pabe;
         int blend, blendA, blendB, blendC, blendD, fix;
         int ztest, zwrite, colorMask;
@@ -621,7 +638,7 @@ struct GSGpuBackend::Impl
         glDeleteShader(fs);
 #define TS_UNIFORM(name) name = glGetUniformLocation(program, #name)
         TS_UNIFORM(uTarget); TS_UNIFORM(uTexture); TS_UNIFORM(uTme); TS_UNIFORM(uCoordMode);
-        TS_UNIFORM(uTexSize); TS_UNIFORM(uLinear); TS_UNIFORM(uWrap); TS_UNIFORM(uRegion);
+        TS_UNIFORM(uTexSize); TS_UNIFORM(uLinear); TS_UNIFORM(uWrap); TS_UNIFORM(uRegion); TS_UNIFORM(uReplaced);
         TS_UNIFORM(uTfx); TS_UNIFORM(uTcc); TS_UNIFORM(uIip); TS_UNIFORM(uAtest); TS_UNIFORM(uAref);
         TS_UNIFORM(uAfail); TS_UNIFORM(uFge); TS_UNIFORM(uFogColor); TS_UNIFORM(uFba); TS_UNIFORM(uPabe);
         TS_UNIFORM(uFactor);
@@ -971,8 +988,10 @@ struct GSGpuBackend::Impl
     }
 
     // --------------------------------------------------------- textures
-    GLuint acquireTexture(const GSDrawState &state)
+    // Returns the texture to bind; replaced is set when it is a replacement.
+    GLuint acquireTexture(const GSDrawState &state, bool &replaced)
     {
+        replaced = false;
         const auto &tex = state.context.tex0;
         const uint32_t texW = std::max<uint32_t>(1u, state.textureWidth);
         const uint32_t texH = std::max<uint32_t>(1u, state.textureHeight);
@@ -980,9 +999,15 @@ struct GSGpuBackend::Impl
         full.context.clamp = 0; // decode covers the whole texture
         const auto range = GSCpuBackend::TextureRange(full);
         // Render-to-texture: bring GPU results into local memory first.
+        bool renderTarget = false;
         for (Target &t : targets)
-            if (t.gpuDirty && overlaps(t.range, range))
+        {
+            if (!overlaps(t.range, range))
+                continue;
+            renderTarget = true;
+            if (t.gpuDirty)
                 writeBack(t);
+        }
         const bool indexed = tex.psm == GS_PSM_T8 || tex.psm == GS_PSM_T4 || tex.psm == GS_PSM_T8H ||
                              tex.psm == GS_PSM_T4HL || tex.psm == GS_PSM_T4HH;
         const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
@@ -996,11 +1021,13 @@ struct GSGpuBackend::Impl
             {
                 if (e.versionSum != versions)
                 {
-                    uploadTexture(e.texture, state, texW, texH);
+                    e.renderTarget = renderTarget;
+                    uploadTexture(e, state, texW, texH);
                     e.versionSum = versions;
                 }
                 e.lastUse = ++textureTick;
-                return e.texture;
+                replaced = e.replacement != 0;
+                return replaced ? e.replacement : e.texture;
             }
         }
         if (textures.size() >= 512)
@@ -1012,20 +1039,49 @@ struct GSGpuBackend::Impl
         }
         TextureEntry e{tex.tbp0, tex.tbw, tex.psm, texW, texH, tex.cpsm, tex.csm, tex.csa, texa, hash, versions,
                        ++textureTick, range, 0};
+        e.renderTarget = renderTarget;
         glGenTextures(1, &e.texture);
-        uploadTexture(e.texture, state, texW, texH);
+        uploadTexture(e, state, texW, texH);
         textures.push_back(e);
-        return e.texture;
+        replaced = e.replacement != 0;
+        return replaced ? e.replacement : e.texture;
     }
 
-    void uploadTexture(GLuint texture, const GSDrawState &state, uint32_t w, uint32_t h)
+    void uploadTexture(TextureEntry &e, const GSDrawState &state, uint32_t w, uint32_t h)
     {
         std::vector<uint32_t> texels;
         cpu.DecodeTexture(state, texels);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        e.replacement = 0;
+        if (!e.renderTarget && texels.size() >= size_t(w) * h && gs_texture_replacement::active())
+        {
+            const uint64_t contentHash = gs_texture_replacement::hash(texels.data(), w, h);
+            gs_texture_replacement::dump(contentHash, texels.data(), w, h);
+            e.replacement = replacementTexture(contentHash);
+        }
+        glBindTexture(GL_TEXTURE_2D, e.texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, int(w), int(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, texels.data());
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
+
+    GLuint replacementTexture(uint64_t contentHash)
+    {
+        if (const auto found = replacementTextures.find(contentHash); found != replacementTextures.end())
+            return found->second;
+        GLuint texture = 0;
+        std::vector<uint32_t> texels;
+        int width = 0, height = 0;
+        if (gs_texture_replacement::load(contentHash, texels, width, height))
+        {
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels.data());
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+        replacementTextures[contentHash] = texture;
+        return texture;
     }
 
     void refreshClutHash()
@@ -1070,6 +1126,13 @@ struct GSGpuBackend::Impl
         glUniform1i(uLinear, k.linear);
         glUniform2i(uWrap, k.wrapU, k.wrapV);
         glUniform4i(uRegion, k.regionMinU, k.regionMaxU, k.regionMinV, k.regionMaxV);
+        glUniform1i(uReplaced, k.replaced);
+        if (k.replaced)
+        {
+            // Repeat wrapping is done by the sampler so filtering stays seamless.
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, k.wrapU == 0 || k.wrapU == 3 ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, k.wrapV == 0 || k.wrapV == 3 ? GL_REPEAT : GL_CLAMP_TO_EDGE);
+        }
         glUniform1i(uTfx, k.tfx);
         glUniform1i(uTcc, k.tcc);
         glUniform1i(uIip, k.iip);
@@ -1159,8 +1222,9 @@ struct GSGpuBackend::Impl
         const uint32_t rows = uint32_t(ctx.scissor.y1) + 1u;
 
         GLuint texture = 0;
+        bool replaced = false;
         if (state.prim.tme)
-            texture = acquireTexture(state);
+            texture = acquireTexture(state, replaced);
         const int colorTarget = acquireTarget(false, ctx.frame.fbp, fbw, ctx.frame.psm, rows);
         const bool depthUsed = ztest != 1 || !ctx.zbuf.zmask;
         int depthTarget = -1;
@@ -1187,6 +1251,7 @@ struct GSGpuBackend::Impl
         k.texW = std::max<int>(1, state.textureWidth);
         k.texH = std::max<int>(1, state.textureHeight);
         k.linear = state.linearFilter ? 1 : 0;
+        k.replaced = replaced ? 1 : 0;
         const uint64_t clamp = ctx.clamp;
         k.wrapU = int(clamp & 3u);
         k.wrapV = int((clamp >> 2) & 3u);

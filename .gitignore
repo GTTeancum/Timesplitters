@@ -80,3 +80,6 @@ project/analysis/extracted/SLUS_200.90.symbols.json
 project/analysis/extracted/SYSTEM.CNF
 project/analysis/extracted/MODULES/
 /damage-log.txt
+
+# Texture dumps and replacement packs (see KNOWN-ISSUES.md)
+/textures/

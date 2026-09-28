@@ -59,6 +59,15 @@ widescreen while playing).
   margin or centre (GS::adjustWidescreenHud: overlay primitives with no
   depth test/write, flat or pixel-addressed texture, entirely on screen).
   Menus keep the stretched full-screen layout.
+- Texture replacement (GPU renderer): every texture decoded from GS memory
+  is identified by a 64-bit FNV hash of its decoded RGBA pixels and size,
+  so each palette of an indexed texture is separate. texture_dump=1 saves
+  new ones to textures/dump/<hash>.png (worker thread, alpha 0..128 scaled
+  to 0..255); PNGs named <hash>.png anywhere under textures/replacements/
+  are loaded (mipmapped, filtered, any size) and sampled with normalised
+  coordinates after the GS wrap/clamp in texel space. Textures that
+  overlap a GPU render target are never dumped or replaced. With no
+  replacements and dumping off nothing is hashed.
 - render_scale > 1 draws the GPU renderer's targets at that multiple; the
   displayed buffer is copied from its target straight to the window
   (single circuit, or both circuits showing the same buffer, as this game

@@ -77,6 +77,10 @@ namespace
                 settings.widescreen = parseBool(value);
             else if (key == "fxaa")
                 settings.fxaa = parseBool(value);
+            else if (key == "texture_dump")
+                settings.textureDump = parseBool(value);
+            else if (key == "texture_replace")
+                settings.textureReplace = parseBool(value);
             else if (key == "render_scale")
                 settings.renderScale = std::clamp(std::atoi(value.c_str()), 1, 4);
         }

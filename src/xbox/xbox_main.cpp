@@ -49,6 +49,7 @@ namespace
     }
 
     PS2Runtime *g_rt = nullptr;
+    constexpr size_t kScriptDrawFromRead = 1100;
 
     // Every few seconds: is the game advancing? (development aid)
     void statusHook()
@@ -70,6 +71,13 @@ namespace
         if (const int site = wait.site.load())
             out << " wait@" << site << " asked " << wait.requestedMicroseconds.load() / 1000 << "ms, "
                       << (ps2x::steadyMicroseconds() - wait.startedMicroseconds.load()) / 1000 << "ms ago";
+        // Scripted runs: no drawing while the script is still in the menus
+        // (it starts the match about 1,100 reads in).
+        if (g_rt->padBackend().scriptActive())
+            ps2x::rasterSuspended().store(g_rt->padBackend().scriptReadCount() < kScriptDrawFromRead);
+        if (g_rt->padBackend().scriptActive())
+            out << " script reads=" << g_rt->padBackend().scriptReadCount()
+                << (g_rt->padBackend().scriptExhausted() ? " done" : "");
         int blitWidth = 0, blitHeight = 0, lit = 0;
         xboxLastBlit(blitWidth, blitHeight, lit);
         out << std::endl << "  dma=" << g_rt->memory().dmaStartCount() << " gif=" << g_rt->memory().gifCopyCount()
@@ -193,6 +201,30 @@ int main()
     paths.mcRoot = std::string(kSaveRoot) + "\\mc0";
     paths.cdImage = "D:\\ps2disc.iso";
     PS2Runtime::setIoPaths(paths);
+
+    // Test runs: a controller script on the disc (D:utoplay.pad, added by
+    // `make AUTOPLAY=<script>`) plays itself from a blank memory card, as the
+    // PC build's TS_PAD_SCRIPT does.
+    if (GetFileAttributesA("D:\\autoplay.pad") != INVALID_FILE_ATTRIBUTES)
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(paths.mcRoot, ec);
+        std::filesystem::create_directories(paths.mcRoot, ec);
+        std::string error;
+        if (rt.padBackend().loadScriptFile("D:\\autoplay.pad", &error))
+        {
+            uint8_t *rdram = rt.memory().getRDRAM();
+            rt.padBackend().setScriptU32Reader([rdram](uint32_t address) {
+                uint32_t value = 0;
+                if (address <= PS2_RAM_SIZE - sizeof(value))
+                    std::memcpy(&value, rdram + address, sizeof(value));
+                return value;
+            });
+            std::cout << "[TS:xbox] playing D:\\autoplay.pad" << std::endl;
+        }
+        else
+            std::cout << "[TS:xbox] autoplay.pad: " << error << std::endl;
+    }
 
     rt.gs().setHostPresentationMode(GS::HostPresentationMode::Signal);
     rt.setHostAspectRatio(4.0f / 3.0f);

@@ -138,3 +138,15 @@ namespace ps2x
         std::chrono::steady_clock::time_point start_;
     };
 }
+
+namespace ps2x
+{
+    // Development aid for slow hosts: while set, the software renderer skips
+    // drawing primitives (register writes and transfers still happen), so a
+    // scripted run can get through menus quickly.
+    inline std::atomic<bool> &rasterSuspended()
+    {
+        static std::atomic<bool> suspended{false};
+        return suspended;
+    }
+}

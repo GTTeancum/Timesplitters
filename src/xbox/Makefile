@@ -17,7 +17,7 @@ GENERATED := $(ROOT)/project/generated
 GENVU     := $(ROOT)/project/generated-vu
 XBOX      := $(CURDIR)
 
-CXX  := nxdk-cxx
+CXX  := $(XBOX)/tools/nxdk-cxx-hosted
 CC   := nxdk-cc
 LINK := nxdk-link
 CXBE := $(NXDK_DIR)/tools/cxbe/cxbe.exe
@@ -27,7 +27,7 @@ DEFINES := -DPLATFORM_XBOX=1 -DPS2X_SCALAR_SIMD=1 -DPS2X_NO_EXCEPTIONS=1 -DPS2X_
 INCLUDES := -include $(XBOX)/compat/xbox_prelude.h -I$(XBOX)/compat -I$(XBOX)/raylib \
             -I$(RUNTIME)/include -I$(RUNTIME)/src/lib -I$(RUNTIME)/src/lib/Kernel -I$(IOP)/include -I$(IOP)/src -I$(GENERATED)
 # Newer clang needs this for nxdk's libc++ 10 headers.
-COMMON := -std=c++20 -fms-compatibility-version=19.29 -Wno-everything $(DEFINES) $(INCLUDES)
+COMMON := -std=c++20 -mfpmath=sse -fms-compatibility-version=19.29 -Wno-everything $(DEFINES) $(INCLUDES)
 
 # The recompiled game is ~2,700 files; optimising it for size keeps the code
 # near 10 MB instead of ~25-30 MB, which a 64 MB Xbox cannot hold next to
@@ -79,12 +79,18 @@ GAME_SRCS := $(GAME)/ts_overrides.cpp
 XBOX_SRCS := $(wildcard $(XBOX)/*.cpp)
 # register_functions.cpp is replaced by a compact table (see the rule below).
 GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
-GEN_SRCS  := $(filter-out $(GENERATED)/register_functions.cpp,$(wildcard $(GENERATED)/*.cpp))              $(wildcard $(GENVU)/*.cpp) $(GEN_TABLE)
+# Game functions compiled from patched copies (src/xbox/tools/patch_generated.py).
+GEN_PATCHED_NAMES := soundLoad_0x2052b8.cpp
+GEN_PATCHED := $(addprefix $(OUT)/gen/,$(GEN_PATCHED_NAMES))
+GEN_SRCS  := $(filter-out $(GENERATED)/register_functions.cpp $(addprefix $(GENERATED)/,$(GEN_PATCHED_NAMES)),$(wildcard $(GENERATED)/*.cpp))              $(wildcard $(GENVU)/*.cpp) $(GEN_TABLE) $(GEN_PATCHED)
 
 # Objects mirror the source path under build/xbox/obj.
 objof = $(patsubst $(ROOT)/%.cpp,$(OBJ)/%.obj,$(1))
 GEN_OBJS   := $(call objof,$(GEN_SRCS))
 OTHER_OBJS := $(call objof,$(RUNTIME_SRCS) $(IOP_SRCS) $(GAME_SRCS) $(XBOX_SRCS))
+# The software renderer and the Xbox presenter are the hottest code: -O2.
+FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj,$(OTHER_OBJS))
+$(FAST_OBJS): RUNTIME_FLAGS := $(COMMON) -O2 $(SDL_FLAGS) -DPS2_RUNTIME_LOGS=1 -DPS2X_POINT_SAMPLING=1
 
 # lld is a native Windows program: paths in its response file must be Windows paths.
 NXDK_WIN  := $(shell cygpath -m $(NXDK_DIR))
@@ -94,20 +100,28 @@ NXDK_LIBS := $(addprefix $(NXDK_WIN)/lib/, xboxkrnl/libxboxkrnl.lib libpdclib.li
 
 all: $(OUT)/TimeSplitters.iso
 
+# clang names the target D:/..., make calls it /d/...: sed fixes the first line.
 $(GEN_OBJS): $(OBJ)/%.obj: $(ROOT)/%.cpp
 	@mkdir -p $(dir $@)
 	@echo "[ CXX gen ] $(notdir $<)"
 	@$(CXX) $(GEN_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
+	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
 
 $(OTHER_OBJS): $(OBJ)/%.obj: $(ROOT)/%.cpp
 	@mkdir -p $(dir $@)
 	@echo "[ CXX     ] $(subst $(ROOT)/,,$<)"
 	@$(CXX) $(RUNTIME_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
+	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
 
 $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function_table.py
 	@mkdir -p $(dir $@)
 	@echo "[ TABLE   ] $@"
 	@python $(XBOX)/tools/compact_function_table.py $< $@
+
+$(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(XBOX)/tools/patch_generated.py
+	@mkdir -p $(dir $@)
+	@echo "[ PATCH   ] $(notdir $@)"
+	@python $(XBOX)/tools/patch_generated.py $< $@
 
 # The object list is long; hand it to the linker in a response file.
 $(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS)
@@ -128,8 +142,13 @@ $(OUT)/iso/ps2disc.iso: $(ROOT)/project/disc/TimeSplitters.iso
 	@cp $< $@
 
 # The disc carries the game's own files from project/game-data (not in git).
-$(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso
+# make AUTOPLAY=<pad script>: the disc plays that controller script (tests).
+AUTOPLAY ?=
+
+$(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso FORCE
 	@echo "[ XISO    ] $@"
+	@rm -f $(OUT)/iso/autoplay.pad
+	@$(if $(AUTOPLAY),cp $(AUTOPLAY) $(OUT)/iso/autoplay.pad)
 	@rm -rf $(OUT)/iso/game-data && cp -r $(ROOT)/project/game-data $(OUT)/iso/game-data
 	@rm -rf $(OUT)/iso/game-data/mc0 $(OUT)/iso/game-data/mc1
 	@cd $(OUT) && $(XISO) -c iso TimeSplitters.iso > /dev/null
@@ -141,5 +160,6 @@ generated: $(GEN_OBJS)
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all runtime generated clean
+.PHONY: all runtime generated clean FORCE
+FORCE:
 -include $(GEN_OBJS:.obj=.d) $(OTHER_OBJS:.obj=.d)

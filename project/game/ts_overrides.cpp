@@ -677,8 +677,47 @@ namespace
         ps2___assert_0x2e46a8(rdram, ctx, runtime);
     }
 
+    // memMark(start, end): the game fills free heap with "mem_mark" (for its
+    // own debugging) at start-up and on every free. The recompiled loop does
+    // eight single-byte stores per step, which on the Xbox takes minutes over
+    // the 28 MB heap; this writes the same bytes natively and leaves the
+    // registers as the original's loop exit does.
+    void nativeMemMark(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        static const uint8_t kPattern[8] = {'m', 'e', 'm', '_', 'm', 'a', 'r', 'k'};
+        const uint64_t start = GPR_U64(ctx, 4), end = GPR_U64(ctx, 5);
+        uint64_t address = start;
+        if (start < end)
+        {
+            const uint64_t steps = (end - start + 7u) / 8u;
+            for (uint64_t i = 0; i < steps; ++i, address += 8u)
+            {
+                const uint32_t guest = static_cast<uint32_t>(address);
+                if ((guest & 0x1FFFFFFu) + 8u <= 0x2000000u && guest < 0x2000000u)
+                    std::memcpy(rdram + guest, kPattern, 8u);
+                else
+                    for (uint32_t b = 0; b < 8u; ++b)
+                        WRITE8(guest + b, kPattern[b]);
+            }
+            SET_GPR_U64(ctx, 3, 'm');
+            SET_GPR_U64(ctx, 10, 'e');
+            SET_GPR_U64(ctx, 9, '_');
+            SET_GPR_U64(ctx, 8, 'a');
+            SET_GPR_U64(ctx, 7, 'r');
+            SET_GPR_U64(ctx, 6, 'k');
+            SET_GPR_S32(ctx, 4, static_cast<int32_t>(static_cast<uint32_t>(address)));
+        }
+        else
+        {
+            SET_GPR_U64(ctx, 3, 'm');
+        }
+        SET_GPR_U64(ctx, 2, 0u);
+        ctx->pc = GPR_U32(ctx, 31);
+    }
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+        runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);
         runtime.replaceFunction(kUnlockedEx, &cheatUnlockedEx);
         runtime.replaceFunction(kChallengeAvail, &cheatChallengeAvail);

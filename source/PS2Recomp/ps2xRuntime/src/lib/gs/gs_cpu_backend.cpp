@@ -1,3 +1,4 @@
+#include "runtime/ps2_io_stats.h"
 #include "runtime/gs/gs_cpu_backend.h"
 #include "ps2x/exceptions.h"
 #include "runtime/gs/gs_color_rounding.h"
@@ -972,6 +973,9 @@ void GSCpuBackend::DrawPrimitive(const GSPrimitiveBatch &batch)
         }
     });
 
+    if (ps2x::rasterSuspended().load(std::memory_order_relaxed))
+        return;
+
     switch (state.prim.type)
     {
     case GS_PRIM_SPRITE:
@@ -1276,7 +1280,13 @@ uint32_t GSCpuBackend::SampleTexture(const GSDrawState &state, float s, float t,
         return 0xFFFF00FFu;
     };
 
+    // PS2X_POINT_SAMPLING (Xbox): one texel per pixel instead of four; the
+    // Pentium III cannot afford bilinear filtering in software.
+#if defined(PS2X_POINT_SAMPLING)
+    if (true)
+#else
     if (!state.linearFilter)
+#endif
     {
         return samplePoint(static_cast<int>(texUf), static_cast<int>(texVf));
     }

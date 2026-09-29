@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+# nxdk's nxdk-cxx without -ffreestanding / -fno-builtin.
+#
+# Freestanding mode makes clang call memcpy for every small fixed-size copy.
+# The runtime reads and writes guest memory, pixels and registers through
+# std::memcpy of 2-16 bytes; as calls they cost more than the work itself.
+# Hosted mode lets clang turn them into single moves. The C library routines
+# clang may now emit calls to (memcpy, memset, memmove) are provided by nxdk
+# and replaced in src/xbox/xbox_string.cpp.
+clang \
+    -target i386-pc-win32 \
+    -march=pentium3 \
+    -fuse-ld=nxdk-link \
+    -nostdlib \
+    -I${NXDK_DIR}/lib/libcxx/include \
+    -I${NXDK_DIR}/lib \
+    -I${NXDK_DIR}/lib/xboxrt/libc_extensions \
+    -isystem ${NXDK_DIR}/lib/pdclib/include \
+    -I${NXDK_DIR}/lib/pdclib/platform/xbox/include \
+    -I${NXDK_DIR}/lib/winapi \
+    -I${NXDK_DIR}/lib/xboxrt/vcruntime \
+    -Wno-builtin-macro-redefined \
+    -DNXDK \
+    -D__STDC__=1 \
+    -U__STDC_NO_THREADS__ \
+    -fno-exceptions \
+    "$@"

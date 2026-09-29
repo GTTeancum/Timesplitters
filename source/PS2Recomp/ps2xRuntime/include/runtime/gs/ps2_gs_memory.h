@@ -235,7 +235,9 @@ namespace GSMem
 
 		using BlockLookupTableT = LookupTable<u8, BlockExtent().x, BlockExtent().y>;
 		using ColumnLookupTableT = LookupTable<u16, ColumnExtent().x, ColumnExtent().y>;
-		using PageLookupTableT = std::array<LookupTable<u16, PageExtent().x, PageExtent().y>, BlocksPerPage()>;
+		// One block's pattern: block b of a page is the same pattern moved on by
+		// b * PixelsPerBlock() (32 copies would take 3 MB over all formats).
+		using PageLookupTableT = LookupTable<u16, PageExtent().x, PageExtent().y>;
 
 		// calculates the column offset
 		static constexpr usz ColumnId(const ColumnLookupTableT& table, u32 x, u32 y);
@@ -413,14 +415,11 @@ namespace GSMem
 		constexpr auto pixels_per_block = PixelsPerBlock();
 		constexpr auto blocks_per_page = BlocksPerPage();
 
-		for (usz block = 0; block < blocks_per_page; ++block)
+		for (usz y = 0; y < page_extent.y; ++y)
 		{
-			for (usz y = 0; y < page_extent.y; ++y)
+			for (usz x = 0; x < page_extent.x; ++x)
 			{
-				for (usz x = 0; x < page_extent.x; ++x)
-				{
-					table[block][y][x] = ((block + BlockId(block_table, x, y)) * PixelsPerBlock()) + ColumnId(column_table, x, y);
-				}
+				table[y][x] = (BlockId(block_table, x, y) * PixelsPerBlock()) + ColumnId(column_table, x, y);
 			}
 		}
 	}
@@ -438,7 +437,7 @@ namespace GSMem
 		y = y % page_extent.y;
 		x = x % page_extent.x;
 
-		return (page * PixelsPerPage()) + table[block][y][x];
+		return (page * PixelsPerPage()) + block * PixelsPerBlock() + table[y][x];
 	}
 
 	template<PixelStorageMode psm>

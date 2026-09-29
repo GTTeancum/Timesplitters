@@ -34,9 +34,16 @@ namespace
         int width = 0, height = 0;
         const uint32_t *pixels = nullptr;
         int stride = 0, rows = 0; // of the pixels pointed at
+        unsigned version = 0;      // bumped by every update
     };
 
     std::unordered_map<unsigned, TextureData> g_textures;
+
+    uint32_t g_pendingClear = 0xFF000000u;
+    bool g_clearPending = false;
+    bool g_gameFrameShown = false;
+
+    void clearAround(int x0, int y0, int x1, int y1);
 
     struct BlitInfo
     {
@@ -156,7 +163,12 @@ void EndDrawing(void)
 {
     if (g_frameHook)
         g_frameHook();
-    xboxLogDrawOverlay(); // development aid: the log is otherwise invisible
+    if (g_clearPending)
+        clearAround(0, 0, 0, 0);
+    // Development aid: the log on screen until the game shows its own frames
+    // (drawn over the picture it flickers; the status stays in memory).
+    if (!g_gameFrameShown)
+        xboxLogDrawOverlay();
     XVideoFlushFB();
     // Pace to the target rate on the vertical blank, like raylib's SetTargetFPS.
     if (g_targetFps > 0)
@@ -169,11 +181,36 @@ void EndDrawing(void)
     refreshPads();
 }
 
+// The runtime clears, then draws the frame over the whole screen. Drawing
+// straight into the displayed framebuffer, a real clear shows as a black
+// flash; so the clear is held and only applied around the next picture (or
+// to the whole screen at the end of the frame if nothing was drawn).
 void ClearBackground(Color color)
 {
-    const uint32_t value = 0xFF000000u | (uint32_t(color.r) << 16) | (uint32_t(color.g) << 8) | color.b;
-    uint32_t *fb = frameBuffer();
-    std::fill(fb, fb + kScreenWidth * kScreenHeight, value);
+    g_pendingClear = 0xFF000000u | (uint32_t(color.r) << 16) | (uint32_t(color.g) << 8) | color.b;
+    g_clearPending = true;
+}
+
+namespace
+{
+    void fillRect(int x0, int y0, int x1, int y1, uint32_t value)
+    {
+        uint32_t *fb = frameBuffer();
+        for (int y = y0; y < y1; ++y)
+            std::fill(fb + size_t(y) * kScreenWidth + x0, fb + size_t(y) * kScreenWidth + x1, value);
+    }
+
+    // Applies a held clear everywhere outside the given rectangle.
+    void clearAround(int x0, int y0, int x1, int y1)
+    {
+        if (!g_clearPending)
+            return;
+        g_clearPending = false;
+        fillRect(0, 0, kScreenWidth, y0, g_pendingClear);
+        fillRect(0, y1, kScreenWidth, kScreenHeight, g_pendingClear);
+        fillRect(0, y0, x0, y1, g_pendingClear);
+        fillRect(x1, y0, kScreenWidth, y1, g_pendingClear);
+    }
 }
 
 void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2, float, Color)
@@ -195,6 +232,23 @@ void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2
     const int y1 = std::min(kScreenHeight, int(std::ceil(dest.y + dest.height)));
     if (x1 <= x0 || y1 <= y0 || dest.width <= 0.0f || dest.height <= 0.0f)
         return;
+    // The screen already shows this picture: redrawing it every host frame
+    // took a third of the CPU while the game produced a frame a second.
+    struct Drawn
+    {
+        unsigned id = 0, version = 0;
+        int x0 = 0, y0 = 0, x1 = 0, y1 = 0;
+    };
+    static Drawn last;
+    const Drawn now{texture.id, tex.version, x0, y0, x1, y1};
+    if (g_gameFrameShown && std::memcmp(&now, &last, sizeof(now)) == 0)
+    {
+        g_clearPending = false; // the held clear would only erase it
+        return;
+    }
+    last = now;
+    clearAround(x0, y0, x1, y1);
+    g_gameFrameShown = true;
     // Nearest-neighbour, 16.16 fixed-point steps through the source.
     const int32_t stepU = int32_t(source.width / dest.width * 65536.0f);
     const int32_t stepV = int32_t(source.height / dest.height * 65536.0f);
@@ -234,6 +288,7 @@ void UpdateTexture(Texture2D texture, const void *pixels)
     it->second.pixels = static_cast<const uint32_t *>(pixels);
     it->second.stride = it->second.width;
     it->second.rows = it->second.height;
+    ++it->second.version;
 }
 
 void UpdateTextureRec(Texture2D texture, Rectangle rec, const void *pixels)
@@ -244,6 +299,7 @@ void UpdateTextureRec(Texture2D texture, Rectangle rec, const void *pixels)
     it->second.pixels = static_cast<const uint32_t *>(pixels);
     it->second.stride = int(rec.width);
     it->second.rows = int(rec.height);
+    ++it->second.version;
 }
 
 void UnloadTexture(Texture2D texture) { g_textures.erase(texture.id); }

@@ -342,6 +342,11 @@ namespace GSMem
         case 0x01: readRow<C24>(PageTableC32, data, bp, bw, x, y, count, out); return true;
         case 0x02: readRow<C16>(PageTableC16, data, bp, bw, x, y, count, out); return true;
         case 0x0A: readRow<C16S>(PageTableC16S, data, bp, bw, x, y, count, out); return true;
+        case 0x13: readRow<P8>(PageTableP8, data, bp, bw, x, y, count, out); return true;
+        case 0x14: readRow<P4>(PageTableP4, data, bp, bw, x, y, count, out); return true;
+        case 0x1B: readRow<P8H>(PageTableC32, data, bp, bw, x, y, count, out); return true;
+        case 0x24: readRow<P4HL>(PageTableC32, data, bp, bw, x, y, count, out); return true;
+        case 0x2C: readRow<P4HH>(PageTableC32, data, bp, bw, x, y, count, out); return true;
         default: return false;
         }
     }

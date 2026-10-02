@@ -10,8 +10,10 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <list>
 #include <vector>
 
 void xboxGpuOwnsDisplay(bool owns);
@@ -25,7 +27,7 @@ namespace
     constexpr uint32_t kPageCount = 512u;
     constexpr uint32_t kScreenWidth = 640u, kScreenHeight = 480u;
     constexpr uint32_t kMaxVertices = 4096u;             // per batch run (144 KB)
-    constexpr size_t kTextureBudget = 512u * 1024u;      // decoded textures kept on the GPU
+    constexpr size_t kTextureBudget = 1024u * 1024u;     // decoded textures kept on the GPU
 
     uint32_t physical(const void *p) { return uint32_t(reinterpret_cast<uintptr_t>(p)) & 0x03FFFFFFu; }
 
@@ -135,16 +137,13 @@ namespace
         return psm == GS_PSM_T8 || psm == GS_PSM_T4 || psm == GS_PSM_T8H || psm == GS_PSM_T4HL || psm == GS_PSM_T4HH;
     }
 
-    // GS depth value to the 16-bit depth buffer's units.
+    // GS depth value to the 24-bit depth buffer's units. The whole 32-bit
+    // vertex z is used whatever ZBUF.PSM says (the game declares a 16-bit
+    // buffer but its z values span 32 bits; the PC renderer does the same).
     float depth24(double z, uint32_t zpsm)
     {
-        switch (zpsm)
-        {
-        case GS_PSM_Z16:
-        case GS_PSM_Z16S: return float(std::min(z, 65535.0));
-        case GS_PSM_Z24: return float(std::min(z / 256.0, 65535.0));
-        default: return float(std::min(z / 65536.0, 65535.0));
-        }
+        (void)zpsm;
+        return float(std::min(z / 256.0, 16777215.0));
     }
 
     uint32_t d3dColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
@@ -185,6 +184,7 @@ namespace
 
 // Development aid: the renderer's current step, read with a debugger.
 extern "C" volatile int g_nv2aStep = 0;
+GSNv2aTextureStats g_nv2aTextureStats{};
 
 struct GSNv2aBackend::Impl
 {
@@ -252,14 +252,23 @@ struct GSNv2aBackend::Impl
         uint32_t tbp0, tbw, psm, width, height, cpsm, csm, csa, texa;
         uint64_t clutHash, versions, lastUse;
         GSCpuBackend::VramRange range;
-        uint32_t *texels = nullptr; // swizzled A8R8G8B8, GPU memory
+        void *texels = nullptr; // swizzled, GPU memory
+        uint32_t format = 0;    // NV097_SET_TEXTURE_FORMAT_COLOR_SZ_*
         size_t bytes = 0;
+        uint32_t lastFrame = 0;
     };
-    std::vector<Texture> textures;
+    uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
+    size_t retiredBytes = 0;
+    static constexpr size_t kRetiredLimit = 256u * 1024u; // beyond this, wait and free at once
+    // A list: draw keys hold pointers into it across insertions and removals.
+    std::list<Texture> textures;
+    std::list<Texture> retired; // dropped textures the GPU may still read; freed at the frame's end
     size_t textureBytes = 0;
     uint64_t textureTick = 0;
     uint64_t clutHash = 0;
     std::vector<uint32_t> decoded;
+    std::vector<uint8_t> swizzled;
+    std::vector<uint32_t> spreadU, spreadV;
 
     void refreshClutHash()
     {
@@ -272,12 +281,32 @@ struct GSNv2aBackend::Impl
         clutHash = h;
     }
 
-    void freeTexture(size_t index)
+    // Drops a texture from the cache. Its memory is released only once the
+    // GPU has finished the frame (finishFrame), so no stall here.
+    void retireTexture(std::list<Texture>::iterator it)
     {
-        waitIdle(); // the GPU may still read it
-        textureBytes -= textures[index].bytes;
-        MmFreeContiguousMemory(textures[index].texels);
-        textures.erase(textures.begin() + long(index));
+        if (batchCount && batchKey.texture == &*it)
+            flushBatch();
+        if (applied.texture == &*it)
+            stateValid = false; // the address may be reused by a new texture
+        textureBytes -= it->bytes;
+        retiredBytes += it->bytes;
+        retired.splice(retired.end(), textures, it);
+        if (retiredBytes > kRetiredLimit)
+        {
+            waitIdle();
+            freeRetired();
+        }
+    }
+
+    void freeRetired()
+    {
+        for (Texture &t : retired)
+            MmFreeContiguousMemory(t.texels);
+        retired.clear();
+        retiredBytes = 0;
+        g_nv2aTextureStats.residentBytes = uint32_t(textureBytes);
+        g_nv2aTextureStats.resident = uint32_t(textures.size());
     }
 
     const Texture *texture(const GSDrawState &state)
@@ -296,57 +325,213 @@ struct GSNv2aBackend::Impl
         const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
         const uint64_t hash = indexed ? clutHash : 0u;
         const uint64_t versions = versionSum(range);
-        for (Texture &t : textures)
+        for (auto it = textures.begin(); it != textures.end(); ++it)
         {
+            Texture &t = *it;
             if (t.tbp0 == tex.tbp0 && t.tbw == tex.tbw && t.psm == tex.psm && t.width == w && t.height == h &&
                 t.texa == texa && t.clutHash == hash &&
                 (!indexed || (t.cpsm == tex.cpsm && t.csm == tex.csm && t.csa == tex.csa)))
             {
-                if (t.versions != versions)
+                if (t.versions == versions)
                 {
-                    waitIdle();
-                    fillTexture(t, state);
-                    t.versions = versions;
+                    t.lastUse = ++textureTick;
+                    noteUse(t);
+                    return &t;
                 }
-                t.lastUse = ++textureTick;
-                return &t;
+                retireTexture(it); // changed contents: decoded afresh below
+                break;
             }
         }
-        const size_t bytes = size_t(w) * h * 4u;
-        while (!textures.empty() && textureBytes + bytes > kTextureBudget)
+        Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
+        decodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
+        while (!textures.empty() && textureBytes + t.bytes > kTextureBudget)
         {
             const auto oldest = std::min_element(textures.begin(), textures.end(),
                                                  [](const Texture &a, const Texture &b) { return a.lastUse < b.lastUse; });
-            freeTexture(size_t(oldest - textures.begin()));
+            retireTexture(oldest);
         }
-        Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
-        t.texels = static_cast<uint32_t *>(allocGpu(bytes));
+        t.texels = allocGpu(t.bytes);
         if (!t.texels)
             return nullptr;
-        t.bytes = bytes;
-        fillTexture(t, state);
-        textureBytes += bytes;
+        memcpy(t.texels, swizzled.data(), t.bytes);
+        textureBytes += t.bytes;
         textures.push_back(t);
+        ++g_nv2aTextureStats.fills;
+        ++frameFills;
+        g_nv2aTextureStats.fillBytes += uint32_t(t.bytes);
+        noteUse(textures.back());
         return &textures.back();
     }
 
-    // Decodes the GS texture (CLUT and TEXA applied) into the swizzled
-    // A8R8G8B8 layout the NV2A samples with wrapping.
-    void fillTexture(Texture &t, const GSDrawState &state)
+    void noteUse(Texture &t)
+    {
+        if (t.lastFrame == frameNumber)
+            return;
+        t.lastFrame = frameNumber;
+        ++frameTextures;
+        frameTextureBytes += uint32_t(t.bytes);
+    }
+
+    // Decodes the GS texture (CLUT and TEXA applied) into `swizzled`, the
+    // layout the NV2A samples with wrapping: A1R5G5B5 when that loses
+    // nothing (16-bit sources, alpha only 0 or at least 0x80, which the
+    // pixel programs' x2 clamps to 1 either way), else A8R8G8B8.
+    void decodeTexture(Texture &t, const GSDrawState &state)
     {
         cpu.DecodeTexture(state, decoded);
-        const Swizzle sw(t.width, t.height);
-        const bool ok = decoded.size() >= size_t(t.width) * t.height;
-        for (uint32_t v = 0; v < t.height; ++v)
+        const size_t count = size_t(t.width) * t.height;
+        if (decoded.size() < count)
+            decoded.assign(count, 0u);
+        bool binaryAlpha = true, fits16 = true;
+        for (size_t i = 0; i < count && binaryAlpha; ++i)
         {
-            const uint32_t rowBits = Swizzle::spread(v, sw.maskV);
-            for (uint32_t u = 0; u < t.width; ++u)
+            const uint32_t c = decoded[i], a = c >> 24;
+            binaryAlpha = a == 0u || a >= 0x80u;
+            if (c & 0x00070707u)
+                fits16 = false;
+        }
+        // Most textures: DXT1 (4 bits a texel) so the cache holds a frame's
+        // worth; the alpha bit is the 3-colour mode's transparent entry.
+        if (binaryAlpha && t.width >= 8u && t.height >= 8u)
+        {
+            t.format = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5;
+            t.bytes = count / 2u;
+            swizzled.resize(t.bytes);
+            encodeDxt1(t, swizzled.data());
+            return;
+        }
+        fits16 = fits16 && binaryAlpha;
+        const Swizzle sw(t.width, t.height);
+        spreadU.resize(t.width);
+        for (uint32_t u = 0; u < t.width; ++u)
+            spreadU[u] = Swizzle::spread(u, sw.maskU);
+        spreadV.resize(t.height);
+        for (uint32_t v = 0; v < t.height; ++v)
+            spreadV[v] = Swizzle::spread(v, sw.maskV);
+        t.format = fits16 ? NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5 : NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8;
+        t.bytes = count * (fits16 ? 2u : 4u);
+        swizzled.resize(t.bytes);
+        if (fits16)
+        {
+            uint16_t *dst = reinterpret_cast<uint16_t *>(swizzled.data());
+            for (uint32_t v = 0; v < t.height; ++v)
             {
-                const uint32_t rgba = ok ? decoded[size_t(v) * t.width + u] : 0u; // R, G, B, A bytes
-                t.texels[Swizzle::spread(u, sw.maskU) | rowBits] =
-                    (rgba & 0xFF00FF00u) | ((rgba & 0xFFu) << 16) | ((rgba >> 16) & 0xFFu);
+                const uint32_t *src = &decoded[size_t(v) * t.width];
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < t.width; ++u)
+                {
+                    const uint32_t c = src[u]; // R, G, B, A bytes
+                    dst[spreadU[u] | rowBits] = uint16_t(((c >> 16) & 0x8000u) | ((c & 0xF8u) << 7) |
+                                                         ((c >> 6) & 0x03E0u) | ((c >> 19) & 0x1Fu));
+                }
             }
         }
+        else
+        {
+            uint32_t *dst = reinterpret_cast<uint32_t *>(swizzled.data());
+            for (uint32_t v = 0; v < t.height; ++v)
+            {
+                const uint32_t *src = &decoded[size_t(v) * t.width];
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < t.width; ++u)
+                {
+                    const uint32_t c = src[u];
+                    dst[spreadU[u] | rowBits] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);
+                }
+            }
+        }
+    }
+
+    static uint16_t to565(uint32_t c) // R, G, B, A bytes
+    {
+        return uint16_t(((c & 0xF8u) << 8) | ((c >> 5) & 0x07E0u) | ((c >> 19) & 0x1Fu));
+    }
+    static void from565(uint16_t v, int &r, int &g, int &b)
+    {
+        r = (v >> 11) & 31; r = (r << 3) | (r >> 2);
+        g = (v >> 5) & 63;  g = (g << 2) | (g >> 4);
+        b = v & 31;         b = (b << 3) | (b >> 2);
+    }
+
+    // DXT1 by colour-extent fit: each 4x4 block's colours span the box of
+    // its opaque texels; a block with transparent texels uses the 3-colour
+    // mode (colour0 <= colour1) whose fourth entry is transparent.
+    void encodeDxt1(const Texture &t, uint8_t *out)
+    {
+        const uint32_t w = t.width;
+        for (uint32_t by = 0; by < t.height; by += 4)
+            for (uint32_t bx = 0; bx < w; bx += 4, out += 8)
+            {
+                uint32_t texel[16];
+                int minR = 255, minG = 255, minB = 255, maxR = 0, maxG = 0, maxB = 0;
+                bool transparent = false, opaque = false;
+                for (uint32_t y = 0; y < 4; ++y)
+                    for (uint32_t x = 0; x < 4; ++x)
+                    {
+                        const uint32_t c = decoded[size_t(by + y) * w + bx + x];
+                        texel[y * 4 + x] = c;
+                        if ((c >> 24) < 0x80u)
+                        {
+                            transparent = true;
+                            continue;
+                        }
+                        opaque = true;
+                        const int r = int(c & 0xFFu), g = int((c >> 8) & 0xFFu), b = int((c >> 16) & 0xFFu);
+                        minR = std::min(minR, r); maxR = std::max(maxR, r);
+                        minG = std::min(minG, g); maxG = std::max(maxG, g);
+                        minB = std::min(minB, b); maxB = std::max(maxB, b);
+                    }
+                if (!opaque)
+                {
+                    memset(out, 0, 4);
+                    memset(out + 4, 0xFF, 4); // every texel the transparent entry
+                    continue;
+                }
+                uint16_t c0 = to565(uint32_t(maxR) | (uint32_t(maxG) << 8) | (uint32_t(maxB) << 16));
+                uint16_t c1 = to565(uint32_t(minR) | (uint32_t(minG) << 8) | (uint32_t(minB) << 16));
+                if (transparent ? c0 > c1 : c0 < c1)
+                    std::swap(c0, c1);
+                int pr[4], pg[4], pb[4];
+                from565(c0, pr[0], pg[0], pb[0]);
+                from565(c1, pr[1], pg[1], pb[1]);
+                int entries;
+                if (transparent || c0 == c1)
+                {
+                    pr[2] = (pr[0] + pr[1]) / 2; pg[2] = (pg[0] + pg[1]) / 2; pb[2] = (pb[0] + pb[1]) / 2;
+                    entries = c0 == c1 ? 1 : 3;
+                }
+                else
+                {
+                    pr[2] = (2 * pr[0] + pr[1]) / 3; pg[2] = (2 * pg[0] + pg[1]) / 3; pb[2] = (2 * pb[0] + pb[1]) / 3;
+                    pr[3] = (pr[0] + 2 * pr[1]) / 3; pg[3] = (pg[0] + 2 * pg[1]) / 3; pb[3] = (pb[0] + 2 * pb[1]) / 3;
+                    entries = 4;
+                }
+                uint32_t bits = 0;
+                for (int i = 0; i < 16; ++i)
+                {
+                    const uint32_t c = texel[i];
+                    uint32_t index = 3; // transparent
+                    if ((c >> 24) >= 0x80u)
+                    {
+                        const int r = int(c & 0xFFu), g = int((c >> 8) & 0xFFu), b = int((c >> 16) & 0xFFu);
+                        int best = INT32_MAX;
+                        for (int e = 0; e < entries; ++e)
+                        {
+                            const int dr = r - pr[e], dg = g - pg[e], db = b - pb[e];
+                            const int d = dr * dr + dg * dg + db * db;
+                            if (d < best)
+                            {
+                                best = d;
+                                index = uint32_t(e);
+                            }
+                        }
+                    }
+                    bits |= index << (2 * i);
+                }
+                out[0] = uint8_t(c0); out[1] = uint8_t(c0 >> 8);
+                out[2] = uint8_t(c1); out[3] = uint8_t(c1 >> 8);
+                memcpy(out + 4, &bits, 4);
+            }
     }
 
     // ------------------------------------------------------------ drawing
@@ -443,6 +628,10 @@ struct GSNv2aBackend::Impl
         uploadVertexProgram();
         setAttributes();
         uint32_t *p = pb_begin();
+        // Z from the vertex, not W (the kernel leaves w-buffering on; with
+        // w = 1 everywhere every pixel would tie and the last face drawn
+        // would win), fixed-point depth, perspective-correct texturing.
+        p = pb_push1(p, NV097_SET_CONTROL0, NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE);
         p = pb_push1(p, NV097_SET_STENCIL_TEST_ENABLE, 0);
         p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, 0);
         p = pb_push1(p, NV097_SET_FOG_ENABLE, 0);
@@ -481,6 +670,12 @@ struct GSNv2aBackend::Impl
         g_nv2aStep = 32;
         frameOpen = false;
         screenGpuNewer = true;
+        freeRetired();
+        g_nv2aTextureStats.frameTextures = frameTextures;
+        g_nv2aTextureStats.frameTextureBytes = frameTextureBytes;
+        g_nv2aTextureStats.frameFills = frameFills;
+        frameTextures = frameTextureBytes = frameFills = 0;
+        ++frameNumber;
     }
 
     static uint32_t blendFactor(uint32_t sel, bool alphaFromDest)
@@ -632,7 +827,7 @@ struct GSNv2aBackend::Impl
             {
                 p = pb_push1(p, NV097_SET_TEXTURE_OFFSET, physical(t.texels));
                 p = pb_push1(p, NV097_SET_TEXTURE_FORMAT,
-                             0x0000002Au | (NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8 << 8) | (1u << 16) |
+                             0x0000002Au | (t.format << 8) | (1u << 16) |
                                  (log2u(t.width) << 20) | (log2u(t.height) << 24));
             }
             if (all || !o.texture)
@@ -747,6 +942,16 @@ struct GSNv2aBackend::Impl
         const float sy = float(kScreenHeight) / float(frameHeight);
         const uint32_t zpsm = ctx.zbuf.psm;
         const float texW = tex ? float(tex->width) : 1.0f, texH = tex ? float(tex->height) : 1.0f;
+        g_nv2aTextureStats.zpsm = zpsm;
+        g_nv2aTextureStats.test = uint32_t(ctx.test >> 16) & 0xFu;
+        g_nv2aTextureStats.zmask = ctx.zbuf.zmask ? 1u : 0u;
+        if (((ctx.test >> 17) & 3u) >= 2u) // depth-compared draws only
+            for (int i = 0; i < batch.vertexCount && i < 3; ++i)
+            {
+                const uint32_t z = uint32_t(std::min(batch.vertices[i].z, 4294967295.0));
+                if (g_nv2aTextureStats.zmax == 0u || z > g_nv2aTextureStats.zmax) g_nv2aTextureStats.zmax = z;
+                if (g_nv2aTextureStats.zmin == 0u || z < g_nv2aTextureStats.zmin) g_nv2aTextureStats.zmin = z;
+            }
 
         auto emit = [&](GpuVertex &o, const GSVertex &v, const GSVertex &colorSource, float x, float y) {
             o.x = (x - ofx) * sx;
@@ -934,7 +1139,7 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     // buffer is 0.6 MB instead of 1.2, and there are two plus the depth buffer.
     XVideoSetMode(640, 480, 16, REFRESH_DEFAULT);
     pb_set_color_format(NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5, false);
-    pb_ts_set_depth_format(NV097_SET_SURFACE_FORMAT_ZETA_Z16);
+    pb_ts_set_depth_format(NV097_SET_SURFACE_FORMAT_ZETA_Z24S8);
     pb_size(128u * 1024u);
     if (pb_init() != 0)
     {

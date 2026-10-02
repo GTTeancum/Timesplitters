@@ -84,7 +84,12 @@ namespace
         out << std::endl << "  dma=" << g_rt->memory().dmaStartCount() << " gif=" << g_rt->memory().gifCopyCount()
                   << " vif=" << g_rt->memory().vifWriteCount() << std::endl
                   << "  gs=" << g_rt->gs().hostPresentationSequence() << " shown=" << blitWidth << "x"
-                  << blitHeight << " lit=" << lit << "%" << std::endl;
+                  << blitHeight << " lit=" << lit << "% tex=" << g_nv2aTextureStats.fills << "/"
+                  << g_nv2aTextureStats.fillBytes / 1024u << "K res=" << g_nv2aTextureStats.resident << "/"
+                  << g_nv2aTextureStats.residentBytes / 1024u << "K z=" << std::hex << g_nv2aTextureStats.zpsm
+                  << "/" << g_nv2aTextureStats.test << "/" << g_nv2aTextureStats.zmask << std::dec << " "
+                  << g_nv2aTextureStats.zmin << ".." << g_nv2aTextureStats.zmax << " frame " << g_nv2aTextureStats.frameTextures
+                  << "/" << g_nv2aTextureStats.frameTextureBytes / 1024u << "K fills " << g_nv2aTextureStats.frameFills << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"

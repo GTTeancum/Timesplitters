@@ -1520,37 +1520,61 @@ void GSCpuBackend::DecodeTexture(const GSDrawState &state, std::vector<uint32_t>
     const int texW = std::max<int>(1, state.textureWidth);
     const int texH = std::max<int>(1, state.textureHeight);
     out.resize(size_t(texW) * texH);
+    // Rows are read in one go, and an indexed texture's CLUT is looked up
+    // once per index rather than once per texel.
+    enum { Direct, Sixteen, Indexed, Unknown } kind = Unknown;
+    switch (tex.psm)
+    {
+    case GS_PSM_CT32:
+    case GS_PSM_Z32:
+    case GS_PSM_CT24:
+    case GS_PSM_Z24: kind = Direct; break;
+    case GS_PSM_CT16:
+    case GS_PSM_CT16S:
+    case GS_PSM_Z16:
+    case GS_PSM_Z16S: kind = Sixteen; break;
+    case GS_PSM_T8:
+    case GS_PSM_T8H:
+    case GS_PSM_T4:
+    case GS_PSM_T4HL:
+    case GS_PSM_T4HH: kind = Indexed; break;
+    default: break;
+    }
+    uint32_t palette[256];
+    if (kind == Indexed)
+    {
+        const int entries = isFourBitIndexedPsm(tex.psm) ? 16 : 256;
+        for (int i = 0; i < entries; ++i)
+            palette[i] = LookupCLUT(state, static_cast<uint8_t>(i), tex.cpsm, tex.csm, tex.csa, tex.psm);
+        for (int i = entries; i < 256; ++i)
+            palette[i] = palette[i & 15];
+    }
     for (int y = 0; y < texH; ++y)
-        for (int x = 0; x < texW; ++x)
+    {
+        uint32_t *row = &out[size_t(y) * texW];
+        if (!m_vram || !GSMem::ReadRow(tex.psm, m_vram, tex.tbp0, tex.tbw, 0u, uint32_t(y), uint32_t(texW), row))
+            for (int x = 0; x < texW; ++x)
+                row[x] = ReadVramUnlocked(tex.psm, tex.tbp0, tex.tbw, uint32_t(x), uint32_t(y));
+        switch (kind)
         {
-            const uint32_t raw = ReadVramUnlocked(tex.psm, tex.tbp0, tex.tbw, uint32_t(x), uint32_t(y));
-            uint32_t color = 0xFFFF00FFu;
-            switch (tex.psm)
-            {
-            case GS_PSM_CT32:
-            case GS_PSM_Z32:
-            case GS_PSM_CT24:
-            case GS_PSM_Z24:
-                color = applyTexa(state.texa, tex.psm, raw);
-                break;
-            case GS_PSM_CT16:
-            case GS_PSM_CT16S:
-            case GS_PSM_Z16:
-            case GS_PSM_Z16S:
-                color = applyTexa(state.texa, tex.psm, Rgba5551ToRgba8888(raw));
-                break;
-            case GS_PSM_T8:
-            case GS_PSM_T8H:
-            case GS_PSM_T4:
-            case GS_PSM_T4HL:
-            case GS_PSM_T4HH:
-                color = LookupCLUT(state, static_cast<uint8_t>(raw), tex.cpsm, tex.csm, tex.csa, tex.psm);
-                break;
-            default:
-                break;
-            }
-            out[size_t(y) * texW + x] = color;
+        case Direct:
+            for (int x = 0; x < texW; ++x)
+                row[x] = applyTexa(state.texa, tex.psm, row[x]);
+            break;
+        case Sixteen:
+            for (int x = 0; x < texW; ++x)
+                row[x] = applyTexa(state.texa, tex.psm, Rgba5551ToRgba8888(static_cast<u16>(row[x])));
+            break;
+        case Indexed:
+            for (int x = 0; x < texW; ++x)
+                row[x] = palette[row[x] & 0xFFu];
+            break;
+        default:
+            for (int x = 0; x < texW; ++x)
+                row[x] = 0xFFFF00FFu;
+            break;
         }
+    }
 }
 
 void GSCpuBackend::DrawSprite(const GSPrimitiveBatch &batch)

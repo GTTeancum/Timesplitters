@@ -13,6 +13,20 @@
 
 #include <memory>
 
+// Texture cache counters for the status block (xbox_main.cpp).
+struct GSNv2aTextureStats
+{
+    uint32_t fills = 0, fillBytes = 0; // decoded onto the GPU, cumulative
+    uint32_t resident = 0, residentBytes = 0;
+    // Depth facts of the last screen draw: zbuf psm, TEST register bits
+    // 16..19 (ZTE, ZTST), ZMSK, and the z range seen (vertex units).
+    uint32_t zpsm = 0, test = 0, zmask = 0;
+    uint32_t zmin = 0, zmax = 0;
+    // Last frame: textures used (distinct) and their bytes, fills.
+    uint32_t frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
+};
+extern GSNv2aTextureStats g_nv2aTextureStats;
+
 class GSNv2aBackend final : public GSRasterBackend
 {
 public:

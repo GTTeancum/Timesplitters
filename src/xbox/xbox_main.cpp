@@ -12,6 +12,8 @@
 #include "runtime/gs/gs_frontend.h"
 #include "xbox_log.h"
 #include "gs_nv2a_backend.h"
+#include "runtime/ps2_vu1.h"
+#include "runtime/ps2_vu1.h"
 
 #include <hal/debug.h>
 #include <hal/video.h>
@@ -91,7 +93,10 @@ namespace
                   << g_nv2aTextureStats.zmin << ".." << g_nv2aTextureStats.zmax << " frame " << g_nv2aTextureStats.frameTextures
                   << "/" << g_nv2aTextureStats.frameTextureBytes / 1024u << "K fills " << g_nv2aTextureStats.frameFills << " miss new/ver/clut/evict "
                   << g_nv2aTextureStats.missNew << "/" << g_nv2aTextureStats.missVersion << "/"
-                  << g_nv2aTextureStats.missClut << "/" << g_nv2aTextureStats.missEvicted << std::endl;
+                  << g_nv2aTextureStats.missClut << "/" << g_nv2aTextureStats.missEvicted << std::endl
+                  << "  vu runs=" << g_vu1Stats.runs << " jit=" << g_vu1Stats.jitEntries << " handoff=" << g_vu1Stats.handoffs
+                  << " interp=" << g_vu1Stats.interpPairs << " cyc=" << g_vu1Stats.cycles / 1000u << "K kickwait="
+                  << g_vu1Stats.kickWaitCycles / 1000u << "K gpuframes=" << g_nv2aTextureStats.frames << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"

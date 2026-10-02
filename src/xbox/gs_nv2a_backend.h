@@ -28,6 +28,7 @@ struct GSNv2aTextureStats
     // all, same address but local memory changed since, same contents
     // but a different CLUT/TEXA, or evicted/one-frame last frame.
     uint32_t missNew = 0, missVersion = 0, missClut = 0, missEvicted = 0;
+    uint32_t frames = 0; // GPU frames finished (what the screen actually shows)
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 

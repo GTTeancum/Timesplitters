@@ -31,6 +31,9 @@
 #else
 #define VU1_JIT_SIMD 0
 #endif
+#if defined(PS2X_VU1_SSE1)
+#include "ps2_simd.h" // SSE1 intrinsics (the Xbox's Pentium III has no SSE2)
+#endif
 
 #if defined(_MSC_VER)
 #define VU1_JIT_INLINE __forceinline
@@ -234,6 +237,8 @@ struct Vu1Jit
     {
 #if VU1_JIT_SIMD
         fmacSimd<Kind, Src, Dest, PushFlags>(out, fs, ft);
+#elif defined(PS2X_VU1_SSE1)
+        fmacSse1<Kind, Src, Dest, PushFlags>(out, fs, ft);
 #else
         fmacScalar<Kind, Src, Dest, PushFlags>(out, fs, ft);
 #endif
@@ -330,6 +335,134 @@ struct Vu1Jit
             }
         }
     }
+
+#if defined(PS2X_VU1_SSE1)
+    // SSE1 (Pentium III) implementation: four lanes in float. The zero,
+    // underflow and overflow flags are read off the float result instead of
+    // the interpreter's long double "exact" value; they differ only when a
+    // result rounds exactly onto a range limit.
+    static VU1_JIT_INLINE __m128 sseConst(uint32_t bits) { return _mm_castsi128_ps(_mm_set1_epi32(static_cast<int>(bits))); }
+
+    static VU1_JIT_INLINE __m128 normOp4s(__m128 v)
+    {
+        const __m128 expMask = sseConst(0x7F800000u), signMask = sseConst(0x80000000u);
+        const __m128 exponent = _mm_and_ps(v, expMask);
+        const __m128 denormal = _mm_cmpeq_ps(exponent, _mm_setzero_ps());
+        const __m128 special = _mm_cmpeq_ps(exponent, expMask);
+        const __m128 sign = _mm_and_ps(v, signMask);
+        __m128 r = _mm_or_ps(_mm_andnot_ps(denormal, v), _mm_and_ps(denormal, sign));
+        r = _mm_or_ps(_mm_andnot_ps(special, r), _mm_and_ps(special, _mm_or_ps(sign, sseConst(0x7F7FFFFFu))));
+        return r;
+    }
+
+    template <int Src>
+    VU1_JIT_INLINE __m128 second4s(const float *vt) const
+    {
+        if constexpr (Src <= kSrcBcW)
+            return _mm_set1_ps(normOp(vt[Src]));
+        else if constexpr (Src == kSrcQ)
+            return _mm_set1_ps(normOp(s.q));
+        else if constexpr (Src == kSrcI)
+            return _mm_set1_ps(normOp(s.i));
+        else
+            return normOp4s(_mm_loadu_ps(vt));
+    }
+
+    // Lane masks (bit c = lane c) of a float result's flags; the result's
+    // lanes are fixed to the VU's representation (signed zero, clamped max).
+    struct SseFlags
+    {
+        int zero, negative, under, over;
+    };
+    static VU1_JIT_INLINE SseFlags fixResult(__m128 &r)
+    {
+        const __m128 magnitude = _mm_and_ps(r, sseConst(0x7FFFFFFFu));
+        const __m128 small = _mm_cmplt_ps(magnitude, sseConst(0x00800000u)); // below FLT_MIN: zero or denormal
+        const __m128 zero = _mm_cmpeq_ps(magnitude, _mm_setzero_ps());
+        const __m128 over = _mm_cmpeq_ps(magnitude, sseConst(0x7F800000u));
+        const __m128 sign = _mm_and_ps(r, sseConst(0x80000000u));
+        SseFlags f;
+        f.zero = _mm_movemask_ps(small); // the VU reports an underflow as zero as well
+        f.negative = _mm_movemask_ps(r);
+        f.under = f.zero & ~_mm_movemask_ps(zero);
+        f.over = _mm_movemask_ps(over);
+        r = _mm_or_ps(_mm_andnot_ps(small, r), _mm_and_ps(small, sign));
+        r = _mm_or_ps(_mm_andnot_ps(over, r), _mm_and_ps(over, _mm_or_ps(sign, sseConst(0x7F7FFFFFu))));
+        return f;
+    }
+
+    static constexpr int laneBits(int dest) // DEST register bits (x = bit 3) to lane bits (x = bit 0)
+    {
+        return ((dest & 8) >> 3) | ((dest & 4) >> 1) | ((dest & 2) << 1) | ((dest & 1) << 3);
+    }
+
+    template <int Kind, int Src, int Dest, bool PushFlags = true>
+    VU1_JIT_INLINE void fmacSse1(float *out, uint8_t fs, uint8_t ft)
+    {
+        constexpr int components = laneBits(Dest);
+        __m128 a = normOp4s(_mm_loadu_ps(s.vf[fs]));
+        __m128 b;
+        if constexpr (Kind == kOpmsub || Kind == kOpmula)
+        {
+            b = normOp4s(_mm_loadu_ps(s.vf[ft]));
+            a = _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 0, 2, 1));
+            b = _mm_shuffle_ps(b, b, _MM_SHUFFLE(3, 1, 0, 2));
+        }
+        else
+            b = second4s<Src>(s.vf[ft]);
+        __m128 result;
+        uint32_t extraSticky = 0u;
+        if constexpr (Kind == kAdd)
+            result = _mm_add_ps(a, b);
+        else if constexpr (Kind == kSub)
+            result = _mm_sub_ps(a, b);
+        else if constexpr (Kind == kMul || Kind == kOpmula)
+            result = _mm_mul_ps(a, b);
+        else
+        {
+            const __m128 acc = normOp4s(_mm_loadu_ps(s.acc));
+            __m128 product = _mm_mul_ps(a, b);
+            if constexpr (Kind == kMadd)
+                result = _mm_add_ps(acc, product);
+            else
+                result = _mm_sub_ps(acc, product);
+            const SseFlags p = fixResult(product); // product sticky over the written lanes
+            extraSticky = ((p.zero & components) ? 1u : 0u) | ((p.negative & components) ? 2u : 0u) |
+                          ((p.under & components) ? 4u : 0u) | ((p.over & components) ? 8u : 0u);
+        }
+        if constexpr (Kind == kOpmsub || Kind == kOpmula)
+            result = _mm_and_ps(result, _mm_castsi128_ps(_mm_set_epi32(0, -1, -1, -1))); // w is +0
+        const SseFlags m = fixResult(result);
+        if constexpr (Dest == 0xF)
+            _mm_storeu_ps(out, result);
+        else
+        {
+            float tmp[4];
+            _mm_storeu_ps(tmp, result);
+            if constexpr ((Dest & 8) != 0) out[0] = tmp[0];
+            if constexpr ((Dest & 4) != 0) out[1] = tmp[1];
+            if constexpr ((Dest & 2) != 0) out[2] = tmp[2];
+            if constexpr ((Dest & 1) != 0) out[3] = tmp[3];
+        }
+        if constexpr (Dest != 0)
+        {
+            if constexpr (PushFlags)
+            {
+                uint8_t laneFlags[4];
+                for (unsigned c = 0; c < 4u; ++c)
+                    laneFlags[c] = static_cast<uint8_t>(((m.zero >> c) & 1) | (((m.negative >> c) & 1) << 1) |
+                                                        (((m.under >> c) & 1) << 2) | (((m.over >> c) & 1) << 3));
+                queueFmacFlags(laneFlags, Dest, extraSticky);
+            }
+            else
+            {
+                const uint32_t current = ((m.zero & components) ? 1u : 0u) | ((m.negative & components) ? 2u : 0u) |
+                                         ((m.under & components) ? 4u : 0u) | ((m.over & components) ? 8u : 0u);
+                stickyAccum |= (current | extraSticky) << 6;
+            }
+        }
+    }
+#endif
 
 #if VU1_JIT_SIMD
     // x86 AVX implementation of the same arithmetic: four lanes at once, with
@@ -491,6 +624,12 @@ struct Vu1Jit
         (void)dest;
         const __m128 a = normOp4(_mm_loadu_ps(s.vf[fs]));
         const __m128 b = second4<Src>(s.vf[ft]);
+        _mm_storeu_ps(out, Max ? _mm_max_ps(a, b) : _mm_min_ps(a, b));
+        return;
+#elif defined(PS2X_VU1_SSE1)
+        (void)dest;
+        const __m128 a = normOp4s(_mm_loadu_ps(s.vf[fs]));
+        const __m128 b = second4s<Src>(s.vf[ft]);
         _mm_storeu_ps(out, Max ? _mm_max_ps(a, b) : _mm_min_ps(a, b));
         return;
 #endif
@@ -874,6 +1013,9 @@ struct Vu1Jit
             if (cyc + 1u >= budgetEnd)
                 return false;
             ++cyc;
+#if defined(PLATFORM_XBOX)
+            ++g_vu1Stats.kickWaitCycles;
+#endif
             kickTo(cyc);
         }
         return true;

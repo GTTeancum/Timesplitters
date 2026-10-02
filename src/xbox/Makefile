@@ -23,7 +23,7 @@ LINK := nxdk-link
 CXBE := $(NXDK_DIR)/tools/cxbe/cxbe.exe
 XISO := $(NXDK_DIR)/tools/extract-xiso/build/extract-xiso.exe
 
-DEFINES := -DPLATFORM_XBOX=1 -DPS2X_SCALAR_SIMD=1 -DPS2X_NO_EXCEPTIONS=1 -DPS2X_HAS_FFMPEG=0 -DPS2X_ENABLE_IOP_RPC_TRACE=0 -DPS2X_DEVICE_CYCLE_BATCH=2048
+DEFINES := -DPLATFORM_XBOX=1 -DPS2X_SCALAR_SIMD=1 -DPS2X_NO_EXCEPTIONS=1 -DPS2X_HAS_FFMPEG=0 -DPS2X_ENABLE_IOP_RPC_TRACE=0 -DPS2X_DEVICE_CYCLE_BATCH=2048 -DPS2X_VU1_SSE1=1
 INCLUDES := -include $(XBOX)/compat/xbox_prelude.h -I$(XBOX)/compat -I$(XBOX)/raylib \
             -I$(RUNTIME)/include -I$(RUNTIME)/src/lib -I$(RUNTIME)/src/lib/Kernel -I$(IOP)/include -I$(IOP)/src -I$(GENERATED)
 # Newer clang needs this for nxdk's libc++ 10 headers.
@@ -88,6 +88,10 @@ GEN_SRCS  := $(filter-out $(GENERATED)/register_functions.cpp $(addprefix $(GENE
 objof = $(patsubst $(ROOT)/%.cpp,$(OBJ)/%.obj,$(1))
 GEN_OBJS   := $(call objof,$(GEN_SRCS))
 OTHER_OBJS := $(call objof,$(RUNTIME_SRCS) $(IOP_SRCS) $(GAME_SRCS) $(XBOX_SRCS))
+# The VU1 microprogram is the hottest code of all (most of a match frame): -O2.
+VU_OBJS := $(call objof,$(wildcard $(GENVU)/*.cpp))
+$(VU_OBJS): GEN_FLAGS := $(COMMON) -O2
+
 # The software renderer and the Xbox presenter are the hottest code: -O2.
 FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj,$(OTHER_OBJS))
 $(FAST_OBJS): RUNTIME_FLAGS := $(COMMON) -O2 $(SDL_FLAGS) -DPS2_RUNTIME_LOGS=1 -DPS2X_POINT_SAMPLING=1
@@ -197,6 +201,8 @@ generated: $(GEN_OBJS)
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all runtime generated clean FORCE
+vuflags:
+	@echo $(CXX) $(GEN_FLAGS) -O2
+.PHONY: all runtime generated clean FORCE vuflags
 FORCE:
 -include $(GEN_OBJS:.obj=.d) $(OTHER_OBJS:.obj=.d)

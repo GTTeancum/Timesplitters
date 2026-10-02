@@ -488,12 +488,14 @@ struct GSNv2aBackend::Impl
         }
         // Most textures: DXT1 (4 bits a texel) so the cache holds a frame's
         // worth; the alpha bit is the 3-colour mode's transparent entry.
-        if (binaryAlpha && width >= 8u && height >= 8u)
+        if (width >= 8u && height >= 8u)
         {
-            t.format = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5;
-            t.bytes = count / 2u;
+            // Soft alpha: DXT5 (8 bits a texel, alpha interpolated per block).
+            t.format = binaryAlpha ? NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5
+                                   : NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8;
+            t.bytes = binaryAlpha ? count / 2u : count;
             swizzled.resize(t.bytes);
-            encodeDxt1(width, height, swizzled.data());
+            encodeDxt(width, height, !binaryAlpha, swizzled.data());
             return;
         }
         fits16 = fits16 && binaryAlpha;
@@ -552,7 +554,9 @@ struct GSNv2aBackend::Impl
     // DXT1 by colour-extent fit: each 4x4 block's colours span the box of
     // its opaque texels; a block with transparent texels uses the 3-colour
     // mode (colour0 <= colour1) whose fourth entry is transparent.
-    void encodeDxt1(uint32_t w, uint32_t h, uint8_t *out)
+    // DXT5: the same colour blocks preceded by an 8-byte alpha block (two
+    // end points, 3-bit indices into their 8-step interpolation).
+    void encodeDxt(uint32_t w, uint32_t h, bool dxt5, uint8_t *out)
     {
         for (uint32_t by = 0; by < h; by += 4)
             for (uint32_t bx = 0; bx < w; bx += 4, out += 8)
@@ -565,7 +569,7 @@ struct GSNv2aBackend::Impl
                     {
                         const uint32_t c = decoded[size_t(by + y) * w + bx + x];
                         texel[y * 4 + x] = c;
-                        if ((c >> 24) < 0x80u)
+                        if (!dxt5 && (c >> 24) < 0x80u)
                         {
                             transparent = true;
                             continue;
@@ -576,6 +580,43 @@ struct GSNv2aBackend::Impl
                         minG = std::min(minG, g); maxG = std::max(maxG, g);
                         minB = std::min(minB, b); maxB = std::max(maxB, b);
                     }
+                if (dxt5)
+                {
+                    uint32_t aMax = 0, aMin = 255;
+                    for (int i = 0; i < 16; ++i)
+                    {
+                        const uint32_t a = texel[i] >> 24;
+                        aMax = std::max(aMax, a);
+                        aMin = std::min(aMin, a);
+                    }
+                    out[0] = uint8_t(aMax);
+                    out[1] = uint8_t(aMin);
+                    uint64_t bits = 0;
+                    if (aMax != aMin)
+                    {
+                        uint32_t steps[8] = {aMax, aMin};
+                        for (uint32_t i = 2; i < 8; ++i)
+                            steps[i] = ((8u - i) * aMax + (i - 1u) * aMin) / 7u;
+                        for (int i = 0; i < 16; ++i)
+                        {
+                            const int a = int(texel[i] >> 24);
+                            uint32_t best = 0, bestD = 1000;
+                            for (uint32_t e = 0; e < 8; ++e)
+                            {
+                                const uint32_t d = uint32_t(std::abs(a - int(steps[e])));
+                                if (d < bestD)
+                                {
+                                    bestD = d;
+                                    best = e;
+                                }
+                            }
+                            bits |= uint64_t(best) << (3 * i);
+                        }
+                    }
+                    for (int i = 0; i < 6; ++i)
+                        out[2 + i] = uint8_t(bits >> (8 * i));
+                    out += 8;
+                }
                 if (!opaque)
                 {
                     memset(out, 0, 4);
@@ -654,6 +695,7 @@ struct GSNv2aBackend::Impl
     {
         g_nv2aStep = 10;
         flushBatch();
+        closeBlock();
         g_nv2aStep = 11;
         while (pb_busy())
         {
@@ -773,6 +815,7 @@ struct GSNv2aBackend::Impl
         lastFrameKeys.swap(frameKeys);
         frameKeys.clear();
         ++frameNumber;
+        g_nv2aTextureStats.frames = frameNumber;
     }
 
     static uint32_t blendFactor(uint32_t sel, bool alphaFromDest)
@@ -901,22 +944,22 @@ struct GSNv2aBackend::Impl
     }
 
     // Pushes only the registers that differ from the applied state.
-    void applyState(const DrawKey &k)
+    // Appends to an open push-buffer block (one block per batch: each
+    // pb_end hands the GPU a chunk, and that hand-over was a fifth of a
+    // frame's CPU time when done per state change).
+    uint32_t *applyState(uint32_t *p, const DrawKey &k)
     {
         const bool all = !stateValid;
         const DrawKey &o = applied;
         if (k.program != currentProgram)
         {
-            uint32_t *p = pb_begin();
             p = kPixelPrograms[k.program](p);
             // The untextured program leaves the texture stages as they were;
             // a stage still set to sample with no texture bound is invalid.
             if (k.program == 0)
                 p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM, 0);
-            pb_end(p);
             currentProgram = k.program;
         }
-        uint32_t *p = pb_begin();
         if (k.texture)
         {
             const Texture &t = *k.texture;
@@ -952,9 +995,9 @@ struct GSNv2aBackend::Impl
         TS_SET(colorMask, NV097_SET_COLOR_MASK)
         TS_SET(shade, NV097_SET_SHADE_MODEL)
 #undef TS_SET
-        pb_end(p);
         applied = k;
         stateValid = true;
+        return p;
     }
 
     // pbkit's push buffer is not a ring (and overflowing it corrupts
@@ -963,18 +1006,48 @@ struct GSNv2aBackend::Impl
     uint32_t *pushHead = nullptr;
     static constexpr size_t kPushLimitDwords = (96u * 1024u) / 4u;
 
+    // Commands accumulate in an open block and go to the GPU in chunks of
+    // kBlockDwords (closeBlock): each hand-over costs several emulated
+    // register accesses, a sixth of a frame when done per batch.
+    uint32_t *openBlock = nullptr, *cursor = nullptr;
+    static constexpr size_t kBlockDwords = (16u * 1024u) / 4u;
+
+    void closeBlock()
+    {
+        if (!openBlock)
+            return;
+        pb_end(cursor);
+        openBlock = cursor = nullptr;
+    }
+
+    // Where the next commands go; restarts the push buffer first when most
+    // of it is used (the GPU must have consumed it: a reset while it reads
+    // corrupts).
+    uint32_t *openCursor()
+    {
+        if (openBlock)
+        {
+            if (size_t(cursor - pushHead) < kPushLimitDwords)
+                return cursor;
+            closeBlock();
+        }
+        uint32_t *p = pb_begin();
+        if (!pushHead || size_t(p - pushHead) >= kPushLimitDwords)
+        {
+            while (pb_busy())
+            {
+            }
+            pb_reset();
+            p = pushHead = pb_begin();
+        }
+        openBlock = cursor = p;
+        return cursor;
+    }
+
     void checkPushSpace()
     {
-        uint32_t *p = pb_begin();
-        pb_end(p);
-        if (pushHead && size_t(p - pushHead) < kPushLimitDwords)
-            return;
-        while (pb_busy())
-        {
-        }
-        pb_reset();
-        pushHead = pb_begin();
-        pb_end(pushHead);
+        closeBlock();
+        openCursor();
     }
 
     void flushBatch()
@@ -982,10 +1055,9 @@ struct GSNv2aBackend::Impl
         g_nv2aStep = 60;
         if (batchCount == 0)
             return;
-        checkPushSpace();
+        uint32_t *p = openCursor();
         if (!stateValid || !(applied == batchKey))
-            applyState(batchKey);
-        uint32_t *p = pb_begin();
+            p = applyState(p, batchKey);
         p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
         for (uint32_t first = 0; first < batchCount; first += 256)
         {
@@ -993,7 +1065,9 @@ struct GSNv2aBackend::Impl
             p = pb_push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
         }
         p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
-        pb_end(p);
+        cursor = p;
+        if (size_t(cursor - openBlock) >= kBlockDwords)
+            closeBlock();
         batchFirst += batchCount;
         batchCount = 0;
     }

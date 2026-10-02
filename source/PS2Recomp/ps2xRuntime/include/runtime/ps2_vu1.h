@@ -1,5 +1,14 @@
 #ifndef PS2_VU1_H
 #define PS2_VU1_H
+#if defined(PLATFORM_XBOX)
+// Development counters for the Xbox status block (cumulative).
+struct Vu1Stats
+{
+    unsigned runs = 0, jitEntries = 0, handoffs = 0, interpPairs = 0;
+    unsigned long long cycles = 0, kickWaitCycles = 0;
+};
+extern Vu1Stats g_vu1Stats;
+#endif
 
 #include <array>
 #include <cstdint>

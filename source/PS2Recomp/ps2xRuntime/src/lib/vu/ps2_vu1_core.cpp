@@ -1685,6 +1685,10 @@ void VU1Interpreter::run(uint8_t *vuCode, uint32_t codeSize,
     const bool useVuRounding = std::fesetround(FE_TOWARDZERO) == 0;
     const uint64_t budgetEnd = m_cycle + maxCycles;
     bool programEnded = false;
+#if defined(PLATFORM_XBOX)
+    ++g_vu1Stats.runs;
+    struct CycleTally { const uint64_t &now; uint64_t start; ~CycleTally() { g_vu1Stats.cycles += now - start; } } tally{m_cycle, m_cycle};
+#endif
     // Recompiled microprograms take over from a clean pair boundary and hand
     // back here (budget, unknown jump target) with identical state.
     if (Vu1CompiledEntry compiled = lookupCompiledProgram(vuCode, codeSize, memory);
@@ -1692,12 +1696,18 @@ void VU1Interpreter::run(uint8_t *vuCode, uint32_t codeSize,
         !m_state.haltAfterDelaySlot && m_state.pc + 8u <= codeSize)
     {
         Vu1Jit jit(*this, vuData);
+#if defined(PLATFORM_XBOX)
+        ++g_vu1Stats.jitEntries;
+#endif
         jit.budgetSafe = budgetEnd > kJitBudgetMargin ? budgetEnd - kJitBudgetMargin : 0u;
         jit.budgetEnd = budgetEnd;
         programEnded = compiled(jit, m_state.pc);
     }
     while (!programEnded && m_cycle < budgetEnd && !m_stopRequested)
     {
+#if defined(PLATFORM_XBOX)
+        ++g_vu1Stats.interpPairs;
+#endif
         commitReadyPipelines();
         if (m_state.pc + 8u > codeSize)
             break;

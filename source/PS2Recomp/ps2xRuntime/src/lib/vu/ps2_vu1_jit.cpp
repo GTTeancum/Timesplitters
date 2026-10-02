@@ -180,8 +180,15 @@ void Vu1Jit::finish(uint32_t nextPc)
     vu.m_viBranchBackupValue = bkVal;
 }
 
+#if defined(PLATFORM_XBOX)
+Vu1Stats g_vu1Stats;
+#endif
+
 bool Vu1Jit::handoff(uint32_t pc)
 {
+#if defined(PLATFORM_XBOX)
+    ++g_vu1Stats.handoffs;
+#endif
     static const bool debug = std::getenv("TS_VU1_DEBUG") != nullptr;
     if (debug)
     {

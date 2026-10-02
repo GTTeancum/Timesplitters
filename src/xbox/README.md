@@ -28,24 +28,24 @@ can be read with gdb from the addresses in `build/xbox/main.map`
 `E:\TimeSplitters\timesplitters.log`. A fatal error (out of memory, a failed
 game assertion) is logged with its cause.
 
-## State (2026-10-01)
+## State (2026-10-02)
 
-Boots to the arcade match in about 6 minutes of xemu time (64 MB), most of
-it the scripted menu route; the match runs at about 12 frames a second in
-xemu with the NV2A drawing the screen. About 3-4 MB of memory is free while
-playing. Known gaps: no points/lines on the GPU, no fog, 16-bit depth
-precision, VIF1 commands over 256 KB that straddle chain pieces.
+Boots to the arcade match in about 3.5 minutes of xemu time (64 MB), most of
+it the scripted menu route; the match runs at about 10 frames a second in
+xemu with the NV2A drawing the screen. About 2 MB of memory is free while
+playing. Known gaps: no points/lines on the GPU, no fog, textures stored as DXT1
+(lossy), VIF1 commands over 256 KB that straddle chain pieces.
 
 ## Xbox-specific pieces
 
 - `gs_nv2a_backend.cpp`: the GS renderer on the NV2A (pbkit). Screen
   draws go to the GPU; off-screen draws, uploads and transfers stay on the
   software renderer, with copies between the two only when the game reads
-  its screen back. 16-bit colour and depth buffers.
+  its screen back. 16-bit colour, 24-bit depth; textures cached as DXT1.
 - `shaders/`: the vertex program and the pixel-program variants (TFX/TCC),
   compiled by nxdk's Cg tools (`gs_*.inl` under `build/xbox/gen/shaders`).
 - `pbkit/pbkit_ts.c`, `winapi/sync_ts.c`: fixed copies of nxdk sources
-  (double buffering and a 16-bit depth format; condition-variable
+  (double buffering and a selectable depth format; condition-variable
   timeouts).
 - `compat/xbox_prelude.h`: force-included; fills gaps in nxdk's libc++
   (`cout`, `gmtime_s`, ...).

@@ -16,6 +16,7 @@ bool run_ts_da1f094c(Vu1Jit &J, uint32_t pcx)
     float ut[4], lt[4];
     bool br = false, endp = false;
     uint32_t jt = 0;
+    bool inv_0100 = false, inv_0170 = false, inv_01f8 = false, inv_0bd0 = false, inv_0e20 = false, inv_0e90 = false, inv_0fd0 = false, inv_19a8 = false, inv_1c00 = false, inv_1c70 = false, inv_1d70 = false, inv_26d0 = false, inv_2900 = false, inv_2958 = false, inv_2b40 = false, inv_3478 = false, inv_3640 = false, inv_36b0 = false, inv_37b0 = false;
     (void)ut; (void)lt; (void)jt;
     uint64_t cyc = J.cyc, pmax = J.pendingMax;
     int bkReg = J.bkReg; int32_t bkVal = J.bkVal;
@@ -27,20 +28,20 @@ dispatch:
     switch (pcx)
     {
     case 0x0000u: goto L_0000;
-    case 0x0100u: goto L_0100;
-    case 0x0170u: goto L_0170;
-    case 0x01f8u: goto L_01f8;
-    case 0x0210u: goto L_0210;
-    case 0x0220u: goto L_0220;
-    case 0x0238u: goto L_0238;
-    case 0x0250u: goto L_0250;
-    case 0x0260u: goto L_0260;
-    case 0x0270u: goto L_0270;
-    case 0x0280u: goto L_0280;
-    case 0x0290u: goto L_0290;
-    case 0x02a0u: goto L_02a0;
-    case 0x02f0u: goto L_02f0;
-    case 0x0358u: goto L_0358;
+    case 0x0100u: goto PRE_L_0100;
+    case 0x0170u: goto PRE_L_0170;
+    case 0x01f8u: goto PRE_L_01f8;
+    case 0x0210u: goto PRE_L_0210;
+    case 0x0220u: goto PRE_L_0220;
+    case 0x0238u: goto PRE_L_0238;
+    case 0x0250u: goto PRE_L_0250;
+    case 0x0260u: goto PRE_L_0260;
+    case 0x0270u: goto PRE_L_0270;
+    case 0x0280u: goto PRE_L_0280;
+    case 0x0290u: goto PRE_L_0290;
+    case 0x02a0u: goto PRE_L_02a0;
+    case 0x02f0u: goto PRE_L_02f0;
+    case 0x0358u: goto PRE_L_0358;
     case 0x0378u: goto L_0378;
     case 0x03e0u: goto L_03e0;
     case 0x0430u: goto L_0430;
@@ -87,23 +88,23 @@ dispatch:
     case 0x0b18u: goto L_0b18;
     case 0x0b30u: goto L_0b30;
     case 0x0b90u: goto L_0b90;
-    case 0x0bd0u: goto L_0bd0;
+    case 0x0bd0u: goto PRE_L_0bd0;
     case 0x0c48u: goto L_0c48;
     case 0x0d20u: goto L_0d20;
-    case 0x0e20u: goto L_0e20;
-    case 0x0e90u: goto L_0e90;
-    case 0x0fd0u: goto L_0fd0;
-    case 0x0fe8u: goto L_0fe8;
-    case 0x0ff8u: goto L_0ff8;
-    case 0x1010u: goto L_1010;
-    case 0x1028u: goto L_1028;
-    case 0x1038u: goto L_1038;
-    case 0x1048u: goto L_1048;
-    case 0x1058u: goto L_1058;
-    case 0x1068u: goto L_1068;
-    case 0x1078u: goto L_1078;
-    case 0x10c8u: goto L_10c8;
-    case 0x1130u: goto L_1130;
+    case 0x0e20u: goto PRE_L_0e20;
+    case 0x0e90u: goto PRE_L_0e90;
+    case 0x0fd0u: goto PRE_L_0fd0;
+    case 0x0fe8u: goto PRE_L_0fe8;
+    case 0x0ff8u: goto PRE_L_0ff8;
+    case 0x1010u: goto PRE_L_1010;
+    case 0x1028u: goto PRE_L_1028;
+    case 0x1038u: goto PRE_L_1038;
+    case 0x1048u: goto PRE_L_1048;
+    case 0x1058u: goto PRE_L_1058;
+    case 0x1068u: goto PRE_L_1068;
+    case 0x1078u: goto PRE_L_1078;
+    case 0x10c8u: goto PRE_L_10c8;
+    case 0x1130u: goto PRE_L_1130;
     case 0x1150u: goto L_1150;
     case 0x11b8u: goto L_11b8;
     case 0x1208u: goto L_1208;
@@ -150,23 +151,23 @@ dispatch:
     case 0x18f0u: goto L_18f0;
     case 0x1908u: goto L_1908;
     case 0x1968u: goto L_1968;
-    case 0x19a8u: goto L_19a8;
+    case 0x19a8u: goto PRE_L_19a8;
     case 0x1a18u: goto L_1a18;
     case 0x1ae0u: goto L_1ae0;
-    case 0x1c00u: goto L_1c00;
-    case 0x1c70u: goto L_1c70;
-    case 0x1d70u: goto L_1d70;
-    case 0x1d98u: goto L_1d98;
-    case 0x1da8u: goto L_1da8;
-    case 0x1dc0u: goto L_1dc0;
-    case 0x1dd8u: goto L_1dd8;
-    case 0x1de8u: goto L_1de8;
-    case 0x1df8u: goto L_1df8;
-    case 0x1e08u: goto L_1e08;
-    case 0x1e18u: goto L_1e18;
-    case 0x1e28u: goto L_1e28;
-    case 0x1e78u: goto L_1e78;
-    case 0x1f00u: goto L_1f00;
+    case 0x1c00u: goto PRE_L_1c00;
+    case 0x1c70u: goto PRE_L_1c70;
+    case 0x1d70u: goto PRE_L_1d70;
+    case 0x1d98u: goto PRE_L_1d98;
+    case 0x1da8u: goto PRE_L_1da8;
+    case 0x1dc0u: goto PRE_L_1dc0;
+    case 0x1dd8u: goto PRE_L_1dd8;
+    case 0x1de8u: goto PRE_L_1de8;
+    case 0x1df8u: goto PRE_L_1df8;
+    case 0x1e08u: goto PRE_L_1e08;
+    case 0x1e18u: goto PRE_L_1e18;
+    case 0x1e28u: goto PRE_L_1e28;
+    case 0x1e78u: goto PRE_L_1e78;
+    case 0x1f00u: goto PRE_L_1f00;
     case 0x1f20u: goto L_1f20;
     case 0x1f88u: goto L_1f88;
     case 0x1fd8u: goto L_1fd8;
@@ -209,28 +210,28 @@ dispatch:
     case 0x2618u: goto L_2618;
     case 0x2630u: goto L_2630;
     case 0x2690u: goto L_2690;
-    case 0x26d0u: goto L_26d0;
+    case 0x26d0u: goto PRE_L_26d0;
     case 0x2748u: goto L_2748;
     case 0x2800u: goto L_2800;
-    case 0x2900u: goto L_2900;
-    case 0x2958u: goto L_2958;
-    case 0x2990u: goto L_2990;
-    case 0x29b8u: goto L_29b8;
-    case 0x29d0u: goto L_29d0;
-    case 0x2a08u: goto L_2a08;
-    case 0x2a48u: goto L_2a48;
-    case 0x2b40u: goto L_2b40;
-    case 0x2b60u: goto L_2b60;
-    case 0x2b70u: goto L_2b70;
-    case 0x2b88u: goto L_2b88;
-    case 0x2ba0u: goto L_2ba0;
-    case 0x2bb0u: goto L_2bb0;
-    case 0x2bc0u: goto L_2bc0;
-    case 0x2bd0u: goto L_2bd0;
-    case 0x2be0u: goto L_2be0;
-    case 0x2bf0u: goto L_2bf0;
-    case 0x2c40u: goto L_2c40;
-    case 0x2ca8u: goto L_2ca8;
+    case 0x2900u: goto PRE_L_2900;
+    case 0x2958u: goto PRE_L_2958;
+    case 0x2990u: goto PRE_L_2990;
+    case 0x29b8u: goto PRE_L_29b8;
+    case 0x29d0u: goto PRE_L_29d0;
+    case 0x2a08u: goto PRE_L_2a08;
+    case 0x2a48u: goto PRE_L_2a48;
+    case 0x2b40u: goto PRE_L_2b40;
+    case 0x2b60u: goto PRE_L_2b60;
+    case 0x2b70u: goto PRE_L_2b70;
+    case 0x2b88u: goto PRE_L_2b88;
+    case 0x2ba0u: goto PRE_L_2ba0;
+    case 0x2bb0u: goto PRE_L_2bb0;
+    case 0x2bc0u: goto PRE_L_2bc0;
+    case 0x2bd0u: goto PRE_L_2bd0;
+    case 0x2be0u: goto PRE_L_2be0;
+    case 0x2bf0u: goto PRE_L_2bf0;
+    case 0x2c40u: goto PRE_L_2c40;
+    case 0x2ca8u: goto PRE_L_2ca8;
     case 0x2cc8u: goto L_2cc8;
     case 0x2d30u: goto L_2d30;
     case 0x2d80u: goto L_2d80;
@@ -273,15 +274,15 @@ dispatch:
     case 0x33c0u: goto L_33c0;
     case 0x33d8u: goto L_33d8;
     case 0x3438u: goto L_3438;
-    case 0x3478u: goto L_3478;
+    case 0x3478u: goto PRE_L_3478;
     case 0x34f0u: goto L_34f0;
     case 0x3520u: goto L_3520;
-    case 0x3640u: goto L_3640;
-    case 0x36b0u: goto L_36b0;
-    case 0x37b0u: goto L_37b0;
-    case 0x37d8u: goto L_37d8;
-    case 0x37e8u: goto L_37e8;
-    case 0x3800u: goto L_3800;
+    case 0x3640u: goto PRE_L_3640;
+    case 0x36b0u: goto PRE_L_36b0;
+    case 0x37b0u: goto PRE_L_37b0;
+    case 0x37d8u: goto PRE_L_37d8;
+    case 0x37e8u: goto PRE_L_37e8;
+    case 0x3800u: goto PRE_L_3800;
     case 0x3af8u: goto L_3af8;
     case 0x3b50u: goto L_3b50;
     case 0x3ba8u: goto L_3ba8;
@@ -607,6 +608,8 @@ L_0000:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_0100:
+    inv_0100 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_0100:
     // 0100  nop                                    lq.xyzw vf29, 0(vi5)
     if (cyc + 134u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0100u));
@@ -718,10 +721,12 @@ L_0100:
     // 0158  mulax.xyzw acc, vf1, vf12x             isubiu vi9, vi0, 2
     {
         { uint64_t r = cyc, t;
-          t = vfReady[1][0]; if (t > r) r = t;
-          t = vfReady[1][1]; if (t > r) r = t;
-          t = vfReady[1][2]; if (t > r) r = t;
-          t = vfReady[1][3]; if (t > r) r = t;
+          if (!(inv_0100)) {
+            t = vfReady[1][0]; if (t > r) r = t;
+            t = vfReady[1][1]; if (t > r) r = t;
+            t = vfReady[1][2]; if (t > r) r = t;
+            t = vfReady[1][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
@@ -738,10 +743,12 @@ L_0100:
     // 0160  madday.xyzw acc, vf2, vf12y            isubiu vi10, vi0, 2
     {
         { uint64_t r = cyc, t;
-          t = vfReady[2][0]; if (t > r) r = t;
-          t = vfReady[2][1]; if (t > r) r = t;
-          t = vfReady[2][2]; if (t > r) r = t;
-          t = vfReady[2][3]; if (t > r) r = t;
+          if (!(inv_0100)) {
+            t = vfReady[2][0]; if (t > r) r = t;
+            t = vfReady[2][1]; if (t > r) r = t;
+            t = vfReady[2][2]; if (t > r) r = t;
+            t = vfReady[2][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
@@ -758,10 +765,12 @@ L_0100:
     // 0168  maddaz.xyzw acc, vf3, vf12z            move.xyzw vf8, vf9
     {
         { uint64_t r = cyc, t;
-          t = vfReady[3][0]; if (t > r) r = t;
-          t = vfReady[3][1]; if (t > r) r = t;
-          t = vfReady[3][2]; if (t > r) r = t;
-          t = vfReady[3][3]; if (t > r) r = t;
+          if (!(inv_0100)) {
+            t = vfReady[3][0]; if (t > r) r = t;
+            t = vfReady[3][1]; if (t > r) r = t;
+            t = vfReady[3][2]; if (t > r) r = t;
+            t = vfReady[3][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
@@ -782,6 +791,9 @@ L_0100:
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
     }
+PRE_L_0170:
+    inv_0100 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_0170 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_0170:
     // 0170  maddw.xyzw vf10, vf4, vf0w             move.xyzw vf9, vf10
     if (cyc + 158u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0170u));
@@ -795,10 +807,12 @@ L_0170:
           t = vfReady[10][1]; if (t > r) r = t;
           t = vfReady[10][2]; if (t > r) r = t;
           t = vfReady[10][3]; if (t > r) r = t;
-          t = vfReady[4][0]; if (t > r) r = t;
-          t = vfReady[4][1]; if (t > r) r = t;
-          t = vfReady[4][2]; if (t > r) r = t;
-          t = vfReady[4][3]; if (t > r) r = t;
+          if (!(inv_0100 || inv_0170)) {
+            t = vfReady[4][0]; if (t > r) r = t;
+            t = vfReady[4][1]; if (t > r) r = t;
+            t = vfReady[4][2]; if (t > r) r = t;
+            t = vfReady[4][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 4, 0);
@@ -831,12 +845,14 @@ L_0170:
     // 0180  addax.xyzw acc, vf6, vf0x              iadd vi8, vi9, vi10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
           t = viReady[10]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
+          if (!(inv_0100 || inv_0170)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -868,10 +884,12 @@ L_0170:
     {
         { uint64_t r = cyc, t;
           t = (J.qPending ? J.qReady : 0u); if (t > r) r = t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_0100 || inv_0170)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
@@ -1015,22 +1033,30 @@ L_0170:
         bkReg = 0;
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x0238u; goto L_0238; }
+        if (br) { br = false; s.branchTarget = 0x0238u; goto PRE_L_0238; }
     }
+PRE_L_01f8:
+    inv_0100 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_0170 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
 L_01f8:
     // 01f8  mulax.xyzw acc, vf1, vf12x             move.xyzw vf8, vf9
     if (cyc + 79u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x01f8u));
     {
         { uint64_t r = cyc, t;
           t = vfReady[12][0]; if (t > r) r = t;
-          t = vfReady[1][0]; if (t > r) r = t;
-          t = vfReady[1][1]; if (t > r) r = t;
-          t = vfReady[1][2]; if (t > r) r = t;
-          t = vfReady[1][3]; if (t > r) r = t;
-          t = vfReady[9][0]; if (t > r) r = t;
-          t = vfReady[9][1]; if (t > r) r = t;
-          t = vfReady[9][2]; if (t > r) r = t;
-          t = vfReady[9][3]; if (t > r) r = t;
+          if (!(inv_0100 || inv_0170 || inv_01f8)) {
+            t = vfReady[1][0]; if (t > r) r = t;
+            t = vfReady[1][1]; if (t > r) r = t;
+            t = vfReady[1][2]; if (t > r) r = t;
+            t = vfReady[1][3]; if (t > r) r = t;
+          }
+          if (!(inv_01f8)) {
+            t = vfReady[9][0]; if (t > r) r = t;
+            t = vfReady[9][1]; if (t > r) r = t;
+            t = vfReady[9][2]; if (t > r) r = t;
+            t = vfReady[9][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
@@ -1054,11 +1080,13 @@ L_01f8:
     {
         { uint64_t r = cyc, t;
           t = vfReady[12][1]; if (t > r) r = t;
-          t = vfReady[2][0]; if (t > r) r = t;
-          t = vfReady[2][1]; if (t > r) r = t;
-          t = vfReady[2][2]; if (t > r) r = t;
-          t = vfReady[2][3]; if (t > r) r = t;
           t = viReady[11]; if (t > r) r = t;
+          if (!(inv_0100 || inv_0170 || inv_01f8)) {
+            t = vfReady[2][0]; if (t > r) r = t;
+            t = vfReady[2][1]; if (t > r) r = t;
+            t = vfReady[2][2]; if (t > r) r = t;
+            t = vfReady[2][3]; if (t > r) r = t;
+          }
           cyc = r; }
         br = static_cast<int16_t>(rb(11)) >= 0;
         J.cyc = cyc;
@@ -1074,15 +1102,19 @@ L_01f8:
     {
         { uint64_t r = cyc, t;
           t = vfReady[12][2]; if (t > r) r = t;
-          t = vfReady[3][0]; if (t > r) r = t;
-          t = vfReady[3][1]; if (t > r) r = t;
-          t = vfReady[3][2]; if (t > r) r = t;
-          t = vfReady[3][3]; if (t > r) r = t;
-          t = vfReady[7][0]; if (t > r) r = t;
-          t = vfReady[7][1]; if (t > r) r = t;
-          t = vfReady[7][2]; if (t > r) r = t;
           t = vfReady[7][3]; if (t > r) r = t;
           t = viReady[4]; if (t > r) r = t;
+          if (!(inv_0100 || inv_0170 || inv_01f8)) {
+            t = vfReady[3][0]; if (t > r) r = t;
+            t = vfReady[3][1]; if (t > r) r = t;
+            t = vfReady[3][2]; if (t > r) r = t;
+            t = vfReady[3][3]; if (t > r) r = t;
+          }
+          if (!(inv_01f8)) {
+            t = vfReady[7][0]; if (t > r) r = t;
+            t = vfReady[7][1]; if (t > r) r = t;
+            t = vfReady[7][2]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
@@ -1525,7 +1557,7 @@ L_0358:
         bkReg = 0;
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x01f8u; goto L_01f8; }
+        if (br) { br = false; s.branchTarget = 0x01f8u; goto PRE_L_01f8; }
     }
 L_0378:
     // 0378  nop                                    iaddiu vi9, vi0, 58
@@ -4994,6 +5026,8 @@ L_0b90:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_0bd0:
+    inv_0bd0 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_0bd0:
     // 0bd0  nop                                    lqi.xyzw vf29, (vi9++)
     if (cyc + 157u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0bd0u));
@@ -5102,10 +5136,12 @@ L_0bd0:
     // 0c10  addax.xyzw acc, vf6, vf0x              nop
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
+          if (!(inv_0bd0)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -5123,10 +5159,12 @@ L_0bd0:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           t = vfReady[29][3]; if (t > r) r = t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_0bd0)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
@@ -5539,6 +5577,8 @@ L_0d20:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_0e20:
+    inv_0e20 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_0e20:
     // 0e20  nop                                    lq.xyzw vf29, 0(vi5)
     if (cyc + 134u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0e20u));
@@ -5714,6 +5754,9 @@ L_0e20:
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
     }
+PRE_L_0e90:
+    inv_0e20 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_0e90 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_0e90:
     // 0e90  maddw.xyzw vf10, vf4, vf0w             move.xyzw vf9, vf10
     if (cyc + 273u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0e90u));
@@ -5790,10 +5833,12 @@ L_0e90:
     {
         { uint64_t r = cyc, t;
           t = (J.qPending ? J.qReady : 0u); if (t > r) r = t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_0e20 || inv_0e90)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
@@ -6055,10 +6100,12 @@ L_0e90:
     // 0f98  addax.xyzw acc, vf6, vf0x              fcand vi1, 0x00002f
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
+          if (!(inv_0e20 || inv_0e90)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -6146,22 +6193,28 @@ L_0e90:
         bkReg = 0;
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x1010u; goto L_1010; }
+        if (br) { br = false; s.branchTarget = 0x1010u; goto PRE_L_1010; }
     }
+PRE_L_0fd0:
+    inv_0e20 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_0e90 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
 L_0fd0:
     // 0fd0  mulax.xyzw acc, vf1, vf12x             move.xyzw vf8, vf9
     if (cyc + 79u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0fd0u));
     {
         { uint64_t r = cyc, t;
           t = vfReady[12][0]; if (t > r) r = t;
-          t = vfReady[1][0]; if (t > r) r = t;
-          t = vfReady[1][1]; if (t > r) r = t;
-          t = vfReady[1][2]; if (t > r) r = t;
-          t = vfReady[1][3]; if (t > r) r = t;
-          t = vfReady[9][0]; if (t > r) r = t;
-          t = vfReady[9][1]; if (t > r) r = t;
-          t = vfReady[9][2]; if (t > r) r = t;
-          t = vfReady[9][3]; if (t > r) r = t;
+          if (!(inv_0fd0)) {
+            t = vfReady[1][0]; if (t > r) r = t;
+            t = vfReady[1][1]; if (t > r) r = t;
+            t = vfReady[1][2]; if (t > r) r = t;
+            t = vfReady[1][3]; if (t > r) r = t;
+            t = vfReady[9][0]; if (t > r) r = t;
+            t = vfReady[9][1]; if (t > r) r = t;
+            t = vfReady[9][2]; if (t > r) r = t;
+            t = vfReady[9][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
@@ -6185,11 +6238,13 @@ L_0fd0:
     {
         { uint64_t r = cyc, t;
           t = vfReady[12][1]; if (t > r) r = t;
-          t = vfReady[2][0]; if (t > r) r = t;
-          t = vfReady[2][1]; if (t > r) r = t;
-          t = vfReady[2][2]; if (t > r) r = t;
-          t = vfReady[2][3]; if (t > r) r = t;
           t = viReady[11]; if (t > r) r = t;
+          if (!(inv_0fd0)) {
+            t = vfReady[2][0]; if (t > r) r = t;
+            t = vfReady[2][1]; if (t > r) r = t;
+            t = vfReady[2][2]; if (t > r) r = t;
+            t = vfReady[2][3]; if (t > r) r = t;
+          }
           cyc = r; }
         br = static_cast<int16_t>(rb(11)) >= 0;
         J.cyc = cyc;
@@ -6205,15 +6260,17 @@ L_0fd0:
     {
         { uint64_t r = cyc, t;
           t = vfReady[12][2]; if (t > r) r = t;
-          t = vfReady[3][0]; if (t > r) r = t;
-          t = vfReady[3][1]; if (t > r) r = t;
-          t = vfReady[3][2]; if (t > r) r = t;
-          t = vfReady[3][3]; if (t > r) r = t;
-          t = vfReady[7][0]; if (t > r) r = t;
-          t = vfReady[7][1]; if (t > r) r = t;
-          t = vfReady[7][2]; if (t > r) r = t;
           t = vfReady[7][3]; if (t > r) r = t;
           t = viReady[4]; if (t > r) r = t;
+          if (!(inv_0fd0)) {
+            t = vfReady[3][0]; if (t > r) r = t;
+            t = vfReady[3][1]; if (t > r) r = t;
+            t = vfReady[3][2]; if (t > r) r = t;
+            t = vfReady[3][3]; if (t > r) r = t;
+            t = vfReady[7][0]; if (t > r) r = t;
+            t = vfReady[7][1]; if (t > r) r = t;
+            t = vfReady[7][2]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
@@ -6656,7 +6713,7 @@ L_1130:
         bkReg = 0;
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x0fd0u; goto L_0fd0; }
+        if (br) { br = false; s.branchTarget = 0x0fd0u; goto PRE_L_0fd0; }
     }
 L_1150:
     // 1150  nop                                    iaddiu vi9, vi0, 58
@@ -10122,6 +10179,8 @@ L_1968:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_19a8:
+    inv_19a8 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_19a8:
     // 19a8  nop                                    lqi.xyzw vf29, (vi9++)
     if (cyc + 152u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x19a8u));
@@ -10218,10 +10277,12 @@ L_19a8:
     // 19e0  addax.xyzw acc, vf6, vf0x              nop
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
+          if (!(inv_19a8)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -10239,10 +10300,12 @@ L_19a8:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           t = vfReady[29][3]; if (t > r) r = t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_19a8)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
@@ -10700,6 +10763,8 @@ L_1ae0:
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
     }
+PRE_L_1c00:
+    inv_1c00 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_1c00:
     // 1c00  nop                                    lq.xyzw vf29, 0(vi5)
     if (cyc + 134u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x1c00u));
@@ -10835,6 +10900,9 @@ L_1c00:
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
     }
+PRE_L_1c70:
+    inv_1c00 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_1c70 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_1c70:
     // 1c70  mulax.xyzw acc, vf16, vf15x            lq.xyzw vf12, 0(vi6)
     if (cyc + 233u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x1c70u));
@@ -10865,10 +10933,12 @@ L_1c70:
     {
         { uint64_t r = cyc, t;
           t = vfReady[15][1]; if (t > r) r = t;
-          t = vfReady[17][0]; if (t > r) r = t;
-          t = vfReady[17][1]; if (t > r) r = t;
-          t = vfReady[17][2]; if (t > r) r = t;
-          t = vfReady[17][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[17][0]; if (t > r) r = t;
+            t = vfReady[17][1]; if (t > r) r = t;
+            t = vfReady[17][2]; if (t > r) r = t;
+            t = vfReady[17][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 17, 15);
@@ -10888,10 +10958,12 @@ L_1c70:
     {
         { uint64_t r = cyc, t;
           t = vfReady[15][2]; if (t > r) r = t;
-          t = vfReady[18][0]; if (t > r) r = t;
-          t = vfReady[18][1]; if (t > r) r = t;
-          t = vfReady[18][2]; if (t > r) r = t;
-          t = vfReady[18][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[18][0]; if (t > r) r = t;
+            t = vfReady[18][1]; if (t > r) r = t;
+            t = vfReady[18][2]; if (t > r) r = t;
+            t = vfReady[18][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 18, 15);
@@ -10910,10 +10982,12 @@ L_1c70:
     // 1c88  maddw.xyzw vf16, vf19, vf0w            lq.xyzw vf22, 108(vi0)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[19][0]; if (t > r) r = t;
-          t = vfReady[19][1]; if (t > r) r = t;
-          t = vfReady[19][2]; if (t > r) r = t;
-          t = vfReady[19][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[19][0]; if (t > r) r = t;
+            t = vfReady[19][1]; if (t > r) r = t;
+            t = vfReady[19][2]; if (t > r) r = t;
+            t = vfReady[19][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 19, 0);
@@ -10932,10 +11006,12 @@ L_1c70:
     // 1c90  mulax.xyzw acc, vf1, vf12x             lq.xyzw vf23, 109(vi0)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[1][0]; if (t > r) r = t;
-          t = vfReady[1][1]; if (t > r) r = t;
-          t = vfReady[1][2]; if (t > r) r = t;
-          t = vfReady[1][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[1][0]; if (t > r) r = t;
+            t = vfReady[1][1]; if (t > r) r = t;
+            t = vfReady[1][2]; if (t > r) r = t;
+            t = vfReady[1][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 1, 12);
@@ -10954,10 +11030,12 @@ L_1c70:
     // 1c98  madday.xyzw acc, vf2, vf12y            lq.xyzw vf13, 48(vi6)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[2][0]; if (t > r) r = t;
-          t = vfReady[2][1]; if (t > r) r = t;
-          t = vfReady[2][2]; if (t > r) r = t;
-          t = vfReady[2][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[2][0]; if (t > r) r = t;
+            t = vfReady[2][1]; if (t > r) r = t;
+            t = vfReady[2][2]; if (t > r) r = t;
+            t = vfReady[2][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 2, 12);
@@ -10976,12 +11054,14 @@ L_1c70:
     // 1ca0  maddaz.xyzw acc, vf3, vf12z            iadd vi8, vi9, vi10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[3][0]; if (t > r) r = t;
-          t = vfReady[3][1]; if (t > r) r = t;
-          t = vfReady[3][2]; if (t > r) r = t;
-          t = vfReady[3][3]; if (t > r) r = t;
           t = viReady[10]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[3][0]; if (t > r) r = t;
+            t = vfReady[3][1]; if (t > r) r = t;
+            t = vfReady[3][2]; if (t > r) r = t;
+            t = vfReady[3][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 3, 12);
@@ -10997,10 +11077,12 @@ L_1c70:
     // 1ca8  maddw.xyzw vf10, vf4, vf0w             iadd vi9, vi0, vi10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[4][0]; if (t > r) r = t;
-          t = vfReady[4][1]; if (t > r) r = t;
-          t = vfReady[4][2]; if (t > r) r = t;
-          t = vfReady[4][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[4][0]; if (t > r) r = t;
+            t = vfReady[4][1]; if (t > r) r = t;
+            t = vfReady[4][2]; if (t > r) r = t;
+            t = vfReady[4][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 4, 0);
@@ -11109,10 +11191,12 @@ L_1c70:
     // 1cf0  mul.xyzw vf7, vf10, vf5                lq.xyzw vf14, 96(vi6)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
@@ -11131,10 +11215,12 @@ L_1c70:
     // 1cf8  addax.xyzw acc, vf6, vf0x              iadd vi10, vi0, vi1
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
+          if (!(inv_1c00 || inv_1c70)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -11291,8 +11377,12 @@ L_1c70:
         bkReg = 0;
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x1dc0u; goto L_1dc0; }
+        if (br) { br = false; s.branchTarget = 0x1dc0u; goto PRE_L_1dc0; }
     }
+PRE_L_1d70:
+    inv_1c00 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_1c70 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
 L_1d70:
     // 1d70  nop                                    lq.xyzw vf16, 110(vi0)
     if (cyc + 89u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x1d70u));
@@ -11328,10 +11418,12 @@ L_1d70:
     // 1d80  nop                                    move.xyzw vf9, vf10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[10][0]; if (t > r) r = t;
-          t = vfReady[10][1]; if (t > r) r = t;
-          t = vfReady[10][2]; if (t > r) r = t;
-          t = vfReady[10][3]; if (t > r) r = t;
+          if (!(inv_1d70)) {
+            t = vfReady[10][0]; if (t > r) r = t;
+            t = vfReady[10][1]; if (t > r) r = t;
+            t = vfReady[10][2]; if (t > r) r = t;
+            t = vfReady[10][3]; if (t > r) r = t;
+          }
           cyc = r; }
         std::memcpy(lt, s.vf[10], 16);
         s.vf[9][0] = lt[0];
@@ -11357,15 +11449,17 @@ L_1d70:
     // 1d90  clipw.xyz vf8, vf8w                    sq.xyzw vf7, -1(vi4)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[7][0]; if (t > r) r = t;
-          t = vfReady[7][1]; if (t > r) r = t;
-          t = vfReady[7][2]; if (t > r) r = t;
           t = vfReady[7][3]; if (t > r) r = t;
           t = vfReady[8][0]; if (t > r) r = t;
           t = vfReady[8][1]; if (t > r) r = t;
           t = vfReady[8][2]; if (t > r) r = t;
           t = vfReady[8][3]; if (t > r) r = t;
           t = viReady[4]; if (t > r) r = t;
+          if (!(inv_1d70)) {
+            t = vfReady[7][0]; if (t > r) r = t;
+            t = vfReady[7][1]; if (t > r) r = t;
+            t = vfReady[7][2]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.clip(8, 8);
@@ -11844,7 +11938,7 @@ L_1f00:
         bkReg = 0;
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x1d70u; goto L_1d70; }
+        if (br) { br = false; s.branchTarget = 0x1d70u; goto PRE_L_1d70; }
     }
 L_1f20:
     // 1f20  nop                                    iaddiu vi9, vi0, 58
@@ -14920,6 +15014,8 @@ L_2690:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_26d0:
+    inv_26d0 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_26d0:
     // 26d0  nop                                    lqi.xyzw vf29, (vi9++)
     if (cyc + 157u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x26d0u));
@@ -15028,10 +15124,12 @@ L_26d0:
     // 2710  addax.xyzw acc, vf6, vf0x              nop
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
+          if (!(inv_26d0)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -15049,10 +15147,12 @@ L_26d0:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           t = vfReady[29][3]; if (t > r) r = t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_26d0)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
@@ -15465,6 +15565,8 @@ L_2800:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_2900:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_2900:
     // 2900  nop                                    lq.xyzw vf29, 0(vi5)
     if (cyc + 119u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2900u));
@@ -15572,6 +15674,9 @@ L_2900:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_2958:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2958 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_2958:
     // 2958  nop                                    ilw.x vi13, 108(vi6)
     if (cyc + 99u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2958u));
@@ -16173,10 +16278,12 @@ L_2a48:
           t = vfReady[10][1]; if (t > r) r = t;
           t = vfReady[10][2]; if (t > r) r = t;
           t = vfReady[10][3]; if (t > r) r = t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_2900 || inv_2958)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
@@ -16342,11 +16449,13 @@ L_2a48:
     // 2ae0  addax.xyzw acc, vf6, vf0x              isubiu vi11, vi11, 1
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
           t = viReady[11]; if (t > r) r = t;
+          if (!(inv_2900 || inv_2958)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -16480,8 +16589,12 @@ L_2a48:
         bkReg = 0;
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x2b88u; goto L_2b88; }
+        if (br) { br = false; s.branchTarget = 0x2b88u; goto PRE_L_2b88; }
     }
+PRE_L_2b40:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2958 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
 L_2b40:
     // 2b40  nop                                    move.xyzw vf8, vf9
     if (cyc + 84u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2b40u));
@@ -16503,10 +16616,12 @@ L_2b40:
     // 2b48  nop                                    move.xyzw vf9, vf10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[10][0]; if (t > r) r = t;
-          t = vfReady[10][1]; if (t > r) r = t;
-          t = vfReady[10][2]; if (t > r) r = t;
-          t = vfReady[10][3]; if (t > r) r = t;
+          if (!(inv_2b40)) {
+            t = vfReady[10][0]; if (t > r) r = t;
+            t = vfReady[10][1]; if (t > r) r = t;
+            t = vfReady[10][2]; if (t > r) r = t;
+            t = vfReady[10][3]; if (t > r) r = t;
+          }
           cyc = r; }
         std::memcpy(lt, s.vf[10], 16);
         s.vf[9][0] = lt[0];
@@ -16533,11 +16648,13 @@ L_2b40:
     // 2b58  nop                                    sq.xyzw vf7, -1(vi4)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[7][0]; if (t > r) r = t;
-          t = vfReady[7][1]; if (t > r) r = t;
-          t = vfReady[7][2]; if (t > r) r = t;
           t = vfReady[7][3]; if (t > r) r = t;
           t = viReady[4]; if (t > r) r = t;
+          if (!(inv_2b40)) {
+            t = vfReady[7][0]; if (t > r) r = t;
+            t = vfReady[7][1]; if (t > r) r = t;
+            t = vfReady[7][2]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.storeQword(s.vi[4] + (-1), s.vf[7], 15);
@@ -16975,7 +17092,7 @@ L_2ca8:
         bkReg = 0;
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x2b40u; goto L_2b40; }
+        if (br) { br = false; s.branchTarget = 0x2b40u; goto PRE_L_2b40; }
     }
 L_2cc8:
     // 2cc8  nop                                    iaddiu vi9, vi0, 58
@@ -20051,6 +20168,8 @@ L_3438:
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
     }
+PRE_L_3478:
+    inv_3478 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_3478:
     // 3478  nop                                    lqi.xyzw vf29, (vi9++)
     if (cyc + 157u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x3478u));
@@ -20159,10 +20278,12 @@ L_3478:
     // 34b8  addax.xyzw acc, vf6, vf0x              nop
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
+          if (!(inv_3478)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -20180,10 +20301,12 @@ L_3478:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           t = vfReady[29][3]; if (t > r) r = t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_3478)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
@@ -20641,6 +20764,8 @@ L_3520:
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
     }
+PRE_L_3640:
+    inv_3640 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_3640:
     // 3640  nop                                    lq.xyzw vf29, 0(vi5)
     if (cyc + 134u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x3640u));
@@ -20776,6 +20901,9 @@ L_3640:
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
     }
+PRE_L_36b0:
+    inv_3640 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_36b0 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
 L_36b0:
     // 36b0  mulax.xyzw acc, vf16, vf15x            lq.xyzw vf12, 0(vi6)
     if (cyc + 233u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x36b0u));
@@ -20806,10 +20934,12 @@ L_36b0:
     {
         { uint64_t r = cyc, t;
           t = vfReady[15][1]; if (t > r) r = t;
-          t = vfReady[17][0]; if (t > r) r = t;
-          t = vfReady[17][1]; if (t > r) r = t;
-          t = vfReady[17][2]; if (t > r) r = t;
-          t = vfReady[17][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[17][0]; if (t > r) r = t;
+            t = vfReady[17][1]; if (t > r) r = t;
+            t = vfReady[17][2]; if (t > r) r = t;
+            t = vfReady[17][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 17, 15);
@@ -20829,10 +20959,12 @@ L_36b0:
     {
         { uint64_t r = cyc, t;
           t = vfReady[15][2]; if (t > r) r = t;
-          t = vfReady[18][0]; if (t > r) r = t;
-          t = vfReady[18][1]; if (t > r) r = t;
-          t = vfReady[18][2]; if (t > r) r = t;
-          t = vfReady[18][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[18][0]; if (t > r) r = t;
+            t = vfReady[18][1]; if (t > r) r = t;
+            t = vfReady[18][2]; if (t > r) r = t;
+            t = vfReady[18][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 18, 15);
@@ -20851,10 +20983,12 @@ L_36b0:
     // 36c8  maddw.xyzw vf16, vf19, vf0w            lq.xyzw vf22, 108(vi0)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[19][0]; if (t > r) r = t;
-          t = vfReady[19][1]; if (t > r) r = t;
-          t = vfReady[19][2]; if (t > r) r = t;
-          t = vfReady[19][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[19][0]; if (t > r) r = t;
+            t = vfReady[19][1]; if (t > r) r = t;
+            t = vfReady[19][2]; if (t > r) r = t;
+            t = vfReady[19][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 19, 0);
@@ -20873,10 +21007,12 @@ L_36b0:
     // 36d0  mulax.xyzw acc, vf1, vf12x             lq.xyzw vf23, 109(vi0)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[1][0]; if (t > r) r = t;
-          t = vfReady[1][1]; if (t > r) r = t;
-          t = vfReady[1][2]; if (t > r) r = t;
-          t = vfReady[1][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[1][0]; if (t > r) r = t;
+            t = vfReady[1][1]; if (t > r) r = t;
+            t = vfReady[1][2]; if (t > r) r = t;
+            t = vfReady[1][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 1, 12);
@@ -20895,10 +21031,12 @@ L_36b0:
     // 36d8  madday.xyzw acc, vf2, vf12y            lq.xyzw vf13, 48(vi6)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[2][0]; if (t > r) r = t;
-          t = vfReady[2][1]; if (t > r) r = t;
-          t = vfReady[2][2]; if (t > r) r = t;
-          t = vfReady[2][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[2][0]; if (t > r) r = t;
+            t = vfReady[2][1]; if (t > r) r = t;
+            t = vfReady[2][2]; if (t > r) r = t;
+            t = vfReady[2][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 2, 12);
@@ -20917,12 +21055,14 @@ L_36b0:
     // 36e0  maddaz.xyzw acc, vf3, vf12z            iadd vi8, vi9, vi10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[3][0]; if (t > r) r = t;
-          t = vfReady[3][1]; if (t > r) r = t;
-          t = vfReady[3][2]; if (t > r) r = t;
-          t = vfReady[3][3]; if (t > r) r = t;
           t = viReady[10]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[3][0]; if (t > r) r = t;
+            t = vfReady[3][1]; if (t > r) r = t;
+            t = vfReady[3][2]; if (t > r) r = t;
+            t = vfReady[3][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 3, 12);
@@ -20938,10 +21078,12 @@ L_36b0:
     // 36e8  maddw.xyzw vf10, vf4, vf0w             iadd vi9, vi0, vi10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[4][0]; if (t > r) r = t;
-          t = vfReady[4][1]; if (t > r) r = t;
-          t = vfReady[4][2]; if (t > r) r = t;
-          t = vfReady[4][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[4][0]; if (t > r) r = t;
+            t = vfReady[4][1]; if (t > r) r = t;
+            t = vfReady[4][2]; if (t > r) r = t;
+            t = vfReady[4][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 4, 0);
@@ -21050,10 +21192,12 @@ L_36b0:
     // 3730  mul.xyzw vf7, vf10, vf5                lq.xyzw vf14, 96(vi6)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[5][0]; if (t > r) r = t;
-          t = vfReady[5][1]; if (t > r) r = t;
-          t = vfReady[5][2]; if (t > r) r = t;
-          t = vfReady[5][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[5][0]; if (t > r) r = t;
+            t = vfReady[5][1]; if (t > r) r = t;
+            t = vfReady[5][2]; if (t > r) r = t;
+            t = vfReady[5][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
@@ -21072,10 +21216,12 @@ L_36b0:
     // 3738  addax.xyzw acc, vf6, vf0x              iadd vi10, vi0, vi1
     {
         { uint64_t r = cyc, t;
-          t = vfReady[6][0]; if (t > r) r = t;
-          t = vfReady[6][1]; if (t > r) r = t;
-          t = vfReady[6][2]; if (t > r) r = t;
-          t = vfReady[6][3]; if (t > r) r = t;
+          if (!(inv_3640 || inv_36b0)) {
+            t = vfReady[6][0]; if (t > r) r = t;
+            t = vfReady[6][1]; if (t > r) r = t;
+            t = vfReady[6][2]; if (t > r) r = t;
+            t = vfReady[6][3]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
@@ -21232,8 +21378,12 @@ L_36b0:
         bkReg = 0;
         if (cyc + 1u > pmax) pmax = cyc + 1u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x3800u; goto L_3800; }
+        if (br) { br = false; s.branchTarget = 0x3800u; goto PRE_L_3800; }
     }
+PRE_L_37b0:
+    inv_3640 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_36b0 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_37b0 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && viReady[11] <= cyc && viReady[12] <= cyc && viReady[2] <= cyc && viReady[4] <= cyc;
 L_37b0:
     // 37b0  nop                                    lq.xyzw vf16, 110(vi0)
     if (cyc + 89u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x37b0u));
@@ -21269,10 +21419,12 @@ L_37b0:
     // 37c0  nop                                    move.xyzw vf9, vf10
     {
         { uint64_t r = cyc, t;
-          t = vfReady[10][0]; if (t > r) r = t;
-          t = vfReady[10][1]; if (t > r) r = t;
-          t = vfReady[10][2]; if (t > r) r = t;
-          t = vfReady[10][3]; if (t > r) r = t;
+          if (!(inv_37b0)) {
+            t = vfReady[10][0]; if (t > r) r = t;
+            t = vfReady[10][1]; if (t > r) r = t;
+            t = vfReady[10][2]; if (t > r) r = t;
+            t = vfReady[10][3]; if (t > r) r = t;
+          }
           cyc = r; }
         std::memcpy(lt, s.vf[10], 16);
         s.vf[9][0] = lt[0];
@@ -21289,7 +21441,9 @@ L_37b0:
     // 37c8  nop                                    ibgez vi11, 0x36b0
     {
         { uint64_t r = cyc, t;
-          t = viReady[11]; if (t > r) r = t;
+          if (!(inv_37b0)) {
+            t = viReady[11]; if (t > r) r = t;
+          }
           cyc = r; }
         br = static_cast<int16_t>(rb(11)) >= 0;
         bkReg = 0;
@@ -21298,15 +21452,17 @@ L_37b0:
     // 37d0  clipw.xyz vf8, vf8w                    sq.xyzw vf7, -1(vi4)
     {
         { uint64_t r = cyc, t;
-          t = vfReady[7][0]; if (t > r) r = t;
-          t = vfReady[7][1]; if (t > r) r = t;
-          t = vfReady[7][2]; if (t > r) r = t;
           t = vfReady[7][3]; if (t > r) r = t;
           t = vfReady[8][0]; if (t > r) r = t;
           t = vfReady[8][1]; if (t > r) r = t;
           t = vfReady[8][2]; if (t > r) r = t;
           t = vfReady[8][3]; if (t > r) r = t;
-          t = viReady[4]; if (t > r) r = t;
+          if (!(inv_37b0)) {
+            t = vfReady[7][0]; if (t > r) r = t;
+            t = vfReady[7][1]; if (t > r) r = t;
+            t = vfReady[7][2]; if (t > r) r = t;
+            t = viReady[4]; if (t > r) r = t;
+          }
           cyc = r; }
         J.cyc = cyc;
         J.clip(8, 8);
@@ -21321,7 +21477,9 @@ L_37d8:
     if (cyc + 74u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x37d8u));
     {
         { uint64_t r = cyc, t;
-          t = viReady[12]; if (t > r) r = t;
+          if (!(inv_37b0)) {
+            t = viReady[12]; if (t > r) r = t;
+          }
           cyc = r; }
         br = static_cast<int16_t>(rb(12)) <= 0;
         bkReg = 0;
@@ -21345,7 +21503,9 @@ L_37e8:
     if (cyc + 79u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x37e8u));
     {
         { uint64_t r = cyc, t;
-          t = viReady[2]; if (t > r) r = t;
+          if (!(inv_37b0)) {
+            t = viReady[2]; if (t > r) r = t;
+          }
           cyc = r; }
         const int32_t oldVi = s.vi[3];
         wvi(3, s.vi[2] + 223);
@@ -21400,7 +21560,7 @@ L_3800:
         bkReg = 0;
         if (cyc + 4u > pmax) pmax = cyc + 4u;
         ++cyc;
-        if (br) { br = false; s.branchTarget = 0x37b0u; goto L_37b0; }
+        if (br) { br = false; s.branchTarget = 0x37b0u; goto PRE_L_37b0; }
     }
     return (VU_SYNC(), J.handoff(0x3820u));
 L_3af8:
@@ -22928,6 +23088,172 @@ L_3fe0:
         if (endp) { VU_SYNC(); J.finish(0x0000u); return true; }
     }
     return (VU_SYNC(), J.handoff(0x0000u));
+PRE_L_0210:
+    inv_0100 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0210;
+PRE_L_0220:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0220;
+PRE_L_0238:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0238;
+PRE_L_0250:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0250;
+PRE_L_0260:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0260;
+PRE_L_0270:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0270;
+PRE_L_0280:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0280;
+PRE_L_0290:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0290;
+PRE_L_02a0:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_02a0;
+PRE_L_02f0:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_02f0;
+PRE_L_0358:
+    inv_01f8 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0358;
+PRE_L_0fe8:
+    inv_0e20 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0fe8;
+PRE_L_0ff8:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_0ff8;
+PRE_L_1010:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1010;
+PRE_L_1028:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1028;
+PRE_L_1038:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1038;
+PRE_L_1048:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1048;
+PRE_L_1058:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1058;
+PRE_L_1068:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1068;
+PRE_L_1078:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1078;
+PRE_L_10c8:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_10c8;
+PRE_L_1130:
+    inv_0fd0 = vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && vfReady[9][0] <= cyc && vfReady[9][1] <= cyc && vfReady[9][2] <= cyc && vfReady[9][3] <= cyc;
+    goto L_1130;
+PRE_L_1d98:
+    inv_1c00 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1d98;
+PRE_L_1da8:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1da8;
+PRE_L_1dc0:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1dc0;
+PRE_L_1dd8:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1dd8;
+PRE_L_1de8:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1de8;
+PRE_L_1df8:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1df8;
+PRE_L_1e08:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1e08;
+PRE_L_1e18:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1e18;
+PRE_L_1e28:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1e28;
+PRE_L_1e78:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1e78;
+PRE_L_1f00:
+    inv_1d70 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_1f00;
+PRE_L_2990:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2958 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    goto L_2990;
+PRE_L_29b8:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2958 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    goto L_29b8;
+PRE_L_29d0:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2958 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    goto L_29d0;
+PRE_L_2a08:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2958 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    goto L_2a08;
+PRE_L_2a48:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2958 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    goto L_2a48;
+PRE_L_2b60:
+    inv_2900 = vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2b60;
+PRE_L_2b70:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2b70;
+PRE_L_2b88:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2b88;
+PRE_L_2ba0:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2ba0;
+PRE_L_2bb0:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2bb0;
+PRE_L_2bc0:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2bc0;
+PRE_L_2bd0:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2bd0;
+PRE_L_2be0:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2be0;
+PRE_L_2bf0:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2bf0;
+PRE_L_2c40:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2c40;
+PRE_L_2ca8:
+    inv_2b40 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc;
+    goto L_2ca8;
+PRE_L_37d8:
+    inv_3640 = vfReady[17][0] <= cyc && vfReady[17][1] <= cyc && vfReady[17][2] <= cyc && vfReady[17][3] <= cyc && vfReady[18][0] <= cyc && vfReady[18][1] <= cyc && vfReady[18][2] <= cyc && vfReady[18][3] <= cyc && vfReady[19][0] <= cyc && vfReady[19][1] <= cyc && vfReady[19][2] <= cyc && vfReady[19][3] <= cyc && vfReady[1][0] <= cyc && vfReady[1][1] <= cyc && vfReady[1][2] <= cyc && vfReady[1][3] <= cyc && vfReady[2][0] <= cyc && vfReady[2][1] <= cyc && vfReady[2][2] <= cyc && vfReady[2][3] <= cyc && vfReady[3][0] <= cyc && vfReady[3][1] <= cyc && vfReady[3][2] <= cyc && vfReady[3][3] <= cyc && vfReady[4][0] <= cyc && vfReady[4][1] <= cyc && vfReady[4][2] <= cyc && vfReady[4][3] <= cyc && vfReady[5][0] <= cyc && vfReady[5][1] <= cyc && vfReady[5][2] <= cyc && vfReady[5][3] <= cyc && vfReady[6][0] <= cyc && vfReady[6][1] <= cyc && vfReady[6][2] <= cyc && vfReady[6][3] <= cyc;
+    inv_37b0 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && viReady[11] <= cyc && viReady[12] <= cyc && viReady[2] <= cyc && viReady[4] <= cyc;
+    goto L_37d8;
+PRE_L_37e8:
+    inv_37b0 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && viReady[11] <= cyc && viReady[12] <= cyc && viReady[2] <= cyc && viReady[4] <= cyc;
+    goto L_37e8;
+PRE_L_3800:
+    inv_37b0 = vfReady[10][0] <= cyc && vfReady[10][1] <= cyc && vfReady[10][2] <= cyc && vfReady[10][3] <= cyc && vfReady[7][0] <= cyc && vfReady[7][1] <= cyc && vfReady[7][2] <= cyc && viReady[11] <= cyc && viReady[12] <= cyc && viReady[2] <= cyc && viReady[4] <= cyc;
+    goto L_3800;
 }
 
 struct Register

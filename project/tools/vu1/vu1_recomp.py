@@ -456,6 +456,87 @@ def generate(code, name, entries):
         stall = 54 if lu.pipeline == "efu" else 13 if lu.pipeline == "fdiv" else 4
         block_margin[start] += 1 + stall
 
+    # --lean: loop-invariant stall checks. Keys (VF lanes, VI, ACC lanes)
+    # read in a loop's body but written nowhere in it cannot stall once
+    # their ready cycle is at or before cyc, and cyc never decreases. On
+    # entry to the loop (inline before the header for the fall-through, a
+    # PRE_L_ stub for every jump or dispatch into the body) a flag records
+    # whether every such key is already in the past; inside the body their
+    # checks run only when it is not. Nothing moves: a stall that is still
+    # possible is applied at the same pair as before.
+    hoisted = {}        # loop header -> (last pc of the body, keys)
+    loops_of = {}       # label inside a hoisted loop -> [headers]
+    if LEAN:
+        loops = {}
+        for pc in pairs:
+            if branch_at(pc):
+                t = branch_target(decoded[pc][0], pc)
+                if t is not None and t <= pc and t in labels:
+                    loops[t] = max(loops.get(t, t), pc + 8 if pc + 8 in seen else pc)
+
+        def pair_keys(q):
+            lower, upper = decoded[q]
+            uu_ = upper_usage(upper)
+            lu_ = lower_usage(lower) if not (upper & 0x80000000) else lower_usage(0)
+            reads, writes = set(), set()
+            for u in (uu_, lu_):
+                for reg, mask in u.vf_read.items():
+                    if reg:
+                        reads |= {("vf", reg, c) for c in lanes_of(mask)}
+                reg, mask = u.vf_write
+                if reg:
+                    writes |= {("vf", reg, c) for c in lanes_of(mask)}
+                for r in range(1, 16):
+                    if u.vi_read >> r & 1:
+                        reads.add(("vi", r))
+                    if u.vi_write >> r & 1:
+                        writes.add(("vi", r))
+                reads |= {("acc", c) for c in lanes_of(u.acc_read)}
+                writes |= {("acc", c) for c in lanes_of(u.acc_write)}
+            return reads, writes
+
+        for header, end in loops.items():
+            reads, writes = set(), set()
+            for q in pairs:
+                if header <= q <= end:
+                    r_, w_ = pair_keys(q)
+                    reads |= r_
+                    writes |= w_
+            keys = reads - writes
+            if keys:
+                hoisted[header] = (end, keys)
+                for q in labels:
+                    if header <= q <= end:
+                        loops_of.setdefault(q, []).append(header)
+
+    def key_expr(key):
+        if key[0] == "vf":
+            return f"vfReady[{key[1]}][{key[2]}]"
+        if key[0] == "vi":
+            return f"viReady[{key[1]}]"
+        return f"accReady[{key[1]}]"
+
+    def entry_flag_lines(label):
+        lines = []
+        for header in sorted(loops_of.get(label, ())):
+            terms = " && ".join(f"{expr} <= cyc" for expr in sorted(key_expr(k) for k in hoisted[header][1]))
+            lines.append(f"    inv_{header:04x} = {terms};")
+        return lines
+
+    def guard_expr(pc, key):
+        flags = [f"inv_{header:04x}" for header, (end, keys) in sorted(hoisted.items())
+                 if header <= pc <= end and key in keys]
+        return " || ".join(flags)
+
+    def jump_target(from_pc, to_pc):
+        # A jump into a hoisted loop from outside it enters through the stub.
+        for header in loops_of.get(to_pc, ()):
+            end = hoisted[header][0]
+            if not (header <= from_pc <= end):
+                return f"PRE_L_{to_pc:04x}"
+        return f"L_{to_pc:04x}"
+
+    label_handoff = {}
     body = []
     emit = body.append
     known = {}
@@ -479,8 +560,15 @@ def generate(code, name, entries):
         else:
             handoff = f"(VU_SYNC(), J.handoff(0x{pc:04x}u))"
         if pc in labels or pc - 8 not in seen:
-            body.insert(len(body) - 1, f"L_{pc:04x}:")
+            pre = []
+            if pc in hoisted:  # a header: the fall-through sets the flags inline
+                pre = [f"PRE_L_{pc:04x}:"] + entry_flag_lines(pc)
+            body[len(body) - 1:len(body) - 1] = pre + [f"L_{pc:04x}:"]
             known = {}
+            for header in loops_of.get(pc, ()):
+                if header <= pc <= hoisted[header][0]:
+                    for key in hoisted[header][1]:
+                        known[key] = "guarded"
             block_index = 0
             emit(f"    if (cyc + {block_margin[pc]}u >= J.budgetEnd) return {handoff};")
         else:
@@ -516,9 +604,13 @@ def generate(code, name, entries):
                         read_keys.append((("vi", r), f"viReady[{r}]"))
                 for c in lanes_of(u.acc_read):
                     read_keys.append((("acc", c), f"accReady[{c}]"))
+            guarded = {}
             for key, expr in read_keys:
                 state = known.get(key)
                 if state == "ready":
+                    continue
+                if state == "guarded":
+                    guarded.setdefault(guard_expr(pc, key), []).append(expr)
                     continue
                 if state is not None and block_index - state[0] >= state[1]:
                     continue
@@ -530,10 +622,15 @@ def generate(code, name, entries):
             if lu.wait_p:
                 reads.append("J.efuWaitAll()")
             reads = sorted(set(reads))
-            if reads:
+            if reads or guarded:
                 lines.append("{ uint64_t r = cyc, t;")
                 for rd in reads:
                     lines.append(f"  t = {rd}; if (t > r) r = t;")
+                for guard, exprs in sorted(guarded.items()):
+                    lines.append(f"  if (!({guard})) {{")
+                    for rd in sorted(set(exprs)):
+                        lines.append(f"    t = {rd}; if (t > r) r = t;")
+                    lines.append("  }")
                 lines.append("  cyc = r; }")
             for key, _ in read_keys:
                 known[key] = "ready"
@@ -617,7 +714,7 @@ def generate(code, name, entries):
                 if prev_target is None:
                     lines.append("if (br) { br = false; s.branchTarget = jt; pcx = jt; goto dispatch; }")
                 else:
-                    lines.append(f"if (br) {{ br = false; s.branchTarget = 0x{prev_target:04x}u; goto L_{prev_target:04x}; }}")
+                    lines.append(f"if (br) {{ br = false; s.branchTarget = 0x{prev_target:04x}u; goto {jump_target(pc, prev_target)}; }}")
             if prev_end:
                 lines.append(f"if (endp) {{ VU_SYNC(); J.finish(0x{(pc + 8) & 0x3FFF:04x}u); return true; }}")
             if upper & 0x40000000:
@@ -634,6 +731,13 @@ def generate(code, name, entries):
             emit(f"    return {handoff}; // unsupported: {error}")
             handoff_count += 1
 
+    # Entry stubs for jumps and dispatches into hoisted loops.
+    for label in sorted(loops_of):
+        if label in hoisted:
+            continue  # its PRE_L_ label precedes the inline flags
+        body.append(f"PRE_L_{label:04x}:")
+        body += entry_flag_lines(label)
+        body.append(f"    goto L_{label:04x};")
     body, dead = eliminate_dead_ready_stores(body)
     lean_stores = lean_pmax = 0
     if LEAN:
@@ -659,6 +763,8 @@ def generate(code, name, entries):
     out.append("    float ut[4], lt[4];")
     out.append("    bool br = false, endp = false;")
     out.append("    uint32_t jt = 0;")
+    if hoisted:
+        out.append("    bool " + ", ".join(f"inv_{h:04x} = false" for h in sorted(hoisted)) + ";")
     out.append("    (void)ut; (void)lt; (void)jt;")
     out.append("    uint64_t cyc = J.cyc, pmax = J.pendingMax;")
     out.append("    int bkReg = J.bkReg; int32_t bkVal = J.bkVal;")
@@ -670,7 +776,8 @@ def generate(code, name, entries):
     out.append("    switch (pcx)")
     out.append("    {")
     for pc in dispatch:
-        out.append(f"    case 0x{pc:04x}u: goto L_{pc:04x};")
+        stub = "PRE_" if pc in loops_of else ""
+        out.append(f"    case 0x{pc:04x}u: goto {stub}L_{pc:04x};")
     out.append("    default: return (VU_SYNC(), J.handoff(pcx));")
     out.append("    }")
     out += body
@@ -682,7 +789,8 @@ def generate(code, name, entries):
     out.append("} registration;")
     out.append("}")
     print(f"pairs={len(pairs)} labels={len(labels)} handoffs={handoff_count} dead_ready_stores={dead}"
-          + (f" lean: stores={lean_stores} pmax={lean_pmax}" if LEAN else ""), file=sys.stderr)
+          + (f" lean: stores={lean_stores} pmax={lean_pmax} hoisted loops={len(hoisted)}"
+             f" keys={sum(len(v[1]) for v in hoisted.values())}" if LEAN else ""), file=sys.stderr)
     return "\n".join(out) + "\n"
 
 
@@ -717,7 +825,7 @@ def eliminate_unobservable_bookkeeping(body):
     dropped_stores = dropped_pmax = 0
     for index in range(len(body) - 1, -1, -1):
         line = body[index]
-        if line.startswith("L_") or any(b in line for b in BARRIER):
+        if line.startswith("L_") or line.startswith("PRE_L_") or any(b in line for b in BARRIER):
             later.clear()
             read_since.clear()
             dist = 0
@@ -765,7 +873,7 @@ def eliminate_dead_ready_stores(body):
     keep = [True] * len(body)
     for index in range(len(body) - 1, -1, -1):
         line = body[index]
-        if line.startswith("L_") or any(b in line for b in BARRIER):
+        if line.startswith("L_") or line.startswith("PRE_L_") or any(b in line for b in BARRIER):
             later.clear()
             continue
         store = READY_STORE.match(line)

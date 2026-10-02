@@ -290,7 +290,40 @@ namespace
                 allInside = allInside && inside(cv.p);
             }
 
-            if (allInside)
+            if (allInside && (tag[1] & (1u << 14)) != 0u && !PS2Memory::onVif1Worker())
+            {
+                // Straight to the GS as decoded vertices (no packet): the
+                // values a PACKED ST/RGBAQ/XYZF2 packet would have produced.
+                packet.submit(); // the state block and anything before go first
+                if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
+                    memory->gifArbiter()->drain(); // packets queued behind other paths, in order
+                GSVertex out[64];
+                for (uint32_t v = 0; v < n; ++v)
+                {
+                    const ClipVertex &cv = verts[v];
+                    GSVertex &o = out[v];
+                    const float q = 1.0f / cv.p.w;
+                    o.s = cv.st.x * q;
+                    o.t = cv.st.y * q;
+                    o.q = cv.st.z * q;
+                    if (o.q == 0.0f)
+                        o.q = 1.0f;
+                    o.r = static_cast<uint8_t>(static_cast<int32_t>(cv.c[0]));
+                    o.g = static_cast<uint8_t>(static_cast<int32_t>(cv.c[1]));
+                    o.b = static_cast<uint8_t>(static_cast<int32_t>(cv.c[2]));
+                    o.a = static_cast<uint8_t>(static_cast<int32_t>(cv.c[3]));
+                    const int32_t x = static_cast<int32_t>((cv.p.x * q * scale.x + offset.x) * 16.0f);
+                    const int32_t y = static_cast<int32_t>((cv.p.y * q * scale.y + offset.y) * 16.0f);
+                    const int32_t z = static_cast<int32_t>((cv.p.z * q * scale.z + offset.z) * 16.0f);
+                    o.x = static_cast<float>(static_cast<uint32_t>(x) & 0xFFFFu) / 16.0f;
+                    o.y = static_cast<float>(static_cast<uint32_t>(y) & 0xFFFFu) / 16.0f;
+                    o.z = static_cast<double>((static_cast<uint32_t>(z) >> 4) & 0xFFFFFFu);
+                    o.u = o.v = 0;
+                    o.fog = 0;
+                }
+                gs.submitStrip((tag[1] >> 15) & 0x7FFu, out, n);
+            }
+            else if (allInside)
             {
                 packet.ensure(16u + 48u * n);
                 packet.tag(tag);

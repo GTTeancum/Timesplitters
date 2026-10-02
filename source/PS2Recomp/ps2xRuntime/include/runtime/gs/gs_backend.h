@@ -15,6 +15,9 @@ public:
     virtual void Reset() = 0;
 
     virtual void Submit(const GSPrimitiveBatch &batch) = 0;
+    // A whole triangle strip in one call (the Xbox renderer); false when
+    // the backend wants it as individual primitives.
+    virtual bool SubmitStrip(const GSDrawState &, const GSVertex *, uint32_t) { return false; }
     virtual void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) = 0;
 
     virtual void BeginTransfer(const GSTransferCommand &command) = 0;

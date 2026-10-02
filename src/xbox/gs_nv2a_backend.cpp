@@ -1141,7 +1141,13 @@ struct GSNv2aBackend::Impl
 
     void submitScreen(const GSPrimitiveBatch &batch)
     {
-        const GSDrawState &state = batch.state;
+        submitScreenVerts(batch.state, batch.vertices.data(), batch.vertexCount);
+    }
+
+    // A primitive from the GS front end (count = its vertices) or a whole
+    // triangle strip from the native vertex pipeline (SubmitStrip).
+    void submitScreenVerts(const GSDrawState &state, const GSVertex *verts, uint32_t count)
+    {
         if (frameOpen && state.context.frame.fbp != frameFbp)
             finishFrame();
         if (!frameOpen)
@@ -1161,9 +1167,9 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.test = uint32_t(ctx.test >> 16) & 0xFu;
         g_nv2aTextureStats.zmask = ctx.zbuf.zmask ? 1u : 0u;
         if (((ctx.test >> 17) & 3u) >= 2u) // depth-compared draws only
-            for (int i = 0; i < batch.vertexCount && i < 3; ++i)
+            for (uint32_t i = 0; i < count && i < 3u; ++i)
             {
-                const uint32_t z = uint32_t(std::min(batch.vertices[i].z, 4294967295.0));
+                const uint32_t z = uint32_t(std::min(verts[i].z, 4294967295.0));
                 if (g_nv2aTextureStats.zmax == 0u || z > g_nv2aTextureStats.zmax) g_nv2aTextureStats.zmax = z;
                 if (g_nv2aTextureStats.zmin == 0u || z < g_nv2aTextureStats.zmin) g_nv2aTextureStats.zmin = z;
             }
@@ -1198,21 +1204,40 @@ struct GSNv2aBackend::Impl
         case GS_PRIM_TRISTRIP:
         case GS_PRIM_TRIFAN:
         {
-            if (batch.vertexCount < 3)
+            if (count < 3)
                 return;
-            GpuVertex *out = reserve(key, 3);
-            for (int i = 0; i < 3; ++i)
+            if (count == 3)
             {
-                const GSVertex &v = batch.vertices[i];
-                emit(out[i], v, state.prim.iip ? v : batch.vertices[2], v.x, v.y);
+                GpuVertex *out = reserve(key, 3);
+                for (int i = 0; i < 3; ++i)
+                {
+                    const GSVertex &v = verts[i];
+                    emit(out[i], v, state.prim.iip ? v : verts[2], v.x, v.y);
+                }
+                break;
+            }
+            // A whole strip: each vertex converted once, the triangles as a
+            // list (flat shading takes each triangle's last vertex colour).
+            GpuVertex strip[64];
+            const uint32_t n = std::min<uint32_t>(count, 64u);
+            for (uint32_t i = 0; i < n; ++i)
+                emit(strip[i], verts[i], verts[i], verts[i].x, verts[i].y);
+            for (uint32_t i = 2; i < n; ++i)
+            {
+                GpuVertex *out = reserve(key, 3);
+                out[0] = strip[i - 2];
+                out[1] = strip[i - 1];
+                out[2] = strip[i];
+                if (!state.prim.iip)
+                    out[0].color = out[1].color = strip[i].color;
             }
             break;
         }
         case GS_PRIM_SPRITE:
         {
-            if (batch.vertexCount < 2)
+            if (count < 2)
                 return;
-            const GSVertex &a = batch.vertices[0], &b = batch.vertices[1];
+            const GSVertex &a = verts[0], &b = verts[1];
             // Two triangles; colour, depth and fog come from the second vertex.
             GSVertex corners[4] = {a, a, a, a};
             corners[1].x = b.x; corners[1].u = b.u; corners[1].s = b.s;
@@ -1420,6 +1445,14 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
     }
     m->cpu.Submit(batch);
     m->noteCpuWrite(GSCpuBackend::FrameRange(batch.state));
+}
+
+bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count)
+{
+    if (state.prim.type != GS_PRIM_TRISTRIP || count > 64u || !m->isScreenTarget(state))
+        return false;
+    m->submitScreenVerts(state, vertices, count);
+    return true;
 }
 
 void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)

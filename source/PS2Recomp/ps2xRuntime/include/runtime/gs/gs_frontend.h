@@ -109,6 +109,10 @@ public:
     void setRasterBackend(std::unique_ptr<GSRasterBackend> backend);
 
     void processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId path = GifPathId::Path3);
+    // Draws a strip of already-decoded vertices with the current state and
+    // the given PRIM register value, as a PACKED GIF packet with PRE set
+    // would (used by native vertex pipelines, which skip packet encoding).
+    void submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t count);
     enum class HostPresentationMode { VSync, Signal, Finish };
     void setHostPresentationMode(HostPresentationMode mode) { m_hostPresentationMode.store(mode); }
     HostPresentationMode hostPresentationMode() const { return m_hostPresentationMode.load(); }

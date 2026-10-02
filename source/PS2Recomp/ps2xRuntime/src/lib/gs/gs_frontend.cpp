@@ -1626,6 +1626,26 @@ void GS::vertexKick(bool drawing)
     }
 }
 
+void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t count)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
+    if (m_backend && count >= 3u)
+    {
+        const GSPrimitiveBatch batch = buildDrawBatch(0);
+        if (m_backend->SubmitStrip(batch.state, vertices, count))
+        {
+            m_vtxCount = 0;
+            return;
+        }
+    }
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        m_vtxQueue[m_vtxCount % kMaxVerts] = vertices[i];
+        vertexKick(true);
+    }
+}
+
 void GS::processImageData(const uint8_t *data, uint32_t sizeBytes)
 {
     if (m_backend)

@@ -386,6 +386,7 @@ public:
     using GifPacketCallback = std::function<void(const uint8_t *, uint32_t)>;
     void setGifPacketCallback(GifPacketCallback cb) { m_gifPacketCallback = std::move(cb); }
     void setGifArbiter(GifArbiter *arbiter) { m_gifArbiter = arbiter; }
+    GifArbiter *gifArbiter() const { return m_gifArbiter; }
     using GsReadbackCallback = std::function<uint32_t(uint8_t *, uint32_t)>;
     void setGsReadbackCallback(GsReadbackCallback cb) { m_gsReadbackCallback = std::move(cb); }
 

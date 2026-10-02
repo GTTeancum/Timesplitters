@@ -47,6 +47,7 @@ public:
     void Reset() override;
 
     void Submit(const GSPrimitiveBatch &batch) override;
+    bool SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count) override;
     void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) override;
 
     void BeginTransfer(const GSTransferCommand &command) override;

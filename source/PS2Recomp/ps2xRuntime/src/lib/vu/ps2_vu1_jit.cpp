@@ -17,6 +17,37 @@ namespace
     }
 }
 
+namespace
+{
+    std::vector<Vu1NativeProgram> &nativeRegistry()
+    {
+        static std::vector<Vu1NativeProgram> programs;
+        return programs;
+    }
+}
+
+void registerVu1NativeProgram(const Vu1NativeProgram &program)
+{
+    nativeRegistry().push_back(program);
+}
+
+Vu1NativeEntry VU1Interpreter::lookupNativeProgram(const uint8_t *vuCode, uint32_t codeSize, const PS2Memory *memory)
+{
+    static const bool enabled = [] {
+#if defined(PLATFORM_XBOX)
+        const char *value = std::getenv("TS_VU1_NATIVE");
+        return !(value && *value == '0');
+#else
+        const char *value = std::getenv("TS_VU1_NATIVE");
+        return value && *value && *value != '0';
+#endif
+    }();
+    if (!enabled || nativeRegistry().empty())
+        return nullptr;
+    lookupCompiledProgram(vuCode, codeSize, memory); // refreshes the cached hash lookup
+    return m_nativeProgram;
+}
+
 void registerVu1CompiledProgram(const Vu1CompiledProgram &program)
 {
     registry().push_back(program);
@@ -72,6 +103,14 @@ Vu1CompiledEntry VU1Interpreter::lookupCompiledProgram(const uint8_t *vuCode, ui
     {
         const uint64_t hash = hashVu1Code(vuCode, codeSize);
         m_compiledProgram = nullptr;
+        m_nativeProgram = nullptr;
+        for (const Vu1NativeProgram &program : nativeRegistry())
+            if (program.hash == hash)
+            {
+                m_nativeProgram = program.run;
+                static std::once_flag announcedNative;
+                std::call_once(announcedNative, [&] { std::cerr << "[TS:vu1-native] using " << program.name << '\n'; });
+            }
         for (const Vu1CompiledProgram &program : registry())
         {
             if (program.hash == hash)

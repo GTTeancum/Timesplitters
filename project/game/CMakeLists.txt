@@ -3,7 +3,7 @@ file(GLOB TS_GENERATED CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../generat
 # Ahead-of-time recompiled VU1 microprograms (project/tools/vu1/vu1_recomp.py).
 file(GLOB TS_GENERATED_VU CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../generated-vu/*.cpp")
 # Compiled once and linked into the game and the VU/frame benchmarks.
-add_library(ts_vu_generated OBJECT ${TS_GENERATED_VU})
+add_library(ts_vu_generated OBJECT ${TS_GENERATED_VU} ${CMAKE_CURRENT_SOURCE_DIR}/vu1_native_ts.cpp)
 target_link_libraries(ts_vu_generated PRIVATE ps2_runtime)
 target_compile_features(ts_vu_generated PRIVATE cxx_std_20)
 if(MSVC)

@@ -1641,6 +1641,16 @@ void VU1Interpreter::execute(uint8_t *vuCode, uint32_t codeSize,
     VuProfileScope profile(m_state, m_cycle, m_unit == Unit::VU1, false);
     if (m_unit == Unit::VU1)
         captureVuInput(m_state, vuCode, codeSize, vuData, dataSize, startPC, top, itop, maxCycles);
+    if (m_unit == Unit::VU1)
+        if (Vu1NativeEntry native = lookupNativeProgram(vuCode, codeSize, memory))
+            if (native(startPC, vuData, dataSize, top, memory, gs))
+            {
+                m_state.top = top;
+                m_state.itop = itop;
+                m_state.stoppedByD = false;
+                m_state.stoppedByT = false;
+                return;
+            }
     resetScheduler();
     m_state.pc = startPC & microAddressMask();
     m_state.ebit = false;

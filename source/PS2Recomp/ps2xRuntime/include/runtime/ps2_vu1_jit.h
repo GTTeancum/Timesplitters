@@ -53,6 +53,20 @@ struct Vu1CompiledProgram
 
 // Registered by generated translation units at static-initialization time.
 void registerVu1CompiledProgram(const Vu1CompiledProgram &program);
+
+// A native reimplementation of a microprogram (project/game/vu1_native_ts.cpp):
+// called at MSCAL with the entry pc; returns false to leave the run to the
+// translator. Used on the Xbox, and elsewhere only with TS_VU1_NATIVE=1.
+class GS;
+class PS2Memory;
+using Vu1NativeEntry = bool (*)(uint32_t pc, uint8_t *vuData, uint32_t dataSize, uint32_t top, PS2Memory *memory, GS &gs);
+struct Vu1NativeProgram
+{
+    uint64_t hash;
+    Vu1NativeEntry run;
+    const char *name;
+};
+void registerVu1NativeProgram(const Vu1NativeProgram &program);
 // TS_VU1_TRACE=<file>: both engines log every pair start (pc, cycle, state
 // hash) so the first divergence can be found by diffing the two logs.
 void traceVu1Pair(const VU1State &state, uint32_t pc, uint64_t cycle);

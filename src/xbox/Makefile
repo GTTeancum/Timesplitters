@@ -79,7 +79,7 @@ IOP_SRCS := $(addprefix $(IOP)/src/, \
     emulator/imports/iop_timrman.cpp emulator/imports/iop_vblank.cpp \
     modules/dbcman.cpp modules/libsd.cpp modules/mcserv.cpp)
 
-GAME_SRCS := $(GAME)/ts_overrides.cpp
+GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp
 XBOX_SRCS := $(wildcard $(XBOX)/*.cpp)
 # register_functions.cpp is replaced by a compact table (see the rule below).
 GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
@@ -97,7 +97,7 @@ VU_OBJS := $(call objof,$(wildcard $(GENVU)/*.cpp))
 $(VU_OBJS): GEN_FLAGS := $(COMMON) -O2
 
 # The software renderer and the Xbox presenter are the hottest code: -O2.
-FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj,$(OTHER_OBJS))
+FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj,$(OTHER_OBJS))
 $(FAST_OBJS): RUNTIME_FLAGS := $(COMMON) -O2 $(SDL_FLAGS) -DPS2_RUNTIME_LOGS=1 -DPS2X_POINT_SAMPLING=1
 
 # lld is a native Windows program: paths in its response file must be Windows paths.

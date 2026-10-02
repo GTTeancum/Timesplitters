@@ -259,10 +259,12 @@ private:
     bool m_pendingHaltD = false;
     bool m_pendingHaltT = false;
     Vu1CompiledEntry m_compiledProgram = nullptr;
+    bool (*m_nativeProgram)(uint32_t, uint8_t *, uint32_t, uint32_t, PS2Memory *, GS &) = nullptr;
     uint64_t m_compiledLookupGeneration = 0;
     bool m_compiledLookupValid = false;
 
     Vu1CompiledEntry lookupCompiledProgram(const uint8_t *vuCode, uint32_t codeSize, const PS2Memory *memory);
+    bool (*lookupNativeProgram(const uint8_t *vuCode, uint32_t codeSize, const PS2Memory *memory))(uint32_t, uint8_t *, uint32_t, uint32_t, PS2Memory *, GS &);
 
     void run(uint8_t *vuCode, uint32_t codeSize,
              uint8_t *vuData, uint32_t dataSize,

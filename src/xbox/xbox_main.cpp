@@ -91,7 +91,9 @@ namespace
                   << g_nv2aTextureStats.residentBytes / 1024u << "K z=" << std::hex << g_nv2aTextureStats.zpsm
                   << "/" << g_nv2aTextureStats.test << "/" << g_nv2aTextureStats.zmask << std::dec << " "
                   << g_nv2aTextureStats.zmin << ".." << g_nv2aTextureStats.zmax << " frame " << g_nv2aTextureStats.frameTextures
-                  << "/" << g_nv2aTextureStats.frameTextureBytes / 1024u << "K fills " << g_nv2aTextureStats.frameFills << " miss new/ver/clut/evict "
+                  << "/" << g_nv2aTextureStats.frameTextureBytes / 1024u << "K fills " << g_nv2aTextureStats.frameFills << " wb tex/draw/clut/xfer/cpu "
+                  << g_nv2aTextureStats.wbTexture << "/" << g_nv2aTextureStats.wbDraw << "/" << g_nv2aTextureStats.wbClut << "/"
+                  << g_nv2aTextureStats.wbTransfer << "/" << g_nv2aTextureStats.wbCpuWrite << " miss new/ver/clut/evict "
                   << g_nv2aTextureStats.missNew << "/" << g_nv2aTextureStats.missVersion << "/"
                   << g_nv2aTextureStats.missClut << "/" << g_nv2aTextureStats.missEvicted << std::endl
                   << "  vu runs=" << g_vu1Stats.runs << " jit=" << g_vu1Stats.jitEntries << " handoff=" << g_vu1Stats.handoffs

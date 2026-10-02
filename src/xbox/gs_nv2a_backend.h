@@ -29,6 +29,10 @@ struct GSNv2aTextureStats
     // but a different CLUT/TEXA, or evicted/one-frame last frame.
     uint32_t missNew = 0, missVersion = 0, missClut = 0, missEvicted = 0;
     uint32_t frames = 0; // GPU frames finished (what the screen actually shows)
+    // Screen read-backs (GPU pixels copied to local memory) by cause: a
+    // texture read of the screen, an off-screen draw reading it, a CLUT
+    // load from it, a transfer reading it, a CPU write into it.
+    uint32_t wbTexture = 0, wbDraw = 0, wbClut = 0, wbTransfer = 0, wbCpuWrite = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 

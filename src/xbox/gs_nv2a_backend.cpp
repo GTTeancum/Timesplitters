@@ -237,6 +237,15 @@ struct GSNv2aBackend::Impl
         return frameRangeRows(framePsm, frameFbp, frameFbw, frameHeight);
     }
 
+    // Rows the GPU has drawn this frame. Reads of local memory below them
+    // (the game keeps its CLUTs under the visible 448 rows, inside the
+    // 512-row frame region) need no read-back of the GPU's pixels.
+    uint32_t gpuRows = 0;
+    GSCpuBackend::VramRange gpuRange() const
+    {
+        return frameRangeRows(framePsm, frameFbp, frameFbw, std::max<uint32_t>(gpuRows, 1u));
+    }
+
     bool isScreenTarget(const GSDrawState &state) const
     {
         const GSFrameReg &f = state.context.frame;
@@ -288,6 +297,8 @@ struct GSNv2aBackend::Impl
     // GPU has finished the frame (finishFrame), so no stall here.
     void retireTexture(std::list<Texture>::iterator it)
     {
+        if (lastTexture == &*it)
+            lastTexture = nullptr;
         if (batchCount && batchKey.texture == &*it)
             flushBatch();
         if (applied.texture == &*it)
@@ -304,6 +315,7 @@ struct GSNv2aBackend::Impl
 
     void freeRetired()
     {
+        lastTexture = nullptr; // may be a one-frame texture
         if (batchCount)
             flushBatch(); // a one-frame texture may be the batch's
         for (Texture &t : retired)
@@ -325,12 +337,43 @@ struct GSNv2aBackend::Impl
         full.context.clamp = 0; // the decode covers the whole texture
         const GSCpuBackend::VramRange range = GSCpuBackend::TextureRange(full);
         // Render-to-texture from the screen: local memory needs the GPU's pixels.
-        if (screenGpuNewer && overlaps(range, screenRange()))
+        if (screenGpuNewer && overlaps(range, gpuRange()))
+        {
+            ++g_nv2aTextureStats.wbTexture;
             writeBackScreen();
+        }
         const bool indexed = isIndexed(tex.psm);
         const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
         const uint64_t hash = indexed ? clutHash : 0u;
         const uint64_t versions = versionSum(range);
+        // Consecutive draws mostly share a texture: remember the last hit.
+        const uint64_t tex0Bits = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                                  (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+        if (lastTexture && lastTex0 == tex0Bits && lastTexa == texa && lastClut == hash && lastVersions == versions &&
+            lastTexture->width == w && lastTexture->height == h)
+        {
+            lastTexture->lastUse = ++textureTick;
+            noteUse(*lastTexture);
+            return lastTexture;
+        }
+        Texture *found = lookupTexture(state, w, h, texa, hash, versions, range);
+        lastTexture = found;
+        lastTex0 = tex0Bits;
+        lastTexa = texa;
+        lastClut = hash;
+        lastVersions = versions;
+        return found;
+    }
+
+    Texture *lastTexture = nullptr;
+    uint64_t lastTex0 = 0, lastClut = 0, lastVersions = 0;
+    uint32_t lastTexa = 0;
+
+    Texture *lookupTexture(const GSDrawState &state, uint32_t w, uint32_t h, uint32_t texa, uint64_t hash,
+                           uint64_t versions, const GSCpuBackend::VramRange &range)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        const bool indexed = isIndexed(tex.psm);
         auto matches = [&](const Texture &t) {
             return t.tbp0 == tex.tbp0 && t.tbw == tex.tbw && t.psm == tex.psm && t.width == w && t.height == h &&
                    t.texa == texa && t.clutHash == hash &&
@@ -758,6 +801,7 @@ struct GSNv2aBackend::Impl
         frameFbw = state.context.frame.fbw;
         framePsm = state.context.frame.psm;
         frameHeight = std::clamp<uint32_t>(uint32_t(state.context.scissor.y1) + 1u, 1u, 512u);
+        gpuRows = 0;
         pb_reset();
         pushHead = pb_begin();
         pb_end(pushHead);
@@ -1127,6 +1171,9 @@ struct GSNv2aBackend::Impl
         auto emit = [&](GpuVertex &o, const GSVertex &v, const GSVertex &colorSource, float x, float y) {
             o.x = (x - ofx) * sx;
             o.y = (y - ofy) * sy;
+            const float row = y - ofy + 1.0f;
+            if (row > float(gpuRows))
+                gpuRows = row >= float(frameHeight) ? frameHeight : uint32_t(row);
             o.z = depth24(v.z, zpsm);
             o.w = 1.0f;
             o.color = d3dColor(colorSource.r, colorSource.g, colorSource.b, colorSource.a);
@@ -1206,11 +1253,12 @@ struct GSNv2aBackend::Impl
         const uint32_t pitch = pb_back_buffer_pitch();
         const bool fb16 = XVideoGetMode().bpp == 16;
         const uint32_t width = frameFbw * 64u, height = frameHeight;
+        const uint32_t rows = std::min<uint32_t>(std::max<uint32_t>(gpuRows, 1u), height);
         const bool sixteen = framePsm == GS_PSM_CT16 || framePsm == GS_PSM_CT16S;
         // One row at a time: a whole frame's worth (up to 1.1 MB) is more
         // than the Xbox can be sure to spare.
         std::vector<uint32_t> values(width);
-        for (uint32_t y = 0; y < height; ++y)
+        for (uint32_t y = 0; y < rows; ++y)
         {
             const uint8_t *row = fb + size_t(y * kScreenHeight / height) * pitch;
             for (uint32_t x = 0; x < width; ++x)
@@ -1294,8 +1342,11 @@ struct GSNv2aBackend::Impl
         bumpPages(range);
         if (overlaps(range, screenRange()))
         {
-            if (screenGpuNewer)
+            if (screenGpuNewer && overlaps(range, gpuRange()))
+            {
+                ++g_nv2aTextureStats.wbCpuWrite;
                 writeBackScreen(); // keep the GPU's pixels the CPU did not touch
+            }
             screenVramNewer = true;
         }
     }
@@ -1362,16 +1413,22 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
     }
     // Off-screen target: the CPU renderer draws it into local memory.
     const GSCpuBackend::VramRange textureRange = GSCpuBackend::TextureRange(batch.state);
-    if (batch.state.prim.tme && m->screenGpuNewer && overlaps(textureRange, m->screenRange()))
+    if (batch.state.prim.tme && m->screenGpuNewer && overlaps(textureRange, m->gpuRange()))
+    {
+        ++g_nv2aTextureStats.wbDraw;
         m->writeBackScreen();
+    }
     m->cpu.Submit(batch);
     m->noteCpuWrite(GSCpuBackend::FrameRange(batch.state));
 }
 
 void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
 {
-    if (m->screenGpuNewer && overlaps(GSCpuBackend::ClutRange(tex0), m->screenRange()))
+    if (m->screenGpuNewer && overlaps(GSCpuBackend::ClutRange(tex0), m->gpuRange()))
+    {
+        ++g_nv2aTextureStats.wbClut;
         m->writeBackScreen();
+    }
     m->cpu.LoadClut(tex0, texclut);
     m->refreshClutHash();
 }
@@ -1385,8 +1442,11 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
         // Reads local memory: the GPU's screen pixels must be there.
         const auto source = frameRangeRows(buf.spsm, buf.sbp / 32u, buf.sbw,
                                            uint32_t(command.trxpos.ssay) + command.trxreg.rrh + 1u);
-        if (m->screenGpuNewer && overlaps(source, m->screenRange()))
+        if (m->screenGpuNewer && overlaps(source, m->gpuRange()))
+        {
+            ++g_nv2aTextureStats.wbTransfer;
             m->writeBackScreen();
+        }
     }
     m->cpu.BeginTransfer(command);
     if (command.direction == 2u)

@@ -20,6 +20,9 @@ SRC_BC = ["Vu1Jit::kSrcBcX", "Vu1Jit::kSrcBcY", "Vu1Jit::kSrcBcZ", "Vu1Jit::kSrc
 
 
 TRACE = False
+# --lean (the Xbox build): drops interlock ready-cycle stores and pendingMax
+# updates that nothing can observe, see eliminate_unobservable_bookkeeping.
+LEAN = False
 
 
 class Unsupported(Exception):
@@ -632,6 +635,9 @@ def generate(code, name, entries):
             handoff_count += 1
 
     body, dead = eliminate_dead_ready_stores(body)
+    lean_stores = lean_pmax = 0
+    if LEAN:
+        body, lean_stores, lean_pmax = eliminate_unobservable_bookkeeping(body)
 
     dispatch = sorted(labels)
     out = []
@@ -675,11 +681,78 @@ def generate(code, name, entries):
     out.append(f"    Register() {{ registerVu1CompiledProgram({{0x{fnv(code):016x}ull, &run_{name}, \"{name}\"}}); }}")
     out.append("} registration;")
     out.append("}")
-    print(f"pairs={len(pairs)} labels={len(labels)} handoffs={handoff_count} dead_ready_stores={dead}", file=sys.stderr)
+    print(f"pairs={len(pairs)} labels={len(labels)} handoffs={handoff_count} dead_ready_stores={dead}"
+          + (f" lean: stores={lean_stores} pmax={lean_pmax}" if LEAN else ""), file=sys.stderr)
     return "\n".join(out) + "\n"
 
 
-READY_STORE = re.compile(r"^\s+((?:vfReady\[\d+\]\[\d\])|(?:viReady\[\d+\])|(?:accReady\[\d\])) = cyc \+ \d+u;$")
+READY_STORE = re.compile(r"^\s+((?:vfReady\[\d+\]\[\d\])|(?:viReady\[\d+\])|(?:accReady\[\d\])) = cyc \+ (\d+)u;$")
+PMAX_UPDATE = re.compile(r"^\s+if \(cyc \+ (\d+)u > pmax\) pmax = cyc \+ (\d+)u;$")
+
+
+def eliminate_unobservable_bookkeeping(body):
+    """Cycle-exact removal of bookkeeping nothing can observe.
+
+    A ready-cycle store (key = cyc + L) matters only to a stall check that
+    reads the key while the value is still in the future. Within a
+    straight-line stretch (up to the next label, jump, handoff, kick wait or
+    program end) a check that would observe it is emitted explicitly; past
+    the stretch's end at least `dist` pairs have gone by (every pair takes
+    one cycle or more), so once dist >= the largest latency any store of
+    that kind can have, the value - and any staler value the store would
+    have replaced - lies in the past, and every later max(cyc, key) is cyc.
+    Hand-offs and the interpreter's pending-pipeline test see the same.
+
+    A pendingMax update (cyc + L) is dominated by a later one in the same
+    stretch at distance d with latency L' when L' + d >= L; the local pmax
+    only reaches the runtime at the stretch's end (VU_SYNC)."""
+    max_latency = {}
+    for line in body:
+        store = READY_STORE.match(line)
+        if store:
+            kind = store.group(1).split("[")[0]
+            max_latency[kind] = max(max_latency.get(kind, 0), int(store.group(2)))
+    keep = [True] * len(body)
+    later, read_since, dist, pmax_best = set(), set(), 0, None
+    dropped_stores = dropped_pmax = 0
+    for index in range(len(body) - 1, -1, -1):
+        line = body[index]
+        if line.startswith("L_") or any(b in line for b in BARRIER):
+            later.clear()
+            read_since.clear()
+            dist = 0
+            pmax_best = None
+            continue
+        if line.strip() == "++cyc;":
+            dist += 1
+            continue
+        store = READY_STORE.match(line)
+        if store:
+            key, latency = store.group(1), int(store.group(2))
+            kind = key.split("[")[0]
+            if key in later:
+                keep[index] = False
+                dropped_stores += 1
+            elif key not in read_since and dist >= max_latency[kind]:
+                keep[index] = False
+                dropped_stores += 1
+            else:
+                later.add(key)
+            continue
+        update = PMAX_UPDATE.match(line)
+        if update:
+            latency = int(update.group(1))
+            if pmax_best is not None and pmax_best >= latency - dist:
+                keep[index] = False
+                dropped_pmax += 1
+            else:
+                pmax_best = latency - dist if pmax_best is None else max(pmax_best, latency - dist)
+            continue
+        for key in READY_READ.findall(line):
+            later.discard(key)
+            read_since.add(key)
+    return [line for line, k in zip(body, keep) if k], dropped_stores, dropped_pmax
+
 READY_READ = re.compile(r"t = ((?:vfReady\[\d+\]\[\d\])|(?:viReady\[\d+\])|(?:accReady\[\d\]));")
 BARRIER = ("return", "goto", "J.finish", "dispatch", "kickWait")
 
@@ -718,10 +791,13 @@ def fnv(data):
 
 
 def main():
-    global TRACE
+    global TRACE, LEAN
     if "--trace" in sys.argv:
         sys.argv.remove("--trace")
         TRACE = True
+    if "--lean" in sys.argv:
+        sys.argv.remove("--lean")
+        LEAN = True
     code = open(sys.argv[1], "rb").read()
     name = sys.argv[2]
     entries = [int(x, 0) for x in sys.argv[4:]]

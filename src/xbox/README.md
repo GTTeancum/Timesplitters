@@ -59,5 +59,10 @@ world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle c
 - `tools/nxdk-cxx-hosted`: nxdk's compiler wrapper without
   `-ffreestanding -fno-builtin`, so small copies are moves, not calls.
 - `tools/compact_function_table.py`: a compact function table (saves 0.8 MB).
+- `project/generated-vu-xbox/`: the VU1 microprogram recompiled with
+  `vu1_recomp.py --lean` (drops timing bookkeeping nothing can observe;
+  checked bit-exact against the interpreter with `timesplitters_vu_replay`
+  and `vu1_diff.py` over the 4,000-input capture). FMAC arithmetic on SSE1
+  (`PS2X_VU1_SSE1`), object built at -O2.
 - `tools/patch_generated.py`: patched copies of game functions (a busy wait
   in `soundLoad`).

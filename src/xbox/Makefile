@@ -14,7 +14,11 @@ RUNTIME   := $(ROOT)/source/PS2Recomp/ps2xRuntime
 IOP       := $(ROOT)/source/PS2Recomp/ps2xIOP
 GAME      := $(ROOT)/project/game
 GENERATED := $(ROOT)/project/generated
-GENVU     := $(ROOT)/project/generated-vu
+# The Xbox's own VU1 microprogram: project/tools/vu1/vu1_recomp.py --lean
+# (same inputs as project/generated-vu; drops timing bookkeeping nothing
+# can observe). Checked bit-exact against the interpreter with
+# timesplitters_vu_replay + vu1_diff.py before each regeneration.
+GENVU     := $(ROOT)/project/generated-vu-xbox
 XBOX      := $(CURDIR)
 
 CXX  := $(XBOX)/tools/nxdk-cxx-hosted

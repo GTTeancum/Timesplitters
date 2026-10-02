@@ -79,7 +79,7 @@ def emit_upper(upper, out, push_flags=True):
         kind, src, to_acc, reads_q = fm
         if reads_q:
             out.append("J.readQ();")
-        push = "" if push_flags else ", false"
+        push = "" if push_flags else (", false, false" if LEAN else ", false")
         out.append(f"J.fmac<Vu1Jit::{kind}, {src}, {dest}{push}>(ut, {fs}, {ft});")
         if to_acc:
             for c in lanes_of(dest):
@@ -665,6 +665,33 @@ def generate(code, name, entries):
                 lower_code = []
                 emit_lower(lower, pc, lower_code, suppressed)
                 lines += lower_code
+            if LEAN:
+                # Results go straight into the destination register when the
+                # pair's other instruction neither reads nor writes it: the
+                # helpers load every operand before they store.
+                if upper_result and upper_result[1] == 0xF and upper_result[0] not in lu.vf_read \
+                        and upper_result[0] != lw_reg and upper_code \
+                        and re.match(r"J\.(fmac|minmax)<.*>\(ut, ", upper_code[-1]):
+                    fd_direct = upper_result[0]
+                    idx = len(lines) - 1 - lines[::-1].index(upper_code[-1])
+                    assert "(ut, " in lines[idx]
+                    lines[idx] = lines[idx].replace("(ut, ", f"(s.vf[{fd_direct}], ", 1)
+                    upper_result = None
+                acc_copies = [f"s.acc[{c}] = ut[{c}];" for c in range(4)]
+                for i in range(len(lines) - 4):
+                    if lines[i].startswith("J.fmac<") and "(ut, " in lines[i] and lines[i + 1:i + 5] == acc_copies:
+                        lines[i] = lines[i].replace("(ut, ", "(s.acc, ", 1)
+                        del lines[i + 1:i + 5]
+                        break
+                for i in range(len(lines) - 4):
+                    m = re.match(r"J\.loadQword\(lt, (.*), 15\);$", lines[i])
+                    if m and lines[i + 1].startswith("s.vf["):
+                        reg = int(lines[i + 1][len("s.vf["):].split("]")[0])
+                        copies = [f"s.vf[{reg}][{c}] = lt[{c}];" for c in range(4)]
+                        if lines[i + 1:i + 5] == copies and reg not in uu.vf_read and reg != uw_reg:
+                            lines[i] = f"J.loadQword(s.vf[{reg}], {m.group(1)}, 15);"
+                            del lines[i + 1:i + 5]
+                        break
             if upper_result:
                 reg, mask = upper_result
                 if reg:
@@ -706,8 +733,11 @@ def generate(code, name, entries):
             # Helpers that queue timed results read J.cyc.
             needs = ("J.fmac<", "J.clip", "J.fsset", "J.fcset", "J.commitNow", "J.readQ", "J.div", "J.sqrtQ",
                      "J.rsqrt", "J.readP", "J.queueP", "J.store", "J.kickStart")
-            if any(n in l for l in lines for n in needs):
-                pos = next(i for i, l in enumerate(lines) if any(n in l for n in needs))
+            def needs_cyc(l):
+                # A flag-free FMAC (", false") never reads the cycle.
+                return any(n in l for n in needs) and not (LEAN and l.startswith("J.fmac<") and ", false" in l)
+            if any(needs_cyc(l) for l in lines):
+                pos = next(i for i, l in enumerate(lines) if needs_cyc(l))
                 lines.insert(pos, "J.cyc = cyc;")
             # Control flow after this pair.
             if prev_branch:

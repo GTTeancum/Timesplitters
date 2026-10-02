@@ -232,13 +232,15 @@ struct Vu1Jit
     // PushFlags == false: the recompiler proved no instruction can observe
     // this operation's MAC/status entry; only its sticky status bits are kept
     // (stickyAccum, merged at finish/handoff).
-    template <int Kind, int Src, int Dest, bool PushFlags = true>
+    // Sticky == false (with PushFlags == false): not even the sticky status
+    // bits are kept, for programs that never read the status register.
+    template <int Kind, int Src, int Dest, bool PushFlags = true, bool Sticky = true>
     VU1_JIT_INLINE void fmac(float *out, uint8_t fs, uint8_t ft)
     {
 #if VU1_JIT_SIMD
         fmacSimd<Kind, Src, Dest, PushFlags>(out, fs, ft);
 #elif defined(PS2X_VU1_SSE1)
-        fmacSse1<Kind, Src, Dest, PushFlags>(out, fs, ft);
+        fmacSse1<Kind, Src, Dest, PushFlags, Sticky>(out, fs, ft);
 #else
         fmacScalar<Kind, Src, Dest, PushFlags>(out, fs, ft);
 #endif
@@ -374,6 +376,17 @@ struct Vu1Jit
     {
         int zero, negative, under, over;
     };
+    // Representation fix-up alone (no flag masks).
+    static VU1_JIT_INLINE void fixLanes(__m128 &r)
+    {
+        const __m128 magnitude = _mm_and_ps(r, sseConst(0x7FFFFFFFu));
+        const __m128 small = _mm_cmplt_ps(magnitude, sseConst(0x00800000u));
+        const __m128 over = _mm_cmpeq_ps(magnitude, sseConst(0x7F800000u));
+        const __m128 sign = _mm_and_ps(r, sseConst(0x80000000u));
+        r = _mm_or_ps(_mm_andnot_ps(small, r), _mm_and_ps(small, sign));
+        r = _mm_or_ps(_mm_andnot_ps(over, r), _mm_and_ps(over, _mm_or_ps(sign, sseConst(0x7F7FFFFFu))));
+    }
+
     static VU1_JIT_INLINE SseFlags fixResult(__m128 &r)
     {
         const __m128 magnitude = _mm_and_ps(r, sseConst(0x7FFFFFFFu));
@@ -396,10 +409,11 @@ struct Vu1Jit
         return ((dest & 8) >> 3) | ((dest & 4) >> 1) | ((dest & 2) << 1) | ((dest & 1) << 3);
     }
 
-    template <int Kind, int Src, int Dest, bool PushFlags = true>
+    template <int Kind, int Src, int Dest, bool PushFlags = true, bool Sticky = true>
     VU1_JIT_INLINE void fmacSse1(float *out, uint8_t fs, uint8_t ft)
     {
         constexpr int components = laneBits(Dest);
+        constexpr bool anyFlags = PushFlags || Sticky;
         __m128 a = normOp4s(_mm_loadu_ps(s.vf[fs]));
         __m128 b;
         if constexpr (Kind == kOpmsub || Kind == kOpmula)
@@ -426,13 +440,20 @@ struct Vu1Jit
                 result = _mm_add_ps(acc, product);
             else
                 result = _mm_sub_ps(acc, product);
-            const SseFlags p = fixResult(product); // product sticky over the written lanes
-            extraSticky = ((p.zero & components) ? 1u : 0u) | ((p.negative & components) ? 2u : 0u) |
-                          ((p.under & components) ? 4u : 0u) | ((p.over & components) ? 8u : 0u);
+            if constexpr (anyFlags)
+            {
+                const SseFlags p = fixResult(product); // product sticky over the written lanes
+                extraSticky = ((p.zero & components) ? 1u : 0u) | ((p.negative & components) ? 2u : 0u) |
+                              ((p.under & components) ? 4u : 0u) | ((p.over & components) ? 8u : 0u);
+            }
         }
         if constexpr (Kind == kOpmsub || Kind == kOpmula)
             result = _mm_and_ps(result, _mm_castsi128_ps(_mm_set_epi32(0, -1, -1, -1))); // w is +0
-        const SseFlags m = fixResult(result);
+        SseFlags m{};
+        if constexpr (anyFlags)
+            m = fixResult(result);
+        else
+            fixLanes(result);
         if constexpr (Dest == 0xF)
             _mm_storeu_ps(out, result);
         else
@@ -444,7 +465,7 @@ struct Vu1Jit
             if constexpr ((Dest & 2) != 0) out[2] = tmp[2];
             if constexpr ((Dest & 1) != 0) out[3] = tmp[3];
         }
-        if constexpr (Dest != 0)
+        if constexpr (Dest != 0 && anyFlags)
         {
             if constexpr (PushFlags)
             {

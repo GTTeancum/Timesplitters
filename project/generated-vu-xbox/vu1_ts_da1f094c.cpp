@@ -307,12 +307,8 @@ L_0000:
           t = vfReady[31][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 31, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[31], 31, 0);
         wvi(2, static_cast<int32_t>(s.top & 0x3FFu));
-        s.vf[31][0] = ut[0];
-        s.vf[31][1] = ut[1];
-        s.vf[31][2] = ut[2];
-        s.vf[31][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -333,11 +329,7 @@ L_0000:
     // 0018  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -345,11 +337,7 @@ L_0000:
     // 0020  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -357,11 +345,7 @@ L_0000:
     // 0028  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -369,11 +353,7 @@ L_0000:
     // 0030  nop                                    lqi.xyzw vf8, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[8][0] = lt[0];
-        s.vf[8][1] = lt[1];
-        s.vf[8][2] = lt[2];
-        s.vf[8][3] = lt[3];
+        J.loadQword(s.vf[8], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -429,11 +409,7 @@ L_0000:
     // 0068  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -441,11 +417,7 @@ L_0000:
     // 0070  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -469,11 +441,7 @@ L_0000:
     // 0088  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -528,61 +496,37 @@ L_0000:
     }
     // 00c0  nop                                    lq.xyzw vf5, 20(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (20), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], s.vi[0] + (20), 15);
         bkReg = 0;
         ++cyc;
     }
     // 00c8  nop                                    lq.xyzw vf6, 21(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (21), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], s.vi[0] + (21), 15);
         bkReg = 0;
         ++cyc;
     }
     // 00d0  nop                                    lq.xyzw vf1, 8(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (8), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 00d8  nop                                    lq.xyzw vf2, 9(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (9), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
     // 00e0  nop                                    lq.xyzw vf3, 10(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (10), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (10), 15);
         bkReg = 0;
         ++cyc;
     }
     // 00e8  nop                                    lq.xyzw vf4, 11(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (11), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (11), 15);
         vfReady[4][0] = cyc + 4u;
         vfReady[4][1] = cyc + 4u;
         vfReady[4][2] = cyc + 4u;
@@ -617,11 +561,7 @@ L_0100:
         { uint64_t r = cyc, t;
           t = viReady[5]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[5] + (0), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[5] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -680,21 +620,13 @@ L_0100:
         { uint64_t r = cyc, t;
           t = viReady[6]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0140  nop                                    lq.xyzw vf13, 64(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (64), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (64), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -729,11 +661,7 @@ L_0100:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.acc, 1, 12);
         const int32_t oldVi = s.vi[9];
         wvi(9, s.vi[0] - 2);
         viReady[9] = cyc + 1u;
@@ -751,11 +679,7 @@ L_0100:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(s.acc, 2, 12);
         const int32_t oldVi = s.vi[10];
         wvi(10, s.vi[0] - 2);
         viReady[10] = cyc + 1u;
@@ -773,11 +697,7 @@ L_0100:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(s.acc, 3, 12);
         std::memcpy(lt, s.vf[9], 16);
         s.vf[8][0] = lt[0];
         s.vf[8][1] = lt[1];
@@ -814,8 +734,7 @@ L_0170:
             t = vfReady[4][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 4, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(ut, 4, 0);
         std::memcpy(lt, s.vf[10], 16);
         s.vf[9][0] = lt[0];
         s.vf[9][1] = lt[1];
@@ -854,12 +773,7 @@ L_0170:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         const int32_t oldVi = s.vi[8];
         wvi(8, s.vi[9] + s.vi[10]);
         bkReg = 8; bkVal = oldVi;
@@ -891,13 +805,9 @@ L_0170:
             t = vfReady[5][3]; if (t > r) r = t;
           }
           cyc = r; }
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false, false>(s.vf[7], 10, 5);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
         J.div(s.vf[0][3], s.vf[10][3]);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -908,11 +818,7 @@ L_0170:
           cyc = r; }
         J.cyc = cyc;
         J.clip(9, 9);
-        J.loadQword(lt, s.vi[6] + (128), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.loadQword(s.vf[14], s.vi[6] + (128), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -920,11 +826,7 @@ L_0170:
     {
         J.cyc = cyc;
         J.clip(10, 10);
-        J.loadQword(lt, s.vi[6] + (1), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (1), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -962,13 +864,9 @@ L_0170:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15, false>(ut, 7, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15, false, false>(s.vf[7], 7, 0);
         const int32_t oldVi = s.vi[10];
         wvi(10, s.vi[0] + s.vi[1]);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 10; bkVal = oldVi;
         ++cyc;
     }
@@ -976,13 +874,9 @@ L_0170:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15>(ut, 14, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15>(s.vf[29], 14, 0);
         const int32_t oldVi = s.vi[6];
         wvi(6, s.vi[6] + 1);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
         bkReg = 6; bkVal = oldVi;
         ++cyc;
     }
@@ -995,11 +889,7 @@ L_0170:
     }
     // 01e0  nop                                    lq.xyzw vf13, 64(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (64), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (64), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -1059,11 +949,7 @@ L_01f8:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.acc, 1, 12);
         std::memcpy(lt, s.vf[9], 16);
         s.vf[8][0] = lt[0];
         s.vf[8][1] = lt[1];
@@ -1090,11 +976,7 @@ L_01f8:
           cyc = r; }
         br = static_cast<int16_t>(rb(11)) >= 0;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(s.acc, 2, 12);
         bkReg = 0;
         ++cyc;
     }
@@ -1117,11 +999,7 @@ L_01f8:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(s.acc, 3, 12);
         J.storeQword(s.vi[4] + (-1), s.vf[7], 15);
         bkReg = 0;
         if (cyc + 4u > pmax) pmax = cyc + 4u;
@@ -1485,11 +1363,7 @@ L_02f0:
     }
     // 0340  nop                                    lq.xyzw vf12, 0(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         vfReady[12][0] = cyc + 4u;
         vfReady[12][1] = cyc + 4u;
         vfReady[12][2] = cyc + 4u;
@@ -1499,11 +1373,7 @@ L_02f0:
     }
     // 0348  nop                                    lq.xyzw vf13, 64(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (64), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (64), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -1513,11 +1383,7 @@ L_02f0:
     }
     // 0350  nop                                    lq.xyzw vf14, 128(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (128), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.loadQword(s.vf[14], s.vi[6] + (128), 15);
         vfReady[14][0] = cyc + 4u;
         vfReady[14][1] = cyc + 4u;
         vfReady[14][2] = cyc + 4u;
@@ -1621,37 +1487,21 @@ L_0378:
         { uint64_t r = cyc, t;
           t = viReady[4]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[4] + (-8), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[4] + (-8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 03a0  nop                                    lq.xyzw vf19, -5(vi4)
     {
-        J.loadQword(lt, s.vi[4] + (-5), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[4] + (-5), 15);
         bkReg = 0;
         ++cyc;
     }
     // 03a8  sub.xyzw vf17, vf15, vf16              lq.xyzw vf20, -2(vi4)
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        J.loadQword(lt, s.vi[4] + (-2), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
+        J.loadQword(s.vf[20], s.vi[4] + (-2), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -1671,11 +1521,7 @@ L_0378:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][3])));
-        J.loadQword(lt, s.vi[6] + (125), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[6] + (125), 15);
         s.vf[18][0] = ut[0];
         s.vf[18][1] = ut[1];
         s.vf[18][2] = ut[2];
@@ -1689,11 +1535,7 @@ L_0378:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][3])));
-        J.loadQword(lt, s.vi[6] + (126), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (126), 15);
         s.vf[19][0] = ut[0];
         s.vf[19][1] = ut[1];
         s.vf[19][2] = ut[2];
@@ -1726,11 +1568,7 @@ L_0378:
     {
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 14, 15);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 14, 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -1740,11 +1578,7 @@ L_0378:
     }
     // 03d8  nop                                    lq.xyzw vf13, 127(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (127), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (127), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -1959,11 +1793,7 @@ L_0430:
           cyc = r; }
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -2534,11 +2364,7 @@ L_0510:
     // 05a8  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -2550,11 +2376,7 @@ L_0510:
     // 05b0  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -2566,11 +2388,7 @@ L_0510:
     // 05b8  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -2634,11 +2452,7 @@ L_05e0:
     }
     // 05e8  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -2652,21 +2466,13 @@ L_05f0:
     // 05f0  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x05f0u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 05f8  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -2762,11 +2568,7 @@ L_05f0:
     // 0650  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -2778,11 +2580,7 @@ L_05f0:
     // 0658  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -2794,11 +2592,7 @@ L_05f0:
     // 0660  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -2862,11 +2656,7 @@ L_0688:
     }
     // 0690  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -2880,21 +2670,13 @@ L_0698:
     // 0698  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0698u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 06a0  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -2990,11 +2772,7 @@ L_0698:
     // 06f8  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -3006,11 +2784,7 @@ L_0698:
     // 0700  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -3022,11 +2796,7 @@ L_0698:
     // 0708  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -3090,11 +2860,7 @@ L_0730:
     }
     // 0738  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -3108,21 +2874,13 @@ L_0740:
     // 0740  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0740u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0748  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -3218,11 +2976,7 @@ L_0740:
     // 07a0  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -3234,11 +2988,7 @@ L_0740:
     // 07a8  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -3250,11 +3000,7 @@ L_0740:
     // 07b0  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -3318,11 +3064,7 @@ L_07d8:
     }
     // 07e0  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -3336,21 +3078,13 @@ L_07e8:
     // 07e8  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x07e8u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 07f0  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -3446,11 +3180,7 @@ L_07e8:
     // 0848  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -3462,11 +3192,7 @@ L_07e8:
     // 0850  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -3478,11 +3204,7 @@ L_07e8:
     // 0858  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -3546,11 +3268,7 @@ L_0880:
     }
     // 0888  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -3564,21 +3282,13 @@ L_0890:
     // 0890  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 104u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x0890u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0898  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -3675,8 +3385,7 @@ L_08e0:
           t = vfReady[31][3]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 18, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[21], 18, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[18][0] = lt[0];
@@ -3684,10 +3393,6 @@ L_08e0:
         s.vf[18][2] = lt[2];
         s.vf[18][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[21][0] = ut[0];
-        s.vf[21][1] = ut[1];
-        s.vf[21][2] = ut[2];
-        s.vf[21][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -3699,8 +3404,7 @@ L_08e0:
           t = vfReady[19][2]; if (t > r) r = t;
           t = vfReady[19][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 19, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[22], 19, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[19][0] = lt[0];
@@ -3708,10 +3412,6 @@ L_08e0:
         s.vf[19][2] = lt[2];
         s.vf[19][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[22][0] = ut[0];
-        s.vf[22][1] = ut[1];
-        s.vf[22][2] = ut[2];
-        s.vf[22][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -3724,7 +3424,7 @@ L_08e0:
           t = vfReady[20][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 20, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[23], 20, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[20][0] = lt[0];
@@ -3732,10 +3432,6 @@ L_08e0:
         s.vf[20][2] = lt[2];
         s.vf[20][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[23][0] = ut[0];
-        s.vf[23][1] = ut[1];
-        s.vf[23][2] = ut[2];
-        s.vf[23][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -4207,11 +3903,7 @@ L_0a40:
           t = vfReady[28][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 21, 28);
-        s.vf[28][0] = ut[0];
-        s.vf[28][1] = ut[1];
-        s.vf[28][2] = ut[2];
-        s.vf[28][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[28], 21, 28);
         vfReady[28][0] = cyc + 4u;
         vfReady[28][1] = cyc + 4u;
         vfReady[28][2] = cyc + 4u;
@@ -4228,11 +3920,7 @@ L_0a40:
           t = vfReady[29][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 18, 29);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[29], 18, 29);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -4324,8 +4012,7 @@ L_0a88:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false>(ut, 28, 29);
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false, false>(ut, 28, 29);
         s.vf[27][0] = ut[0];
         s.vf[27][1] = ut[1];
         s.vf[27][2] = ut[2];
@@ -4351,7 +4038,7 @@ L_0a88:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false>(ut, 0, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false, false>(ut, 0, 0);
         s.vf[27][0] = ut[0];
         bkReg = 0;
         ++cyc;
@@ -4368,12 +4055,7 @@ L_0a88:
           t = vfReady[21][2]; if (t > r) r = t;
           t = vfReady[21][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 18, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[24], 18, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -4393,12 +4075,7 @@ L_0a88:
           t = vfReady[22][2]; if (t > r) r = t;
           t = vfReady[22][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 19, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[25], 19, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -4418,12 +4095,7 @@ L_0a88:
           t = vfReady[23][2]; if (t > r) r = t;
           t = vfReady[23][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 20, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[26], 20, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -4439,12 +4111,7 @@ L_0a88:
           t = vfReady[24][2]; if (t > r) r = t;
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 24, 27);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[24], 24, 27);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -4460,12 +4127,7 @@ L_0a88:
           t = vfReady[25][2]; if (t > r) r = t;
           t = vfReady[25][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 25, 27);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[25], 25, 27);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -4482,11 +4144,7 @@ L_0a88:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 26, 27);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[26], 26, 27);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -4503,11 +4161,7 @@ L_0a88:
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 24, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[24], 24, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -4526,11 +4180,7 @@ L_0a88:
           cyc = r; }
         br = true; jt = (static_cast<uint32_t>(static_cast<uint16_t>(rb(12))) * 8u) & 0x3FFFu;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 25, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[25], 25, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -4547,11 +4197,7 @@ L_0a88:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 26, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[26], 26, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -4600,11 +4246,7 @@ L_0ae8:
           t = vfReady[28][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 18, 28);
-        s.vf[28][0] = ut[0];
-        s.vf[28][1] = ut[1];
-        s.vf[28][2] = ut[2];
-        s.vf[28][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[28], 18, 28);
         vfReady[28][0] = cyc + 4u;
         vfReady[28][1] = cyc + 4u;
         vfReady[28][2] = cyc + 4u;
@@ -4621,11 +4263,7 @@ L_0ae8:
           t = vfReady[29][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 21, 29);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[29], 21, 29);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -4717,8 +4355,7 @@ L_0b30:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false>(ut, 28, 29);
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false, false>(ut, 28, 29);
         s.vf[27][0] = ut[0];
         s.vf[27][1] = ut[1];
         s.vf[27][2] = ut[2];
@@ -4744,7 +4381,7 @@ L_0b30:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false>(ut, 0, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false, false>(ut, 0, 0);
         s.vf[27][0] = ut[0];
         bkReg = 0;
         ++cyc;
@@ -4761,12 +4398,7 @@ L_0b30:
           t = vfReady[21][2]; if (t > r) r = t;
           t = vfReady[21][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 21, 18);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[24], 21, 18);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -4786,12 +4418,7 @@ L_0b30:
           t = vfReady[22][2]; if (t > r) r = t;
           t = vfReady[22][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 22, 19);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[25], 22, 19);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -4811,12 +4438,7 @@ L_0b30:
           t = vfReady[23][2]; if (t > r) r = t;
           t = vfReady[23][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 23, 20);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[26], 23, 20);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -4832,12 +4454,7 @@ L_0b30:
           t = vfReady[24][2]; if (t > r) r = t;
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 24, 27);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[24], 24, 27);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -4853,12 +4470,7 @@ L_0b30:
           t = vfReady[25][2]; if (t > r) r = t;
           t = vfReady[25][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 25, 27);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[25], 25, 27);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -4875,11 +4487,7 @@ L_0b30:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 26, 27);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[26], 26, 27);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -4896,11 +4504,7 @@ L_0b30:
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 24, 18);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[24], 24, 18);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -4919,11 +4523,7 @@ L_0b30:
           cyc = r; }
         br = true; jt = (static_cast<uint32_t>(static_cast<uint16_t>(rb(12))) * 8u) & 0x3FFFu;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 25, 19);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[25], 25, 19);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -4940,11 +4540,7 @@ L_0b30:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 26, 20);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[26], 26, 20);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -4975,11 +4571,7 @@ L_0b90:
     }
     // 0ba0  nop                                    lq.xyzw vf29, 24(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (24), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[0] + (24), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -5036,11 +4628,7 @@ L_0bd0:
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -5048,11 +4636,7 @@ L_0bd0:
     // 0bd8  nop                                    lqi.xyzw vf28, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[28][0] = lt[0];
-        s.vf[28][1] = lt[1];
-        s.vf[28][2] = lt[2];
-        s.vf[28][3] = lt[3];
+        J.loadQword(s.vf[28], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -5060,11 +4644,7 @@ L_0bd0:
     // 0be0  nop                                    lqi.xyzw vf27, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[27][0] = lt[0];
-        s.vf[27][1] = lt[1];
-        s.vf[27][2] = lt[2];
-        s.vf[27][3] = lt[3];
+        J.loadQword(s.vf[27], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -5109,11 +4689,7 @@ L_0bd0:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 29, 0);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[29], 29, 0);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -5125,11 +4701,7 @@ L_0bd0:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 27, 0);
-        s.vf[27][0] = ut[0];
-        s.vf[27][1] = ut[1];
-        s.vf[27][2] = ut[2];
-        s.vf[27][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[27], 27, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -5143,12 +4715,7 @@ L_0bd0:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -5167,11 +4734,7 @@ L_0bd0:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(s.vf[29], 29, 5);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -5276,12 +4839,8 @@ L_0d20:
           t = vfReady[31][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 31, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[31], 31, 0);
         wvi(2, static_cast<int32_t>(s.top & 0x3FFu));
-        s.vf[31][0] = ut[0];
-        s.vf[31][1] = ut[1];
-        s.vf[31][2] = ut[2];
-        s.vf[31][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -5302,11 +4861,7 @@ L_0d20:
     // 0d38  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -5314,11 +4869,7 @@ L_0d20:
     // 0d40  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -5326,11 +4877,7 @@ L_0d20:
     // 0d48  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -5338,11 +4885,7 @@ L_0d20:
     // 0d50  nop                                    lqi.xyzw vf8, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[8][0] = lt[0];
-        s.vf[8][1] = lt[1];
-        s.vf[8][2] = lt[2];
-        s.vf[8][3] = lt[3];
+        J.loadQword(s.vf[8], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -5398,11 +4941,7 @@ L_0d20:
     // 0d88  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -5410,11 +4949,7 @@ L_0d20:
     // 0d90  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -5438,11 +4973,7 @@ L_0d20:
     // 0da8  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -5497,61 +5028,37 @@ L_0d20:
     }
     // 0de0  nop                                    lq.xyzw vf5, 20(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (20), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], s.vi[0] + (20), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0de8  nop                                    lq.xyzw vf6, 21(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (21), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], s.vi[0] + (21), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0df0  nop                                    lq.xyzw vf1, 8(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (8), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0df8  nop                                    lq.xyzw vf2, 9(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (9), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0e00  nop                                    lq.xyzw vf3, 10(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (10), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (10), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0e08  nop                                    lq.xyzw vf4, 11(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (11), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (11), 15);
         vfReady[4][0] = cyc + 4u;
         vfReady[4][1] = cyc + 4u;
         vfReady[4][2] = cyc + 4u;
@@ -5586,11 +5093,7 @@ L_0e20:
         { uint64_t r = cyc, t;
           t = viReady[5]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[5] + (0), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[5] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -5649,21 +5152,13 @@ L_0e20:
         { uint64_t r = cyc, t;
           t = viReady[6]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0e60  nop                                    lq.xyzw vf13, 64(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (64), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (64), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -5696,11 +5191,7 @@ L_0e20:
           t = vfReady[1][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.acc, 1, 12);
         const int32_t oldVi = s.vi[9];
         wvi(9, s.vi[0] - 2);
         viReady[9] = cyc + 1u;
@@ -5716,11 +5207,7 @@ L_0e20:
           t = vfReady[2][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(s.acc, 2, 12);
         const int32_t oldVi = s.vi[10];
         wvi(10, s.vi[0] - 2);
         viReady[10] = cyc + 1u;
@@ -5736,11 +5223,7 @@ L_0e20:
           t = vfReady[3][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(s.acc, 3, 12);
         std::memcpy(lt, s.vf[9], 16);
         s.vf[8][0] = lt[0];
         s.vf[8][1] = lt[1];
@@ -5775,8 +5258,7 @@ L_0e90:
           t = vfReady[4][2]; if (t > r) r = t;
           t = vfReady[4][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 4, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(ut, 4, 0);
         std::memcpy(lt, s.vf[10], 16);
         s.vf[9][0] = lt[0];
         s.vf[9][1] = lt[1];
@@ -5840,13 +5322,9 @@ L_0e90:
             t = vfReady[5][3]; if (t > r) r = t;
           }
           cyc = r; }
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false, false>(s.vf[7], 10, 5);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
         J.div(s.vf[0][3], s.vf[10][3]);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -5857,11 +5335,7 @@ L_0e90:
           cyc = r; }
         J.cyc = cyc;
         J.clip(9, 9);
-        J.loadQword(lt, s.vi[6] + (128), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.loadQword(s.vf[14], s.vi[6] + (128), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -5869,11 +5343,7 @@ L_0e90:
     {
         J.cyc = cyc;
         J.clip(10, 10);
-        J.loadQword(lt, s.vi[6] + (1), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (1), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -5902,54 +5372,32 @@ L_0e90:
           t = vfReady[29][2]; if (t > r) r = t;
           t = vfReady[29][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 29, 0);
-        J.loadQword(lt, s.vi[0] + (4), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[29], 29, 0);
+        J.loadQword(s.vf[1], s.vi[0] + (4), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0ee0  nop                                    lq.xyzw vf2, 5(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (5), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (5), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0ee8  nop                                    lq.xyzw vf3, 6(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (6), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (6), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0ef0  nop                                    lq.xyzw vf4, 7(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (7), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (7), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0ef8  mulax.xyz acc, vf1, vf14x              nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 14, false>(ut, 1, 14);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 14, false, false>(ut, 1, 14);
         s.acc[0] = ut[0];
         s.acc[1] = ut[1];
         s.acc[2] = ut[2];
@@ -5958,8 +5406,7 @@ L_0e90:
     }
     // 0f00  madday.xyz acc, vf2, vf14y             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 14, false>(ut, 2, 14);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 14, false, false>(ut, 2, 14);
         s.acc[0] = ut[0];
         s.acc[1] = ut[1];
         s.acc[2] = ut[2];
@@ -5968,8 +5415,7 @@ L_0e90:
     }
     // 0f08  maddz.xyz vf14, vf3, vf14z             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 14, false>(ut, 3, 14);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 14, false, false>(ut, 3, 14);
         s.vf[14][0] = ut[0];
         s.vf[14][1] = ut[1];
         s.vf[14][2] = ut[2];
@@ -5993,8 +5439,7 @@ L_0e90:
     }
     // 0f28  addx.x vf29, vf14, vf0x                nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 8, false>(ut, 14, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 8, false, false>(ut, 14, 0);
         s.vf[29][0] = ut[0];
         bkReg = 0;
         ++cyc;
@@ -6016,8 +5461,7 @@ L_0e90:
     }
     // 0f48  addz.y vf29, vf29, vf14z               nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcZ, 4, false>(ut, 29, 14);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcZ, 4, false, false>(ut, 29, 14);
         s.vf[29][1] = ut[1];
         bkReg = 0;
         ++cyc;
@@ -6039,8 +5483,7 @@ L_0e90:
     }
     // 0f68  addw.xyz vf29, vf29, vf0w              loi
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcW, 14, false>(ut, 29, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcW, 14, false, false>(ut, 29, 0);
         s.i = Vu1Jit::normOp(asf(static_cast<int32_t>(0x3f000000u)));
         s.vf[29][0] = ut[0];
         s.vf[29][1] = ut[1];
@@ -6055,33 +5498,20 @@ L_0e90:
     }
     // 0f78  nop                                    lq.xyzw vf1, 8(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (8), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0f80  nop                                    lq.xyzw vf2, 9(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (9), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
     // 0f88  muli.xy vf29, vf29, i                  lq.xyzw vf3, 10(vi0)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcI, 12, false>(ut, 29, 0);
-        J.loadQword(lt, s.vi[0] + (10), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcI, 12, false, false>(ut, 29, 0);
+        J.loadQword(s.vf[3], s.vi[0] + (10), 15);
         s.vf[29][0] = ut[0];
         s.vf[29][1] = ut[1];
         bkReg = 0;
@@ -6089,11 +5519,7 @@ L_0e90:
     }
     // 0f90  nop                                    lq.xyzw vf4, 11(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (11), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (11), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -6107,12 +5533,8 @@ L_0e90:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
         J.commitNow();
         wvi(1, (s.clip & 0x2fu) != 0u ? 1 : 0);
         bkReg = 0;
@@ -6122,13 +5544,9 @@ L_0e90:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15, false>(ut, 7, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15, false, false>(s.vf[7], 7, 0);
         const int32_t oldVi = s.vi[10];
         wvi(10, s.vi[0] + s.vi[1]);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 10; bkVal = oldVi;
         ++cyc;
     }
@@ -6136,13 +5554,9 @@ L_0e90:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15>(ut, 29, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15>(s.vf[29], 29, 0);
         const int32_t oldVi = s.vi[6];
         wvi(6, s.vi[6] + 1);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
         bkReg = 6; bkVal = oldVi;
         ++cyc;
     }
@@ -6155,11 +5569,7 @@ L_0e90:
     }
     // 0fb8  nop                                    lq.xyzw vf13, 64(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (64), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (64), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -6217,11 +5627,7 @@ L_0fd0:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.acc, 1, 12);
         std::memcpy(lt, s.vf[9], 16);
         s.vf[8][0] = lt[0];
         s.vf[8][1] = lt[1];
@@ -6248,11 +5654,7 @@ L_0fd0:
           cyc = r; }
         br = static_cast<int16_t>(rb(11)) >= 0;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(s.acc, 2, 12);
         bkReg = 0;
         ++cyc;
     }
@@ -6273,11 +5675,7 @@ L_0fd0:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(s.acc, 3, 12);
         J.storeQword(s.vi[4] + (-1), s.vf[7], 15);
         bkReg = 0;
         if (cyc + 4u > pmax) pmax = cyc + 4u;
@@ -6641,11 +6039,7 @@ L_10c8:
     }
     // 1118  nop                                    lq.xyzw vf12, 0(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         vfReady[12][0] = cyc + 4u;
         vfReady[12][1] = cyc + 4u;
         vfReady[12][2] = cyc + 4u;
@@ -6655,11 +6049,7 @@ L_10c8:
     }
     // 1120  nop                                    lq.xyzw vf13, 64(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (64), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (64), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -6669,11 +6059,7 @@ L_10c8:
     }
     // 1128  nop                                    lq.xyzw vf14, 128(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (128), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.loadQword(s.vf[14], s.vi[6] + (128), 15);
         vfReady[14][0] = cyc + 4u;
         vfReady[14][1] = cyc + 4u;
         vfReady[14][2] = cyc + 4u;
@@ -6777,37 +6163,21 @@ L_1150:
         { uint64_t r = cyc, t;
           t = viReady[4]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[4] + (-8), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[4] + (-8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1178  nop                                    lq.xyzw vf19, -5(vi4)
     {
-        J.loadQword(lt, s.vi[4] + (-5), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[4] + (-5), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1180  sub.xyzw vf17, vf15, vf16              lq.xyzw vf20, -2(vi4)
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        J.loadQword(lt, s.vi[4] + (-2), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
+        J.loadQword(s.vf[20], s.vi[4] + (-2), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -6824,11 +6194,7 @@ L_1150:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][3])));
-        J.loadQword(lt, s.vi[4] + (-9), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[4] + (-9), 15);
         s.vf[18][0] = ut[0];
         s.vf[18][1] = ut[1];
         s.vf[18][2] = ut[2];
@@ -6842,11 +6208,7 @@ L_1150:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][3])));
-        J.loadQword(lt, s.vi[4] + (-6), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[4] + (-6), 15);
         s.vf[19][0] = ut[0];
         s.vf[19][1] = ut[1];
         s.vf[19][2] = ut[2];
@@ -6879,11 +6241,7 @@ L_1150:
     {
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 14, 15);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 14, 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -6893,11 +6251,7 @@ L_1150:
     }
     // 11b0  nop                                    lq.xyzw vf13, -3(vi4)
     {
-        J.loadQword(lt, s.vi[4] + (-3), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[4] + (-3), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -7112,11 +6466,7 @@ L_1208:
           cyc = r; }
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -7687,11 +7037,7 @@ L_12e8:
     // 1380  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -7703,11 +7049,7 @@ L_12e8:
     // 1388  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -7719,11 +7061,7 @@ L_12e8:
     // 1390  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -7787,11 +7125,7 @@ L_13b8:
     }
     // 13c0  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -7805,21 +7139,13 @@ L_13c8:
     // 13c8  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x13c8u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 13d0  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -7915,11 +7241,7 @@ L_13c8:
     // 1428  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -7931,11 +7253,7 @@ L_13c8:
     // 1430  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -7947,11 +7265,7 @@ L_13c8:
     // 1438  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -8015,11 +7329,7 @@ L_1460:
     }
     // 1468  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -8033,21 +7343,13 @@ L_1470:
     // 1470  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x1470u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1478  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -8143,11 +7445,7 @@ L_1470:
     // 14d0  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -8159,11 +7457,7 @@ L_1470:
     // 14d8  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -8175,11 +7469,7 @@ L_1470:
     // 14e0  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -8243,11 +7533,7 @@ L_1508:
     }
     // 1510  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -8261,21 +7547,13 @@ L_1518:
     // 1518  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x1518u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1520  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -8371,11 +7649,7 @@ L_1518:
     // 1578  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -8387,11 +7661,7 @@ L_1518:
     // 1580  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -8403,11 +7673,7 @@ L_1518:
     // 1588  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -8471,11 +7737,7 @@ L_15b0:
     }
     // 15b8  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -8489,21 +7751,13 @@ L_15c0:
     // 15c0  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x15c0u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 15c8  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -8599,11 +7853,7 @@ L_15c0:
     // 1620  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -8615,11 +7865,7 @@ L_15c0:
     // 1628  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -8631,11 +7877,7 @@ L_15c0:
     // 1630  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -8699,11 +7941,7 @@ L_1658:
     }
     // 1660  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -8717,21 +7955,13 @@ L_1668:
     // 1668  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 104u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x1668u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1670  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -8828,8 +8058,7 @@ L_16b8:
           t = vfReady[31][3]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 18, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[21], 18, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[18][0] = lt[0];
@@ -8837,10 +8066,6 @@ L_16b8:
         s.vf[18][2] = lt[2];
         s.vf[18][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[21][0] = ut[0];
-        s.vf[21][1] = ut[1];
-        s.vf[21][2] = ut[2];
-        s.vf[21][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -8852,8 +8077,7 @@ L_16b8:
           t = vfReady[19][2]; if (t > r) r = t;
           t = vfReady[19][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 19, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[22], 19, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[19][0] = lt[0];
@@ -8861,10 +8085,6 @@ L_16b8:
         s.vf[19][2] = lt[2];
         s.vf[19][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[22][0] = ut[0];
-        s.vf[22][1] = ut[1];
-        s.vf[22][2] = ut[2];
-        s.vf[22][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -8877,7 +8097,7 @@ L_16b8:
           t = vfReady[20][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 20, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[23], 20, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[20][0] = lt[0];
@@ -8885,10 +8105,6 @@ L_16b8:
         s.vf[20][2] = lt[2];
         s.vf[20][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[23][0] = ut[0];
-        s.vf[23][1] = ut[1];
-        s.vf[23][2] = ut[2];
-        s.vf[23][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -9360,11 +8576,7 @@ L_1818:
           t = vfReady[28][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 21, 28);
-        s.vf[28][0] = ut[0];
-        s.vf[28][1] = ut[1];
-        s.vf[28][2] = ut[2];
-        s.vf[28][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[28], 21, 28);
         vfReady[28][0] = cyc + 4u;
         vfReady[28][1] = cyc + 4u;
         vfReady[28][2] = cyc + 4u;
@@ -9381,11 +8593,7 @@ L_1818:
           t = vfReady[29][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 18, 29);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[29], 18, 29);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -9477,8 +8685,7 @@ L_1860:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false>(ut, 28, 29);
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false, false>(ut, 28, 29);
         s.vf[27][0] = ut[0];
         s.vf[27][1] = ut[1];
         s.vf[27][2] = ut[2];
@@ -9504,7 +8711,7 @@ L_1860:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false>(ut, 0, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false, false>(ut, 0, 0);
         s.vf[27][0] = ut[0];
         bkReg = 0;
         ++cyc;
@@ -9521,12 +8728,7 @@ L_1860:
           t = vfReady[21][2]; if (t > r) r = t;
           t = vfReady[21][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 18, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[24], 18, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -9546,12 +8748,7 @@ L_1860:
           t = vfReady[22][2]; if (t > r) r = t;
           t = vfReady[22][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 19, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[25], 19, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -9571,12 +8768,7 @@ L_1860:
           t = vfReady[23][2]; if (t > r) r = t;
           t = vfReady[23][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 20, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[26], 20, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -9592,12 +8784,7 @@ L_1860:
           t = vfReady[24][2]; if (t > r) r = t;
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 24, 27);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[24], 24, 27);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -9613,12 +8800,7 @@ L_1860:
           t = vfReady[25][2]; if (t > r) r = t;
           t = vfReady[25][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 25, 27);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[25], 25, 27);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -9635,11 +8817,7 @@ L_1860:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 26, 27);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[26], 26, 27);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -9656,11 +8834,7 @@ L_1860:
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 24, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[24], 24, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -9679,11 +8853,7 @@ L_1860:
           cyc = r; }
         br = true; jt = (static_cast<uint32_t>(static_cast<uint16_t>(rb(12))) * 8u) & 0x3FFFu;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 25, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[25], 25, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -9700,11 +8870,7 @@ L_1860:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 26, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[26], 26, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -9753,11 +8919,7 @@ L_18c0:
           t = vfReady[28][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 18, 28);
-        s.vf[28][0] = ut[0];
-        s.vf[28][1] = ut[1];
-        s.vf[28][2] = ut[2];
-        s.vf[28][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[28], 18, 28);
         vfReady[28][0] = cyc + 4u;
         vfReady[28][1] = cyc + 4u;
         vfReady[28][2] = cyc + 4u;
@@ -9774,11 +8936,7 @@ L_18c0:
           t = vfReady[29][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 21, 29);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[29], 21, 29);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -9870,8 +9028,7 @@ L_1908:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false>(ut, 28, 29);
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false, false>(ut, 28, 29);
         s.vf[27][0] = ut[0];
         s.vf[27][1] = ut[1];
         s.vf[27][2] = ut[2];
@@ -9897,7 +9054,7 @@ L_1908:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false>(ut, 0, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false, false>(ut, 0, 0);
         s.vf[27][0] = ut[0];
         bkReg = 0;
         ++cyc;
@@ -9914,12 +9071,7 @@ L_1908:
           t = vfReady[21][2]; if (t > r) r = t;
           t = vfReady[21][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 21, 18);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[24], 21, 18);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -9939,12 +9091,7 @@ L_1908:
           t = vfReady[22][2]; if (t > r) r = t;
           t = vfReady[22][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 22, 19);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[25], 22, 19);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -9964,12 +9111,7 @@ L_1908:
           t = vfReady[23][2]; if (t > r) r = t;
           t = vfReady[23][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 23, 20);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[26], 23, 20);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -9985,12 +9127,7 @@ L_1908:
           t = vfReady[24][2]; if (t > r) r = t;
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 24, 27);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[24], 24, 27);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -10006,12 +9143,7 @@ L_1908:
           t = vfReady[25][2]; if (t > r) r = t;
           t = vfReady[25][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 25, 27);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[25], 25, 27);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -10028,11 +9160,7 @@ L_1908:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 26, 27);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[26], 26, 27);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -10049,11 +9177,7 @@ L_1908:
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 24, 18);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[24], 24, 18);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -10072,11 +9196,7 @@ L_1908:
           cyc = r; }
         br = true; jt = (static_cast<uint32_t>(static_cast<uint16_t>(rb(12))) * 8u) & 0x3FFFu;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 25, 19);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[25], 25, 19);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -10093,11 +9213,7 @@ L_1908:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 26, 20);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[26], 26, 20);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -10128,11 +9244,7 @@ L_1968:
     }
     // 1978  nop                                    lq.xyzw vf29, 24(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (24), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[0] + (24), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -10189,11 +9301,7 @@ L_19a8:
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -10201,11 +9309,7 @@ L_19a8:
     // 19b0  nop                                    lqi.xyzw vf28, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[28][0] = lt[0];
-        s.vf[28][1] = lt[1];
-        s.vf[28][2] = lt[2];
-        s.vf[28][3] = lt[3];
+        J.loadQword(s.vf[28], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -10213,11 +9317,7 @@ L_19a8:
     // 19b8  nop                                    lqi.xyzw vf27, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[27][0] = lt[0];
-        s.vf[27][1] = lt[1];
-        s.vf[27][2] = lt[2];
-        s.vf[27][3] = lt[3];
+        J.loadQword(s.vf[27], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -10262,11 +9362,7 @@ L_19a8:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 29, 0);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[29], 29, 0);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -10284,12 +9380,7 @@ L_19a8:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -10308,11 +9399,7 @@ L_19a8:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(s.vf[29], 29, 5);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -10417,12 +9504,8 @@ L_1ae0:
           t = vfReady[31][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 31, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[31], 31, 0);
         wvi(2, static_cast<int32_t>(s.top & 0x3FFu));
-        s.vf[31][0] = ut[0];
-        s.vf[31][1] = ut[1];
-        s.vf[31][2] = ut[2];
-        s.vf[31][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -10443,11 +9526,7 @@ L_1ae0:
     // 1af8  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -10455,11 +9534,7 @@ L_1ae0:
     // 1b00  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -10467,11 +9542,7 @@ L_1ae0:
     // 1b08  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -10479,11 +9550,7 @@ L_1ae0:
     // 1b10  nop                                    lqi.xyzw vf8, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[8][0] = lt[0];
-        s.vf[8][1] = lt[1];
-        s.vf[8][2] = lt[2];
-        s.vf[8][3] = lt[3];
+        J.loadQword(s.vf[8], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -10539,11 +9606,7 @@ L_1ae0:
     // 1b48  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -10551,11 +9614,7 @@ L_1ae0:
     // 1b50  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -10579,11 +9638,7 @@ L_1ae0:
     // 1b68  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -10638,61 +9693,37 @@ L_1ae0:
     }
     // 1ba0  nop                                    lq.xyzw vf5, 20(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (20), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], s.vi[0] + (20), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1ba8  nop                                    lq.xyzw vf6, 21(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (21), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], s.vi[0] + (21), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1bb0  nop                                    lq.xyzw vf1, 8(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (8), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1bb8  nop                                    lq.xyzw vf2, 9(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (9), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1bc0  nop                                    lq.xyzw vf3, 10(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (10), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (10), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1bc8  nop                                    lq.xyzw vf4, 11(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (11), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (11), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -10712,21 +9743,13 @@ L_1ae0:
     }
     // 1be0  nop                                    lq.xyzw vf16, 110(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (110), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.loadQword(s.vf[16], s.vi[0] + (110), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1be8  nop                                    lq.xyzw vf17, 111(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (111), 15);
-        s.vf[17][0] = lt[0];
-        s.vf[17][1] = lt[1];
-        s.vf[17][2] = lt[2];
-        s.vf[17][3] = lt[3];
+        J.loadQword(s.vf[17], s.vi[0] + (111), 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -10736,11 +9759,7 @@ L_1ae0:
     }
     // 1bf0  nop                                    lq.xyzw vf18, 112(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (112), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (112), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -10750,11 +9769,7 @@ L_1ae0:
     }
     // 1bf8  nop                                    lq.xyzw vf19, 113(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (113), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (113), 15);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
         vfReady[19][2] = cyc + 4u;
@@ -10772,11 +9787,7 @@ L_1c00:
         { uint64_t r = cyc, t;
           t = viReady[5]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[5] + (0), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[5] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -10865,11 +9876,7 @@ L_1c00:
         { uint64_t r = cyc, t;
           t = viReady[6]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[6] + (144), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.loadQword(s.vf[15], s.vi[6] + (144), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -10915,17 +9922,8 @@ L_1c70:
           t = vfReady[16][3]; if (t > r) r = t;
           t = viReady[6]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 16, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 16, 15);
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -10940,17 +9938,8 @@ L_1c70:
             t = vfReady[17][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 17, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (106), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 17, 15);
+        J.loadQword(s.vf[20], s.vi[0] + (106), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -10965,17 +9954,8 @@ L_1c70:
             t = vfReady[18][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 18, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (107), 15);
-        s.vf[21][0] = lt[0];
-        s.vf[21][1] = lt[1];
-        s.vf[21][2] = lt[2];
-        s.vf[21][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 18, 15);
+        J.loadQword(s.vf[21], s.vi[0] + (107), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -10989,17 +9969,8 @@ L_1c70:
             t = vfReady[19][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 19, 0);
-        J.loadQword(lt, s.vi[0] + (108), 15);
-        s.vf[22][0] = lt[0];
-        s.vf[22][1] = lt[1];
-        s.vf[22][2] = lt[2];
-        s.vf[22][3] = lt[3];
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[16], 19, 0);
+        J.loadQword(s.vf[22], s.vi[0] + (108), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -11013,17 +9984,8 @@ L_1c70:
             t = vfReady[1][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (109), 15);
-        s.vf[23][0] = lt[0];
-        s.vf[23][1] = lt[1];
-        s.vf[23][2] = lt[2];
-        s.vf[23][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 1, 12);
+        J.loadQword(s.vf[23], s.vi[0] + (109), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -11037,17 +9999,8 @@ L_1c70:
             t = vfReady[2][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[6] + (48), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 2, 12);
+        J.loadQword(s.vf[13], s.vi[6] + (48), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -11063,12 +10016,7 @@ L_1c70:
             t = vfReady[3][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 3, 12);
         const int32_t oldVi = s.vi[8];
         wvi(8, s.vi[9] + s.vi[10]);
         bkReg = 8; bkVal = oldVi;
@@ -11084,24 +10032,15 @@ L_1c70:
             t = vfReady[4][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 4, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[10], 4, 0);
         const int32_t oldVi = s.vi[9];
         wvi(9, s.vi[0] + s.vi[10]);
-        s.vf[10][0] = ut[0];
-        s.vf[10][1] = ut[1];
-        s.vf[10][2] = ut[2];
-        s.vf[10][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
     // 1cb0  maxx.xyzw vf16, vf16, vf0x             nop
     {
-        J.minmax<Vu1Jit::kSrcBcX, true>(ut, 15, 16, 0);
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
+        J.minmax<Vu1Jit::kSrcBcX, true>(s.vf[16], 15, 16, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -11144,47 +10083,28 @@ L_1c70:
     }
     // 1cd0  mulax.xyzw acc, vf20, vf16x            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 20, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 20, 16);
         bkReg = 0;
         ++cyc;
     }
     // 1cd8  madday.xyzw acc, vf21, vf16y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 21, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 21, 16);
         bkReg = 0;
         ++cyc;
     }
     // 1ce0  maddaz.xyzw acc, vf22, vf16z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 22, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 22, 16);
         bkReg = 0;
         ++cyc;
     }
     // 1ce8  maddw.xyzw vf16, vf23, vf16w           fcand vi1, 0x00002f
     {
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[16], 23, 16);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 23, 16);
         J.commitNow();
         wvi(1, (s.clip & 0x2fu) != 0u ? 1 : 0);
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -11198,17 +10118,8 @@ L_1c70:
             t = vfReady[5][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
-        J.loadQword(lt, s.vi[6] + (96), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false, false>(s.vf[7], 10, 5);
+        J.loadQword(s.vf[14], s.vi[6] + (96), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -11222,12 +10133,7 @@ L_1c70:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         const int32_t oldVi = s.vi[10];
         wvi(10, s.vi[0] + s.vi[1]);
         bkReg = 10; bkVal = oldVi;
@@ -11242,8 +10148,7 @@ L_1c70:
     }
     // 1d08  mul.xyz vf13, vf13, vf16               loi
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 14, false>(ut, 13, 16);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 14, false, false>(ut, 13, 16);
         s.i = Vu1Jit::normOp(asf(static_cast<int32_t>(0x42fe0000u)));
         s.vf[13][0] = ut[0];
         s.vf[13][1] = ut[1];
@@ -11255,13 +10160,9 @@ L_1c70:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 14, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[29], 14, 0);
         const int32_t oldVi = s.vi[6];
         wvi(6, s.vi[6] + 1);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
         bkReg = 6; bkVal = oldVi;
         ++cyc;
     }
@@ -11272,13 +10173,9 @@ L_1c70:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15>(ut, 7, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15>(s.vf[7], 7, 0);
         const int32_t oldVi = s.vi[11];
         wvi(11, s.vi[11] - 1);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 11; bkVal = oldVi;
         ++cyc;
     }
@@ -11294,11 +10191,7 @@ L_1c70:
     }
     // 1d28  minii.xyzw vf13, vf13, i               nop
     {
-        J.minmax<Vu1Jit::kSrcI, false>(ut, 15, 13, 0);
-        s.vf[13][0] = ut[0];
-        s.vf[13][1] = ut[1];
-        s.vf[13][2] = ut[2];
-        s.vf[13][3] = ut[3];
+        J.minmax<Vu1Jit::kSrcI, false>(s.vf[13], 15, 13, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -11343,11 +10236,7 @@ L_1c70:
         ut[1] = asf(Vu1Jit::floatToInt(Vu1Jit::normOp(s.vf[7][1]), 16.0f));
         ut[2] = asf(Vu1Jit::floatToInt(Vu1Jit::normOp(s.vf[7][2]), 16.0f));
         ut[3] = asf(Vu1Jit::floatToInt(Vu1Jit::normOp(s.vf[7][3]), 16.0f));
-        J.loadQword(lt, s.vi[6] + (144), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.loadQword(s.vf[15], s.vi[6] + (144), 15);
         s.vf[7][0] = ut[0];
         s.vf[7][1] = ut[1];
         s.vf[7][2] = ut[2];
@@ -11387,11 +10276,7 @@ L_1d70:
     // 1d70  nop                                    lq.xyzw vf16, 110(vi0)
     if (cyc + 89u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x1d70u));
     {
-        J.loadQword(lt, s.vi[0] + (110), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.loadQword(s.vf[16], s.vi[0] + (110), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -11826,51 +10711,31 @@ L_1e78:
     }
     // 1ec8  nop                                    lq.xyzw vf12, 0(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1ed0  nop                                    lq.xyzw vf13, 48(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (48), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (48), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1ed8  nop                                    lq.xyzw vf14, 96(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (96), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.loadQword(s.vf[14], s.vi[6] + (96), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1ee0  nop                                    lq.xyzw vf15, 144(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (144), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.loadQword(s.vf[15], s.vi[6] + (144), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1ee8  nop                                    lq.xyzw vf17, 111(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (111), 15);
-        s.vf[17][0] = lt[0];
-        s.vf[17][1] = lt[1];
-        s.vf[17][2] = lt[2];
-        s.vf[17][3] = lt[3];
+        J.loadQword(s.vf[17], s.vi[0] + (111), 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -11880,11 +10745,7 @@ L_1e78:
     }
     // 1ef0  nop                                    lq.xyzw vf18, 112(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (112), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (112), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -11894,11 +10755,7 @@ L_1e78:
     }
     // 1ef8  nop                                    lq.xyzw vf19, 113(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (113), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (113), 15);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
         vfReady[19][2] = cyc + 4u;
@@ -12002,37 +10859,21 @@ L_1f20:
         { uint64_t r = cyc, t;
           t = viReady[4]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[4] + (-8), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[4] + (-8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1f48  nop                                    lq.xyzw vf19, -5(vi4)
     {
-        J.loadQword(lt, s.vi[4] + (-5), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[4] + (-5), 15);
         bkReg = 0;
         ++cyc;
     }
     // 1f50  sub.xyzw vf17, vf15, vf16              lq.xyzw vf20, -2(vi4)
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        J.loadQword(lt, s.vi[4] + (-2), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
+        J.loadQword(s.vf[20], s.vi[4] + (-2), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -12052,11 +10893,7 @@ L_1f20:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][3])));
-        J.loadQword(lt, s.vi[6] + (93), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[6] + (93), 15);
         s.vf[18][0] = ut[0];
         s.vf[18][1] = ut[1];
         s.vf[18][2] = ut[2];
@@ -12070,11 +10907,7 @@ L_1f20:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][3])));
-        J.loadQword(lt, s.vi[6] + (94), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (94), 15);
         s.vf[19][0] = ut[0];
         s.vf[19][1] = ut[1];
         s.vf[19][2] = ut[2];
@@ -12107,11 +10940,7 @@ L_1f20:
     {
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 14, 15);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 14, 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -12121,11 +10950,7 @@ L_1f20:
     }
     // 1f80  nop                                    lq.xyzw vf13, 95(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (95), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (95), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -12340,11 +11165,7 @@ L_1fd8:
           cyc = r; }
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -12915,11 +11736,7 @@ L_20b8:
     // 2150  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -12931,11 +11748,7 @@ L_20b8:
     // 2158  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -12947,11 +11760,7 @@ L_20b8:
     // 2160  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -13015,11 +11824,7 @@ L_2188:
     }
     // 2190  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -13033,21 +11838,13 @@ L_2198:
     // 2198  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2198u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 21a0  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -13143,11 +11940,7 @@ L_2198:
     // 21f8  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -13159,11 +11952,7 @@ L_2198:
     // 2200  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -13175,11 +11964,7 @@ L_2198:
     // 2208  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -13243,11 +12028,7 @@ L_2230:
     }
     // 2238  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -13261,21 +12042,13 @@ L_2240:
     // 2240  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2240u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2248  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -13371,11 +12144,7 @@ L_2240:
     // 22a0  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -13387,11 +12156,7 @@ L_2240:
     // 22a8  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -13403,11 +12168,7 @@ L_2240:
     // 22b0  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -13471,11 +12232,7 @@ L_22d8:
     }
     // 22e0  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -13489,21 +12246,13 @@ L_22e8:
     // 22e8  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x22e8u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 22f0  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -13599,11 +12348,7 @@ L_22e8:
     // 2348  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -13615,11 +12360,7 @@ L_22e8:
     // 2350  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -13631,11 +12372,7 @@ L_22e8:
     // 2358  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -13699,11 +12436,7 @@ L_2380:
     }
     // 2388  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -13717,21 +12450,13 @@ L_2390:
     // 2390  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2390u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2398  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -13827,11 +12552,7 @@ L_2390:
     // 23f0  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -13843,11 +12564,7 @@ L_2390:
     // 23f8  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -13859,11 +12576,7 @@ L_2390:
     // 2400  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -13927,11 +12640,7 @@ L_2428:
     }
     // 2430  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -13945,21 +12654,13 @@ L_2438:
     // 2438  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 104u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2438u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2440  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -14056,8 +12757,7 @@ L_2488:
           t = vfReady[31][3]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 18, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[21], 18, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[18][0] = lt[0];
@@ -14065,10 +12765,6 @@ L_2488:
         s.vf[18][2] = lt[2];
         s.vf[18][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[21][0] = ut[0];
-        s.vf[21][1] = ut[1];
-        s.vf[21][2] = ut[2];
-        s.vf[21][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -14080,8 +12776,7 @@ L_2488:
           t = vfReady[19][2]; if (t > r) r = t;
           t = vfReady[19][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 19, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[22], 19, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[19][0] = lt[0];
@@ -14089,10 +12784,6 @@ L_2488:
         s.vf[19][2] = lt[2];
         s.vf[19][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[22][0] = ut[0];
-        s.vf[22][1] = ut[1];
-        s.vf[22][2] = ut[2];
-        s.vf[22][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -14105,7 +12796,7 @@ L_2488:
           t = vfReady[20][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 20, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[23], 20, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[20][0] = lt[0];
@@ -14113,10 +12804,6 @@ L_2488:
         s.vf[20][2] = lt[2];
         s.vf[20][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[23][0] = ut[0];
-        s.vf[23][1] = ut[1];
-        s.vf[23][2] = ut[2];
-        s.vf[23][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -14588,11 +13275,7 @@ L_25e8:
           t = vfReady[28][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 21, 28);
-        s.vf[28][0] = ut[0];
-        s.vf[28][1] = ut[1];
-        s.vf[28][2] = ut[2];
-        s.vf[28][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[28], 21, 28);
         vfReady[28][0] = cyc + 4u;
         vfReady[28][1] = cyc + 4u;
         vfReady[28][2] = cyc + 4u;
@@ -14609,11 +13292,7 @@ L_25e8:
           t = vfReady[29][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 18, 29);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[29], 18, 29);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -14705,8 +13384,7 @@ L_2630:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false>(ut, 28, 29);
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false, false>(ut, 28, 29);
         s.vf[27][0] = ut[0];
         s.vf[27][1] = ut[1];
         s.vf[27][2] = ut[2];
@@ -14732,7 +13410,7 @@ L_2630:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false>(ut, 0, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false, false>(ut, 0, 0);
         s.vf[27][0] = ut[0];
         bkReg = 0;
         ++cyc;
@@ -14749,12 +13427,7 @@ L_2630:
           t = vfReady[21][2]; if (t > r) r = t;
           t = vfReady[21][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 18, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[24], 18, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -14774,12 +13447,7 @@ L_2630:
           t = vfReady[22][2]; if (t > r) r = t;
           t = vfReady[22][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 19, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[25], 19, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -14799,12 +13467,7 @@ L_2630:
           t = vfReady[23][2]; if (t > r) r = t;
           t = vfReady[23][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 20, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[26], 20, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -14820,12 +13483,7 @@ L_2630:
           t = vfReady[24][2]; if (t > r) r = t;
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 24, 27);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[24], 24, 27);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -14841,12 +13499,7 @@ L_2630:
           t = vfReady[25][2]; if (t > r) r = t;
           t = vfReady[25][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 25, 27);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[25], 25, 27);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -14863,11 +13516,7 @@ L_2630:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 26, 27);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[26], 26, 27);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -14884,11 +13533,7 @@ L_2630:
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 24, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[24], 24, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -14907,11 +13552,7 @@ L_2630:
           cyc = r; }
         br = true; jt = (static_cast<uint32_t>(static_cast<uint16_t>(rb(12))) * 8u) & 0x3FFFu;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 25, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[25], 25, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -14928,11 +13569,7 @@ L_2630:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 26, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[26], 26, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -14963,11 +13600,7 @@ L_2690:
     }
     // 26a0  nop                                    lq.xyzw vf29, 24(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (24), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[0] + (24), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -15024,11 +13657,7 @@ L_26d0:
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -15036,11 +13665,7 @@ L_26d0:
     // 26d8  nop                                    lqi.xyzw vf28, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[28][0] = lt[0];
-        s.vf[28][1] = lt[1];
-        s.vf[28][2] = lt[2];
-        s.vf[28][3] = lt[3];
+        J.loadQword(s.vf[28], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -15048,11 +13673,7 @@ L_26d0:
     // 26e0  nop                                    lqi.xyzw vf27, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[27][0] = lt[0];
-        s.vf[27][1] = lt[1];
-        s.vf[27][2] = lt[2];
-        s.vf[27][3] = lt[3];
+        J.loadQword(s.vf[27], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -15097,11 +13718,7 @@ L_26d0:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 29, 0);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[29], 29, 0);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -15113,11 +13730,7 @@ L_26d0:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 27, 0);
-        s.vf[27][0] = ut[0];
-        s.vf[27][1] = ut[1];
-        s.vf[27][2] = ut[2];
-        s.vf[27][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[27], 27, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -15131,12 +13744,7 @@ L_26d0:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -15155,11 +13763,7 @@ L_26d0:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(s.vf[29], 29, 5);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -15264,12 +13868,8 @@ L_2800:
           t = vfReady[31][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 31, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[31], 31, 0);
         wvi(2, static_cast<int32_t>(s.top & 0x3FFu));
-        s.vf[31][0] = ut[0];
-        s.vf[31][1] = ut[1];
-        s.vf[31][2] = ut[2];
-        s.vf[31][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -15290,11 +13890,7 @@ L_2800:
     // 2818  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -15302,11 +13898,7 @@ L_2800:
     // 2820  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -15314,11 +13906,7 @@ L_2800:
     // 2828  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -15326,11 +13914,7 @@ L_2800:
     // 2830  nop                                    lqi.xyzw vf8, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[8][0] = lt[0];
-        s.vf[8][1] = lt[1];
-        s.vf[8][2] = lt[2];
-        s.vf[8][3] = lt[3];
+        J.loadQword(s.vf[8], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -15386,11 +13970,7 @@ L_2800:
     // 2868  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -15398,11 +13978,7 @@ L_2800:
     // 2870  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -15426,11 +14002,7 @@ L_2800:
     // 2888  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -15485,61 +14057,37 @@ L_2800:
     }
     // 28c0  nop                                    lq.xyzw vf5, 20(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (20), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], s.vi[0] + (20), 15);
         bkReg = 0;
         ++cyc;
     }
     // 28c8  nop                                    lq.xyzw vf6, 21(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (21), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], s.vi[0] + (21), 15);
         bkReg = 0;
         ++cyc;
     }
     // 28d0  nop                                    lq.xyzw vf1, 8(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (8), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 28d8  nop                                    lq.xyzw vf2, 9(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (9), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
     // 28e0  nop                                    lq.xyzw vf3, 10(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (10), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (10), 15);
         bkReg = 0;
         ++cyc;
     }
     // 28e8  nop                                    lq.xyzw vf4, 11(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (11), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (11), 15);
         vfReady[4][0] = cyc + 4u;
         vfReady[4][1] = cyc + 4u;
         vfReady[4][2] = cyc + 4u;
@@ -15574,11 +14122,7 @@ L_2900:
         { uint64_t r = cyc, t;
           t = viReady[5]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[5] + (0), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[5] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -15690,41 +14234,25 @@ L_2958:
     }
     // 2960  nop                                    lq.xyzw vf12, 0(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2968  nop                                    lq.xyzw vf13, 36(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (36), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (36), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2970  nop                                    lq.xyzw vf14, 72(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (72), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.loadQword(s.vf[14], s.vi[6] + (72), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2978  nop                                    lq.xyzw vf15, 144(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (144), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.loadQword(s.vf[15], s.vi[6] + (144), 15);
         vfReady[15][0] = cyc + 4u;
         vfReady[15][1] = cyc + 4u;
         vfReady[15][2] = cyc + 4u;
@@ -15779,17 +14307,8 @@ L_2990:
           t = vfReady[1][2]; if (t > r) r = t;
           t = vfReady[1][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (110), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 1, 12);
+        J.loadQword(s.vf[16], s.vi[0] + (110), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -15803,16 +14322,8 @@ L_2990:
           t = vfReady[2][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (111), 15);
-        s.vf[17][0] = lt[0];
-        s.vf[17][1] = lt[1];
-        s.vf[17][2] = lt[2];
-        s.vf[17][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(s.acc, 2, 12);
+        J.loadQword(s.vf[17], s.vi[0] + (111), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -15826,16 +14337,8 @@ L_2990:
           t = vfReady[3][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (112), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(s.acc, 3, 12);
+        J.loadQword(s.vf[18], s.vi[0] + (112), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -15853,11 +14356,7 @@ L_2990:
           cyc = r; }
         br = true;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(ut, 4, 0);
-        s.vf[10][0] = ut[0];
-        s.vf[10][1] = ut[1];
-        s.vf[10][2] = ut[2];
-        s.vf[10][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(s.vf[10], 4, 0);
         vfReady[10][0] = cyc + 4u;
         vfReady[10][1] = cyc + 4u;
         vfReady[10][2] = cyc + 4u;
@@ -15867,11 +14366,7 @@ L_2990:
     }
     // 29b0  nop                                    lq.xyzw vf19, 113(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (113), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (113), 15);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
         vfReady[19][2] = cyc + 4u;
@@ -15885,11 +14380,7 @@ L_29b8:
     // 29b8  nop                                    lq.xyzw vf1, 12(vi0)
     if (cyc + 79u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x29b8u));
     {
-        J.loadQword(lt, s.vi[0] + (12), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (12), 15);
         vfReady[1][0] = cyc + 4u;
         vfReady[1][1] = cyc + 4u;
         vfReady[1][2] = cyc + 4u;
@@ -15908,11 +14399,7 @@ L_29b8:
     }
     // 29c8  nop                                    lq.xyzw vf2, 13(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (13), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (13), 15);
         vfReady[2][0] = cyc + 4u;
         vfReady[2][1] = cyc + 4u;
         vfReady[2][2] = cyc + 4u;
@@ -15926,21 +14413,13 @@ L_29d0:
     // 29d0  nop                                    lq.xyzw vf3, 14(vi0)
     if (cyc + 99u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x29d0u));
     {
-        J.loadQword(lt, s.vi[0] + (14), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (14), 15);
         bkReg = 0;
         ++cyc;
     }
     // 29d8  nop                                    lq.xyzw vf4, 15(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (15), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (15), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -15953,17 +14432,8 @@ L_29d0:
           t = vfReady[1][2]; if (t > r) r = t;
           t = vfReady[1][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (114), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 1, 12);
+        J.loadQword(s.vf[16], s.vi[0] + (114), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -15977,16 +14447,8 @@ L_29d0:
           t = vfReady[2][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (115), 15);
-        s.vf[17][0] = lt[0];
-        s.vf[17][1] = lt[1];
-        s.vf[17][2] = lt[2];
-        s.vf[17][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(s.acc, 2, 12);
+        J.loadQword(s.vf[17], s.vi[0] + (115), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -15996,16 +14458,8 @@ L_29d0:
           t = vfReady[12][2]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (116), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(s.acc, 3, 12);
+        J.loadQword(s.vf[18], s.vi[0] + (116), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -16017,11 +14471,7 @@ L_29d0:
     {
         br = true;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(ut, 4, 0);
-        s.vf[10][0] = ut[0];
-        s.vf[10][1] = ut[1];
-        s.vf[10][2] = ut[2];
-        s.vf[10][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(s.vf[10], 4, 0);
         vfReady[10][0] = cyc + 4u;
         vfReady[10][1] = cyc + 4u;
         vfReady[10][2] = cyc + 4u;
@@ -16031,11 +14481,7 @@ L_29d0:
     }
     // 2a00  nop                                    lq.xyzw vf19, 117(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (117), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (117), 15);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
         vfReady[19][2] = cyc + 4u;
@@ -16049,41 +14495,25 @@ L_2a08:
     // 2a08  nop                                    lq.xyzw vf1, 16(vi0)
     if (cyc + 104u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2a08u));
     {
-        J.loadQword(lt, s.vi[0] + (16), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (16), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2a10  nop                                    lq.xyzw vf2, 17(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (17), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (17), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2a18  nop                                    lq.xyzw vf3, 18(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (18), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (18), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2a20  nop                                    lq.xyzw vf4, 19(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (19), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (19), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -16093,16 +14523,8 @@ L_2a08:
           t = vfReady[12][0]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (118), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.acc, 1, 12);
+        J.loadQword(s.vf[16], s.vi[0] + (118), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -16112,16 +14534,8 @@ L_2a08:
           t = vfReady[12][1]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (119), 15);
-        s.vf[17][0] = lt[0];
-        s.vf[17][1] = lt[1];
-        s.vf[17][2] = lt[2];
-        s.vf[17][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15>(s.acc, 2, 12);
+        J.loadQword(s.vf[17], s.vi[0] + (119), 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -16135,16 +14549,8 @@ L_2a08:
           t = vfReady[12][2]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (120), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15>(s.acc, 3, 12);
+        J.loadQword(s.vf[18], s.vi[0] + (120), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -16155,16 +14561,8 @@ L_2a08:
     // 2a40  maddw.xyzw vf10, vf4, vf0w             lq.xyzw vf19, 121(vi0)
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(ut, 4, 0);
-        J.loadQword(lt, s.vi[0] + (121), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
-        s.vf[10][0] = ut[0];
-        s.vf[10][1] = ut[1];
-        s.vf[10][2] = ut[2];
-        s.vf[10][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(s.vf[10], 4, 0);
+        J.loadQword(s.vf[19], s.vi[0] + (121), 15);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
         vfReady[19][2] = cyc + 4u;
@@ -16188,17 +14586,8 @@ L_2a48:
           t = vfReady[16][2]; if (t > r) r = t;
           t = vfReady[16][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 16, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (106), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 16, 15);
+        J.loadQword(s.vf[20], s.vi[0] + (106), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -16211,17 +14600,8 @@ L_2a48:
           t = vfReady[17][2]; if (t > r) r = t;
           t = vfReady[17][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 17, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (107), 15);
-        s.vf[21][0] = lt[0];
-        s.vf[21][1] = lt[1];
-        s.vf[21][2] = lt[2];
-        s.vf[21][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 17, 15);
+        J.loadQword(s.vf[21], s.vi[0] + (107), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -16234,17 +14614,8 @@ L_2a48:
           t = vfReady[18][2]; if (t > r) r = t;
           t = vfReady[18][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 18, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (108), 15);
-        s.vf[22][0] = lt[0];
-        s.vf[22][1] = lt[1];
-        s.vf[22][2] = lt[2];
-        s.vf[22][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 18, 15);
+        J.loadQword(s.vf[22], s.vi[0] + (108), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -16256,17 +14627,8 @@ L_2a48:
           t = vfReady[19][2]; if (t > r) r = t;
           t = vfReady[19][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 19, 0);
-        J.loadQword(lt, s.vi[0] + (109), 15);
-        s.vf[23][0] = lt[0];
-        s.vf[23][1] = lt[1];
-        s.vf[23][2] = lt[2];
-        s.vf[23][3] = lt[3];
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[16], 19, 0);
+        J.loadQword(s.vf[23], s.vi[0] + (109), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -16285,13 +14647,9 @@ L_2a48:
             t = vfReady[5][3]; if (t > r) r = t;
           }
           cyc = r; }
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false, false>(s.vf[7], 10, 5);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
         J.div(s.vf[0][3], s.vf[10][3]);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -16317,11 +14675,7 @@ L_2a48:
     }
     // 2a80  maxx.xyzw vf16, vf16, vf0x             nop
     {
-        J.minmax<Vu1Jit::kSrcBcX, true>(ut, 15, 16, 0);
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
+        J.minmax<Vu1Jit::kSrcBcX, true>(s.vf[16], 15, 16, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -16349,12 +14703,7 @@ L_2a48:
           t = viReady[10]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 20, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 20, 16);
         const int32_t oldVi = s.vi[8];
         wvi(8, s.vi[9] + s.vi[10]);
         bkReg = 8; bkVal = oldVi;
@@ -16362,12 +14711,7 @@ L_2a48:
     }
     // 2aa8  madday.xyzw acc, vf21, vf16y           iadd vi9, vi0, vi10
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 21, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 21, 16);
         const int32_t oldVi = s.vi[9];
         wvi(9, s.vi[0] + s.vi[10]);
         bkReg = 9; bkVal = oldVi;
@@ -16375,12 +14719,7 @@ L_2a48:
     }
     // 2ab0  maddaz.xyzw acc, vf22, vf16z           iadd vi10, vi0, vi1
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 22, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 22, 16);
         const int32_t oldVi = s.vi[10];
         wvi(10, s.vi[0] + s.vi[1]);
         bkReg = 10; bkVal = oldVi;
@@ -16388,14 +14727,9 @@ L_2a48:
     }
     // 2ab8  maddw.xyzw vf16, vf23, vf16w           iadd vi8, vi8, vi1
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 23, 16);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[16], 23, 16);
         const int32_t oldVi = s.vi[8];
         wvi(8, s.vi[8] + s.vi[1]);
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
         bkReg = 8; bkVal = oldVi;
         ++cyc;
     }
@@ -16409,11 +14743,7 @@ L_2a48:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 14, 0);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[29], 14, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -16436,8 +14766,7 @@ L_2a48:
           t = vfReady[13][2]; if (t > r) r = t;
           t = viReady[6]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 14, false>(ut, 13, 16);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 14, false, false>(ut, 13, 16);
         const int32_t oldVi = s.vi[6];
         wvi(6, s.vi[6] + 1);
         s.vf[13][0] = ut[0];
@@ -16457,12 +14786,7 @@ L_2a48:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         const int32_t oldVi = s.vi[11];
         wvi(11, s.vi[11] - 1);
         bkReg = 11; bkVal = oldVi;
@@ -16475,23 +14799,15 @@ L_2a48:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15>(ut, 7, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15>(s.vf[7], 7, 0);
         const int32_t oldVi = s.vi[4];
         wvi(4, s.vi[4] + 3);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 4; bkVal = oldVi;
         ++cyc;
     }
     // 2af0  nop                                    lq.xyzw vf1, 8(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (8), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -16500,36 +14816,20 @@ L_2a48:
         { uint64_t r = cyc, t;
           t = vfReady[13][3]; if (t > r) r = t;
           cyc = r; }
-        J.minmax<Vu1Jit::kSrcI, false>(ut, 15, 13, 0);
-        J.loadQword(lt, s.vi[0] + (9), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
-        s.vf[13][0] = ut[0];
-        s.vf[13][1] = ut[1];
-        s.vf[13][2] = ut[2];
-        s.vf[13][3] = ut[3];
+        J.minmax<Vu1Jit::kSrcI, false>(s.vf[13], 15, 13, 0);
+        J.loadQword(s.vf[2], s.vi[0] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2b00  nop                                    lq.xyzw vf3, 10(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (10), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (10), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2b08  nop                                    lq.xyzw vf4, 11(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (11), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (11), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -17020,11 +15320,7 @@ L_2c40:
     }
     // 2c90  nop                                    lq.xyzw vf12, 0(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         vfReady[12][0] = cyc + 4u;
         vfReady[12][1] = cyc + 4u;
         vfReady[12][2] = cyc + 4u;
@@ -17034,11 +15330,7 @@ L_2c40:
     }
     // 2c98  nop                                    lq.xyzw vf13, 36(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (36), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (36), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -17048,11 +15340,7 @@ L_2c40:
     }
     // 2ca0  nop                                    lq.xyzw vf14, 72(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (72), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.loadQword(s.vf[14], s.vi[6] + (72), 15);
         vfReady[14][0] = cyc + 4u;
         vfReady[14][1] = cyc + 4u;
         vfReady[14][2] = cyc + 4u;
@@ -17156,37 +15444,21 @@ L_2cc8:
         { uint64_t r = cyc, t;
           t = viReady[4]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[4] + (-8), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[4] + (-8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2cf0  nop                                    lq.xyzw vf19, -5(vi4)
     {
-        J.loadQword(lt, s.vi[4] + (-5), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[4] + (-5), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2cf8  sub.xyzw vf17, vf15, vf16              lq.xyzw vf20, -2(vi4)
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        J.loadQword(lt, s.vi[4] + (-2), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
+        J.loadQword(s.vf[20], s.vi[4] + (-2), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -17206,11 +15478,7 @@ L_2cc8:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[18][3])));
-        J.loadQword(lt, s.vi[6] + (69), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[6] + (69), 15);
         s.vf[18][0] = ut[0];
         s.vf[18][1] = ut[1];
         s.vf[18][2] = ut[2];
@@ -17224,11 +15492,7 @@ L_2cc8:
         ut[1] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][1])));
         ut[2] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][2])));
         ut[3] = static_cast<float>(static_cast<int32_t>(vi32(s.vf[19][3])));
-        J.loadQword(lt, s.vi[6] + (70), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[6] + (70), 15);
         s.vf[19][0] = ut[0];
         s.vf[19][1] = ut[1];
         s.vf[19][2] = ut[2];
@@ -17261,11 +15525,7 @@ L_2cc8:
     {
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 14, 15);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 14, 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -17275,11 +15535,7 @@ L_2cc8:
     }
     // 2d28  nop                                    lq.xyzw vf13, 71(vi6)
     {
-        J.loadQword(lt, s.vi[6] + (71), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[6] + (71), 15);
         vfReady[13][0] = cyc + 4u;
         vfReady[13][1] = cyc + 4u;
         vfReady[13][2] = cyc + 4u;
@@ -17494,11 +15750,7 @@ L_2d80:
           cyc = r; }
         br = static_cast<int16_t>(rb(1)) != static_cast<int16_t>(rb(2));
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(ut, 15, 16);
-        s.vf[17][0] = ut[0];
-        s.vf[17][1] = ut[1];
-        s.vf[17][2] = ut[2];
-        s.vf[17][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15>(s.vf[17], 15, 16);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -18069,11 +16321,7 @@ L_2e60:
     // 2ef8  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -18085,11 +16333,7 @@ L_2e60:
     // 2f00  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -18101,11 +16345,7 @@ L_2e60:
     // 2f08  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -18169,11 +16409,7 @@ L_2f30:
     }
     // 2f38  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -18187,21 +16423,13 @@ L_2f40:
     // 2f40  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2f40u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2f48  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -18297,11 +16525,7 @@ L_2f40:
     // 2fa0  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -18313,11 +16537,7 @@ L_2f40:
     // 2fa8  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -18329,11 +16549,7 @@ L_2f40:
     // 2fb0  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -18397,11 +16613,7 @@ L_2fd8:
     }
     // 2fe0  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -18415,21 +16627,13 @@ L_2fe8:
     // 2fe8  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x2fe8u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 2ff0  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -18525,11 +16729,7 @@ L_2fe8:
     // 3048  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -18541,11 +16741,7 @@ L_2fe8:
     // 3050  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -18557,11 +16753,7 @@ L_2fe8:
     // 3058  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -18625,11 +16817,7 @@ L_3080:
     }
     // 3088  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -18643,21 +16831,13 @@ L_3090:
     // 3090  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x3090u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3098  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -18753,11 +16933,7 @@ L_3090:
     // 30f0  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -18769,11 +16945,7 @@ L_3090:
     // 30f8  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -18785,11 +16957,7 @@ L_3090:
     // 3100  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -18853,11 +17021,7 @@ L_3128:
     }
     // 3130  nop                                    lq.xyzw vf18, 58(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (58), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (58), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -18871,21 +17035,13 @@ L_3138:
     // 3138  nop                                    lq.xyzw vf19, 59(vi0)
     if (cyc + 139u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x3138u));
     {
-        J.loadQword(lt, s.vi[0] + (59), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (59), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3140  nop                                    lq.xyzw vf20, 60(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (60), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (60), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -18981,11 +17137,7 @@ L_3138:
     // 3198  nop                                    lqi.xyzw vf18, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
@@ -18997,11 +17149,7 @@ L_3138:
     // 31a0  nop                                    lqi.xyzw vf19, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
@@ -19013,11 +17161,7 @@ L_3138:
     // 31a8  nop                                    lqi.xyzw vf20, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         vfReady[20][0] = cyc + 4u;
         vfReady[20][1] = cyc + 4u;
@@ -19081,11 +17225,7 @@ L_31d0:
     }
     // 31d8  nop                                    lq.xyzw vf18, 82(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (82), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (82), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -19099,21 +17239,13 @@ L_31e0:
     // 31e0  nop                                    lq.xyzw vf19, 83(vi0)
     if (cyc + 104u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x31e0u));
     {
-        J.loadQword(lt, s.vi[0] + (83), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (83), 15);
         bkReg = 0;
         ++cyc;
     }
     // 31e8  nop                                    lq.xyzw vf20, 84(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (84), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.loadQword(s.vf[20], s.vi[0] + (84), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -19210,8 +17342,7 @@ L_3230:
           t = vfReady[31][3]; if (t > r) r = t;
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 18, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[21], 18, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[18][0] = lt[0];
@@ -19219,10 +17350,6 @@ L_3230:
         s.vf[18][2] = lt[2];
         s.vf[18][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[21][0] = ut[0];
-        s.vf[21][1] = ut[1];
-        s.vf[21][2] = ut[2];
-        s.vf[21][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -19234,8 +17361,7 @@ L_3230:
           t = vfReady[19][2]; if (t > r) r = t;
           t = vfReady[19][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false>(ut, 19, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15, false, false>(s.vf[22], 19, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[19][0] = lt[0];
@@ -19243,10 +17369,6 @@ L_3230:
         s.vf[19][2] = lt[2];
         s.vf[19][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[22][0] = ut[0];
-        s.vf[22][1] = ut[1];
-        s.vf[22][2] = ut[2];
-        s.vf[22][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -19259,7 +17381,7 @@ L_3230:
           t = vfReady[20][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 20, 31);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[23], 20, 31);
         const int32_t oldVi = s.vi[9];
         J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
         s.vf[20][0] = lt[0];
@@ -19267,10 +17389,6 @@ L_3230:
         s.vf[20][2] = lt[2];
         s.vf[20][3] = lt[3];
         wvi(9, s.vi[9] + 1);
-        s.vf[23][0] = ut[0];
-        s.vf[23][1] = ut[1];
-        s.vf[23][2] = ut[2];
-        s.vf[23][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
@@ -19742,11 +17860,7 @@ L_3390:
           t = vfReady[28][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 21, 28);
-        s.vf[28][0] = ut[0];
-        s.vf[28][1] = ut[1];
-        s.vf[28][2] = ut[2];
-        s.vf[28][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[28], 21, 28);
         vfReady[28][0] = cyc + 4u;
         vfReady[28][1] = cyc + 4u;
         vfReady[28][2] = cyc + 4u;
@@ -19763,11 +17877,7 @@ L_3390:
           t = vfReady[29][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(ut, 18, 29);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcBcW, 15>(s.vf[29], 18, 29);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -19859,8 +17969,7 @@ L_33d8:
           t = vfReady[29][1]; if (t > r) r = t;
           t = vfReady[29][2]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false>(ut, 28, 29);
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 14, false, false>(ut, 28, 29);
         s.vf[27][0] = ut[0];
         s.vf[27][1] = ut[1];
         s.vf[27][2] = ut[2];
@@ -19886,7 +17995,7 @@ L_33d8:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false>(ut, 0, 0);
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcQ, 8, false, false>(ut, 0, 0);
         s.vf[27][0] = ut[0];
         bkReg = 0;
         ++cyc;
@@ -19903,12 +18012,7 @@ L_33d8:
           t = vfReady[21][2]; if (t > r) r = t;
           t = vfReady[21][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 18, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[24], 18, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -19928,12 +18032,7 @@ L_33d8:
           t = vfReady[22][2]; if (t > r) r = t;
           t = vfReady[22][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 19, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[25], 19, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -19953,12 +18052,7 @@ L_33d8:
           t = vfReady[23][2]; if (t > r) r = t;
           t = vfReady[23][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false>(ut, 20, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kSub, Vu1Jit::kSrcVec, 15, false, false>(s.vf[26], 20, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -19974,12 +18068,7 @@ L_33d8:
           t = vfReady[24][2]; if (t > r) r = t;
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 24, 27);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[24], 24, 27);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -19995,12 +18084,7 @@ L_33d8:
           t = vfReady[25][2]; if (t > r) r = t;
           t = vfReady[25][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 25, 27);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.vf[25], 25, 27);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -20017,11 +18101,7 @@ L_33d8:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 26, 27);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[26], 26, 27);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -20038,11 +18118,7 @@ L_33d8:
           t = vfReady[24][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 24, 21);
-        s.vf[24][0] = ut[0];
-        s.vf[24][1] = ut[1];
-        s.vf[24][2] = ut[2];
-        s.vf[24][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[24], 24, 21);
         vfReady[24][0] = cyc + 4u;
         vfReady[24][1] = cyc + 4u;
         vfReady[24][2] = cyc + 4u;
@@ -20061,11 +18137,7 @@ L_33d8:
           cyc = r; }
         br = true; jt = (static_cast<uint32_t>(static_cast<uint16_t>(rb(12))) * 8u) & 0x3FFFu;
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 25, 22);
-        s.vf[25][0] = ut[0];
-        s.vf[25][1] = ut[1];
-        s.vf[25][2] = ut[2];
-        s.vf[25][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[25], 25, 22);
         vfReady[25][0] = cyc + 4u;
         vfReady[25][1] = cyc + 4u;
         vfReady[25][2] = cyc + 4u;
@@ -20082,11 +18154,7 @@ L_33d8:
           t = vfReady[26][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(ut, 26, 23);
-        s.vf[26][0] = ut[0];
-        s.vf[26][1] = ut[1];
-        s.vf[26][2] = ut[2];
-        s.vf[26][3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcVec, 15>(s.vf[26], 26, 23);
         vfReady[26][0] = cyc + 4u;
         vfReady[26][1] = cyc + 4u;
         vfReady[26][2] = cyc + 4u;
@@ -20117,11 +18185,7 @@ L_3438:
     }
     // 3448  nop                                    lq.xyzw vf29, 24(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (24), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[0] + (24), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -20178,11 +18242,7 @@ L_3478:
           t = viReady[9]; if (t > r) r = t;
           cyc = r; }
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -20190,11 +18250,7 @@ L_3478:
     // 3480  nop                                    lqi.xyzw vf28, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[28][0] = lt[0];
-        s.vf[28][1] = lt[1];
-        s.vf[28][2] = lt[2];
-        s.vf[28][3] = lt[3];
+        J.loadQword(s.vf[28], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -20202,11 +18258,7 @@ L_3478:
     // 3488  nop                                    lqi.xyzw vf27, (vi9++)
     {
         const int32_t oldVi = s.vi[9];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[9]), 15);
-        s.vf[27][0] = lt[0];
-        s.vf[27][1] = lt[1];
-        s.vf[27][2] = lt[2];
-        s.vf[27][3] = lt[3];
+        J.loadQword(s.vf[27], static_cast<uint16_t>(s.vi[9]), 15);
         wvi(9, s.vi[9] + 1);
         bkReg = 9; bkVal = oldVi;
         ++cyc;
@@ -20251,11 +18303,7 @@ L_3478:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 29, 0);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[29], 29, 0);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -20267,11 +18315,7 @@ L_3478:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 27, 0);
-        s.vf[27][0] = ut[0];
-        s.vf[27][1] = ut[1];
-        s.vf[27][2] = ut[2];
-        s.vf[27][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[27], 27, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -20285,12 +18329,7 @@ L_3478:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -20309,11 +18348,7 @@ L_3478:
           }
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(ut, 29, 5);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcVec, 15>(s.vf[29], 29, 5);
         vfReady[29][0] = cyc + 4u;
         vfReady[29][1] = cyc + 4u;
         vfReady[29][2] = cyc + 4u;
@@ -20418,12 +18453,8 @@ L_3520:
           t = vfReady[31][3]; if (t > r) r = t;
           cyc = r; }
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(ut, 31, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15>(s.vf[31], 31, 0);
         wvi(2, static_cast<int32_t>(s.top & 0x3FFu));
-        s.vf[31][0] = ut[0];
-        s.vf[31][1] = ut[1];
-        s.vf[31][2] = ut[2];
-        s.vf[31][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -20444,11 +18475,7 @@ L_3520:
     // 3538  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -20456,11 +18483,7 @@ L_3520:
     // 3540  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -20468,11 +18491,7 @@ L_3520:
     // 3548  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -20480,11 +18499,7 @@ L_3520:
     // 3550  nop                                    lqi.xyzw vf8, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[8][0] = lt[0];
-        s.vf[8][1] = lt[1];
-        s.vf[8][2] = lt[2];
-        s.vf[8][3] = lt[3];
+        J.loadQword(s.vf[8], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -20540,11 +18555,7 @@ L_3520:
     // 3588  nop                                    lqi.xyzw vf5, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -20552,11 +18563,7 @@ L_3520:
     // 3590  nop                                    lqi.xyzw vf6, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -20580,11 +18587,7 @@ L_3520:
     // 35a8  nop                                    lqi.xyzw vf7, (vi3++)
     {
         const int32_t oldVi = s.vi[3];
-        J.loadQword(lt, static_cast<uint16_t>(s.vi[3]), 15);
-        s.vf[7][0] = lt[0];
-        s.vf[7][1] = lt[1];
-        s.vf[7][2] = lt[2];
-        s.vf[7][3] = lt[3];
+        J.loadQword(s.vf[7], static_cast<uint16_t>(s.vi[3]), 15);
         wvi(3, s.vi[3] + 1);
         bkReg = 3; bkVal = oldVi;
         ++cyc;
@@ -20639,61 +18642,37 @@ L_3520:
     }
     // 35e0  nop                                    lq.xyzw vf5, 20(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (20), 15);
-        s.vf[5][0] = lt[0];
-        s.vf[5][1] = lt[1];
-        s.vf[5][2] = lt[2];
-        s.vf[5][3] = lt[3];
+        J.loadQword(s.vf[5], s.vi[0] + (20), 15);
         bkReg = 0;
         ++cyc;
     }
     // 35e8  nop                                    lq.xyzw vf6, 21(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (21), 15);
-        s.vf[6][0] = lt[0];
-        s.vf[6][1] = lt[1];
-        s.vf[6][2] = lt[2];
-        s.vf[6][3] = lt[3];
+        J.loadQword(s.vf[6], s.vi[0] + (21), 15);
         bkReg = 0;
         ++cyc;
     }
     // 35f0  nop                                    lq.xyzw vf1, 8(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (8), 15);
-        s.vf[1][0] = lt[0];
-        s.vf[1][1] = lt[1];
-        s.vf[1][2] = lt[2];
-        s.vf[1][3] = lt[3];
+        J.loadQword(s.vf[1], s.vi[0] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 35f8  nop                                    lq.xyzw vf2, 9(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (9), 15);
-        s.vf[2][0] = lt[0];
-        s.vf[2][1] = lt[1];
-        s.vf[2][2] = lt[2];
-        s.vf[2][3] = lt[3];
+        J.loadQword(s.vf[2], s.vi[0] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3600  nop                                    lq.xyzw vf3, 10(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (10), 15);
-        s.vf[3][0] = lt[0];
-        s.vf[3][1] = lt[1];
-        s.vf[3][2] = lt[2];
-        s.vf[3][3] = lt[3];
+        J.loadQword(s.vf[3], s.vi[0] + (10), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3608  nop                                    lq.xyzw vf4, 11(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (11), 15);
-        s.vf[4][0] = lt[0];
-        s.vf[4][1] = lt[1];
-        s.vf[4][2] = lt[2];
-        s.vf[4][3] = lt[3];
+        J.loadQword(s.vf[4], s.vi[0] + (11), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -20713,21 +18692,13 @@ L_3520:
     }
     // 3620  nop                                    lq.xyzw vf16, 110(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (110), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.loadQword(s.vf[16], s.vi[0] + (110), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3628  nop                                    lq.xyzw vf17, 111(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (111), 15);
-        s.vf[17][0] = lt[0];
-        s.vf[17][1] = lt[1];
-        s.vf[17][2] = lt[2];
-        s.vf[17][3] = lt[3];
+        J.loadQword(s.vf[17], s.vi[0] + (111), 15);
         vfReady[17][0] = cyc + 4u;
         vfReady[17][1] = cyc + 4u;
         vfReady[17][2] = cyc + 4u;
@@ -20737,11 +18708,7 @@ L_3520:
     }
     // 3630  nop                                    lq.xyzw vf18, 112(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (112), 15);
-        s.vf[18][0] = lt[0];
-        s.vf[18][1] = lt[1];
-        s.vf[18][2] = lt[2];
-        s.vf[18][3] = lt[3];
+        J.loadQword(s.vf[18], s.vi[0] + (112), 15);
         vfReady[18][0] = cyc + 4u;
         vfReady[18][1] = cyc + 4u;
         vfReady[18][2] = cyc + 4u;
@@ -20751,11 +18718,7 @@ L_3520:
     }
     // 3638  nop                                    lq.xyzw vf19, 113(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (113), 15);
-        s.vf[19][0] = lt[0];
-        s.vf[19][1] = lt[1];
-        s.vf[19][2] = lt[2];
-        s.vf[19][3] = lt[3];
+        J.loadQword(s.vf[19], s.vi[0] + (113), 15);
         vfReady[19][0] = cyc + 4u;
         vfReady[19][1] = cyc + 4u;
         vfReady[19][2] = cyc + 4u;
@@ -20773,11 +18736,7 @@ L_3640:
         { uint64_t r = cyc, t;
           t = viReady[5]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[5] + (0), 15);
-        s.vf[29][0] = lt[0];
-        s.vf[29][1] = lt[1];
-        s.vf[29][2] = lt[2];
-        s.vf[29][3] = lt[3];
+        J.loadQword(s.vf[29], s.vi[5] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -20866,11 +18825,7 @@ L_3640:
         { uint64_t r = cyc, t;
           t = viReady[6]; if (t > r) r = t;
           cyc = r; }
-        J.loadQword(lt, s.vi[6] + (144), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.loadQword(s.vf[15], s.vi[6] + (144), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -20916,17 +18871,8 @@ L_36b0:
           t = vfReady[16][3]; if (t > r) r = t;
           t = viReady[6]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 16, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[6] + (0), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 16, 15);
+        J.loadQword(s.vf[12], s.vi[6] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -20941,17 +18887,8 @@ L_36b0:
             t = vfReady[17][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 17, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (106), 15);
-        s.vf[20][0] = lt[0];
-        s.vf[20][1] = lt[1];
-        s.vf[20][2] = lt[2];
-        s.vf[20][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 17, 15);
+        J.loadQword(s.vf[20], s.vi[0] + (106), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -20966,17 +18903,8 @@ L_36b0:
             t = vfReady[18][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 18, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (107), 15);
-        s.vf[21][0] = lt[0];
-        s.vf[21][1] = lt[1];
-        s.vf[21][2] = lt[2];
-        s.vf[21][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 18, 15);
+        J.loadQword(s.vf[21], s.vi[0] + (107), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -20990,17 +18918,8 @@ L_36b0:
             t = vfReady[19][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 19, 0);
-        J.loadQword(lt, s.vi[0] + (108), 15);
-        s.vf[22][0] = lt[0];
-        s.vf[22][1] = lt[1];
-        s.vf[22][2] = lt[2];
-        s.vf[22][3] = lt[3];
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[16], 19, 0);
+        J.loadQword(s.vf[22], s.vi[0] + (108), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21014,17 +18933,8 @@ L_36b0:
             t = vfReady[1][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 1, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[0] + (109), 15);
-        s.vf[23][0] = lt[0];
-        s.vf[23][1] = lt[1];
-        s.vf[23][2] = lt[2];
-        s.vf[23][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 1, 12);
+        J.loadQword(s.vf[23], s.vi[0] + (109), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21038,17 +18948,8 @@ L_36b0:
             t = vfReady[2][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 2, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[6] + (48), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 2, 12);
+        J.loadQword(s.vf[13], s.vi[6] + (48), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21064,12 +18965,7 @@ L_36b0:
             t = vfReady[3][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 3, 12);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 3, 12);
         const int32_t oldVi = s.vi[8];
         wvi(8, s.vi[9] + s.vi[10]);
         bkReg = 8; bkVal = oldVi;
@@ -21085,24 +18981,15 @@ L_36b0:
             t = vfReady[4][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 4, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[10], 4, 0);
         const int32_t oldVi = s.vi[9];
         wvi(9, s.vi[0] + s.vi[10]);
-        s.vf[10][0] = ut[0];
-        s.vf[10][1] = ut[1];
-        s.vf[10][2] = ut[2];
-        s.vf[10][3] = ut[3];
         bkReg = 9; bkVal = oldVi;
         ++cyc;
     }
     // 36f0  maxx.xyzw vf16, vf16, vf0x             nop
     {
-        J.minmax<Vu1Jit::kSrcBcX, true>(ut, 15, 16, 0);
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
+        J.minmax<Vu1Jit::kSrcBcX, true>(s.vf[16], 15, 16, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -21145,47 +19032,28 @@ L_36b0:
     }
     // 3710  mulax.xyzw acc, vf20, vf16x            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 20, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 20, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3718  madday.xyzw acc, vf21, vf16y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 21, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 21, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3720  maddaz.xyzw acc, vf22, vf16z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 22, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 22, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3728  maddw.xyzw vf16, vf23, vf16w           fcand vi1, 0x000020
     {
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[16], 23, 16);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 23, 16);
         J.commitNow();
         wvi(1, (s.clip & 0x20u) != 0u ? 1 : 0);
-        s.vf[16][0] = ut[0];
-        s.vf[16][1] = ut[1];
-        s.vf[16][2] = ut[2];
-        s.vf[16][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
@@ -21199,17 +19067,8 @@ L_36b0:
             t = vfReady[5][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false>(ut, 10, 5);
-        J.loadQword(lt, s.vi[6] + (96), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 15, false, false>(s.vf[7], 10, 5);
+        J.loadQword(s.vf[14], s.vi[6] + (96), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21223,12 +19082,7 @@ L_36b0:
             t = vfReady[6][3]; if (t > r) r = t;
           }
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false>(ut, 6, 0);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kAdd, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 6, 0);
         const int32_t oldVi = s.vi[10];
         wvi(10, s.vi[0] + s.vi[1]);
         bkReg = 10; bkVal = oldVi;
@@ -21243,8 +19097,7 @@ L_36b0:
     }
     // 3748  mul.xyz vf13, vf13, vf16               loi
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 14, false>(ut, 13, 16);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcVec, 14, false, false>(ut, 13, 16);
         s.i = Vu1Jit::normOp(asf(static_cast<int32_t>(0x42fe0000u)));
         s.vf[13][0] = ut[0];
         s.vf[13][1] = ut[1];
@@ -21256,13 +19109,9 @@ L_36b0:
     {
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false>(ut, 14, 0);
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcQ, 15, false, false>(s.vf[29], 14, 0);
         const int32_t oldVi = s.vi[6];
         wvi(6, s.vi[6] + 1);
-        s.vf[29][0] = ut[0];
-        s.vf[29][1] = ut[1];
-        s.vf[29][2] = ut[2];
-        s.vf[29][3] = ut[3];
         bkReg = 6; bkVal = oldVi;
         ++cyc;
     }
@@ -21273,13 +19122,9 @@ L_36b0:
           cyc = r; }
         J.cyc = cyc;
         J.readQ();
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15>(ut, 7, 0);
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcQ, 15>(s.vf[7], 7, 0);
         const int32_t oldVi = s.vi[11];
         wvi(11, s.vi[11] - 1);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
         bkReg = 11; bkVal = oldVi;
         ++cyc;
     }
@@ -21295,11 +19140,7 @@ L_36b0:
     }
     // 3768  minii.xyzw vf13, vf13, i               nop
     {
-        J.minmax<Vu1Jit::kSrcI, false>(ut, 15, 13, 0);
-        s.vf[13][0] = ut[0];
-        s.vf[13][1] = ut[1];
-        s.vf[13][2] = ut[2];
-        s.vf[13][3] = ut[3];
+        J.minmax<Vu1Jit::kSrcI, false>(s.vf[13], 15, 13, 0);
         bkReg = 0;
         ++cyc;
     }
@@ -21344,11 +19185,7 @@ L_36b0:
         ut[1] = asf(Vu1Jit::floatToInt(Vu1Jit::normOp(s.vf[7][1]), 16.0f));
         ut[2] = asf(Vu1Jit::floatToInt(Vu1Jit::normOp(s.vf[7][2]), 16.0f));
         ut[3] = asf(Vu1Jit::floatToInt(Vu1Jit::normOp(s.vf[7][3]), 16.0f));
-        J.loadQword(lt, s.vi[6] + (144), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.loadQword(s.vf[15], s.vi[6] + (144), 15);
         s.vf[7][0] = ut[0];
         s.vf[7][1] = ut[1];
         s.vf[7][2] = ut[2];
@@ -21388,11 +19225,7 @@ L_37b0:
     // 37b0  nop                                    lq.xyzw vf16, 110(vi0)
     if (cyc + 89u >= J.budgetEnd) return (VU_SYNC(), J.handoff(0x37b0u));
     {
-        J.loadQword(lt, s.vi[0] + (110), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.loadQword(s.vf[16], s.vi[0] + (110), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21573,41 +19406,25 @@ L_3af8:
     }
     // 3b00  nop                                    lq.xyzw vf9, 22(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (22), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[1] + (22), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3b08  nop                                    lq.xyzw vf10, 23(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (23), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[1] + (23), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3b10  nop                                    lq.xyzw vf11, 24(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (24), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[1] + (24), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3b18  nop                                    lq.xyzw vf12, 25(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (25), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[1] + (25), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21662,41 +19479,25 @@ L_3b50:
     }
     // 3b58  nop                                    lq.xyzw vf9, 26(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (26), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[1] + (26), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3b60  nop                                    lq.xyzw vf10, 27(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (27), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[1] + (27), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3b68  nop                                    lq.xyzw vf11, 28(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (28), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[1] + (28), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3b70  nop                                    lq.xyzw vf12, 29(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (29), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[1] + (29), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21751,41 +19552,25 @@ L_3ba8:
     }
     // 3bb0  nop                                    lq.xyzw vf9, 30(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (30), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[1] + (30), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3bb8  nop                                    lq.xyzw vf10, 31(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (31), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[1] + (31), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3bc0  nop                                    lq.xyzw vf11, 32(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (32), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[1] + (32), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3bc8  nop                                    lq.xyzw vf12, 33(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (33), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[1] + (33), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21840,41 +19625,25 @@ L_3c00:
     }
     // 3c08  nop                                    lq.xyzw vf9, 34(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (34), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[1] + (34), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3c10  nop                                    lq.xyzw vf10, 35(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (35), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[1] + (35), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3c18  nop                                    lq.xyzw vf11, 36(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (36), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[1] + (36), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3c20  nop                                    lq.xyzw vf12, 37(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (37), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[1] + (37), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -21929,41 +19698,25 @@ L_3c58:
     }
     // 3c60  nop                                    lq.xyzw vf9, 16(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (16), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[1] + (16), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3c68  nop                                    lq.xyzw vf10, 17(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (17), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[1] + (17), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3c70  nop                                    lq.xyzw vf11, 18(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (18), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[1] + (18), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3c78  nop                                    lq.xyzw vf12, 19(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (19), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[1] + (19), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -22018,11 +19771,7 @@ L_3cb0:
     }
     // 3cb8  nop                                    lq.xyzw vf9, 20(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (20), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[1] + (20), 15);
         vfReady[9][0] = cyc + 4u;
         vfReady[9][1] = cyc + 4u;
         vfReady[9][2] = cyc + 4u;
@@ -22032,11 +19781,7 @@ L_3cb0:
     }
     // 3cc0  nop                                    lq.xyzw vf10, 21(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (21), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[1] + (21), 15);
         vfReady[10][0] = cyc + 4u;
         vfReady[10][1] = cyc + 4u;
         vfReady[10][2] = cyc + 4u;
@@ -22094,41 +19839,25 @@ L_3ce8:
     }
     // 3cf0  nop                                    lq.xyzw vf9, 0(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (0), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[1] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3cf8  nop                                    lq.xyzw vf10, 1(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (1), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[1] + (1), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d00  nop                                    lq.xyzw vf11, 2(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (2), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[1] + (2), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d08  nop                                    lq.xyzw vf12, 3(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (3), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[1] + (3), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -22183,246 +19912,139 @@ L_3d40:
     }
     // 3d48  nop                                    lq.xyzw vf13, 4(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (4), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[1] + (4), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d50  nop                                    lq.xyzw vf9, 0(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (0), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[0] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d58  nop                                    lq.xyzw vf10, 1(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (1), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[0] + (1), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d60  nop                                    lq.xyzw vf11, 2(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (2), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[0] + (2), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d68  nop                                    lq.xyzw vf12, 3(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (3), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[0] + (3), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d70  mulax.xyzw acc, vf9, vf13x             lq.xyzw vf14, 5(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (5), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 13);
+        J.loadQword(s.vf[14], s.vi[1] + (5), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d78  madday.xyzw acc, vf10, vf13y           lq.xyzw vf15, 6(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (6), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 13);
+        J.loadQword(s.vf[15], s.vi[1] + (6), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d80  maddaz.xyzw acc, vf11, vf13z           lq.xyzw vf16, 7(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (7), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 13);
+        J.loadQword(s.vf[16], s.vi[1] + (7), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d88  maddw.xyzw vf5, vf12, vf13w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 13);
-        s.vf[5][0] = ut[0];
-        s.vf[5][1] = ut[1];
-        s.vf[5][2] = ut[2];
-        s.vf[5][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[5], 12, 13);
         bkReg = 0;
         ++cyc;
     }
     // 3d90  mulax.xyzw acc, vf9, vf14x             sq.xyzw vf13, 4(vi0)
     {
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 14);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
         J.storeQword(s.vi[0] + (4), s.vf[13], 15);
         bkReg = 0;
         ++cyc;
     }
     // 3d98  madday.xyzw acc, vf10, vf14y           sq.xyzw vf14, 5(vi0)
     {
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 14);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
         J.storeQword(s.vi[0] + (5), s.vf[14], 15);
         bkReg = 0;
         ++cyc;
     }
     // 3da0  maddaz.xyzw acc, vf11, vf14z           sq.xyzw vf15, 6(vi0)
     {
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 14);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
         J.storeQword(s.vi[0] + (6), s.vf[15], 15);
         bkReg = 0;
         ++cyc;
     }
     // 3da8  maddw.xyzw vf6, vf12, vf14w            sq.xyzw vf16, 7(vi0)
     {
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[6], 12, 14);
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 14);
         J.storeQword(s.vi[0] + (7), s.vf[16], 15);
-        s.vf[6][0] = ut[0];
-        s.vf[6][1] = ut[1];
-        s.vf[6][2] = ut[2];
-        s.vf[6][3] = ut[3];
         bkReg = 0;
         ++cyc;
     }
     // 3db0  mulax.xyzw acc, vf9, vf15x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3db8  madday.xyzw acc, vf10, vf15y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3dc0  maddaz.xyzw acc, vf11, vf15z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3dc8  maddw.xyzw vf7, vf12, vf15w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 15);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[7], 12, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3dd0  mulax.xyzw acc, vf9, vf16x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3dd8  madday.xyzw acc, vf10, vf16y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3de0  maddaz.xyzw acc, vf11, vf16z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3de8  maddw.xyzw vf8, vf12, vf16w            nop
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(ut, 12, 16);
-        s.vf[8][0] = ut[0];
-        s.vf[8][1] = ut[1];
-        s.vf[8][2] = ut[2];
-        s.vf[8][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(s.vf[8], 12, 16);
         bkReg = 0;
         ++cyc;
     }
@@ -22477,41 +20099,25 @@ L_3e20:
     }
     // 3e28  nop                                    lq.xyzw vf13, 8(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (8), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[1] + (8), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3e30  nop                                    lq.xyzw vf9, 0(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (0), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[0] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3e38  nop                                    lq.xyzw vf10, 1(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (1), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[0] + (1), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3e40  nop                                    lq.xyzw vf11, 2(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (2), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[0] + (2), 15);
         vfReady[11][0] = cyc + 4u;
         vfReady[11][1] = cyc + 4u;
         vfReady[11][2] = cyc + 4u;
@@ -22521,27 +20127,14 @@ L_3e20:
     }
     // 3e48  nop                                    lq.xyzw vf12, 3(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (3), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[0] + (3), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3e50  mulax.xyzw acc, vf9, vf13x             lq.xyzw vf14, 9(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (9), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 13);
+        J.loadQword(s.vf[14], s.vi[1] + (9), 15);
         bkReg = 0;
         ++cyc;
     }
@@ -22553,176 +20146,94 @@ L_3e20:
           t = vfReady[11][2]; if (t > r) r = t;
           t = vfReady[11][3]; if (t > r) r = t;
           cyc = r; }
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (10), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 13);
+        J.loadQword(s.vf[15], s.vi[1] + (10), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3e60  madday.xyzw acc, vf10, vf13y           lq.xyzw vf16, 11(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (11), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 13);
+        J.loadQword(s.vf[16], s.vi[1] + (11), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3e68  maddw.xyzw vf5, vf12, vf13w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 13);
-        s.vf[5][0] = ut[0];
-        s.vf[5][1] = ut[1];
-        s.vf[5][2] = ut[2];
-        s.vf[5][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[5], 12, 13);
         bkReg = 0;
         ++cyc;
     }
     // 3e70  mulax.xyzw acc, vf9, vf14x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3e78  madday.xyzw acc, vf10, vf14y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3e80  maddaz.xyzw acc, vf11, vf14z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3e88  maddw.xyzw vf6, vf12, vf14w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 14);
-        s.vf[6][0] = ut[0];
-        s.vf[6][1] = ut[1];
-        s.vf[6][2] = ut[2];
-        s.vf[6][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[6], 12, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3e90  mulax.xyzw acc, vf9, vf15x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3e98  madday.xyzw acc, vf10, vf15y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3ea0  maddaz.xyzw acc, vf11, vf15z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3ea8  maddw.xyzw vf7, vf12, vf15w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 15);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[7], 12, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3eb0  mulax.xyzw acc, vf9, vf16x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3eb8  madday.xyzw acc, vf10, vf16y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3ec0  maddaz.xyzw acc, vf11, vf16z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3ec8  maddw.xyzw vf8, vf12, vf16w            nop
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(ut, 12, 16);
-        s.vf[8][0] = ut[0];
-        s.vf[8][1] = ut[1];
-        s.vf[8][2] = ut[2];
-        s.vf[8][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(s.vf[8], 12, 16);
         bkReg = 0;
         ++cyc;
     }
@@ -22777,242 +20288,131 @@ L_3f00:
     }
     // 3f08  nop                                    lq.xyzw vf13, 12(vi1)
     {
-        J.loadQword(lt, s.vi[1] + (12), 15);
-        s.vf[13][0] = lt[0];
-        s.vf[13][1] = lt[1];
-        s.vf[13][2] = lt[2];
-        s.vf[13][3] = lt[3];
+        J.loadQword(s.vf[13], s.vi[1] + (12), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f10  nop                                    lq.xyzw vf9, 0(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (0), 15);
-        s.vf[9][0] = lt[0];
-        s.vf[9][1] = lt[1];
-        s.vf[9][2] = lt[2];
-        s.vf[9][3] = lt[3];
+        J.loadQword(s.vf[9], s.vi[0] + (0), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f18  nop                                    lq.xyzw vf10, 1(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (1), 15);
-        s.vf[10][0] = lt[0];
-        s.vf[10][1] = lt[1];
-        s.vf[10][2] = lt[2];
-        s.vf[10][3] = lt[3];
+        J.loadQword(s.vf[10], s.vi[0] + (1), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f20  nop                                    lq.xyzw vf11, 2(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (2), 15);
-        s.vf[11][0] = lt[0];
-        s.vf[11][1] = lt[1];
-        s.vf[11][2] = lt[2];
-        s.vf[11][3] = lt[3];
+        J.loadQword(s.vf[11], s.vi[0] + (2), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f28  nop                                    lq.xyzw vf12, 3(vi0)
     {
-        J.loadQword(lt, s.vi[0] + (3), 15);
-        s.vf[12][0] = lt[0];
-        s.vf[12][1] = lt[1];
-        s.vf[12][2] = lt[2];
-        s.vf[12][3] = lt[3];
+        J.loadQword(s.vf[12], s.vi[0] + (3), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f30  mulax.xyzw acc, vf9, vf13x             lq.xyzw vf14, 13(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (13), 15);
-        s.vf[14][0] = lt[0];
-        s.vf[14][1] = lt[1];
-        s.vf[14][2] = lt[2];
-        s.vf[14][3] = lt[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 13);
+        J.loadQword(s.vf[14], s.vi[1] + (13), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f38  madday.xyzw acc, vf10, vf13y           lq.xyzw vf15, 14(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (14), 15);
-        s.vf[15][0] = lt[0];
-        s.vf[15][1] = lt[1];
-        s.vf[15][2] = lt[2];
-        s.vf[15][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 13);
+        J.loadQword(s.vf[15], s.vi[1] + (14), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f40  maddaz.xyzw acc, vf11, vf13z           lq.xyzw vf16, 15(vi1)
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 13);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
-        J.loadQword(lt, s.vi[1] + (15), 15);
-        s.vf[16][0] = lt[0];
-        s.vf[16][1] = lt[1];
-        s.vf[16][2] = lt[2];
-        s.vf[16][3] = lt[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 13);
+        J.loadQword(s.vf[16], s.vi[1] + (15), 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f48  maddw.xyzw vf5, vf12, vf13w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 13);
-        s.vf[5][0] = ut[0];
-        s.vf[5][1] = ut[1];
-        s.vf[5][2] = ut[2];
-        s.vf[5][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[5], 12, 13);
         bkReg = 0;
         ++cyc;
     }
     // 3f50  mulax.xyzw acc, vf9, vf14x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3f58  madday.xyzw acc, vf10, vf14y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3f60  maddaz.xyzw acc, vf11, vf14z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 14);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3f68  maddw.xyzw vf6, vf12, vf14w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 14);
-        s.vf[6][0] = ut[0];
-        s.vf[6][1] = ut[1];
-        s.vf[6][2] = ut[2];
-        s.vf[6][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[6], 12, 14);
         bkReg = 0;
         ++cyc;
     }
     // 3f70  mulax.xyzw acc, vf9, vf15x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f78  madday.xyzw acc, vf10, vf15y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f80  maddaz.xyzw acc, vf11, vf15z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 15);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f88  maddw.xyzw vf7, vf12, vf15w            nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false>(ut, 12, 15);
-        s.vf[7][0] = ut[0];
-        s.vf[7][1] = ut[1];
-        s.vf[7][2] = ut[2];
-        s.vf[7][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15, false, false>(s.vf[7], 12, 15);
         bkReg = 0;
         ++cyc;
     }
     // 3f90  mulax.xyzw acc, vf9, vf16x             nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false>(ut, 9, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMul, Vu1Jit::kSrcBcX, 15, false, false>(s.acc, 9, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3f98  madday.xyzw acc, vf10, vf16y           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false>(ut, 10, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcY, 15, false, false>(s.acc, 10, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3fa0  maddaz.xyzw acc, vf11, vf16z           nop
     {
-        J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false>(ut, 11, 16);
-        s.acc[0] = ut[0];
-        s.acc[1] = ut[1];
-        s.acc[2] = ut[2];
-        s.acc[3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcZ, 15, false, false>(s.acc, 11, 16);
         bkReg = 0;
         ++cyc;
     }
     // 3fa8  maddw.xyzw vf8, vf12, vf16w            nop
     {
         J.cyc = cyc;
-        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(ut, 12, 16);
-        s.vf[8][0] = ut[0];
-        s.vf[8][1] = ut[1];
-        s.vf[8][2] = ut[2];
-        s.vf[8][3] = ut[3];
+        J.fmac<Vu1Jit::kMadd, Vu1Jit::kSrcBcW, 15>(s.vf[8], 12, 16);
         bkReg = 0;
         ++cyc;
     }

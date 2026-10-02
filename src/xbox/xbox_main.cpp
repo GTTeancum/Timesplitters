@@ -89,7 +89,9 @@ namespace
                   << g_nv2aTextureStats.residentBytes / 1024u << "K z=" << std::hex << g_nv2aTextureStats.zpsm
                   << "/" << g_nv2aTextureStats.test << "/" << g_nv2aTextureStats.zmask << std::dec << " "
                   << g_nv2aTextureStats.zmin << ".." << g_nv2aTextureStats.zmax << " frame " << g_nv2aTextureStats.frameTextures
-                  << "/" << g_nv2aTextureStats.frameTextureBytes / 1024u << "K fills " << g_nv2aTextureStats.frameFills << std::endl;
+                  << "/" << g_nv2aTextureStats.frameTextureBytes / 1024u << "K fills " << g_nv2aTextureStats.frameFills << " miss new/ver/clut/evict "
+                  << g_nv2aTextureStats.missNew << "/" << g_nv2aTextureStats.missVersion << "/"
+                  << g_nv2aTextureStats.missClut << "/" << g_nv2aTextureStats.missEvicted << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"

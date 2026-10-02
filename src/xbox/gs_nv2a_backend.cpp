@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstring>
 #include <list>
+#include <set>
 #include <vector>
 
 void xboxGpuOwnsDisplay(bool owns);
@@ -254,10 +255,12 @@ struct GSNv2aBackend::Impl
         GSCpuBackend::VramRange range;
         void *texels = nullptr; // swizzled, GPU memory
         uint32_t format = 0;    // NV097_SET_TEXTURE_FORMAT_COLOR_SZ_*
+        uint32_t gpuWidth = 0, gpuHeight = 0; // stored size (large textures are halved)
         size_t bytes = 0;
         uint32_t lastFrame = 0;
     };
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
+    std::set<uint64_t> frameKeys, lastFrameKeys; // address/size keys drawn this and last frame (statistics)
     size_t retiredBytes = 0;
     static constexpr size_t kRetiredLimit = 768u * 1024u; // beyond this, wait and free at once
     // A list: draw keys hold pointers into it across insertions and removals.
@@ -328,22 +331,60 @@ struct GSNv2aBackend::Impl
         const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
         const uint64_t hash = indexed ? clutHash : 0u;
         const uint64_t versions = versionSum(range);
+        auto matches = [&](const Texture &t) {
+            return t.tbp0 == tex.tbp0 && t.tbw == tex.tbw && t.psm == tex.psm && t.width == w && t.height == h &&
+                   t.texa == texa && t.clutHash == hash &&
+                   (!indexed || (t.cpsm == tex.cpsm && t.csm == tex.csm && t.csa == tex.csa));
+        };
         for (auto it = textures.begin(); it != textures.end(); ++it)
         {
             Texture &t = *it;
-            if (t.tbp0 == tex.tbp0 && t.tbw == tex.tbw && t.psm == tex.psm && t.width == w && t.height == h &&
-                t.texa == texa && t.clutHash == hash &&
-                (!indexed || (t.cpsm == tex.cpsm && t.csm == tex.csm && t.csa == tex.csa)))
+            if (!matches(t))
+                continue;
+            if (t.versions == versions)
             {
-                if (t.versions == versions)
-                {
-                    t.lastUse = ++textureTick;
-                    noteUse(t);
-                    return &t;
-                }
-                retireTexture(it); // changed contents: decoded afresh below
-                break;
+                t.lastUse = ++textureTick;
+                noteUse(t);
+                return &t;
             }
+            retireTexture(it); // changed contents: decoded afresh below
+            break;
+        }
+        // One-frame textures (and evicted ones not yet freed) are reused
+        // until the frame ends rather than decoded again at each use.
+        for (Texture &t : retired)
+            if (t.versions == versions && matches(t))
+            {
+                t.lastUse = ++textureTick;
+                noteUse(t);
+                return &t;
+            }
+        {
+            // Why this is a miss (development statistics).
+            bool sameAddress = false, sameVersion = false;
+            for (const Texture &t : textures)
+                if (t.tbp0 == tex.tbp0 && t.psm == tex.psm && t.width == w && t.height == h)
+                {
+                    sameAddress = true;
+                    if (t.versions == versions)
+                        sameVersion = true;
+                }
+            for (const Texture &t : retired)
+                if (t.tbp0 == tex.tbp0 && t.psm == tex.psm && t.width == w && t.height == h)
+                {
+                    sameAddress = true;
+                    if (t.versions == versions)
+                        sameVersion = true;
+                }
+            if (sameVersion)
+                ++g_nv2aTextureStats.missClut;
+            else if (sameAddress)
+                ++g_nv2aTextureStats.missVersion;
+            else if (lastFrameKeys.count(uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40)))
+                ++g_nv2aTextureStats.missEvicted;
+            else
+                ++g_nv2aTextureStats.missNew;
+            frameKeys.insert(uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40));
         }
         Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
         decodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
@@ -405,10 +446,38 @@ struct GSNv2aBackend::Impl
     // pixel programs' x2 clamps to 1 either way), else A8R8G8B8.
     void decodeTexture(Texture &t, const GSDrawState &state)
     {
+        // 2D draws (sprites: HUD, text) keep their texels; the halving is
+        // for the world's triangles.
+        const bool allowHalf = state.prim.type != GS_PRIM_SPRITE;
         cpu.DecodeTexture(state, decoded);
-        const size_t count = size_t(t.width) * t.height;
-        if (decoded.size() < count)
-            decoded.assign(count, 0u);
+        if (decoded.size() < size_t(t.width) * t.height)
+            decoded.assign(size_t(t.width) * t.height, 0u);
+        // Textures of 256 or more are stored at half size (2x2 average):
+        // a match's textures are about 3 MB a frame at full size, three
+        // times what 64 MB leaves for the cache.
+        t.gpuWidth = t.width;
+        t.gpuHeight = t.height;
+        if (allowHalf && (t.width >= 256u || t.height >= 256u) && t.width >= 16u && t.height >= 16u)
+        {
+            const uint32_t w = t.width, gw = w / 2u, gh = t.height / 2u;
+            for (uint32_t v = 0; v < gh; ++v)
+            {
+                const uint32_t *r0 = &decoded[size_t(2u * v) * w], *r1 = r0 + w;
+                uint32_t *dst = &decoded[size_t(v) * gw];
+                for (uint32_t u = 0; u < gw; ++u)
+                {
+                    const uint32_t a = r0[2u * u], b = r0[2u * u + 1u], c = r1[2u * u], d = r1[2u * u + 1u];
+                    uint32_t out = 0;
+                    for (uint32_t shift = 0; shift < 32u; shift += 8u)
+                        out |= ((((a >> shift) & 0xFFu) + ((b >> shift) & 0xFFu) + ((c >> shift) & 0xFFu) + ((d >> shift) & 0xFFu) + 2u) / 4u) << shift;
+                    dst[u] = out;
+                }
+            }
+            t.gpuWidth = gw;
+            t.gpuHeight = gh;
+        }
+        const uint32_t width = t.gpuWidth, height = t.gpuHeight;
+        const size_t count = size_t(width) * height;
         bool binaryAlpha = true, fits16 = true;
         for (size_t i = 0; i < count && binaryAlpha; ++i)
         {
@@ -419,21 +488,21 @@ struct GSNv2aBackend::Impl
         }
         // Most textures: DXT1 (4 bits a texel) so the cache holds a frame's
         // worth; the alpha bit is the 3-colour mode's transparent entry.
-        if (binaryAlpha && t.width >= 8u && t.height >= 8u)
+        if (binaryAlpha && width >= 8u && height >= 8u)
         {
             t.format = NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5;
             t.bytes = count / 2u;
             swizzled.resize(t.bytes);
-            encodeDxt1(t, swizzled.data());
+            encodeDxt1(width, height, swizzled.data());
             return;
         }
         fits16 = fits16 && binaryAlpha;
-        const Swizzle sw(t.width, t.height);
-        spreadU.resize(t.width);
-        for (uint32_t u = 0; u < t.width; ++u)
+        const Swizzle sw(width, height);
+        spreadU.resize(width);
+        for (uint32_t u = 0; u < width; ++u)
             spreadU[u] = Swizzle::spread(u, sw.maskU);
-        spreadV.resize(t.height);
-        for (uint32_t v = 0; v < t.height; ++v)
+        spreadV.resize(height);
+        for (uint32_t v = 0; v < height; ++v)
             spreadV[v] = Swizzle::spread(v, sw.maskV);
         t.format = fits16 ? NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5 : NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8;
         t.bytes = count * (fits16 ? 2u : 4u);
@@ -441,11 +510,11 @@ struct GSNv2aBackend::Impl
         if (fits16)
         {
             uint16_t *dst = reinterpret_cast<uint16_t *>(swizzled.data());
-            for (uint32_t v = 0; v < t.height; ++v)
+            for (uint32_t v = 0; v < height; ++v)
             {
-                const uint32_t *src = &decoded[size_t(v) * t.width];
+                const uint32_t *src = &decoded[size_t(v) * width];
                 const uint32_t rowBits = spreadV[v];
-                for (uint32_t u = 0; u < t.width; ++u)
+                for (uint32_t u = 0; u < width; ++u)
                 {
                     const uint32_t c = src[u]; // R, G, B, A bytes
                     dst[spreadU[u] | rowBits] = uint16_t(((c >> 16) & 0x8000u) | ((c & 0xF8u) << 7) |
@@ -456,11 +525,11 @@ struct GSNv2aBackend::Impl
         else
         {
             uint32_t *dst = reinterpret_cast<uint32_t *>(swizzled.data());
-            for (uint32_t v = 0; v < t.height; ++v)
+            for (uint32_t v = 0; v < height; ++v)
             {
-                const uint32_t *src = &decoded[size_t(v) * t.width];
+                const uint32_t *src = &decoded[size_t(v) * width];
                 const uint32_t rowBits = spreadV[v];
-                for (uint32_t u = 0; u < t.width; ++u)
+                for (uint32_t u = 0; u < width; ++u)
                 {
                     const uint32_t c = src[u];
                     dst[spreadU[u] | rowBits] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);
@@ -483,10 +552,9 @@ struct GSNv2aBackend::Impl
     // DXT1 by colour-extent fit: each 4x4 block's colours span the box of
     // its opaque texels; a block with transparent texels uses the 3-colour
     // mode (colour0 <= colour1) whose fourth entry is transparent.
-    void encodeDxt1(const Texture &t, uint8_t *out)
+    void encodeDxt1(uint32_t w, uint32_t h, uint8_t *out)
     {
-        const uint32_t w = t.width;
-        for (uint32_t by = 0; by < t.height; by += 4)
+        for (uint32_t by = 0; by < h; by += 4)
             for (uint32_t bx = 0; bx < w; bx += 4, out += 8)
             {
                 uint32_t texel[16];
@@ -702,6 +770,8 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.frameTextureBytes = frameTextureBytes;
         g_nv2aTextureStats.frameFills = frameFills;
         frameTextures = frameTextureBytes = frameFills = 0;
+        lastFrameKeys.swap(frameKeys);
+        frameKeys.clear();
         ++frameNumber;
     }
 
@@ -855,7 +925,7 @@ struct GSNv2aBackend::Impl
                 p = pb_push1(p, NV097_SET_TEXTURE_OFFSET, physical(t.texels));
                 p = pb_push1(p, NV097_SET_TEXTURE_FORMAT,
                              0x0000002Au | (t.format << 8) | (1u << 16) |
-                                 (log2u(t.width) << 20) | (log2u(t.height) << 24));
+                                 (log2u(t.gpuWidth) << 20) | (log2u(t.gpuHeight) << 24));
             }
             if (all || !o.texture)
                 p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0, NV097_SET_TEXTURE_CONTROL0_ENABLE);

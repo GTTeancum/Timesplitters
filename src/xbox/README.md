@@ -31,10 +31,10 @@ game assertion) is logged with its cause.
 ## State (2026-10-02)
 
 Boots to the arcade match in about 3.5 minutes of xemu time (64 MB), most of
-it the scripted menu route; the match runs at about 10 frames a second in
+it the scripted menu route; the match runs at about 11-18 frames a second in
 xemu with the NV2A drawing the screen. About 2 MB of memory is free while
-playing. Known gaps: no points/lines on the GPU, no fog, textures stored as DXT1
-(lossy), VIF1 commands over 256 KB that straddle chain pieces.
+playing. Known gaps: no points/lines on the GPU, no fog, textures stored as DXT1 and
+world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle chain pieces.
 
 ## Xbox-specific pieces
 

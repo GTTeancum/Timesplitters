@@ -24,6 +24,10 @@ struct GSNv2aTextureStats
     uint32_t zmin = 0, zmax = 0;
     // Last frame: textures used (distinct) and their bytes, fills.
     uint32_t frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
+    // Misses by cause (cumulative): no texture at that address/size at
+    // all, same address but local memory changed since, same contents
+    // but a different CLUT/TEXA, or evicted/one-frame last frame.
+    uint32_t missNew = 0, missVersion = 0, missClut = 0, missEvicted = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 

@@ -3,6 +3,7 @@
 // definitions don't collide with nxdk's declarations.
 #include <cstdint>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <fenv.h>
 #include <xmmintrin.h>
@@ -60,3 +61,39 @@ extern "C"
     long long llroundf(float x) { return llround(x); }
     long long llroundl(long double x) { return llround(static_cast<double>(x)); }
 }
+
+// operator new: nxdk's libc++ is built without exceptions, and its operator
+// new then returns null when malloc fails. Callers (std::vector growth, say)
+// write through that null and the Xbox crashes with no message. These
+// variants stop with the size that could not be allocated instead.
+#include <new>
+void xboxLogWrite(const char *text, unsigned length);
+namespace ps2x
+{
+    [[noreturn]] void fatalError(const char *message);
+}
+
+namespace
+{
+    [[noreturn]] void outOfMemory(size_t bytes)
+    {
+        char line[96];
+        const int n = std::snprintf(line, sizeof(line), "[TS:xbox] out of memory: %u bytes requested\n",
+                                    static_cast<unsigned>(bytes));
+        xboxLogWrite(line, n > 0 ? static_cast<unsigned>(n) : 0u);
+        ps2x::fatalError("out of memory");
+    }
+
+    void *allocate(size_t bytes)
+    {
+        void *p = std::malloc(bytes ? bytes : 1u);
+        if (!p)
+            outOfMemory(bytes);
+        return p;
+    }
+}
+
+void *operator new(size_t bytes) { return allocate(bytes); }
+void *operator new[](size_t bytes) { return allocate(bytes); }
+void *operator new(size_t bytes, const std::nothrow_t &) noexcept { return std::malloc(bytes ? bytes : 1u); }
+void *operator new[](size_t bytes, const std::nothrow_t &) noexcept { return std::malloc(bytes ? bytes : 1u); }

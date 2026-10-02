@@ -324,6 +324,28 @@ namespace GSMem
     {
     }
 
+    namespace
+    {
+        template <PixelStorageMode psm, typename Table>
+        void readRow(const Table& table, const u8* data, u32 bp, u32 bw, u32 x, u32 y, u32 count, u32* out)
+        {
+            for (u32 i = 0; i < count; ++i)
+                out[i] = PixelStorageTraits<psm>::Read(table, data, bp, bw, x + i, y);
+        }
+    }
+
+    bool ReadRow(u32 psm, const u8* data, u32 bp, u32 bw, u32 x, u32 y, u32 count, u32* out)
+    {
+        switch (psm)
+        {
+        case 0x00: readRow<C32>(PageTableC32, data, bp, bw, x, y, count, out); return true;
+        case 0x01: readRow<C24>(PageTableC32, data, bp, bw, x, y, count, out); return true;
+        case 0x02: readRow<C16>(PageTableC16, data, bp, bw, x, y, count, out); return true;
+        case 0x0A: readRow<C16S>(PageTableC16S, data, bp, bw, x, y, count, out); return true;
+        default: return false;
+        }
+    }
+
     u32 ReadCT32(u8* data, u32 bp, u32 bw, u32 x, u32 y)
     {
         return PixelStorageTraits<C32>::Read(PageTableC32, data, bp, bw, x, y);

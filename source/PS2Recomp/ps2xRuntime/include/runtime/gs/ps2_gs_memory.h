@@ -562,6 +562,9 @@ namespace GSMem
 
 	void WriteNull(u8* data, u32 bp, u32 bw, u32 x, u32 y, u32 value);
 
+	// Reads count pixels of row y from x on, for the colour formats (CT32,
+	// CT24, CT16, CT16S); false for others. Much cheaper than per-pixel reads.
+	bool ReadRow(u32 psm, const u8* data, u32 bp, u32 bw, u32 x, u32 y, u32 count, u32* out);
 	u32 ReadCT32(u8* data, u32 bp, u32 bw, u32 x, u32 y);
 	u32 ReadZ32(u8* data, u32 bp, u32 bw, u32 x, u32 y);
 

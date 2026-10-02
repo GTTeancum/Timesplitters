@@ -7,10 +7,12 @@
 // and every other stream is written with WriteFile as before.
 #include <pdclib/_PDCLIB_int.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <threads.h>
 
 #include <windows.h>
 
@@ -62,4 +64,60 @@ extern "C" int _PDCLIB_flushbuffer(struct _PDCLIB_file_t *stream)
     stream->pos.offset += written;
     stream->bufidx = 0;
     return 0;
+}
+
+// fread, replacing nxdk's: that one refills a 1 KB buffer with one kernel
+// read at a time and copies it a byte at a time, so loading the game's
+// 27 MB of data took most of start-up. Buffered bytes are copied in one go
+// and whole-buffer-sized remainders are read straight into the caller's
+// memory. File position bookkeeping matches _PDCLIB_fillbuffer's: pos.offset
+// is the OS file position, which ftell adjusts by the unread buffer.
+extern "C" int _PDCLIB_prepread(struct _PDCLIB_file_t *stream);
+extern "C" int _PDCLIB_fillbuffer(struct _PDCLIB_file_t *stream);
+
+extern "C" size_t fread(void *__restrict ptr, size_t size, size_t nmemb, struct _PDCLIB_file_t *__restrict stream)
+{
+    const size_t total = size * nmemb;
+    if (total == 0)
+        return 0;
+    mtx_lock(&stream->mtx);
+    if (_PDCLIB_prepread(stream) == EOF)
+    {
+        mtx_unlock(&stream->mtx);
+        return 0;
+    }
+    char *dest = static_cast<char *>(ptr);
+    size_t done = 0;
+    auto fromBuffer = [&] {
+        const size_t n = std::min<size_t>(stream->bufend - stream->bufidx, total - done);
+        std::memcpy(dest + done, stream->buffer + stream->bufidx, n);
+        stream->bufidx += n;
+        done += n;
+    };
+    fromBuffer();
+    while (total - done >= stream->bufsize)
+    {
+        DWORD got = 0;
+        if (!ReadFile(stream->handle, dest + done, static_cast<DWORD>(total - done), &got, nullptr))
+        {
+            errno = _PDCLIB_w32errno(GetLastError());
+            stream->status |= _PDCLIB_ERRORFLAG;
+            break;
+        }
+        if (got == 0)
+        {
+            stream->status |= _PDCLIB_EOFFLAG;
+            break;
+        }
+        stream->pos.offset += got;
+        done += got;
+    }
+    while (done < total && !(stream->status & (_PDCLIB_EOFFLAG | _PDCLIB_ERRORFLAG)))
+    {
+        if (stream->bufidx == stream->bufend && _PDCLIB_fillbuffer(stream) == EOF)
+            break;
+        fromBuffer();
+    }
+    mtx_unlock(&stream->mtx);
+    return done / size;
 }

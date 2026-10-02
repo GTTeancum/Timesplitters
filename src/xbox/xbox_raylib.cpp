@@ -12,6 +12,7 @@
 
 #include <SDL.h>
 #include <hal/video.h>
+#include <pbkit/pbkit.h>
 #include <xboxkrnl/xboxkrnl.h>
 
 #include <algorithm>
@@ -42,6 +43,8 @@ namespace
     uint32_t g_pendingClear = 0xFF000000u;
     bool g_clearPending = false;
     bool g_gameFrameShown = false;
+    bool g_gpuOwnsDisplay = false; // the NV2A renderer presents (gs_nv2a_backend.cpp)
+    LARGE_INTEGER kYield{.QuadPart = -40000}; // 4 ms, relative
 
     void clearAround(int x0, int y0, int x1, int y1);
 
@@ -124,8 +127,11 @@ namespace
 // ------------------------------------------------------------------ window
 void InitWindow(int, int, const char *)
 {
-    XVideoSetMode(kScreenWidth, kScreenHeight, 32, REFRESH_DEFAULT);
-    std::memset(frameBuffer(), 0, kScreenWidth * kScreenHeight * 4);
+    if (!g_gpuOwnsDisplay) // pbkit set the mode and owns the screen
+    {
+        XVideoSetMode(kScreenWidth, kScreenHeight, 32, REFRESH_DEFAULT);
+        std::memset(frameBuffer(), 0, kScreenWidth * kScreenHeight * 4);
+    }
     SDL_Init(SDL_INIT_GAMECONTROLLER);
     g_timerFrequency = KeQueryPerformanceFrequency();
     g_timerStart = KeQueryPerformanceCounter();
@@ -163,19 +169,27 @@ void EndDrawing(void)
 {
     if (g_frameHook)
         g_frameHook();
-    if (g_clearPending)
+    if (g_clearPending && !g_gpuOwnsDisplay)
         clearAround(0, 0, 0, 0);
     // Development aid: the log on screen until the game shows its own frames
     // (drawn over the picture it flickers; the status stays in memory).
-    if (!g_gameFrameShown)
+    if (!g_gameFrameShown && !g_gpuOwnsDisplay)
         xboxLogDrawOverlay();
-    XVideoFlushFB();
+    if (!g_gpuOwnsDisplay)
+        XVideoFlushFB();
     // Pace to the target rate on the vertical blank, like raylib's SetTargetFPS.
     if (g_targetFps > 0)
     {
         const uint64_t frame = g_timerFrequency / static_cast<uint64_t>(g_targetFps);
         if (KeQueryPerformanceCounter() - g_lastFrameCounter < frame)
-            XVideoWaitForVBlank();
+        {
+            // pbkit takes over the vertical-blank interrupt; its frames are
+            // paced by its own flips, so this loop only needs to yield.
+            if (g_gpuOwnsDisplay)
+                KeDelayExecutionThread(KernelMode, FALSE, &kYield);
+            else
+                XVideoWaitForVBlank();
+        }
         g_lastFrameCounter = KeQueryPerformanceCounter();
     }
     refreshPads();
@@ -187,6 +201,8 @@ void EndDrawing(void)
 // to the whole screen at the end of the frame if nothing was drawn).
 void ClearBackground(Color color)
 {
+    if (g_gpuOwnsDisplay)
+        return;
     g_pendingClear = 0xFF000000u | (uint32_t(color.r) << 16) | (uint32_t(color.g) << 8) | color.b;
     g_clearPending = true;
 }
@@ -215,6 +231,8 @@ namespace
 
 void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2, float, Color)
 {
+    if (g_gpuOwnsDisplay)
+        return;
     const auto it = g_textures.find(texture.id);
     if (it == g_textures.end() || !it->second.pixels || it->second.rows <= 0)
         return;
@@ -467,3 +485,5 @@ void xboxLastBlit(int &width, int &height, int &litPercent)
     height = g_lastBlit.height;
     litPercent = g_lastBlit.litPercent;
 }
+
+void xboxGpuOwnsDisplay(bool owns) { g_gpuOwnsDisplay = owns; }

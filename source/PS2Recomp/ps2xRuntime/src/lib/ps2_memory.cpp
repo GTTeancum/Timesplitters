@@ -10,6 +10,39 @@
 #include <stdexcept>
 #include <algorithm>
 #include <string>
+
+namespace
+{
+    // Streaming state of the VIF1 interpreter (ps2_vif1_interpreter.cpp).
+}
+extern uint32_t g_vif1LastConsumed;
+extern bool g_vif1StopOnShort;
+namespace
+{
+    // A consumed DMA chain's buffer is released at once: holding it for the
+    // next chain kept a megabyte-plus alive while a bigger chain needed its
+    // own, which a 64 MB host cannot afford.
+    void recycleChainBuffer(std::vector<uint8_t> &consumed)
+    {
+        std::vector<uint8_t>().swap(consumed);
+    }
+
+#if defined(PLATFORM_XBOX)
+    // VIF1 chains (the level's display lists, over a megabyte) are not
+    // copied on the Xbox: the chain is recorded as pieces of guest memory and
+    // processed in order from there. That is safe because the drain
+    // (processPendingTransfers) follows the DMA kick before the game runs
+    // again, and VIF1 keeps its state between pieces (the FIFO path feeds it
+    // 16 bytes at a time). A pending transfer with qwc == kSegmentedChain
+    // stands for the recorded pieces.
+    constexpr uint32_t kSegmentedChain = 0xFFFFFFFFu;
+    std::vector<std::pair<const uint8_t *, uint32_t>> s_vif1Segments;
+    // The pieces are fed through a fixed window (ps2_vif1_interpreter.cpp
+    // stops at a command that does not fit and reports what it consumed).
+    constexpr size_t kVif1WindowBytes = 512u * 1024u;
+    std::vector<uint8_t> s_vif1Window;
+#endif
+}
 #include <vector>
 #include <array>
 #include <set>
@@ -1450,6 +1483,11 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     // Display lists are similar from frame to frame: size the
                     // buffer once instead of growing it tag by tag.
                     static thread_local size_t s_lastChainBytes = 0;
+#if defined(PLATFORM_XBOX)
+                    const bool recordSegments = channelBase == 0x10009000u;
+                    const size_t firstSegment = s_vif1Segments.size();
+                    if (!recordSegments)
+#endif
                     chainBuf.reserve(s_lastChainBytes + 4096u);
 
                     auto appendData = [&](uint32_t srcAddr, uint32_t qwCount)
@@ -1483,6 +1521,20 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                                 chunk = maxSz2 - src;
                             if (chunk == 0)
                                 break;
+#if defined(PLATFORM_XBOX)
+                            if (recordSegments)
+                            {
+                                s_vif1Segments.emplace_back(base2 + src, chunk);
+                                bytes -= chunk;
+                                src += chunk;
+                                continue;
+                            }
+#endif
+                            // Grow gently: doubling (std::vector's default)
+                            // briefly needs three times the chain's size,
+                            // more than a 64 MB host has free.
+                            if (chainBuf.capacity() < chainBuf.size() + chunk)
+                                chainBuf.reserve(chainBuf.size() + chunk + (chainBuf.size() + chunk) / 4u);
                             chainBuf.insert(chainBuf.end(), base2 + src, base2 + src + chunk);
                             bytes -= chunk;
                             src += chunk;
@@ -1504,6 +1556,13 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         // the tag payload. VIF chains use those bytes for two VIFcodes.
                         if (chainBuf.size() > kMaxBufferedDmaBytes - 8u)
                             PS2X_THROW(std::runtime_error("DMA chain exceeds host buffering budget"));
+#if defined(PLATFORM_XBOX)
+                        if (recordSegments)
+                        {
+                            s_vif1Segments.emplace_back(localBase + tagPhys + 8u, 8u);
+                            return;
+                        }
+#endif
                         chainBuf.insert(chainBuf.end(), localBase + tagPhys + 8u, localBase + tagPhys + 16u);
                     };
 
@@ -1651,6 +1710,15 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     chcr = (chcr & 0x0000FFFFu) | (lastTagUpper << 16);
                     m_ioRegisters[channelBase + 0x00] = chcr;
 
+#if defined(PLATFORM_XBOX)
+                    if (recordSegments && s_vif1Segments.size() > firstSegment)
+                    {
+                        PendingTransfer pt;
+                        pt.qwc = kSegmentedChain;
+                        m_pendingVif1Transfers.push_back(std::move(pt));
+                    }
+                    else
+#endif
                     if (!chainBuf.empty())
                     {
                         PendingTransfer pt;
@@ -1822,6 +1890,7 @@ void PS2Memory::processPendingTransfers()
             m_seenGifCopy = true;
             m_gifCopyCount.fetch_add(1, std::memory_order_relaxed);
             submitGifPacket(GifPathId::Path3, p.chainData.data(), static_cast<uint32_t>(p.chainData.size()), false);
+            recycleChainBuffer(p.chainData);
         }
         else if (p.qwc > 0)
         {
@@ -1939,9 +2008,55 @@ void PS2Memory::processPendingTransfers()
     const bool hadVif1 = !m_pendingVif1Transfers.empty();
     for (auto &p : m_pendingVif1Transfers)
     {
+#if defined(PLATFORM_XBOX)
+        if (p.qwc == kSegmentedChain)
+        {
+            // All recorded pieces, in order, through the window (a later
+            // segmented chain in the same drain finds the list consumed).
+            std::vector<uint8_t> &window = s_vif1Window;
+            if (window.capacity() < kVif1WindowBytes)
+                window.reserve(kVif1WindowBytes);
+            window.clear();
+            size_t segment = 0, offset = 0;
+            g_vif1StopOnShort = true;
+            for (;;)
+            {
+                while (window.size() < kVif1WindowBytes && segment < s_vif1Segments.size())
+                {
+                    const auto &piece = s_vif1Segments[segment];
+                    const size_t take = std::min<size_t>(piece.second - offset, kVif1WindowBytes - window.size());
+                    window.insert(window.end(), piece.first + offset, piece.first + offset + take);
+                    offset += take;
+                    if (offset == piece.second)
+                    {
+                        ++segment;
+                        offset = 0;
+                    }
+                }
+                if (window.empty())
+                    break;
+                processVIF1Data(window.data(), static_cast<uint32_t>(window.size()));
+                uint32_t consumed = g_vif1LastConsumed;
+                if (consumed == 0u)
+                {
+                    // A command bigger than the window, or an incomplete one
+                    // at the chain's end: processed as a plain buffer.
+                    g_vif1StopOnShort = false;
+                    processVIF1Data(window.data(), static_cast<uint32_t>(window.size()));
+                    g_vif1StopOnShort = true;
+                    consumed = static_cast<uint32_t>(window.size());
+                }
+                window.erase(window.begin(), window.begin() + consumed);
+            }
+            g_vif1StopOnShort = false;
+            s_vif1Segments.clear();
+            continue;
+        }
+#endif
         if (!p.chainData.empty())
         {
             processVIF1Data(p.chainData.data(), static_cast<uint32_t>(p.chainData.size()));
+            recycleChainBuffer(p.chainData);
         }
         else if (p.qwc > 0)
         {

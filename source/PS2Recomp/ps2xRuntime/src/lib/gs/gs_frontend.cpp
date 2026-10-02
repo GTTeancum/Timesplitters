@@ -545,6 +545,16 @@ void GS::latchHostPresentationFrame()
         request = buildPresentationRequestUnlocked();
     }
 
+#if defined(PLATFORM_XBOX)
+    // Converting a frame for display is costly on the Xbox; while the host has
+    // not taken the previous one yet, a newer frame would only replace it.
+    {
+        std::lock_guard<std::mutex> presentationLock(m_presentationMutex);
+        if (m_hasHostPresentationFrame && !m_hostPresentationFrame.empty())
+            return;
+    }
+#endif
+
     PresentationFrame frame{};
     {
         std::lock_guard<std::mutex> backendLock(m_backendLifetimeMutex);

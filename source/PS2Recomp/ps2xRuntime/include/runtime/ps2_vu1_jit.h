@@ -148,9 +148,22 @@ struct Vu1Jit
         return value;
     }
 
+    // std::signbit on nxdk's C library is an out-of-line call (per VU result,
+    // it showed up as the second-largest cost in a frame); the builtin is a
+    // bit test.
+    template <typename T>
+    VU1_JIT_INLINE static bool vuSignBit(T value)
+    {
+#if defined(__clang__) || defined(__GNUC__)
+        return __builtin_signbit(value) != 0;
+#else
+        return std::signbit(value);
+#endif
+    }
+
     VU1_JIT_INLINE static uint8_t normExact(float &value, long double exact)
     {
-        const bool negative = std::signbit(exact);
+        const bool negative = vuSignBit(exact);
         const long double magnitude = std::fabs(exact);
         uint8_t result = negative ? 0x2u : 0u;
         const uint32_t bits = negative ? 0x80000000u : 0u;
@@ -754,7 +767,7 @@ struct Vu1Jit
         if (den == 0.0f)
         {
             di = num == 0.0f ? 0x10u : 0x20u;
-            result = std::signbit(num) != std::signbit(den) ? -std::numeric_limits<float>::max()
+            result = vuSignBit(num) != vuSignBit(den) ? -std::numeric_limits<float>::max()
                                                             : std::numeric_limits<float>::max();
         }
         else
@@ -780,7 +793,7 @@ struct Vu1Jit
         else
         {
             di = num == 0.0f ? 0x10u : 0x20u;
-            result = std::signbit(num) ? -std::numeric_limits<float>::max() : std::numeric_limits<float>::max();
+            result = vuSignBit(num) ? -std::numeric_limits<float>::max() : std::numeric_limits<float>::max();
         }
         queueQ(normResult(result), 13u, di);
     }

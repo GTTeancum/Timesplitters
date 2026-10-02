@@ -123,10 +123,47 @@ $(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(XBOX)/tools/patch_generat
 	@echo "[ PATCH   ] $(notdir $@)"
 	@python $(XBOX)/tools/patch_generated.py $< $@
 
+# Fixed copies of nxdk C sources, built in place of the library's
+# (pbkit: double-buffered; winapi/sync: condition-variable timeouts).
+PBKIT_OBJ := $(OBJ)/src/xbox/pbkit/pbkit_ts.obj $(OBJ)/src/xbox/winapi/sync_ts.obj
+
+$(PBKIT_OBJ): $(OBJ)/src/xbox/%.obj: $(XBOX)/%.c
+	@mkdir -p $(dir $@)
+	@echo "[ CC      ] src/xbox/$*.c"
+	@nxdk-cc -O2 -I$(NXDK_DIR)/lib/pbkit -I$(NXDK_DIR)/lib/winapi -Wno-everything -c -o $@ $<
+
+# NV2A shaders (src/xbox/shaders): Cg -> vp20/fp20 assembly -> pushbuffer .inl.
+CGC    := $(NXDK_DIR)/tools/cg/win/cgc.exe
+VP20   := $(NXDK_DIR)/tools/vp20compiler/vp20compiler.exe
+FP20   := $(NXDK_DIR)/tools/fp20compiler/fp20compiler.exe
+SHADERS := $(OUT)/gen/shaders
+PS_VARIANTS := untextured modulate modulate_tcc decal decal_tcc highlight highlight_tcc
+PS_DEFINES_untextured    := -DGS_UNTEXTURED
+PS_DEFINES_modulate      := -DGS_MODULATE
+PS_DEFINES_modulate_tcc  := -DGS_MODULATE -DGS_TCC
+PS_DEFINES_decal         := -DGS_DECAL
+PS_DEFINES_decal_tcc     := -DGS_DECAL -DGS_TCC
+PS_DEFINES_highlight     := -DGS_HIGHLIGHT
+PS_DEFINES_highlight_tcc := -DGS_HIGHLIGHT -DGS_TCC
+SHADER_INLS := $(SHADERS)/gs_vs.inl $(foreach v,$(PS_VARIANTS),$(SHADERS)/gs_ps_$(v).inl)
+
+$(SHADERS)/gs_vs.inl: $(XBOX)/shaders/gs.vs.cg
+	@mkdir -p $(dir $@)
+	@echo "[ CG      ] $(notdir $@)"
+	@$(CGC) -profile vp20 -o $@.vp $< > /dev/null && $(VP20) $@.vp > $@ && rm -f $@.vp
+
+$(SHADERS)/gs_ps_%.inl: $(XBOX)/shaders/gs.ps.cg
+	@mkdir -p $(dir $@)
+	@echo "[ CG      ] $(notdir $@)"
+	@$(CGC) -profile fp20 $(PS_DEFINES_$*) -o $@.fp $< > /dev/null && $(FP20) $@.fp > $@ && rm -f $@.fp
+
+$(OBJ)/src/xbox/gs_nv2a_backend.obj: $(SHADER_INLS)
+$(OBJ)/src/xbox/gs_nv2a_backend.obj: RUNTIME_FLAGS += -I$(SHADERS)
+
 # The object list is long; hand it to the linker in a response file.
-$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS)
+$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)
 	@echo "[ LD      ] $@"
-	@printf '%s\n' $(patsubst $(OUT)/%,%,$(GEN_OBJS) $(OTHER_OBJS)) $(NXDK_LIBS) > $(OUT)/link.rsp
+	@printf '%s\n' $(patsubst $(OUT)/%,%,$(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)) $(NXDK_LIBS) > $(OUT)/link.rsp
 	@cd $(OUT) && $(LINK) -include:_automount_d_drive -stack:0x40000 -errorlimit:0 -map:main.map -out:main.exe @link.rsp
 
 $(OUT)/iso/default.xbe: $(OUT)/main.exe

@@ -50,12 +50,23 @@ static inline constexpr bool Ps2IsPhysicalSpecialAddress(uint32_t physAddr)
            (physAddr >= PS2_VU0_DATA_BASE && physAddr < (PS2_VU1_CODE_BASE + PS2_VU1_CODE_SIZE));
 }
 
-static inline constexpr bool Ps2IsSpecialAddress(uint32_t addr)
+// Checked on every guest memory access. Plain RDRAM (below 32 MB) is by far
+// the most common and none of the special regions start that low, so that
+// test comes first and is always inlined.
+static inline constexpr bool Ps2IsSpecialAddressSlow(uint32_t addr)
 {
     if (Ps2IsKseg23Address(addr))
         return true;
 
     return Ps2IsPhysicalSpecialAddress(Ps2PhysicalAddress(addr));
+}
+
+#if defined(__clang__) || defined(__GNUC__)
+__attribute__((always_inline))
+#endif
+static inline constexpr bool Ps2IsSpecialAddress(uint32_t addr)
+{
+    return addr >= PS2_RAM_SIZE && Ps2IsSpecialAddressSlow(addr);
 }
 
 #endif // PS2_ADDRESS_H

@@ -1,0 +1,23 @@
+// GS primitives on the NV2A: vertices arrive already in screen pixels
+// (x, y), 24-bit depth units (z) and projective texture coordinates
+// (s, t, 0, q), so the vertex program only passes them through.
+struct vIn {
+    float4 pos : POSITION;
+    float4 col : DIFFUSE;
+    float4 tex : TEXCOORD0;
+};
+
+struct vOut {
+    float4 pos : POSITION;
+    float4 col : COLOR0;
+    float4 tex : TEXCOORD0;
+};
+
+vOut main(vIn I)
+{
+    vOut o;
+    o.pos = I.pos;
+    o.col = I.col;
+    o.tex = I.tex;
+    return o;
+}

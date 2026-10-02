@@ -11,6 +11,7 @@
 #include "ps2_runtime.h"
 #include "runtime/gs/gs_frontend.h"
 #include "xbox_log.h"
+#include "gs_nv2a_backend.h"
 
 #include <hal/debug.h>
 #include <hal/video.h>
@@ -185,6 +186,16 @@ int main()
 
     static PS2Runtime rt; // large; keep it off the stack
     logMemory("runtime constructed");
+    // The screen is drawn by the NV2A (gs_nv2a_backend.cpp), installed
+    // before the runtime sets up GS memory; without it, the software renderer.
+    if (std::unique_ptr<GSNv2aBackend> gpu = GSNv2aBackend::Create())
+    {
+        rt.gs().setRasterBackend(std::move(gpu));
+        std::cout << "[TS:xbox] drawing on the NV2A" << std::endl;
+    }
+    else
+        std::cout << "[TS:xbox] NV2A unavailable: software renderer" << std::endl;
+    logMemory("renderer ready");
     rt.setMissingFunctionPolicy(PS2Runtime::MissingFunctionPolicy::Stop);
     if (!rt.initialize("TimeSplitters"))
         halt("runtime initialisation failed");

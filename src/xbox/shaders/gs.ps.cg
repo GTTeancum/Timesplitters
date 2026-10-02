@@ -1,0 +1,40 @@
+// GS texture functions (TEX0.TFX / TCC) as NV2A register combiners, one
+// program per variant (the Makefile builds each with a -D switch):
+//   GS_UNTEXTURED   colour only
+//   GS_MODULATE     tex * colour
+//   GS_DECAL        tex
+//   GS_HIGHLIGHT    tex * colour + colour alpha
+// plus GS_TCC when the texture's alpha is used.
+//
+// GS colours and alphas are 0..255 with 0x80 meaning 1.0 for the multiplies
+// and alphas, so products are scaled by 2 (and alpha by 2 once more): the
+// output alpha is a/128, which is what the NV2A blend factors expect.
+float4 main(float4 col : COLOR0,
+            float4 tc : TEXCOORD0,
+            uniform sampler2D tex : TEXUNIT0) : COLOR
+{
+    float4 o;
+#if defined(GS_UNTEXTURED)
+    o.rgb = col.rgb;
+    o.a = saturate(col.a * 2);
+#else
+    float4 t = tex2Dproj(tex, tc);
+#if defined(GS_DECAL)
+    o.rgb = t.rgb;
+#elif defined(GS_HIGHLIGHT)
+    o.rgb = saturate(t.rgb * col.rgb * 2 + col.a);
+#else
+    o.rgb = saturate(t.rgb * col.rgb * 2);
+#endif
+#if defined(GS_TCC)
+#if defined(GS_MODULATE)
+    o.a = saturate(t.a * col.a * 4);
+#else
+    o.a = saturate(t.a * 2);
+#endif
+#else
+    o.a = saturate(col.a * 2);
+#endif
+#endif
+    return o;
+}

@@ -2102,6 +2102,30 @@ void GSCpuBackend::PerformLocalToHostTransfer()
     const uint32_t total = rrw * rrh;
     m_localToHostBuffer.reserve((static_cast<size_t>(total) * bpp + 7u) / 8u);
 
+    // Fast path for the colour formats: whole rows at once.
+    if ((bpp == 32u || bpp == 24u || bpp == 16u) && rrw != 0u)
+    {
+        const uint32_t bytesPerPixel = bpp / 8u;
+        m_localToHostBuffer.resize(static_cast<size_t>(total) * bytesPerPixel);
+        std::vector<uint32_t> row(rrw);
+        bool ok = true;
+        for (uint32_t y = 0; y < rrh && ok; ++y)
+        {
+            ok = GSMem::ReadRow(spsm, m_vram, m_transfer.bitbltbuf.sbp, sbw, m_transfer.trxpos.ssax,
+                                m_transfer.trxpos.ssay + y, rrw, row.data());
+            uint8_t *out = m_localToHostBuffer.data() + static_cast<size_t>(y) * rrw * bytesPerPixel;
+            for (uint32_t x = 0; ok && x < rrw; ++x, out += bytesPerPixel)
+                std::memcpy(out, &row[x], bytesPerPixel); // little-endian: low bytes first
+        }
+        if (ok)
+        {
+            m_transferState.copiedPixels = total;
+            m_transferState.localToHostPendingBytes = m_localToHostBuffer.size();
+            return;
+        }
+        m_localToHostBuffer.clear();
+    }
+
     for (uint32_t pixel = 0u; pixel < total; ++pixel)
     {
         const uint32_t x = pixel % rrw;
@@ -2265,6 +2289,41 @@ bool GSCpuBackend::CopyFrameToHostRgba(const GSFrameReg &frame,
     const uint32_t bytesPerPixel = (frame.psm == GS_PSM_CT16 || frame.psm == GS_PSM_CT16S) ? 2u : 4u;
     const uint32_t stride = fbw * 64u * bytesPerPixel;
 
+    // Fast path: whole rows from local memory at once.
+    if (useLocalMemoryLayout && width <= kHostFrameWidth)
+    {
+        uint32_t row[kHostFrameWidth];
+        const bool sixteen = frame.psm == GS_PSM_CT16 || frame.psm == GS_PSM_CT16S;
+        bool ok = true;
+        for (uint32_t y = 0; y < height && ok; ++y)
+        {
+            ok = GSMem::ReadRow(frame.psm, m_vram, basePtr, fbw, sourceOriginX, sourceOriginY + y, width, row);
+            uint8_t *dst = outPixels.data() + y * kHostFrameWidth * 4u;
+            for (uint32_t x = 0; ok && x < width; ++x, dst += 4)
+            {
+                const uint32_t color = row[x];
+                if (sixteen)
+                {
+                    const uint32_t r = color & 31u, g = (color >> 5u) & 31u, b = (color >> 10u) & 31u;
+                    dst[0] = static_cast<uint8_t>((r << 3u) | (r >> 2u));
+                    dst[1] = static_cast<uint8_t>((g << 3u) | (g >> 2u));
+                    dst[2] = static_cast<uint8_t>((b << 3u) | (b >> 2u));
+                    dst[3] = preserveAlpha ? ((color & 0x8000u) ? 0x80u : 0u) : 255u;
+                }
+                else
+                {
+                    dst[0] = static_cast<uint8_t>(color);
+                    dst[1] = static_cast<uint8_t>(color >> 8u);
+                    dst[2] = static_cast<uint8_t>(color >> 16u);
+                    dst[3] = preserveAlpha && frame.psm != GS_PSM_CT24 ? static_cast<uint8_t>(color >> 24u) : 255u;
+                }
+            }
+        }
+        if (ok)
+            return true;
+        std::fill(outPixels.begin(), outPixels.end(), 0u); // unsupported format: the general path below
+    }
+
     for (uint32_t y = 0; y < height; ++y)
     {
         uint8_t *dst = outPixels.data() + y * kHostFrameWidth * 4u;
@@ -2408,7 +2467,8 @@ PresentationFrame GSCpuBackend::PresentFromLocalMemory(const GSPresentationReque
         if (pixels.empty() && !CopyFrameToHostRgba(displayFrame, width, height, pixels, preserveAlpha, true, true, origin.x, origin.y))
             return false;
 
-        if (!usedPreferred && displayFrame.fbp == 0u && countNonBlackPixels(pixels, width, height) == 0u)
+        if (!usedPreferred && displayFrame.fbp == 0u && !ps2x::rasterSuspended().load(std::memory_order_relaxed) &&
+            countNonBlackPixels(pixels, width, height) == 0u)
         {
             for (const GSFrameReg &candidate : request.contextFrames)
             {
@@ -2427,7 +2487,12 @@ PresentationFrame GSCpuBackend::PresentFromLocalMemory(const GSPresentationReque
         return true;
     };
 
-    if (valid1 && valid2)
+    // Both circuits reading the same buffer at the same size and origin (this
+    // game's setup): blending the picture over itself gives it back, so show
+    // it once. The merge below costs a full extra copy and blend per frame.
+    const bool sameCircuits = valid1 && valid2 && request.dispfb1 == request.dispfb2 &&
+                              request.display1 == request.display2 && !pmode.slbg;
+    if (valid1 && valid2 && !sameCircuits)
     {
         GSFrameReg selected1{}, selected2{};
         std::vector<uint8_t> crt1, crt2;

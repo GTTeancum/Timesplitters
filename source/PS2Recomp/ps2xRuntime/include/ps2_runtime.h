@@ -430,6 +430,9 @@ public:
                                  uint32_t tadr,
                                  uint32_t chcr);
 
+#if defined(__clang__) || defined(__GNUC__)
+    __attribute__((always_inline))
+#endif
     static inline bool isSpecialAddress(uint32_t addr)
     {
         return Ps2IsSpecialAddress(addr);

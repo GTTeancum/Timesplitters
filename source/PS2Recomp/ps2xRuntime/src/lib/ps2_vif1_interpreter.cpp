@@ -295,8 +295,20 @@ void PS2Memory::processVIF1Data(uint32_t srcPhys, uint32_t sizeBytes)
     processVIF1Data(m_rdram + srcPhys, sizeBytes);
 }
 
+// Streaming support for callers that feed the VIF a chain in pieces (the
+// Xbox's window over a DMA chain, ps2_memory.cpp): with g_vif1StopOnShort
+// set, a command whose data runs past the end of the buffer is left
+// unprocessed, pos rewound to its header, and g_vif1LastConsumed tells the
+// caller how much was taken, so the command can be completed with the next
+// piece. Commands bigger than kVif1RewindLimit are processed as before
+// (truncated), since no window could hold them.
+uint32_t g_vif1LastConsumed = 0;
+bool g_vif1StopOnShort = false;
+static constexpr uint32_t kVif1RewindLimit = 256u * 1024u;
+
 void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
 {
+    g_vif1LastConsumed = 0;
     if (sizeBytes == 0u)
         return;
 
@@ -326,7 +338,15 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
 
         uint32_t cmd;
         memcpy(&cmd, data + pos, 4);
+        const uint32_t cmdStart = pos;
         pos += 4;
+        // Data-carrying command whose data is not all here (see above).
+        auto shortData = [&](uint32_t dataBytes) {
+            if (pos + dataBytes <= sizeBytes || !g_vif1StopOnShort || dataBytes > kVif1RewindLimit)
+                return false;
+            pos = cmdStart;
+            return true;
+        };
 
         uint8_t opcode = (cmd >> 24) & 0x7F;
         uint16_t imm = cmd & 0xFFFF;
@@ -433,7 +453,7 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
         }
         else if (opcode == VIF_STMASK)
         {
-            if (pos + 4 > sizeBytes)
+            if (shortData(4u) || pos + 4 > sizeBytes)
                 break;
             uint32_t maskValue = 0;
             std::memcpy(&maskValue, data + pos, sizeof(maskValue));
@@ -443,7 +463,7 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
         }
         else if (opcode == VIF_STROW)
         {
-            if (pos + 16 > sizeBytes)
+            if (shortData(16u) || pos + 16 > sizeBytes)
                 break;
             std::memcpy(vif1_regs.row, data + pos, 16);
             pos += 16;
@@ -451,7 +471,7 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
         }
         else if (opcode == VIF_STCOL)
         {
-            if (pos + 16 > sizeBytes)
+            if (shortData(16u) || pos + 16 > sizeBytes)
                 break;
             std::memcpy(vif1_regs.col, data + pos, 16);
             pos += 16;
@@ -462,6 +482,8 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
             uint32_t destAddr = (uint32_t)imm * 8u;
             const uint32_t instructionCount = (num == 0u) ? 256u : static_cast<uint32_t>(num);
             const uint32_t mpgBytes = instructionCount * 8u;
+            if (shortData(mpgBytes))
+                break;
             if (m_vu1Code && destAddr < PS2_VU1_CODE_SIZE && mpgBytes > 0)
             {
                 uint32_t copyBytes = mpgBytes;
@@ -485,6 +507,8 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
                 qwCount = 65536;
             const uint32_t availableQw = (sizeBytes - pos) / 16u;
             const bool truncated = qwCount > availableQw;
+            if (truncated && shortData(qwCount * 16u))
+                break;
             if (qwCount > availableQw)
                 qwCount = availableQw;
 
@@ -558,6 +582,8 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
 
             uint32_t totalBytes = sourceVectorCount * bytesPerVector;
             totalBytes = (totalBytes + 3) & ~3u;
+            if (shortData(totalBytes))
+                break;
 
             uint32_t vuAddr = (uint32_t)imm & 0x3FFu;
             if ((imm & 0x8000u) != 0u)
@@ -814,4 +840,5 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
             continue;
         }
     }
+    g_vif1LastConsumed = pos;
 }

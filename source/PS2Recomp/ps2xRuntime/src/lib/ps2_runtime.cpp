@@ -474,6 +474,13 @@ static void UploadFrame(Texture2D &tex, PS2Runtime *rt, uint32_t &outWidth, uint
                                                    &sourceFbp,
                                                    &usedPreferredDisplaySource))
     {
+#if defined(PLATFORM_XBOX)
+        // The NV2A renderer presents by itself and hands over no pixels; a
+        // blank 1.3 MB image per frame is more than the Xbox can spare.
+        outWidth = state.s_lastWidth ? state.s_lastWidth : FB_WIDTH;
+        outHeight = state.s_lastHeight ? state.s_lastHeight : DEFAULT_DISPLAY_HEIGHT;
+        return;
+#endif
         Image blank = GenImageColor(FB_WIDTH, FB_HEIGHT, BLACK);
         UpdateTexture(tex, blank.data);
         UnloadImage(blank);

@@ -259,7 +259,7 @@ struct GSNv2aBackend::Impl
     };
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
     size_t retiredBytes = 0;
-    static constexpr size_t kRetiredLimit = 256u * 1024u; // beyond this, wait and free at once
+    static constexpr size_t kRetiredLimit = 768u * 1024u; // beyond this, wait and free at once
     // A list: draw keys hold pointers into it across insertions and removals.
     std::list<Texture> textures;
     std::list<Texture> retired; // dropped textures the GPU may still read; freed at the frame's end
@@ -301,10 +301,13 @@ struct GSNv2aBackend::Impl
 
     void freeRetired()
     {
+        if (batchCount)
+            flushBatch(); // a one-frame texture may be the batch's
         for (Texture &t : retired)
             MmFreeContiguousMemory(t.texels);
         retired.clear();
         retiredBytes = 0;
+        stateValid = false; // a bound one-frame texture's address may be reused
         g_nv2aTextureStats.residentBytes = uint32_t(textureBytes);
         g_nv2aTextureStats.resident = uint32_t(textures.size());
     }
@@ -344,23 +347,47 @@ struct GSNv2aBackend::Impl
         }
         Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
         decodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
-        while (!textures.empty() && textureBytes + t.bytes > kTextureBudget)
+        // Room in the cache: textures not used in this or the last frame
+        // go first. When a frame's textures exceed the budget the cache
+        // keeps what it has (LRU would cycle the whole set every frame)
+        // and the newcomer lives in a one-frame slot (the retired list).
+        bool cached = true;
+        while (textureBytes + t.bytes > kTextureBudget)
         {
-            const auto oldest = std::min_element(textures.begin(), textures.end(),
-                                                 [](const Texture &a, const Texture &b) { return a.lastUse < b.lastUse; });
+            auto oldest = textures.end();
+            for (auto it = textures.begin(); it != textures.end(); ++it)
+                if (it->lastFrame + 1u < frameNumber && (oldest == textures.end() || it->lastUse < oldest->lastUse))
+                    oldest = it;
+            if (oldest == textures.end())
+            {
+                cached = false;
+                break;
+            }
             retireTexture(oldest);
+        }
+        if (!cached && retiredBytes + t.bytes > kRetiredLimit)
+        {
+            waitIdle();
+            freeRetired();
         }
         t.texels = allocGpu(t.bytes);
         if (!t.texels)
             return nullptr;
         memcpy(t.texels, swizzled.data(), t.bytes);
-        textureBytes += t.bytes;
-        textures.push_back(t);
         ++g_nv2aTextureStats.fills;
         ++frameFills;
         g_nv2aTextureStats.fillBytes += uint32_t(t.bytes);
-        noteUse(textures.back());
-        return &textures.back();
+        if (cached)
+        {
+            textureBytes += t.bytes;
+            textures.push_back(t);
+            noteUse(textures.back());
+            return &textures.back();
+        }
+        retired.push_back(t);
+        retiredBytes += t.bytes;
+        noteUse(retired.back());
+        return &retired.back();
     }
 
     void noteUse(Texture &t)

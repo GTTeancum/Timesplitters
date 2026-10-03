@@ -45,6 +45,10 @@ struct GSNv2aTextureStats
     // CPU cycles (rdtsc, cumulative, in thousands): native VU1 runs (renderer
     // calls included), GPU idle waits, read-backs.
     uint32_t kcycNative = 0, kcycWait = 0, kcycReadback = 0;
+    // Frames the game built and drew (first draws only), of them handed to
+    // the draw thread without waiting for a vblank; the largest push-buffer
+    // use of one frame (KB).
+    uint32_t gameFrames = 0, earlyHandouts = 0, pushPeakKB = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 

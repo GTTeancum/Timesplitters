@@ -106,7 +106,8 @@ namespace
                   << " clut=" << g_nv2aTextureStats.clutLoads << " screenloads=" << g_nv2aTextureStats.screenLoads << " kcyc native/wait/rb=" << g_nv2aTextureStats.kcycNative << "/"
                   << g_nv2aTextureStats.kcycWait << "/" << g_nv2aTextureStats.kcycReadback
                   << " interp=" << g_vu1Stats.interpPairs << " cyc=" << g_vu1Stats.cycles / 1000u << "K kickwait="
-                  << g_vu1Stats.kickWaitCycles / 1000u << "K gpuframes=" << g_nv2aTextureStats.frames << std::endl;
+                  << g_vu1Stats.kickWaitCycles / 1000u << "K gpuframes=" << g_nv2aTextureStats.frames << " game=" << g_nv2aTextureStats.gameFrames
+                  << " early=" << g_nv2aTextureStats.earlyHandouts << " pushpeak=" << g_nv2aTextureStats.pushPeakKB << "K" << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"

@@ -8,6 +8,11 @@
 #include "runtime/ps2_host_settings.h"
 #include "ps2_recompiled_functions.h"
 
+#if defined(PLATFORM_XBOX)
+#include "../../src/xbox/gs_nv2a_backend.h" // status counters
+#include "runtime/ee_scheduler.h"
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -716,6 +721,80 @@ namespace
     }
 
 #if defined(PLATFORM_XBOX)
+    // Frame hand-off (Xbox). The game thread (cpuMain 0x200C48) builds a
+    // frame into one of two slots while gsMain (0x200F20) draws the other.
+    // Slot s at 0x2F2C00 + 12*s: in use (being built), the vblank its build
+    // started, times drawn. gsMain draws only when the vblank handler
+    // (0x201198) hands it a slot: not in use, started two or more vblanks
+    // ago, newest first. Two PS2 habits cost the Xbox dearly:
+    //  - Every frame is drawn twice: at the vblank after its first draw the
+    //    handler hands the same slot out again, because the interlaced PS2
+    //    display needed a fresh draw into the other buffer. That second draw
+    //    repeats all of the frame's VIF, VU1 and GPU work, in the middle of
+    //    the next frame's build. On the Xbox the GPU's picture stays on
+    //    screen, so the first draw marks the slot drawn twice and gsMain
+    //    skips it from then on (its count >= 3 path).
+    //  - The hand-off waits for a vblank, so a frame finished just after one
+    //    idles for most of 17 ms. When the game thread finishes a frame and
+    //    gsMain is waiting, the handler's choice is made at once (fresh
+    //    slots only), as the handler makes it: an interrupt-style signal,
+    //    so gsMain (the higher priority) takes over when the game thread's
+    //    wait blocks, and is released by gsMain's end-of-draw signal as
+    //    before. Only when that wait will block (its semaphore at 0): a
+    //    leftover signal would let the game thread run on while gsMain
+    //    signals again. The 60 Hz vblank count still times the game, and
+    //    the two-vblank age rule still caps it at 30 frames a second.
+    constexpr uint32_t kFrameSlots = 0x2F2C00u, kFrameSlotBytes = 12u;
+    constexpr uint32_t kGpGsWaiting = 0x6CB4u;  // gsMain is waiting for a slot
+    constexpr uint32_t kGpSlotReady = 0x6CCCu;  // semaphore gsMain waits on
+    constexpr uint32_t kGpFrameTaken = 0x6CC4u; // semaphore the game thread waits on
+    constexpr uint32_t kGpDrawSlot = 0x6CE4u;   // slot gsMain draws
+    constexpr uint32_t kGpVblanks = 0x4BACu;    // vblank count
+
+    void xboxHandOutFrame(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t gp)
+    {
+        if (READ32(gp - kGpGsWaiting) == 0u)
+            return;
+        EeScheduler &scheduler = runtime->eeScheduler();
+        const EeSemaphore *taken = scheduler.semaphore(static_cast<int>(GPR_U32(ctx, 4)));
+        if (!taken || taken->count != 0)
+            return;
+        const uint32_t vblanks = READ32(gp - kGpVblanks);
+        int best = -1;
+        int32_t bestStart = 0;
+        for (uint32_t s = 0; s < 2u; ++s)
+        {
+            const uint32_t slot = kFrameSlots + s * kFrameSlotBytes;
+            if (READ32(slot) != 0u || READ32(slot + 8u) != 0u)
+                continue; // being built, or drawn already
+            const int32_t start = static_cast<int32_t>(READ32(slot + 4u));
+            if (((vblanks - static_cast<uint32_t>(start)) & 0x7Fu) < 2u)
+                continue; // the handler's age test
+            if (best < 0 || start > bestStart)
+            {
+                best = static_cast<int>(s);
+                bestStart = start;
+            }
+        }
+        if (best < 0)
+            return;
+        WRITE32(gp - kGpDrawSlot, static_cast<uint32_t>(best));
+        WRITE32(gp - kGpGsWaiting, 0u); // as gsMain does on waking; keeps the handler out
+        ++g_nv2aTextureStats.earlyHandouts;
+        scheduler.signalSemaphore(static_cast<int>(READ32(gp - kGpSlotReady)), true);
+    }
+
+    void xboxWaitSema(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        if (ctx->pc == 0x2D0160u)
+        {
+            const uint32_t gp = GPR_U32(ctx, 28);
+            if (GPR_U32(ctx, 4) == READ32(gp - kGpFrameTaken))
+                xboxHandOutFrame(rdram, ctx, runtime, gp);
+        }
+        WaitSema_0x2d0160(rdram, ctx, runtime);
+    }
+
     // Glow/flare occlusion (Xbox). Each rendered frame the game copies a
     // 640x224 16-bit depth image back from the GS (zbtestCopyZB, a local-to-
     // host transfer that drains the GPU) and then reads one depth value per
@@ -723,10 +802,13 @@ namespace
     // GPU and the transfer only ever returned GS memory's stale contents, so
     // the copy is skipped: the double-buffer toggle is kept, and each pending
     // point gets depth 0 (nothing in front of it), as the stale copy gave.
+    // zbtestCopyZB runs once per frame, on its first draw (times drawn 1).
     void xboxZbtestCopyZB(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         (void)runtime;
         const uint32_t gp = GPR_U32(ctx, 28);
+        WRITE32(kFrameSlots + READ32(gp - kGpDrawSlot) * kFrameSlotBytes + 8u, 2u); // no second draw
+        ++g_nv2aTextureStats.gameFrames;
         const uint32_t next = 1u - READ32(gp - 0x4CDCu);
         WRITE32(gp - 0x4CDCu, next);
         SET_GPR_S32(ctx, 2, static_cast<int32_t>(next));
@@ -755,6 +837,7 @@ namespace
 #if defined(PLATFORM_XBOX)
         runtime.replaceFunction(0x2A70A0u, &xboxZbtestCopyZB);
         runtime.replaceFunction(0x2A7108u, &xboxZbtestDoTest);
+        runtime.replaceFunction(0x2D0160u, &xboxWaitSema);
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);

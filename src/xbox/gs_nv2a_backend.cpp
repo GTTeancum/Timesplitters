@@ -971,6 +971,30 @@ struct GSNv2aBackend::Impl
         return pb_push1(p, NV097_BACK_END_WRITE_SEMAPHORE_RELEASE, value);
     }
 
+    // The end of the last frame on the GPU (finishFrame's fence). Until it
+    // passes, the GPU may still read that frame's vertices, transform
+    // buffer and retired textures; read-backs and screen loads wait for an
+    // idle GPU themselves.
+    uint32_t frameEndFence = 0;
+    bool frameEndPending = false;
+    void settleFrame()
+    {
+        if (!frameEndPending)
+            return;
+        frameEndPending = false;
+        if (int32_t(*fence - frameEndFence) < 0)
+        {
+            ++g_nv2aTextureStats.gpuWaits;
+            const uint64_t start = cycles();
+            while (int32_t(*fence - frameEndFence) < 0 && pb_busy())
+            {
+            }
+            waitCycles += cycles() - start;
+            g_nv2aTextureStats.kcycWait = uint32_t(waitCycles / 1000u);
+        }
+        freeRetired();
+    }
+
     void nextXfSegment()
     {
         flushBatch(); // the segment's last draws, then its fence
@@ -1020,9 +1044,12 @@ struct GSNv2aBackend::Impl
         framePsm = state.context.frame.psm;
         frameHeight = std::clamp<uint32_t>(uint32_t(state.context.scissor.y1) + 1u, 1u, 512u);
         gpuRows = 0;
+        settleFrame();
         pb_reset();
         pushHead = pb_begin();
         pb_end(pushHead);
+        lastPut = pushHead;
+        framePushDwords = 0;
         uploadVertexProgram();
         uint32_t *p = pb_begin();
         // Z from the vertex, not W (the kernel leaves w-buffering on; with
@@ -1048,7 +1075,7 @@ struct GSNv2aBackend::Impl
         stateValid = false;
         currentProgram = -1;
         verticesUsed = 0;
-        // The GPU is idle at a frame's start (finishFrame): every fence passed.
+        // The GPU is idle at a frame's start (settleFrame): every fence passed.
         xfUsed = 0;
         xfSegment = 0;
         for (uint32_t &f : segmentFence)
@@ -1063,16 +1090,24 @@ struct GSNv2aBackend::Impl
         g_nv2aStep = 30;
         if (!frameOpen)
             return;
-        waitIdle();
+        flushBatch();
+        closeBlock();
+        g_nv2aTextureStats.pushPeakKB = std::max<uint32_t>(g_nv2aTextureStats.pushPeakKB,
+            uint32_t((framePushDwords + size_t(lastPut - pushHead)) / 256u));
         shownBuffer = pb_back_buffer(); // drawn into; on screen until the next flip
         g_nv2aStep = 31;
-        while (pb_finished())
+        while (pb_finished()) // only while both buffers wait for a vblank
         {
         }
         g_nv2aStep = 32;
+        // The GPU finishes this frame while the game builds the next one;
+        // the next frame's start waits for this fence (settleFrame).
+        frameEndFence = ++fenceSerial;
+        cursor = pushFence(openCursor(), frameEndFence);
+        closeBlock();
+        frameEndPending = true;
         frameOpen = false;
         screenGpuNewer = true;
-        freeRetired();
         g_nv2aTextureStats.frameTextures = frameTextures;
         g_nv2aTextureStats.frameTextureBytes = frameTextureBytes;
         g_nv2aTextureStats.frameFills = frameFills;
@@ -1282,6 +1317,10 @@ struct GSNv2aBackend::Impl
     // kBlockDwords (closeBlock): each hand-over costs several emulated
     // register accesses, a sixth of a frame when done per batch.
     uint32_t *openBlock = nullptr, *cursor = nullptr;
+    // Push-buffer use of the open frame: dwords before the last restart,
+    // and the end of the last closed block.
+    size_t framePushDwords = 0;
+    uint32_t *lastPut = nullptr;
     static constexpr size_t kBlockDwords = (16u * 1024u) / 4u;
 
     void closeBlock()
@@ -1289,6 +1328,7 @@ struct GSNv2aBackend::Impl
         if (!openBlock)
             return;
         pb_end(cursor);
+        lastPut = cursor;
         openBlock = cursor = nullptr;
     }
 
@@ -1307,6 +1347,8 @@ struct GSNv2aBackend::Impl
         if (!pushHead || size_t(p - pushHead) >= kPushLimitDwords)
         {
             ++g_nv2aTextureStats.waitPush;
+            if (pushHead && lastPut)
+                framePushDwords += size_t(lastPut - pushHead);
             while (pb_busy())
             {
             }

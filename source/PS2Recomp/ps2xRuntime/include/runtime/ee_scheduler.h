@@ -262,7 +262,26 @@ struct EeThreadCreateParams
     uint32_t option = 0;
 };
 
+#if defined(PLATFORM_XBOX)
+// The checkpoint fast path skips accountCycles, which is only exact while
+// the EE timers and the IOP take their cycles in batches.
+#if !defined(PS2X_DEVICE_CYCLE_BATCH)
+#error "The Xbox checkpoint fast path needs PS2X_DEVICE_CYCLE_BATCH (src/xbox/Makefile)"
+#endif
+
+// Development counters for the Xbox status block (cumulative): passes of the
+// dispatcher loop, and thread switches that unwound guest code back to it.
+struct EeSchedulerStats
+{
+    unsigned loopIterations = 0, unwinds = 0;
+};
+extern EeSchedulerStats g_eeSchedulerStats;
+#endif
+
 class EeScheduler
+#if defined(PLATFORM_XBOX)
+    : protected EeCheckpointClock
+#endif
 {
 public:
     static constexpr int kMainThreadId = 1;
@@ -284,7 +303,18 @@ public:
     void run();
     void requestStop();
     void postEvent(EeEvent event);
+#if defined(PLATFORM_XBOX)
+    // Inline: nearly every call only charges the cycles (EeCheckpointClock).
+    [[nodiscard]] bool checkpointDue(uint32_t cycles = kGeneratedCheckpointCycles) noexcept
+    {
+        const uint64_t elapsed = cycles > 1u ? cycles : 1u;
+        return !chargeCyclesFast(elapsed) && checkpointDueSlow(elapsed);
+    }
+    // The rest of checkpointDue once the cycles are on m_eeCycle.
+    [[nodiscard]] bool checkpointDueSlow(uint64_t elapsed) noexcept;
+#else
     [[nodiscard]] bool checkpointDue(uint32_t cycles = kGeneratedCheckpointCycles) noexcept;
+#endif
     void accountCycles(uint32_t cycles) noexcept;
     [[nodiscard]] bool isExecutingGuest() const noexcept;
 
@@ -412,6 +442,13 @@ private:
     };
 
     void assertExecutor() const;
+    [[nodiscard]] bool checkpointDecision() noexcept;
+    void accountDeviceCycles(uint64_t elapsed) noexcept;
+#if defined(PLATFORM_XBOX)
+    void refreshFastUntil() noexcept;
+    void refreshDeadlineCache();
+    [[nodiscard]] bool deadlineMayBeDue() const noexcept;
+#endif
     [[nodiscard]] int allocateThreadId();
     GuestThread &acquireInvocationThread();
     void enqueueReady(GuestThread &thread, bool front = false);
@@ -467,13 +504,23 @@ private:
     bool m_timeSliceExpired = false;
     bool m_insideInterrupt = false;
     uint32_t m_pendingEeTimerInterrupts = 0;
+#if !defined(PLATFORM_XBOX) // the Xbox keeps it in EeCheckpointClock
     uint64_t m_eeCycle = 0;
+#endif
     uint64_t m_sliceEndCycle = kDefaultTimeSliceCycles;
+#if defined(PS2X_DEVICE_CYCLE_BATCH)
+    // The EE cycle at which the device-batch carry was last zero: the carry
+    // is m_eeCycle - m_deviceBatchStart, so charging cycles only has to
+    // advance m_eeCycle (accountDeviceCycles).
+    uint64_t m_deviceBatchStart = 0;
+#endif
     std::thread::id m_executorThread{};
     std::atomic<bool> m_running{false};
     std::atomic<bool> m_guestExecuting{false};
     std::atomic<bool> m_stopRequested{false};
+#if !defined(PLATFORM_XBOX) // the Xbox keeps it in EeCheckpointClock
     std::atomic<bool> m_checkpointPending{false};
+#endif
     uint32_t m_debugPublishCountdown = 0u;
 
     mutable std::mutex m_eventMutex;
@@ -491,6 +538,11 @@ private:
     uint32_t m_gsVSyncCallbackSp = 0;
     std::unordered_map<uint64_t, uint32_t> m_invocationStackTops;
     std::atomic<uint64_t> m_nextDeadlineCycle{0};
+#if defined(PLATFORM_XBOX)
+    // Performance-counter value below which no entry of m_deadlines is due
+    // by host time (refreshDeadlineCache). 0 forces the full scan.
+    uint64_t m_hostDeadlineTicks = 0;
+#endif
 
     mutable std::mutex m_snapshotMutex;
     EeKernelSnapshot m_snapshot;

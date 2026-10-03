@@ -13,6 +13,12 @@
 #include <limits>
 #include <stdexcept>
 
+#if defined(PLATFORM_XBOX)
+#include <profileapi.h> // the counter behind steady_clock (src/xbox/xbox_chrono.cpp)
+
+EeSchedulerStats g_eeSchedulerStats;
+#endif
+
 namespace
 {
     constexpr int KE_OK = 0;
@@ -58,6 +64,42 @@ namespace
     constexpr uint64_t kVBlankDurationCycles = microsecondsToEeCycles(500u);
     constexpr uint64_t kAlarmTickCycles = microsecondsToEeCycles(kAlarmTickMicroseconds);
 
+#if defined(PLATFORM_XBOX)
+    // steady_clock on the Xbox reads the performance counter c (the CPU's
+    // time-stamp counter) as c / f seconds plus (c % f) * 1e9 / f ns
+    // (src/xbox/xbox_chrono.cpp). Comparing the raw counter against a
+    // precomputed threshold gives the same answer without its three 64-bit
+    // divisions.
+    uint64_t hostCounter()
+    {
+        LARGE_INTEGER counter;
+        QueryPerformanceCounter(&counter);
+        return static_cast<uint64_t>(counter.QuadPart);
+    }
+
+    // The first counter value steady_clock reads as `deadline` or later,
+    // less a microsecond, so a rounding difference can only send a test
+    // down the full path.
+    uint64_t hostCounterAt(std::chrono::steady_clock::time_point deadline)
+    {
+        static const uint64_t frequency = [] {
+            LARGE_INTEGER value;
+            QueryPerformanceFrequency(&value);
+            return static_cast<uint64_t>(value.QuadPart);
+        }();
+        constexpr uint64_t kNanosecondsPerSecond = 1000000000ull;
+        const auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(deadline.time_since_epoch()).count();
+        if (ns <= 0)
+            return 0u;
+        const uint64_t seconds = static_cast<uint64_t>(ns) / kNanosecondsPerSecond;
+        const uint64_t remainder = static_cast<uint64_t>(ns) % kNanosecondsPerSecond;
+        const uint64_t first = seconds * frequency +
+                               (remainder * frequency + kNanosecondsPerSecond - 1u) / kNanosecondsPerSecond;
+        const uint64_t margin = frequency / 1000000u;
+        return first > margin ? first - margin : 0u;
+    }
+#endif
+
     template <typename Map>
     int allocatePositiveId(int &nextId, const Map &objects)
     {
@@ -79,6 +121,9 @@ namespace
 EeScheduler::EeScheduler(PS2Runtime &runtime)
     : m_runtime(runtime)
 {
+#if defined(PLATFORM_XBOX)
+    m_runtime.m_eeCheckpointClock = this; // for the inline PS2Runtime::eeCheckpointDue
+#endif
 }
 
 EeScheduler::~EeScheduler()
@@ -115,6 +160,10 @@ void EeScheduler::reset(uint8_t *rdram, const R5900Context &mainContext)
     m_timeSliceExpired = false;
     m_insideInterrupt = false;
     m_pendingEeTimerInterrupts = 0u;
+#if defined(PS2X_DEVICE_CYCLE_BATCH)
+    // Keeps the device-batch carry across a reset, as the static it replaced did.
+    m_deviceBatchStart -= m_eeCycle;
+#endif
     m_eeCycle = 0u;
     m_sliceEndCycle = kDefaultTimeSliceCycles;
     m_stopRequested.store(false, std::memory_order_release);
@@ -164,6 +213,9 @@ void EeScheduler::run()
 
     while (!m_stopRequested.load(std::memory_order_acquire))
     {
+#if defined(PLATFORM_XBOX)
+        ++g_eeSchedulerStats.loopIterations;
+#endif
         processPendingEvents();
         if (m_stopRequested.load(std::memory_order_acquire))
         {
@@ -340,6 +392,9 @@ void EeScheduler::run()
 
 void EeScheduler::transferToDispatcher()
 {
+#if defined(PLATFORM_XBOX)
+    ++g_eeSchedulerStats.unwinds;
+#endif
 #if defined(PS2X_NO_EXCEPTIONS)
     if (!m_transferTarget)
         ps2x::fatalError("EE thread switch requested outside the dispatcher");
@@ -372,10 +427,25 @@ void EeScheduler::postEvent(EeEvent event)
     m_eventCv.notify_one();
 }
 
+#if defined(PLATFORM_XBOX)
+bool EeScheduler::checkpointDueSlow(uint64_t elapsed) noexcept
+{
+    // The inline checkpointDue already added the cycles to m_eeCycle; the
+    // rest is accountCycles' and checkpointDue's own work, in order.
+    accountDeviceCycles(elapsed);
+    return checkpointDecision();
+}
+#else
 bool EeScheduler::checkpointDue(uint32_t cycles) noexcept
 {
     accountCycles(cycles);
+    return checkpointDecision();
+}
+#endif
 
+// checkpointDue once the cycles are charged.
+bool EeScheduler::checkpointDecision() noexcept
+{
     if (m_checkpointPending.load(std::memory_order_acquire) ||
         m_stopRequested.load(std::memory_order_acquire))
     {
@@ -408,19 +478,27 @@ bool EeScheduler::checkpointDue(uint32_t cycles) noexcept
 
 void EeScheduler::accountCycles(uint32_t cycles) noexcept
 {
-    uint64_t elapsed = std::max<uint64_t>(1u, cycles);
+    const uint64_t elapsed = std::max<uint64_t>(1u, cycles);
     m_eeCycle += elapsed;
+    accountDeviceCycles(elapsed);
+}
+
+// Hands cycles already added to m_eeCycle to the EE timers and the IOP.
+void EeScheduler::accountDeviceCycles(uint64_t elapsed) noexcept
+{
 #if defined(PS2X_DEVICE_CYCLE_BATCH)
     // Slow hosts: loops report a few dozen cycles at every back-edge, and
     // advancing the EE timers and the IOP costs more than that much guest
     // work. Hand them the cycles in batches instead. (Only the executor
-    // thread accounts cycles.)
-    static uint64_t deviceCycleCarry = 0;
-    deviceCycleCarry += elapsed;
-    if (deviceCycleCarry < PS2X_DEVICE_CYCLE_BATCH)
+    // thread accounts cycles.) The carry is m_eeCycle - m_deviceBatchStart.
+    const uint64_t carry = m_eeCycle - m_deviceBatchStart;
+    if (carry < PS2X_DEVICE_CYCLE_BATCH)
         return;
-    elapsed = deviceCycleCarry;
-    deviceCycleCarry = 0;
+    elapsed = carry;
+    m_deviceBatchStart = m_eeCycle;
+#if defined(PLATFORM_XBOX)
+    refreshFastUntil();
+#endif
 #endif
     m_pendingEeTimerInterrupts |= m_runtime.memory().advanceEeTimers(elapsed);
     m_runtime.advanceIopEeCycles(elapsed);
@@ -1790,6 +1868,27 @@ void EeScheduler::applyPendingPreemption()
 void EeScheduler::processPendingEvents()
 {
     assertExecutor();
+#if defined(PLATFORM_XBOX)
+    // Return at once when nothing can be due. postEvent queues and sets
+    // m_checkpointPending under the lock, and apart from reset only this
+    // function clears the flag (from the queue it sees), so a clear flag
+    // means no event. The other sources are tested as the body tests them;
+    // the body would then only store the flag it read. A requested
+    // preemption still applies.
+    if (!m_checkpointPending.load(std::memory_order_acquire) &&
+        !m_stopRequested.load(std::memory_order_acquire) &&
+        m_pendingEeTimerInterrupts == 0u)
+    {
+        const auto &gsRegisters = m_runtime.memory().gs();
+        const uint32_t pendingGsCsr = static_cast<uint32_t>(gsRegisters.csr.load(std::memory_order_acquire)) &
+                                      ~static_cast<uint32_t>(gsRegisters.imr >> 8u) & 0x1Fu;
+        if (pendingGsCsr == 0u && !deadlineMayBeDue())
+        {
+            applyPendingPreemption();
+            return;
+        }
+    }
+#endif
     processDueDeadlines();
     // GS SIGNAL/FINISH and the other CSR interrupt flags feed INTC_GS (0).
     // IMR bits 8..12 mask CSR bits 0..4. The guest handler acknowledges CSR;
@@ -1829,6 +1928,12 @@ void EeScheduler::processPendingEvents()
 
 void EeScheduler::processDueDeadlines()
 {
+#if defined(PLATFORM_XBOX)
+    if (!deadlineMayBeDue())
+    {
+        return;
+    }
+#endif
     // AOT safe-point cycle counts are approximate. Do not withhold an
     // already-expired wall-clock event while waiting for those counts.
     uint64_t expiredCycle = m_eeCycle;
@@ -2146,6 +2251,9 @@ void EeScheduler::updateNextDeadline()
     if (m_deadlines.empty())
     {
         m_nextDeadlineCycle.store(0u, std::memory_order_release);
+#if defined(PLATFORM_XBOX)
+        refreshDeadlineCache();
+#endif
         return;
     }
     const auto it = std::min_element(m_deadlines.begin(), m_deadlines.end(),
@@ -2158,7 +2266,54 @@ void EeScheduler::updateNextDeadline()
                                          return left.sequence < right.sequence;
                                      });
     m_nextDeadlineCycle.store(it->deadlineCycle, std::memory_order_release);
+#if defined(PLATFORM_XBOX)
+    refreshDeadlineCache();
+#endif
 }
+
+#if defined(PLATFORM_XBOX)
+// The checkpoint fast path's bound: the first cycle at which checkpointDue
+// could do more than charge cycles. That is the next deadline (0: none, as
+// checkpointDue reads it), the end of the time slice, or the next device
+// batch. Called wherever one of them changes. Only the executor writes
+// them: deadlines are scheduled and cancelled there, and other host threads
+// reach the scheduler through postEvent and requestStop, which both set
+// m_checkpointPending, and the fast path tests that on every call.
+void EeScheduler::refreshFastUntil() noexcept
+{
+    uint64_t until = std::min<uint64_t>(m_sliceEndCycle, m_deviceBatchStart + PS2X_DEVICE_CYCLE_BATCH);
+    const uint64_t nextDeadline = m_nextDeadlineCycle.load(std::memory_order_relaxed);
+    if (nextDeadline != 0u)
+        until = std::min(until, nextDeadline);
+    m_fastUntil = until;
+}
+
+// After every change to m_deadlines (updateNextDeadline): the host-time
+// threshold deadlineMayBeDue tests, then the checkpoint bound.
+void EeScheduler::refreshDeadlineCache()
+{
+    uint64_t ticks = std::numeric_limits<uint64_t>::max();
+    if (!m_deadlines.empty())
+    {
+        auto earliest = m_deadlines.front().hostDeadline;
+        for (const ScheduledEvent &item : m_deadlines)
+            earliest = std::min(earliest, item.hostDeadline);
+        // A deadline at cycle 0 reads as "none" in m_nextDeadlineCycle, so
+        // it keeps processDueDeadlines on the full scan.
+        ticks = m_nextDeadlineCycle.load(std::memory_order_relaxed) == 0u ? 0u : hostCounterAt(earliest);
+    }
+    m_hostDeadlineTicks = ticks;
+    refreshFastUntil();
+}
+
+// False only when processDueDeadlines would find no entry due, by EE cycle
+// or by host time, and so only re-derive the same next deadline.
+bool EeScheduler::deadlineMayBeDue() const noexcept
+{
+    const uint64_t nextDeadline = m_nextDeadlineCycle.load(std::memory_order_relaxed);
+    return (nextDeadline != 0u && m_eeCycle >= nextDeadline) || hostCounter() >= m_hostDeadlineTicks;
+}
+#endif
 
 bool EeScheduler::hasReadyAtOrAbovePriority(int priority) const
 {
@@ -2177,6 +2332,9 @@ void EeScheduler::renewTimeSlice()
 {
     m_sliceEndCycle = m_eeCycle + kDefaultTimeSliceCycles;
     m_timeSliceExpired = false;
+#if defined(PLATFORM_XBOX)
+    refreshFastUntil();
+#endif
 }
 
 void EeScheduler::copyMainContextToRuntime()

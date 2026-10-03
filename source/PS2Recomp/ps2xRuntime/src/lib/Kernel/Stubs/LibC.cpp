@@ -94,7 +94,14 @@ namespace ps2_stubs
         uint32_t srcAddr = getRegU32(ctx, 5);  // $a1
         uint32_t size = getRegU32(ctx, 6);     // $a2
         size = sanitizeMemTransferSize(size, "memcpy");
+#if defined(PLATFORM_XBOX)
+        // Counts only: timing a copy reads the clock twice, and each read is
+        // several 64-bit divisions on the Xbox, more than most copies cost.
+        ps2x::copyStats().reads.fetch_add(1, std::memory_order_relaxed);
+        ps2x::copyStats().bytes.fetch_add(size, std::memory_order_relaxed);
+#else
         const ps2x::CopyTimer copyTimer(size);
+#endif
 
         uint32_t copied = 0u;
         uint32_t curDst = destAddr;

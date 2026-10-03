@@ -39,6 +39,34 @@ class PS2IopTransport;
 class EeScheduler;
 struct EeEvent;
 
+#if defined(PLATFORM_XBOX)
+// The EE scheduler state a checkpoint reads in the common case. EeScheduler
+// derives from it (the members are its own), so generated code can charge
+// cycles and see that nothing is due without the scheduler header or a call.
+struct EeCheckpointClock
+{
+    uint64_t m_eeCycle = 0;
+    // Below this cycle no deadline, time-slice end or device batch is
+    // reached (EeScheduler::refreshFastUntil). 0 sends every checkpoint
+    // down the full path.
+    uint64_t m_fastUntil = 0;
+    std::atomic<bool> m_checkpointPending{false};
+
+    // Charges the cycles. True when the full checkpoint would do nothing
+    // more and answer "not due". Other host threads only ever set the
+    // pending flag, so it is read every time. A stop request needs no test
+    // of its own (one load and branch less at every back-edge): requestStop
+    // sets the pending flag right after the stop flag, and the flag is only
+    // cleared with no stop seen (the dispatcher tests stop again before it
+    // runs guest code).
+    __attribute__((always_inline)) bool chargeCyclesFast(uint64_t elapsed) noexcept
+    {
+        m_eeCycle += elapsed;
+        return m_eeCycle < m_fastUntil && !m_checkpointPending.load(std::memory_order_acquire);
+    }
+};
+#endif
+
 enum PS2Exception
 {
     EXCEPTION_TLB_REFILL = 0x02,          // TLB refill/load exception
@@ -397,7 +425,20 @@ public:
     EeScheduler &eeScheduler();
     const EeScheduler &eeScheduler() const;
     void postEeEvent(EeEvent event);
+#if defined(PLATFORM_XBOX)
+    // Inlined into every generated loop back-edge: nearly every call only
+    // charges the cycles, an add and two compares instead of two calls.
+    __attribute__((always_inline)) bool eeCheckpointDue(uint32_t cycles = 32u) noexcept
+    {
+        const uint32_t elapsed = cycles > 1u ? cycles : 1u;
+        return !m_eeCheckpointClock->chargeCyclesFast(elapsed) && eeCheckpointDueSlow(elapsed);
+    }
+    // The rest of the checkpoint once the inline part has charged the cycles.
+    // (32-bit argument: one push less at every call site.)
+    bool eeCheckpointDueSlow(uint32_t elapsed) noexcept;
+#else
     bool eeCheckpointDue(uint32_t cycles = 32u) noexcept;
+#endif
     [[noreturn]] void eeWaitVSyncTicks(uint32_t ticks, uint32_t resumePc);
 
     struct EeExitHandlerRegistration
@@ -508,6 +549,9 @@ private:
     VU1Interpreter m_vu1{VU1Interpreter::Unit::VU1};
     R5900Context m_cpuContext;
     std::unique_ptr<EeScheduler> m_eeScheduler;
+#if defined(PLATFORM_XBOX)
+    EeCheckpointClock *m_eeCheckpointClock = nullptr; // m_eeScheduler's; it sets this
+#endif
     mutable std::mutex m_eeKernelStateMutex;
     std::unordered_map<int, std::vector<EeExitHandlerRegistration>> m_eeExitHandlers;
     std::unordered_map<uint32_t, uint32_t> m_eeSyscallOverrides;

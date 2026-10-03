@@ -230,6 +230,29 @@ namespace
         return distance == 0u ? 0x10000ull : static_cast<uint64_t>(distance);
     }
 
+#if defined(PLATFORM_XBOX)
+    static_assert((kEeClockHz >> 1) == kEeTimerClockHz[0] && (kEeClockHz >> 5) == kEeTimerClockHz[1] &&
+                      (kEeClockHz >> 9) == kEeTimerClockHz[2] && (kEeClockHz & 511u) == 0u,
+                  "timer modes 0-2 must be the EE clock / 2, / 32 and / 512");
+
+    // The ticks and remainder of (eeCycles * clockHz + remainder) / kEeClockHz
+    // for clockHz = kEeClockHz >> kShift, without the 64-bit divisions (a
+    // library call each on the Xbox). With remainder = m * clockHz + t
+    // (t < clockHz) that is ((eeCycles + m) >> kShift) ticks, leaving
+    // ((eeCycles + m) & mask) * clockHz + t: bit-identical to the general form.
+    template <uint32_t kShift>
+    uint64_t busClockTimerTicks(uint64_t eeCycles, uint64_t &clockRemainder)
+    {
+        constexpr uint32_t kMask = (1u << kShift) - 1u;
+        constexpr uint32_t kClockHz = static_cast<uint32_t>(kEeClockHz >> kShift);
+        // Always below kEeClockHz (< 2^32): only ever 0 or a value % kEeClockHz.
+        const uint32_t remainder = static_cast<uint32_t>(clockRemainder);
+        const uint32_t carried = (static_cast<uint32_t>(eeCycles) & kMask) + remainder / kClockHz;
+        clockRemainder = (carried & kMask) * kClockHz + remainder % kClockHz;
+        return (eeCycles >> kShift) + (carried >> kShift);
+    }
+#endif
+
     struct DmaTagView
     {
         uint16_t qwc = 0;
@@ -364,6 +387,9 @@ bool PS2Memory::initialize(size_t ramSize)
     {
         std::lock_guard<std::mutex> lock(m_completedDmacMutex);
         m_completedDmacCauses.clear();
+#if defined(PLATFORM_XBOX)
+        m_completedDmacPending.store(false, std::memory_order_release);
+#endif
     }
     m_codeRegions.clear();
     m_path3Masked = false;
@@ -463,12 +489,39 @@ uint32_t PS2Memory::advanceEeTimers(uint64_t eeCycles) noexcept
             continue;
         }
 
+#if defined(PLATFORM_XBOX)
+        uint64_t ticks = 0u;
+        switch (timer.mode & kEeTimerModeClksMask)
+        {
+        case 0u:
+            ticks = busClockTimerTicks<1>(eeCycles, timer.clockRemainder);
+            break;
+        case 1u:
+            ticks = busClockTimerTicks<5>(eeCycles, timer.clockRemainder);
+            break;
+        case 2u:
+            ticks = busClockTimerTicks<9>(eeCycles, timer.clockRemainder);
+            break;
+        default:
+        {
+            // HBLANK is not a power-of-two fraction of the EE clock.
+            const uint64_t clockHz = kEeTimerClockHz[3];
+            const uint64_t wholeSeconds = eeCycles / kEeClockHz;
+            const uint64_t remainingCycles = eeCycles % kEeClockHz;
+            const uint64_t scaled = remainingCycles * clockHz + timer.clockRemainder;
+            ticks = wholeSeconds * clockHz + scaled / kEeClockHz;
+            timer.clockRemainder = scaled % kEeClockHz;
+            break;
+        }
+        }
+#else
         const uint64_t clockHz = kEeTimerClockHz[timer.mode & kEeTimerModeClksMask];
         const uint64_t wholeSeconds = eeCycles / kEeClockHz;
         const uint64_t remainingCycles = eeCycles % kEeClockHz;
         const uint64_t scaled = remainingCycles * clockHz + timer.clockRemainder;
         const uint64_t ticks = wholeSeconds * clockHz + scaled / kEeClockHz;
         timer.clockRemainder = scaled % kEeClockHz;
+#endif
         if (ticks == 0u)
         {
             continue;
@@ -2435,6 +2488,9 @@ void PS2Memory::queueCompletedDmacCause(uint32_t cause)
 {
     std::lock_guard<std::mutex> lock(m_completedDmacMutex);
     m_completedDmacCauses.push_back(cause);
+#if defined(PLATFORM_XBOX)
+    m_completedDmacPending.store(true, std::memory_order_release);
+#endif
 }
 
 std::vector<uint32_t> PS2Memory::consumeCompletedDmacCauses()
@@ -2442,6 +2498,9 @@ std::vector<uint32_t> PS2Memory::consumeCompletedDmacCauses()
     std::lock_guard<std::mutex> lock(m_completedDmacMutex);
     std::vector<uint32_t> causes;
     causes.swap(m_completedDmacCauses);
+#if defined(PLATFORM_XBOX)
+    m_completedDmacPending.store(false, std::memory_order_release);
+#endif
     return causes;
 }
 

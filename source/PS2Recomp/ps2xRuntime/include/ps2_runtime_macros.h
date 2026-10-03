@@ -146,10 +146,12 @@ static inline uint32_t ps2_plzcw32(uint32_t x)
 // Fast path: Direct RDRAM access (masked).
 // Slow path: Full runtime->Load/Store
 
-// The helpers run on every guest memory access, so the common case (the
+// On PC the helpers run on every guest memory access, so the common case (the
 // access does not wrap past the end of RDRAM) is forced inline and the
-// wrap-around case lives in a separate, out-of-line function; left to the
-// size optimizer (the Xbox build) they were calls.
+// wrap-around case lives in a separate, out-of-line function; left to a size
+// optimizer they become calls. On the Xbox they serve only the out-of-line
+// slow paths of its own READn/WRITEn block below (plus the one-line 8-bit
+// FAST accesses).
 #if defined(PS2X_SCALAR_SIMD)
 // Xbox (64 MB): forcing these inline everywhere costs 4 MB of code; the
 // compiler decides, and the wrap-around case stays out of line.
@@ -219,6 +221,275 @@ static PS2_HOT_INLINE void Ps2FastWrite32(uint8_t *rdram, uint32_t addr, uint32_
 static PS2_HOT_INLINE void Ps2FastWrite64(uint8_t *rdram, uint32_t addr, uint64_t value) { Ps2FastWriteT<uint64_t>(rdram, addr, value); }
 static PS2_HOT_INLINE void Ps2FastWrite128(uint8_t *rdram, uint32_t addr, __m128i value) { Ps2FastWriteT<__m128i>(rdram, addr, value); }
 
+#if defined(PLATFORM_XBOX)
+// Xbox: inline, a guest access is one compare and one plain load or store.
+// Everything else (the last bytes of RDRAM, the kseg and uncached mirrors,
+// scratchpad, I/O) goes to one shared out-of-line function per width
+// (src/lib/ps2_guest_memory_xbox.cpp) that does exactly what the PC
+// macros below do. One shared cold function per width keeps each of the many
+// inline sites to a compare, a load or store and a call, and the
+// special-address test and wrap-around copy exist once, not in every file.
+// The slow paths are fastcall: the address and rdram travel in ECX/EDX and
+// the callee pops the rest, which keeps each cold call site short.
+#define PS2_XBOX_GUEST_SLOW __attribute__((cold, fastcall))
+#define PS2_XBOX_GUEST_ACCESS static inline __attribute__((always_inline))
+
+PS2_XBOX_GUEST_SLOW uint16_t Ps2XboxFastRead16Slow(uint32_t addr, const uint8_t *rdram);
+PS2_XBOX_GUEST_SLOW uint32_t Ps2XboxFastRead32Slow(uint32_t addr, const uint8_t *rdram);
+PS2_XBOX_GUEST_SLOW uint64_t Ps2XboxFastRead64Slow(uint32_t addr, const uint8_t *rdram);
+PS2_XBOX_GUEST_SLOW void Ps2XboxFastRead128Slow(uint32_t addr, const uint8_t *rdram, void *out);
+PS2_XBOX_GUEST_SLOW void Ps2XboxFastWrite16Slow(uint32_t addr, uint8_t *rdram, uint16_t value);
+PS2_XBOX_GUEST_SLOW void Ps2XboxFastWrite32Slow(uint32_t addr, uint8_t *rdram, uint32_t value);
+PS2_XBOX_GUEST_SLOW void Ps2XboxFastWrite64Slow(uint32_t addr, uint8_t *rdram, uint64_t value);
+PS2_XBOX_GUEST_SLOW void Ps2XboxFastWrite128Slow(uint32_t addr, uint8_t *rdram, const void *value);
+
+PS2_XBOX_GUEST_SLOW uint8_t Ps2XboxRead8Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+PS2_XBOX_GUEST_SLOW uint16_t Ps2XboxRead16Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+PS2_XBOX_GUEST_SLOW uint32_t Ps2XboxRead32Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+PS2_XBOX_GUEST_SLOW uint64_t Ps2XboxRead64Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime);
+PS2_XBOX_GUEST_SLOW void Ps2XboxRead128Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, void *out);
+PS2_XBOX_GUEST_SLOW void Ps2XboxWrite8Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint8_t value);
+PS2_XBOX_GUEST_SLOW void Ps2XboxWrite16Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint16_t value);
+PS2_XBOX_GUEST_SLOW void Ps2XboxWrite32Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t value);
+PS2_XBOX_GUEST_SLOW void Ps2XboxWrite64Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint64_t value);
+PS2_XBOX_GUEST_SLOW void Ps2XboxWrite128Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, const void *value);
+
+// The whole access lies in the first 32 MB: no mask, no wrap, not special.
+template <typename T>
+PS2_XBOX_GUEST_ACCESS bool Ps2XboxInRam(uint32_t addr) { return PS2_LIKELY(addr <= PS2_RAM_SIZE - static_cast<uint32_t>(sizeof(T))); }
+
+template <typename T>
+PS2_XBOX_GUEST_ACCESS T Ps2XboxLoad(const uint8_t *rdram, uint32_t addr)
+{
+    T value;
+    std::memcpy(&value, rdram + addr, sizeof(T));
+    return value;
+}
+
+template <typename T>
+PS2_XBOX_GUEST_ACCESS void Ps2XboxStore(uint8_t *rdram, uint32_t addr, T value) { std::memcpy(rdram + addr, &value, sizeof(T)); }
+
+// lq/sq/lqc2/sqc2 only move quadwords between memory and ctx->r[] or
+// vu0_vf[]. As SSE1 float vectors (movups/movaps) that takes two
+// instructions instead of eight 32-bit moves; the bits are copied unchanged.
+// Both paths meet as a float vector, so neither leaves the SSE registers, and
+// only the cold path keeps a copy in memory for the out-of-line function.
+PS2_XBOX_GUEST_ACCESS __m128 Ps2XboxLoad128(const uint8_t *rdram, uint32_t addr)
+{
+    return _mm_loadu_ps(reinterpret_cast<const float *>(rdram + addr));
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxStore128(uint8_t *rdram, uint32_t addr, __m128 bits)
+{
+    _mm_storeu_ps(reinterpret_cast<float *>(rdram + addr), bits);
+}
+
+PS2_XBOX_GUEST_ACCESS uint16_t Ps2XboxFastRead16(const uint8_t *rdram, uint32_t addr)
+{
+    return Ps2XboxInRam<uint16_t>(addr) ? Ps2XboxLoad<uint16_t>(rdram, addr) : Ps2XboxFastRead16Slow(addr, rdram);
+}
+
+PS2_XBOX_GUEST_ACCESS uint32_t Ps2XboxFastRead32(const uint8_t *rdram, uint32_t addr)
+{
+    return Ps2XboxInRam<uint32_t>(addr) ? Ps2XboxLoad<uint32_t>(rdram, addr) : Ps2XboxFastRead32Slow(addr, rdram);
+}
+
+PS2_XBOX_GUEST_ACCESS uint64_t Ps2XboxFastRead64(const uint8_t *rdram, uint32_t addr)
+{
+    return Ps2XboxInRam<uint64_t>(addr) ? Ps2XboxLoad<uint64_t>(rdram, addr) : Ps2XboxFastRead64Slow(addr, rdram);
+}
+
+PS2_XBOX_GUEST_ACCESS __m128i Ps2XboxFastRead128(const uint8_t *rdram, uint32_t addr)
+{
+    __m128 bits;
+    if (Ps2XboxInRam<__m128i>(addr))
+    {
+        bits = Ps2XboxLoad128(rdram, addr);
+    }
+    else
+    {
+        __m128 slow;
+        Ps2XboxFastRead128Slow(addr, rdram, &slow);
+        bits = slow;
+    }
+    return _mm_castps_si128(bits);
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxFastWrite16(uint8_t *rdram, uint32_t addr, uint16_t value)
+{
+    if (Ps2XboxInRam<uint16_t>(addr))
+        Ps2XboxStore<uint16_t>(rdram, addr, value);
+    else
+        Ps2XboxFastWrite16Slow(addr, rdram, value);
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxFastWrite32(uint8_t *rdram, uint32_t addr, uint32_t value)
+{
+    if (Ps2XboxInRam<uint32_t>(addr))
+        Ps2XboxStore<uint32_t>(rdram, addr, value);
+    else
+        Ps2XboxFastWrite32Slow(addr, rdram, value);
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxFastWrite64(uint8_t *rdram, uint32_t addr, uint64_t value)
+{
+    if (Ps2XboxInRam<uint64_t>(addr))
+        Ps2XboxStore<uint64_t>(rdram, addr, value);
+    else
+        Ps2XboxFastWrite64Slow(addr, rdram, value);
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxFastWrite128(uint8_t *rdram, uint32_t addr, __m128i value)
+{
+    const __m128 bits = _mm_castsi128_ps(value);
+    if (Ps2XboxInRam<__m128i>(addr))
+    {
+        Ps2XboxStore128(rdram, addr, bits);
+    }
+    else
+    {
+        const __m128 copy = bits;
+        Ps2XboxFastWrite128Slow(addr, rdram, &copy);
+    }
+}
+
+PS2_XBOX_GUEST_ACCESS uint8_t Ps2XboxRead8(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr)
+{
+    return Ps2XboxInRam<uint8_t>(addr) ? rdram[addr] : Ps2XboxRead8Slow(addr, rdram, ctx, runtime);
+}
+
+PS2_XBOX_GUEST_ACCESS uint16_t Ps2XboxRead16(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr)
+{
+    return Ps2XboxInRam<uint16_t>(addr) ? Ps2XboxLoad<uint16_t>(rdram, addr) : Ps2XboxRead16Slow(addr, rdram, ctx, runtime);
+}
+
+PS2_XBOX_GUEST_ACCESS uint32_t Ps2XboxRead32(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr)
+{
+    return Ps2XboxInRam<uint32_t>(addr) ? Ps2XboxLoad<uint32_t>(rdram, addr) : Ps2XboxRead32Slow(addr, rdram, ctx, runtime);
+}
+
+PS2_XBOX_GUEST_ACCESS uint64_t Ps2XboxRead64(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr)
+{
+    return Ps2XboxInRam<uint64_t>(addr) ? Ps2XboxLoad<uint64_t>(rdram, addr) : Ps2XboxRead64Slow(addr, rdram, ctx, runtime);
+}
+
+PS2_XBOX_GUEST_ACCESS __m128i Ps2XboxRead128(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr)
+{
+    __m128 bits;
+    if (Ps2XboxInRam<__m128i>(addr))
+    {
+        bits = Ps2XboxLoad128(rdram, addr);
+    }
+    else
+    {
+        __m128 slow;
+        Ps2XboxRead128Slow(addr, rdram, ctx, runtime, &slow);
+        bits = slow;
+    }
+    return _mm_castps_si128(bits);
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxWrite8(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr, uint8_t value)
+{
+    if (Ps2XboxInRam<uint8_t>(addr))
+    {
+        ps2TraceGuestWrite(rdram, addr, 1u, value, 0u, "WRITE8", ctx);
+        rdram[addr] = value;
+    }
+    else
+    {
+        Ps2XboxWrite8Slow(addr, rdram, ctx, runtime, value);
+    }
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxWrite16(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr, uint16_t value)
+{
+    if (Ps2XboxInRam<uint16_t>(addr))
+    {
+        ps2TraceGuestWrite(rdram, addr, 2u, value, 0u, "WRITE16", ctx);
+        Ps2XboxStore<uint16_t>(rdram, addr, value);
+    }
+    else
+    {
+        Ps2XboxWrite16Slow(addr, rdram, ctx, runtime, value);
+    }
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxWrite32(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr, uint32_t value)
+{
+    if (Ps2XboxInRam<uint32_t>(addr))
+    {
+        ps2TraceGuestWrite(rdram, addr, 4u, value, 0u, "WRITE32", ctx);
+        Ps2XboxStore<uint32_t>(rdram, addr, value);
+    }
+    else
+    {
+        Ps2XboxWrite32Slow(addr, rdram, ctx, runtime, value);
+    }
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxWrite64(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr, uint64_t value)
+{
+    if (Ps2XboxInRam<uint64_t>(addr))
+    {
+        ps2TraceGuestWrite(rdram, addr, 8u, value, 0u, "WRITE64", ctx);
+        Ps2XboxStore<uint64_t>(rdram, addr, value);
+    }
+    else
+    {
+        Ps2XboxWrite64Slow(addr, rdram, ctx, runtime, value);
+    }
+}
+
+PS2_XBOX_GUEST_ACCESS void Ps2XboxWrite128(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t addr, __m128i value)
+{
+    const __m128 bits = _mm_castsi128_ps(value);
+    if (Ps2XboxInRam<__m128i>(addr))
+    {
+        ps2TraceGuestWrite(rdram, addr, 16u, static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(value)),
+                           static_cast<uint64_t>(PS2_EXTRACT_EPI64_1(value)), "WRITE128", ctx);
+        Ps2XboxStore128(rdram, addr, bits);
+    }
+    else
+    {
+        const __m128 copy = bits;
+        Ps2XboxWrite128Slow(addr, rdram, ctx, runtime, &copy);
+    }
+}
+
+// 8-bit FAST accesses stay a mask and a load or store (no wrap possible).
+#define FAST_READ8(addr) Ps2FastRead8(rdram, (uint32_t)(addr))
+#define FAST_READ16(addr) Ps2XboxFastRead16(rdram, (uint32_t)(addr))
+#define FAST_READ32(addr) Ps2XboxFastRead32(rdram, (uint32_t)(addr))
+#define FAST_READ64(addr) Ps2XboxFastRead64(rdram, (uint32_t)(addr))
+#define FAST_READ128(addr) Ps2XboxFastRead128(rdram, (uint32_t)(addr))
+
+#define FAST_WRITE8(addr, val) Ps2FastWrite8(rdram, (uint32_t)(addr), (uint8_t)(val))
+#define FAST_WRITE16(addr, val) Ps2XboxFastWrite16(rdram, (uint32_t)(addr), (uint16_t)(val))
+#define FAST_WRITE32(addr, val) Ps2XboxFastWrite32(rdram, (uint32_t)(addr), (uint32_t)(val))
+#define FAST_WRITE64(addr, val) Ps2XboxFastWrite64(rdram, (uint32_t)(addr), (uint64_t)(val))
+#define FAST_WRITE128(addr, val) Ps2XboxFastWrite128(rdram, (uint32_t)(addr), (val))
+
+#define READ8(addr) Ps2XboxRead8(rdram, ctx, runtime, (uint32_t)(addr))
+#define READ16(addr) Ps2XboxRead16(rdram, ctx, runtime, (uint32_t)(addr))
+#define READ32(addr) Ps2XboxRead32(rdram, ctx, runtime, (uint32_t)(addr))
+#define READ64(addr) Ps2XboxRead64(rdram, ctx, runtime, (uint32_t)(addr))
+#define READ128(addr) Ps2XboxRead128(rdram, ctx, runtime, (uint32_t)(addr))
+
+// The address is evaluated before the value, as in the PC macros.
+#define PS2_XBOX_GUEST_WRITE(access, type, addr, val)     \
+    do                                                    \
+    {                                                     \
+        uint32_t _addr = (addr);                          \
+        access(rdram, ctx, runtime, _addr, (type)(val)); \
+    } while (0)
+#define WRITE8(addr, val) PS2_XBOX_GUEST_WRITE(Ps2XboxWrite8, uint8_t, addr, val)
+#define WRITE16(addr, val) PS2_XBOX_GUEST_WRITE(Ps2XboxWrite16, uint16_t, addr, val)
+#define WRITE32(addr, val) PS2_XBOX_GUEST_WRITE(Ps2XboxWrite32, uint32_t, addr, val)
+#define WRITE64(addr, val) PS2_XBOX_GUEST_WRITE(Ps2XboxWrite64, uint64_t, addr, val)
+#define WRITE128(addr, val) PS2_XBOX_GUEST_WRITE(Ps2XboxWrite128, __m128i, addr, val)
+
+#else
 #define FAST_READ8(addr) Ps2FastRead8(rdram, (uint32_t)(addr))
 #define FAST_READ16(addr) Ps2FastRead16(rdram, (uint32_t)(addr))
 #define FAST_READ32(addr) Ps2FastRead32(rdram, (uint32_t)(addr))
@@ -233,8 +504,7 @@ static PS2_HOT_INLINE void Ps2FastWrite128(uint8_t *rdram, uint32_t addr, __m128
 
 #if (defined(__clang__) || defined(__GNUC__)) && !defined(PS2X_SCALAR_SIMD)
 // Statement expressions: always inline, unlike the lambdas below, which the
-// size optimizer may leave as calls. (Not on the Xbox: 0.7 MB of code the
-// 64 MB machine cannot spare; the lambdas there are mostly inlined anyway.)
+// size optimizer may leave as calls. (The Xbox has its own block above.)
 #define PS2_GUEST_READ(type, loader, fast, addr) ({                      uint32_t _addr = (uint32_t)(addr);                                    type _value = PS2Runtime::isSpecialAddress(_addr)                                       ? runtime->loader(rdram, ctx, _addr)                                  : fast(_addr);                                      _value; })
 #define READ8(addr) PS2_GUEST_READ(uint8_t, Load8, FAST_READ8, addr)
 #define READ16(addr) PS2_GUEST_READ(uint16_t, Load16, FAST_READ16, addr)
@@ -341,6 +611,7 @@ static PS2_HOT_INLINE void Ps2FastWrite128(uint8_t *rdram, uint32_t addr, __m128
             FAST_WRITE128(_addr, _value);                                            \
         }                                                                            \
     } while (0)
+#endif // PLATFORM_XBOX
 
 // Packed Compare Greater Than (PCGT)
 #define PS2_PCGTW(a, b) _mm_cmpgt_epi32((__m128i)(a), (__m128i)(b))
@@ -525,6 +796,17 @@ inline __m128i ps2_u64_to_epi64_pair(uint64_t value)
 #define PS2_PMFHL_SH(hi, lo) _mm_shufflehi_epi16(_mm_shufflelo_epi16(_mm_packs_epi32(ps2_u64_to_epi64_pair(lo), ps2_u64_to_epi64_pair(hi)), _MM_SHUFFLE(3, 1, 2, 0)), _MM_SHUFFLE(3, 1, 2, 0))
 
 // FPU (COP1) operations
+#if defined(PLATFORM_XBOX)
+// Xbox: nearbyintf is a library call there (x87 frndint between status-word
+// round trips) whose result is then truncated by cvttss2si. cvtss2si rounds
+// with MXCSR instead and gives the same integer for every input, 0x80000000
+// for NaN, infinities and out-of-range values included: the only code that
+// changes the rounding mode (fesetround, src/xbox/xbox_shims.cpp) sets the
+// x87 and MXCSR modes together.
+#define PS2_FPU_ROUND_NEAREST_W(a) ((int32_t)_mm_cvtss_si32(_mm_set_ss((float)(a))))
+#else
+#define PS2_FPU_ROUND_NEAREST_W(a) ((int32_t)nearbyintf((float)(a)))
+#endif
 #define FPU_SET_ACC(ctx, res) (ctx->f_acc = res)
 #define FPU_ADD_S(a, b) ((float)(a) + (float)(b))
 #define FPU_SUB_S(a, b) ((float)(a) - (float)(b))
@@ -538,13 +820,13 @@ inline __m128i ps2_u64_to_epi64_pair(uint64_t value)
 #define FPU_TRUNC_L_S(a) ((int64_t)(float)(a))
 #define FPU_CEIL_L_S(a) ((int64_t)ceilf((float)(a)))
 #define FPU_FLOOR_L_S(a) ((int64_t)floorf((float)(a)))
-#define FPU_ROUND_W_S(a) ((int32_t)nearbyintf((float)(a)))
+#define FPU_ROUND_W_S(a) PS2_FPU_ROUND_NEAREST_W(a)
 #define FPU_TRUNC_W_S(a) ((int32_t)(float)(a))
 #define FPU_CEIL_W_S(a) ((int32_t)ceilf((float)(a)))
 #define FPU_FLOOR_W_S(a) ((int32_t)floorf((float)(a)))
 #define FPU_CVT_S_W(a) ((float)(int32_t)(a))
 #define FPU_CVT_S_L(a) ((float)(int64_t)(a))
-#define FPU_CVT_W_S(a) ((int32_t)nearbyintf((float)(a)))
+#define FPU_CVT_W_S(a) PS2_FPU_ROUND_NEAREST_W(a)
 #define FPU_CVT_L_S(a) ((int64_t)(float)(a))
 #define FPU_C_F_S(a, b) (0)
 #define FPU_C_UN_S(a, b) (isnan((float)(a)) || isnan((float)(b)))

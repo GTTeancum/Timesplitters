@@ -36,6 +36,8 @@ void xboxSetFrameHook(void (*hook)());
 void xboxLastBlit(int &width, int &height, int &litPercent);
 #include <iostream>
 
+extern uint32_t g_audioBuffers, g_audioMixKcyc; // xbox_raylib.cpp
+
 namespace
 {
     constexpr const char *kGameData = "D:\\game-data";
@@ -69,7 +71,7 @@ namespace
         MmQueryStatistics(&stats);
         out << "t=" << int(now) << "s free=" << stats.AvailablePages * 4u << "K vsync=" << g_rt->eeScheduler().currentVSyncTick()
                   << " ee=" << snap.eeCycle / 1000000u << "M rd=" << ps2x::ioStats().bytes.load() / 1024u << "KB cp=" << ps2x::copyStats().reads.load() << "/"
-                  << ps2x::copyStats().bytes.load() / 1024u << "KB/" << ps2x::copyStats().microseconds.load() / 1000u << "ms";
+                  << ps2x::copyStats().bytes.load() / 1024u << "KB"; // guest memcpy is not timed on the Xbox
         const ps2x::SchedulerWaitProbe &wait = ps2x::schedulerWaitProbe();
         if (const int site = wait.site.load())
             out << " wait@" << site << " asked " << wait.requestedMicroseconds.load() / 1000 << "ms, "
@@ -107,11 +109,12 @@ namespace
                   << g_nv2aTextureStats.kcycWait << "/" << g_nv2aTextureStats.kcycReadback
                   << " interp=" << g_vu1Stats.interpPairs << " cyc=" << g_vu1Stats.cycles / 1000u << "K kickwait="
                   << g_vu1Stats.kickWaitCycles / 1000u << "K gpuframes=" << g_nv2aTextureStats.frames << " game=" << g_nv2aTextureStats.gameFrames
-                  << " early=" << g_nv2aTextureStats.earlyHandouts << " pushpeak=" << g_nv2aTextureStats.pushPeakKB << "K pal=" << g_nv2aTextureStats.paletteHits << std::endl;
+                  << " early=" << g_nv2aTextureStats.earlyHandouts << " pushpeak=" << g_nv2aTextureStats.pushPeakKB << "K pal=" << g_nv2aTextureStats.paletteHits << " snd=" << g_audioBuffers << "/" << g_audioMixKcyc << "K" << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"
-                  << calls.lastRpcNumber.load() << std::dec << std::endl;
+                  << calls.lastRpcNumber.load() << std::dec << " sched it=" << g_eeSchedulerStats.loopIterations
+                  << "/unw=" << g_eeSchedulerStats.unwinds << std::endl;
         if (const R5900Context *ctx = g_rt->eeScheduler().currentContext())
         {
             static uint32_t samples[8];

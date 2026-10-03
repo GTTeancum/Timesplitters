@@ -1227,9 +1227,9 @@ namespace
 #if defined(PLATFORM_XBOX)
         // The Xbox table holds only the used entries, sorted by address
         // (src/xbox/tools/compact_function_table.py). Every guest call looks
-        // its target up (twice through dispatchGuestBranch): a direct-mapped
-        // cache of address -> slot saves the binary search over ~24,500
-        // entries. Slots never move, so it is never invalidated.
+        // its target up: a direct-mapped cache of address -> slot saves the
+        // binary search over ~24,500 entries. Slots never move, so it is
+        // never invalidated.
         struct CachedSlot
         {
             uint32_t address, slot;
@@ -1540,8 +1540,22 @@ bool PS2Runtime::dispatchGuestBranch(uint8_t *rdram,
         return false;
     }
 
+#if defined(PLATFORM_XBOX)
+    // One table read both checks and fetches the target (hasFunction then
+    // lookupFunction found the slot twice per call).
+    uint32_t targetSlot = 0u;
+    const RecompiledFunction targetFn =
+        generatedFunctionTableSlot(targetPc, targetSlot) ? g_ps2RecompiledFunctionTable[targetSlot] : nullptr;
+    if (targetFn == nullptr)
+#else
     if (!hasFunction(targetPc))
+#endif
     {
+#if defined(PLATFORM_XBOX)
+        // Only the missing-function reports read the dispatch history, so
+        // the Xbox records it here rather than on every call.
+        pushDispatchPc(targetPc);
+#endif
         reportMissingFunction(rdram, ctx, targetPc, sourcePc, kind, debugName);
 
         const MissingFunctionPolicy policy = missingFunctionPolicy();
@@ -1562,6 +1576,12 @@ bool PS2Runtime::dispatchGuestBranch(uint8_t *rdram,
         return false;
     }
 
+#if defined(PLATFORM_XBOX)
+    // No call tracing or boss-call profiling: their environment switches
+    // cost a thread-safe static check on every guest call.
+    const uint32_t entryPc = ctx->pc;
+    targetFn(rdram, ctx, this);
+#else
     RecompiledFunction targetFn = lookupFunction(targetPc);
     { // TS_TRACE_CALLS=hex,hex,...: log calls to these guest functions (first 200 each)
         static const std::vector<uint32_t> traced = [] {
@@ -1616,6 +1636,7 @@ bool PS2Runtime::dispatchGuestBranch(uint8_t *rdram,
     if (profile.enabled) profile.start = std::chrono::steady_clock::now();
     targetFn(rdram, ctx, this);
     profile.returned = true;
+#endif
 
     if (isStopRequested() || ctx->pc == 0u)
     {
@@ -1719,6 +1740,15 @@ void PS2Runtime::completeAsyncDmac(uint8_t *rdram)
 
 void PS2Runtime::drainCompletedDmacHandlers(uint8_t *rdram)
 {
+#if defined(PLATFORM_XBOX)
+    // Runs after every Store32: skip the mutex when no cause is queued. A
+    // cause queued after this check is drained by the next call, as it would
+    // be if it had been queued just after the mutex was released.
+    if (!m_memory.hasCompletedDmacCauses())
+    {
+        return;
+    }
+#endif
     for (uint32_t cause : m_memory.consumeCompletedDmacCauses())
     {
         ps2_syscalls::dispatchDmacHandlersForCause(rdram, this, cause);
@@ -2443,10 +2473,17 @@ void PS2Runtime::postEeEvent(EeEvent event)
     m_eeScheduler->postEvent(event);
 }
 
+#if defined(PLATFORM_XBOX)
+bool PS2Runtime::eeCheckpointDueSlow(uint32_t elapsed) noexcept
+{
+    return m_eeScheduler->checkpointDueSlow(elapsed);
+}
+#else
 bool PS2Runtime::eeCheckpointDue(uint32_t cycles) noexcept
 {
     return m_eeScheduler->checkpointDue(cycles);
 }
+#endif
 
 [[noreturn]] void PS2Runtime::eeWaitVSyncTicks(uint32_t ticks, uint32_t resumePc)
 {

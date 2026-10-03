@@ -23,6 +23,8 @@
 #include <unordered_map>
 #include <vector>
 
+extern uint32_t g_audioBuffers, g_audioMixKcyc;
+
 namespace
 {
     constexpr int kScreenWidth = 640;
@@ -117,12 +119,21 @@ namespace
     {
         auto *state = static_cast<StreamState *>(userdata);
         const unsigned frames = static_cast<unsigned>(len) / (2u * state->channels);
+        const uint64_t start = __builtin_ia32_rdtsc();
         if (state->callback)
             state->callback(stream, frames);
         else
             std::memset(stream, 0, static_cast<size_t>(len));
+        static uint64_t mixCycles = 0;
+        mixCycles += __builtin_ia32_rdtsc() - start;
+        g_audioMixKcyc = uint32_t(mixCycles / 1000u);
+        ++g_audioBuffers;
     }
 }
+
+// Audio output health (status block): buffers played, and the CPU the mix
+// took (thousands of cycles). About 47 buffers a second means sound plays.
+uint32_t g_audioBuffers = 0, g_audioMixKcyc = 0;
 
 // ------------------------------------------------------------------ window
 void InitWindow(int, int, const char *)

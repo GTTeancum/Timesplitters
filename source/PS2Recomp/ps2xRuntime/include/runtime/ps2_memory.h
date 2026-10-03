@@ -455,6 +455,11 @@ public:
     void processVIF1Data(const uint8_t *data, uint32_t sizeBytes);
     void processPendingTransfers();
     std::vector<uint32_t> consumeCompletedDmacCauses();
+#if defined(PLATFORM_XBOX)
+    // True while consumeCompletedDmacCauses() has something to return; lets
+    // the per-store drain skip the mutex when nothing completed.
+    bool hasCompletedDmacCauses() const { return m_completedDmacPending.load(std::memory_order_acquire); }
+#endif
 
     int pollDmaRegisters();
 
@@ -573,6 +578,10 @@ public:
     std::vector<PendingTransfer> m_pendingVif1Transfers;
     std::mutex m_completedDmacMutex;
     std::vector<uint32_t> m_completedDmacCauses;
+#if defined(PLATFORM_XBOX)
+    // !m_completedDmacCauses.empty(), written only under m_completedDmacMutex.
+    std::atomic<bool> m_completedDmacPending{false};
+#endif
 
     struct CodeRegion
     {

@@ -1638,9 +1638,11 @@ void VU1Interpreter::execute(uint8_t *vuCode, uint32_t codeSize,
                              uint32_t startPC, uint32_t top, uint32_t itop,
                              uint32_t maxCycles)
 {
+#if !defined(PLATFORM_XBOX) // development profiling and input capture only
     VuProfileScope profile(m_state, m_cycle, m_unit == Unit::VU1, false);
     if (m_unit == Unit::VU1)
         captureVuInput(m_state, vuCode, codeSize, vuData, dataSize, startPC, top, itop, maxCycles);
+#endif
     if (m_unit == Unit::VU1)
         if (Vu1NativeEntry native = lookupNativeProgram(vuCode, codeSize, memory))
             if (native(startPC, vuData, dataSize, top, memory, gs))
@@ -1674,7 +1676,9 @@ void VU1Interpreter::resume(uint8_t *vuCode, uint32_t codeSize,
                             GS &gs, PS2Memory *memory,
                             uint32_t top, uint32_t itop, uint32_t maxCycles)
 {
+#if !defined(PLATFORM_XBOX)
     VuProfileScope profile(m_state, m_cycle, m_unit == Unit::VU1, true);
+#endif
     m_state.top = top;
     m_state.itop = itop;
     m_state.stoppedByD = false;

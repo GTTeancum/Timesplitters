@@ -55,6 +55,7 @@ RUNTIME_SRCS := \
     $(RUNTIME)/src/lib/gs/gs_threaded_backend.cpp \
     $(RUNTIME)/src/lib/gs/gs_texture_replacement.cpp \
     $(RUNTIME)/src/lib/ps2_iop_host.cpp \
+    $(RUNTIME)/src/lib/ps2_guest_memory_xbox.cpp \
     $(RUNTIME)/src/lib/ps2_memory.cpp \
     $(RUNTIME)/src/lib/ps2_pad.cpp \
     $(RUNTIME)/src/lib/ps2_rom_device.cpp \

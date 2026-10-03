@@ -25,6 +25,13 @@
 #include "runtime/gs/gs_frontend.h"
 #include "runtime/gs/ps2_gif_arbiter.h"
 
+#if defined(PLATFORM_XBOX)
+#include "../../src/xbox/gs_nv2a_backend.h" // status counters
+#define TS_NATIVE_STAT(expr) (expr)
+#else
+#define TS_NATIVE_STAT(expr) ((void)0)
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -40,21 +47,23 @@ namespace
     struct Layout
     {
         uint32_t vertexBase, pos, rgba, st, normal, boneIndex;
-        bool lit, skinned;
+        bool lit, skinned, envMap;
     };
 
     const Layout *layoutFor(uint32_t pc)
     {
-        static const Layout plain{24, 0, 64, 128, 0, 0, false, false};
-        static const Layout lit{24, 0, 48, 96, 144, 0, true, false};
-        static const Layout skinned{32, 0, 36, 72, 144, 108, true, true};
+        static const Layout plain{24, 0, 64, 128, 0, 0, false, false, false};
+        static const Layout env{24, 0, 64, 0, 128, 0, false, false, true};
+        static const Layout lit{24, 0, 48, 96, 144, 0, true, false, false};
+        static const Layout skinned{32, 0, 36, 72, 144, 108, true, true, false};
         switch (pc)
         {
         case 0x0000: return &plain;
+        case 0x0d20: return &env; // texture coordinates from the rotated normal (sphere map)
         case 0x1ae0: return &lit;
         case 0x3520: return &lit; // clips the near plane only; the same pipeline
         case 0x2800: return &skinned;
-        default: return nullptr; // 0x0d20 (environment-mapped) and the rest: exact translator
+        default: return nullptr;
         }
     }
 
@@ -240,21 +249,38 @@ namespace
             lightDir[2] = loadM(data, 118);
         }
         const Mat lightColour = loadM(data, 106);
+        const Mat model = loadM(data, 4); // environment map: the normal's rotation
+
+        // The GPU transform's constants (raw VU1 rows) for this batch.
+        GSXfConstants xc;
+        std::memcpy(xc.mvp[0], data + 8u * 16u, 64);
+        std::memcpy(xc.mvp[1], data + 12u * 16u, 64);
+        std::memcpy(xc.mvp[2], data + 16u * 16u, 64);
+        std::memcpy(xc.lightDir[0], data + 110u * 16u, 64);
+        std::memcpy(xc.lightDir[1], data + 114u * 16u, 64);
+        std::memcpy(xc.lightDir[2], data + 118u * 16u, 64);
+        std::memcpy(xc.lightColour, data + 106u * 16u, 64);
+        std::memcpy(xc.scale, data + 20u * 16u, 16);
+        std::memcpy(xc.offset, data + 21u * 16u, 16);
+        std::memcpy(xc.model, data + 4u * 16u, 48);
+        static uint32_t s_constSerial = 0;
+        xc.serial = ++s_constSerial ? s_constSerial : ++s_constSerial;
+        xc.variant = L.envMap ? GSXfConstants::EnvMap
+                     : L.skinned ? GSXfConstants::Skinned
+                     : L.lit     ? GSXfConstants::Lit
+                                 : GSXfConstants::Plain;
+#if defined(PLATFORM_XBOX)
+        const bool gpuTransform = !PS2Memory::onVif1Worker(); // the NV2A renderer's vertex programs
+#else
+        const bool gpuTransform = false; // no PC renderer takes raw vertices
+#endif
         const V4 scale = loadV(data, 20), offset = loadV(data, 21);
 
         ClipVertex verts[64];
-        uint32_t header = top, vi = top + L.vertexBase;
-        for (uint32_t strip = 0; strip < 64u; ++strip)
-        {
-            uint32_t tag[4];
-            loadI(data, header, tag);
-            const uint32_t n = tag[0] & 0x7FFFu;
-            const bool last = (tag[0] & 0x8000u) != 0u;
-            if (n == 0u || n > 64u || ((tag[1] >> 28) & 0xFu) != 3u)
-                return packet.used == stateQwords * 16u ? false : (packet.submit(), true);
-            if (vi + L.st + n > kDataQwords || vi + L.rgba + n > kDataQwords || (L.lit && vi + L.normal + n > kDataQwords))
-                return packet.used == stateQwords * 16u ? false : (packet.submit(), true);
 
+        // The CPU path for one strip: transform, light and clip here, then
+        // to the GS as decoded vertices or as a packet.
+        auto cpuStrip = [&](const uint32_t *tag, uint32_t n, uint32_t vi) {
             bool allInside = true;
             for (uint32_t v = 0; v < n; ++v)
             {
@@ -268,7 +294,16 @@ namespace
                     bone = std::min<uint32_t>(index[0] & 0xFFFFu, 2u);
                 }
                 cv.p = transform(mvp[bone], pos.x, pos.y, pos.z, 1.0f);
-                cv.st = loadV(data, vi + L.st + v);
+                if (L.envMap)
+                {
+                    // n' = model rows 4..6 * n; s = (n'.x + 1) / 2, t = (n'.z + 1) / 2.
+                    const V4 nrm = loadV(data, vi + L.normal + v);
+                    const float rx = model.r[0].x * nrm.x + model.r[1].x * nrm.y + model.r[2].x * nrm.z;
+                    const float rz = model.r[0].z * nrm.x + model.r[1].z * nrm.y + model.r[2].z * nrm.z;
+                    cv.st = {(rx + 1.0f) * 0.5f, (rz + 1.0f) * 0.5f, 1.0f, 0.0f};
+                }
+                else
+                    cv.st = loadV(data, vi + L.st + v);
                 uint32_t rgba[4];
                 loadI(data, vi + L.rgba + v, rgba);
                 for (int i = 0; i < 4; ++i)
@@ -363,23 +398,222 @@ namespace
                 if (count == 0u)
                     packet.used -= 16u; // nothing survived: drop the empty tag
             }
+        };
+
+        // GPU path: a run's unclipped strips go to the renderer together
+        // (raw vertices, one call), in order with everything else.
+        static GSXfVertex s_batch[64u * 64u];
+        static uint8_t s_counts[64];
+        struct Pending
+        {
+            uint32_t tag[4];
+            uint32_t n, vi;
+        };
+        static Pending s_pending[64];
+        uint32_t batchStrips = 0, batchVerts = 0, batchPrim = 0;
+        bool anything = false;
+        auto flushGpu = [&]() {
+            if (batchStrips == 0u)
+                return;
+            packet.submit(); // the state block and anything before go first
+            if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
+                memory->gifArbiter()->drain();
+            if (!gs.submitStripsTransformed(batchPrim, xc, s_batch, s_counts, batchStrips))
+                for (uint32_t i = 0; i < batchStrips; ++i)
+                    cpuStrip(s_pending[i].tag, s_pending[i].n, s_pending[i].vi);
+            batchStrips = batchVerts = 0;
+        };
+        auto finish = [&]() {
+            flushGpu();
+            const bool emitted = anything || packet.used != stateQwords * 16u;
+            if (emitted)
+                packet.submit();
+            return emitted;
+        };
+
+        uint32_t header = top, vi = top + L.vertexBase;
+        for (uint32_t strip = 0; strip < 64u; ++strip)
+        {
+            uint32_t tag[4];
+            loadI(data, header, tag);
+            const uint32_t n = tag[0] & 0x7FFFu;
+            const bool last = (tag[0] & 0x8000u) != 0u;
+            if (n == 0u || n > 64u || ((tag[1] >> 28) & 0xFu) != 3u)
+                return finish();
+            if (vi + L.st + n > kDataQwords || vi + L.rgba + n > kDataQwords ||
+                ((L.lit || L.envMap) && vi + L.normal + n > kDataQwords))
+                return finish();
+
+            bool queued = false;
+            if (gpuTransform && (tag[1] & (1u << 14)) != 0u)
+            {
+                const uint32_t prim = (tag[1] >> 15) & 0x7FFu;
+                if (batchStrips != 0u && prim != batchPrim)
+                    flushGpu();
+                // Raw vertices for the GPU's transform and clipping: copies and
+                // integer work only (float maths is slow under emulation, and
+                // the GPU clips in homogeneous space like the VU1 program).
+                GSXfVertex *raw = s_batch + batchVerts;
+                bool nearOk = true;
+                for (uint32_t v = 0; v < n && nearOk; ++v)
+                {
+                    GSXfVertex &o = raw[v];
+                    std::memcpy(&o.x, data + ((vi + L.pos + v) & (kDataQwords - 1u)) * 16u, 12);
+                    uint32_t bone = 0;
+                    if (L.skinned)
+                    {
+                        uint32_t index[4];
+                        loadI(data, vi + L.boneIndex + v, index);
+                        bone = std::min<uint32_t>(index[0] & 0xFFFFu, 2u);
+                    }
+                    o.bone4 = static_cast<float>(bone * 4u);
+                    if (L.lit || L.envMap)
+                        std::memcpy(&o.nx, data + ((vi + L.normal + v) & (kDataQwords - 1u)) * 16u, 12);
+                    else
+                        o.nx = o.ny = o.nz = 0.0f;
+                    uint32_t rgba[4];
+                    loadI(data, vi + L.rgba + v, rgba);
+                    // The low byte, as a PACKED RGBAQ write keeps it.
+                    o.color = (rgba[2] & 0xFFu) | ((rgba[1] & 0xFFu) << 8) | ((rgba[0] & 0xFFu) << 16) | ((rgba[3] & 0xFFu) << 24);
+                    if (L.envMap)
+                    {
+                        o.s = o.t = 0.0f;
+                        o.q = 1.0f;
+                    }
+                    else
+                    {
+                        std::memcpy(&o.s, data + ((vi + L.st + v) & (kDataQwords - 1u)) * 16u, 12);
+                        if (o.q == 0.0f)
+                            o.q = 1.0f; // as the GS treats Q = 0
+                    }
+                }
+                if (nearOk)
+                {
+                    s_counts[batchStrips] = static_cast<uint8_t>(n);
+                    Pending &pd = s_pending[batchStrips];
+                    std::memcpy(pd.tag, tag, 16);
+                    pd.n = n;
+                    pd.vi = vi;
+                    ++batchStrips;
+                    batchVerts += n;
+                    batchPrim = prim;
+                    queued = true;
+                }
+                else
+                    TS_NATIVE_STAT(++g_nv2aTextureStats.nearFallbacks);
+            }
+            if (!queued)
+            {
+                flushGpu(); // keep the order of the strips
+                cpuStrip(tag, n, vi);
+            }
+            anything = true;
             if (last)
                 break;
             ++header;
             vi += n;
         }
-        packet.submit();
+        return finish();
+    }
+
+    // The constant entries: copies from the batch at TOP into the fixed
+    // slots, and the matrix products (slot 8 + 4k = model k x view-projection).
+    void copyQwords(uint8_t *data, uint32_t from, uint32_t to, uint32_t count)
+    {
+        for (uint32_t i = 0; i < count; ++i)
+            std::memmove(data + ((to + i) & (kDataQwords - 1u)) * 16u, data + ((from + i) & (kDataQwords - 1u)) * 16u, 16);
+    }
+
+    void modelViewProjection(uint8_t *data, uint32_t modelQ, uint32_t outQ)
+    {
+        const Mat vp = loadM(data, 0), model = loadM(data, modelQ);
+        for (uint32_t r = 0; r < 4; ++r)
+        {
+            const V4 &m = model.r[r];
+            const V4 o = transform(vp, m.x, m.y, m.z, m.w);
+            std::memcpy(data + ((outQ + r) & (kDataQwords - 1u)) * 16u, &o, 16);
+        }
+    }
+
+    // XGKICK of a prebuilt GIF packet: its length from the tags, up to EOP.
+    bool kickPacket(uint8_t *data, uint32_t top, PS2Memory *memory, GS &gs)
+    {
+        uint32_t q = top & (kDataQwords - 1u), qwords = 0;
+        for (int tags = 0; tags < 256; ++tags)
+        {
+            if (q + qwords >= kDataQwords)
+                return false;
+            uint32_t w[4];
+            loadI(data, q + qwords, w);
+            const uint32_t nloop = w[0] & 0x7FFFu, flg = (w[1] >> 26) & 3u, nreg = (w[1] >> 28) ? (w[1] >> 28) : 16u;
+            qwords += 1u;
+            if (flg == 0u)
+                qwords += nloop * nreg;
+            else if (flg == 1u)
+                qwords += (nloop * nreg + 1u) / 2u;
+            else
+                qwords += nloop;
+            if (w[0] & 0x8000u)
+                break;
+        }
+        if (q + qwords > kDataQwords)
+            return false;
+        if (memory)
+            memory->submitGifPacket(GifPathId::Path1, data + q * 16u, qwords * 16u);
+        else
+            gs.processGIFPacket(data + q * 16u, qwords * 16u, GifPathId::Path1);
         return true;
     }
 
+    bool runInner(uint32_t pc, uint8_t *vuData, uint32_t dataSize, uint32_t top, PS2Memory *memory, GS &gs);
+
     bool run(uint32_t pc, uint8_t *vuData, uint32_t dataSize, uint32_t top, PS2Memory *memory, GS &gs)
+    {
+#if defined(PLATFORM_XBOX)
+        // CPU cycles spent here, for the Xbox status block.
+        const auto rdtsc = [] {
+            uint32_t lo, hi;
+            __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+            return (uint64_t(hi) << 32) | lo;
+        };
+        static uint64_t s_cycles = 0;
+        const uint64_t start = rdtsc();
+        const bool handled = runInner(pc, vuData, dataSize, top, memory, gs);
+        s_cycles += rdtsc() - start;
+        g_nv2aTextureStats.kcycNative = uint32_t(s_cycles / 1000u);
+        return handled;
+#else
+        return runInner(pc, vuData, dataSize, top, memory, gs);
+#endif
+    }
+
+    bool runInner(uint32_t pc, uint8_t *vuData, uint32_t dataSize, uint32_t top, PS2Memory *memory, GS &gs)
     {
         if (dataSize < kDataQwords * 16u)
             return false;
+        top &= kDataQwords - 1u;
+        switch (pc & 0x3FFFu)
+        {
+        case 0x3af8: copyQwords(vuData, top + 22, 106, 4); return true; // light colours
+        case 0x3b50: copyQwords(vuData, top + 26, 110, 4); return true; // light directions
+        case 0x3ba8: copyQwords(vuData, top + 30, 114, 4); return true; // bone 1 lights
+        case 0x3c00: copyQwords(vuData, top + 34, 118, 4); return true; // bone 2 lights
+        case 0x3c58: copyQwords(vuData, top + 16, 20, 4); return true;  // viewport
+        case 0x3cb0: copyQwords(vuData, top + 20, 24, 2); return true;
+        case 0x3ce8: copyQwords(vuData, top, 0, 4); return true;        // view-projection
+        case 0x3d40:
+            copyQwords(vuData, top + 4, 4, 4);                          // model
+            modelViewProjection(vuData, 4, 8);
+            return true;
+        case 0x3e20: modelViewProjection(vuData, top + 8, 12); return true;  // bone 1
+        case 0x3f00: modelViewProjection(vuData, top + 12, 16); return true; // bone 2
+        case 0x3fe0: return kickPacket(vuData, top, memory, gs);
+        default: break;
+        }
         const Layout *layout = layoutFor(pc & 0x3FFFu);
         if (!layout)
             return false;
-        return runDraw(*layout, vuData, top & (kDataQwords - 1u), memory, gs);
+        return runDraw(*layout, vuData, top, memory, gs);
     }
 
     struct Register

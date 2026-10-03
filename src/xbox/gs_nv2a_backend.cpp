@@ -27,7 +27,8 @@ namespace
     constexpr uint64_t kPageBytes = 8192u;
     constexpr uint32_t kPageCount = 512u;
     constexpr uint32_t kScreenWidth = 640u, kScreenHeight = 480u;
-    constexpr uint32_t kMaxVertices = 4096u;             // per batch run (144 KB)
+    constexpr uint32_t kDisplayRows = 448u; // the game's displayed frame height
+    constexpr uint32_t kMaxVertices = 8192u;             // per batch run (288 KB)
     constexpr size_t kTextureBudget = 1024u * 1024u;     // decoded textures kept on the GPU
 
     uint32_t physical(const void *p) { return uint32_t(reinterpret_cast<uintptr_t>(p)) & 0x03FFFFFFu; }
@@ -57,6 +58,32 @@ namespace
     const uint32_t kVertexProgram[] = {
 #include "gs_vs.inl"
     };
+    const uint32_t kXfPlain[] = {
+#include "gs_xf_plain.inl"
+    };
+    const uint32_t kXfLit[] = {
+#include "gs_xf_lit.inl"
+    };
+    const uint32_t kXfEnv[] = {
+#include "gs_xf_env.inl"
+    };
+    const uint32_t kXfSkin[] = {
+#include "gs_xf_skin.inl"
+    };
+    struct VertexProgram
+    {
+        const uint32_t *words;
+        uint32_t count;
+    };
+    // Vertex mode 0: pass-through (screen-space vertices); 1 + variant: the
+    // native pipeline's transform programs (GSXfConstants::Variant).
+    const VertexProgram kVertexPrograms[5] = {
+        {kVertexProgram, sizeof(kVertexProgram) / 4}, {kXfPlain, sizeof(kXfPlain) / 4},
+        {kXfLit, sizeof(kXfLit) / 4},                 {kXfEnv, sizeof(kXfEnv) / 4},
+        {kXfSkin, sizeof(kXfSkin) / 4}};
+    constexpr uint32_t kXfConstantRegs = 35;   // k[0..33] and the compiler's literals at c[34]
+    constexpr uint32_t kConstantBase = 96;     // vp20's c[0] in the NV2A's constant file
+    constexpr uint32_t kMaxXfVertices = 8192u; // 352 KB
 
 #define MASK(mask, val) (((val) << (__builtin_ffs(mask) - 1)) & (mask))
     uint32_t *pushUntextured(uint32_t *p)
@@ -126,6 +153,28 @@ namespace
         return GSCpuBackend::FrameRange(state);
     }
 
+    // A page-aligned frame's exact pages (GSCpuBackend::FrameRange adds a
+    // spare page for unaligned bases; for the screen that spare page is the
+    // one after a 640x448 16-bit frame, where the game keeps CLUTs).
+    GSCpuBackend::VramRange frameRangeExact(uint32_t psm, uint32_t fbp, uint32_t fbw, uint32_t rows)
+    {
+        uint32_t pw = 64, ph = 32;
+        if (psm == GS_PSM_CT16 || psm == GS_PSM_CT16S || psm == GS_PSM_Z16 || psm == GS_PSM_Z16S)
+            ph = 64;
+        else if (psm != GS_PSM_CT32 && psm != GS_PSM_CT24 && psm != GS_PSM_Z32 && psm != GS_PSM_Z24)
+            return frameRangeRows(psm, fbp, fbw, rows);
+        const uint64_t begin = uint64_t(fbp) * 8192u;
+        const uint64_t pages = uint64_t((std::max<uint32_t>(rows, 1u) + ph - 1u) / ph) * ((uint64_t(std::max<uint32_t>(fbw, 1u)) * 64u) / pw);
+        return {begin, begin + pages * 8192u};
+    }
+
+    inline uint64_t cycles()
+    {
+        uint32_t lo, hi;
+        __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+        return (uint64_t(hi) << 32) | lo;
+    }
+
     bool overlaps(const GSCpuBackend::VramRange &a, const GSCpuBackend::VramRange &b)
     {
         if (a.end == UINT64_MAX || b.end == UINT64_MAX)
@@ -138,13 +187,28 @@ namespace
         return psm == GS_PSM_T8 || psm == GS_PSM_T4 || psm == GS_PSM_T8H || psm == GS_PSM_T4HL || psm == GS_PSM_T4HH;
     }
 
-    // GS depth value to the 24-bit depth buffer's units. The whole 32-bit
-    // vertex z is used whatever ZBUF.PSM says (the game declares a 16-bit
-    // buffer but its z values span 32 bits; the PC renderer does the same).
+    // GS depth to the 24-bit buffer: the ZBUF format's range spread over it
+    // (the GS clamps z to the format's maximum). The game's 3D z is 16-bit;
+    // dividing it down would leave 256 depth levels.
+    float depthScale(uint32_t zpsm)
+    {
+        switch (zpsm)
+        {
+        case GS_PSM_Z16:
+        case GS_PSM_Z16S: return 256.0f;
+        case GS_PSM_Z24: return 1.0f;
+        default: return 1.0f / 256.0f;
+        }
+    }
     float depth24(double z, uint32_t zpsm)
     {
-        (void)zpsm;
-        return float(std::min(z / 256.0, 16777215.0));
+        switch (zpsm)
+        {
+        case GS_PSM_Z16:
+        case GS_PSM_Z16S: return float(std::min(z, 65535.0) * 256.0);
+        case GS_PSM_Z24: return float(std::min(z, 16777215.0));
+        default: return float(std::min(z / 256.0, 16777215.0));
+        }
     }
 
     uint32_t d3dColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
@@ -234,7 +298,9 @@ struct GSNv2aBackend::Impl
 
     GSCpuBackend::VramRange screenRange() const
     {
-        return frameRangeRows(framePsm, frameFbp, frameFbw, frameHeight);
+        // Displayed rows only: the game uploads CLUTs below row 448 of the
+        // frame region; those uploads must not reload the whole screen.
+        return frameRangeExact(framePsm, frameFbp, frameFbw, std::min<uint32_t>(frameHeight, kDisplayRows));
     }
 
     // Rows the GPU has drawn this frame. Reads of local memory below them
@@ -243,7 +309,7 @@ struct GSNv2aBackend::Impl
     uint32_t gpuRows = 0;
     GSCpuBackend::VramRange gpuRange() const
     {
-        return frameRangeRows(framePsm, frameFbp, frameFbw, std::max<uint32_t>(gpuRows, 1u));
+        return frameRangeExact(framePsm, frameFbp, frameFbw, std::max<uint32_t>(gpuRows, 1u));
     }
 
     bool isScreenTarget(const GSDrawState &state) const
@@ -282,15 +348,32 @@ struct GSNv2aBackend::Impl
     std::vector<uint8_t> swizzled;
     std::vector<uint32_t> spreadU, spreadV;
 
-    void refreshClutHash()
+    void refreshClutHash() { clutHash = cpu.ClutHash(); }
+
+    // The GS's CLUT-load decision (TEX0/TEX2 CLD), mirrored so that only
+    // real loads cost a read-back check, a lock and a rehash.
+    uint32_t clutCbp[2] = {UINT32_MAX, UINT32_MAX};
+    bool clutLoads(const GSTex0Reg &t)
     {
-        std::array<uint16_t, 512> clut{};
-        std::array<uint32_t, 2> cbp{};
-        cpu.GetClutState(clut, cbp);
-        uint64_t h = 0xcbf29ce484222325ull;
-        for (uint16_t v : clut)
-            h = (h ^ v) * 0x100000001b3ull;
-        clutHash = h;
+        if (!isIndexed(t.psm))
+            return false;
+        switch (t.cld)
+        {
+        case 1u: return true;
+        case 2u: clutCbp[0] = t.cbp; return true;
+        case 3u: clutCbp[1] = t.cbp; return true;
+        case 4u:
+            if (clutCbp[0] == t.cbp)
+                return false;
+            clutCbp[0] = t.cbp;
+            return true;
+        case 5u:
+            if (clutCbp[1] == t.cbp)
+                return false;
+            clutCbp[1] = t.cbp;
+            return true;
+        default: return false;
+        }
     }
 
     // Drops a texture from the cache. Its memory is released only once the
@@ -308,6 +391,7 @@ struct GSNv2aBackend::Impl
         retired.splice(retired.end(), textures, it);
         if (retiredBytes > kRetiredLimit)
         {
+            ++g_nv2aTextureStats.waitRetire;
             waitIdle();
             freeRetired();
         }
@@ -451,6 +535,7 @@ struct GSNv2aBackend::Impl
         }
         if (!cached && retiredBytes + t.bytes > kRetiredLimit)
         {
+            ++g_nv2aTextureStats.waitRetire;
             waitIdle();
             freeRetired();
         }
@@ -726,6 +811,8 @@ struct GSNv2aBackend::Impl
         uint32_t alphaTest = 0, alphaFunc = 0, alphaRef = 0;
         uint32_t depthTest = 0, depthFunc = 0, depthMask = 0;
         uint32_t colorMask = 0, shade = 0;
+        uint32_t vertexMode = 0, constSerial = 0; // transform programs (SubmitStripsTransformed)
+        uint32_t topology = 0;                    // 0 triangle list, 1 one triangle strip (joined)
         bool operator==(const DrawKey &) const = default;
     };
     DrawKey applied{};
@@ -737,60 +824,151 @@ struct GSNv2aBackend::Impl
     void waitIdle()
     {
         g_nv2aStep = 10;
+        ++g_nv2aTextureStats.gpuWaits;
         flushBatch();
         closeBlock();
         g_nv2aStep = 11;
+        const uint64_t start = cycles();
         while (pb_busy())
         {
         }
+        waitCycles += cycles() - start;
+        g_nv2aTextureStats.kcycWait = uint32_t(waitCycles / 1000u);
         g_nv2aStep = 12;
     }
+
+    // All vertex programs stay resident (78 of 136 slots); a mode switch is
+    // one PROGRAM_START write. One push-buffer block for the whole upload.
+    uint32_t programStart[5] = {};
+    uint64_t waitCycles = 0, readbackCycles = 0;
 
     void uploadVertexProgram()
     {
         uint32_t *p = pb_begin();
-        p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
         p = pb_push1(p, NV097_SET_TRANSFORM_EXECUTION_MODE,
                      NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM |
                          (NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV << 2));
         p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
         p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, 0);
-        pb_end(p);
-        for (size_t i = 0; i < sizeof(kVertexProgram) / sizeof(kVertexProgram[0]); i += 4)
+        uint32_t slot = 0;
+        for (int m = 0; m < 5; ++m)
         {
-            p = pb_begin();
-            pb_push(p++, NV097_SET_TRANSFORM_PROGRAM, 4);
-            std::memcpy(p, kVertexProgram + i, 16);
-            p += 4;
-            pb_end(p);
+            programStart[m] = slot;
+            const VertexProgram &vp = kVertexPrograms[m];
+            for (uint32_t i = 0; i < vp.count; i += 4)
+            {
+                pb_push(p++, NV097_SET_TRANSFORM_PROGRAM, 4);
+                std::memcpy(p, vp.words + i, 16);
+                p += 4;
+            }
+            slot += vp.count / 4;
         }
+        p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
+        // The compiler's literals (c[34] = 0, 1, 0.5).
+        p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + 34u);
+        pb_push(p++, NV097_SET_TRANSFORM_CONSTANT, 4);
+        const float literals[4] = {0.0f, 1.0f, 0.5f, 0.0f};
+        std::memcpy(p, literals, 16);
+        p += 4;
+        pb_end(p);
+    }
+
+    // Vertex array formats for a vertex mode (0: GpuVertex, else GSXfVertex).
+    uint32_t *setAttributes(uint32_t *p, uint32_t mode)
+    {
+        pb_push(p++, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
+        for (int i = 0; i < 16; ++i)
+            *p++ = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F; // size 0: disabled
+        struct Attribute
+        {
+            uint32_t index, type, components, offset;
+        };
+        static const Attribute screen[] = {
+            {0, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 0},
+            {3, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, 16},
+            {9, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 20},
+        };
+        static const Attribute raw[] = {
+            {0, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 3, 0},
+            {2, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 3, 12},
+            {3, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, 24},
+            {9, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 28},
+        };
+        const Attribute *list = mode ? raw : screen;
+        const int count = mode ? 4 : 3;
+        const uint32_t stride = mode ? uint32_t(sizeof(GSXfVertex)) : uint32_t(sizeof(GpuVertex));
+        const uint8_t *base = mode ? reinterpret_cast<const uint8_t *>(xfVertices) : reinterpret_cast<const uint8_t *>(vertices);
+        for (int i = 0; i < count; ++i)
+        {
+            const Attribute &a = list[i];
+            p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4 * a.index, a.type | (a.components << 4) | (stride << 8));
+            p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * a.index, physical(base + a.offset));
+        }
+        return p;
     }
 
     void setAttributes()
     {
         uint32_t *p = pb_begin();
-        pb_push(p++, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
-        for (int i = 0; i < 16; ++i)
-            *p++ = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F;
+        p = setAttributes(p, 0);
         pb_end(p);
-        struct Attribute
+    }
+
+    // ------------------------------------------- native transform (GPU)
+    GSXfVertex *xfVertices = nullptr;
+    uint32_t xfUsed = 0, xfSerial = 0;
+    float xfK[kXfConstantRegs - 1][4] = {}; // k[0..33]; c[34] is loaded with the programs
+
+    // What the GPU's constant registers hold: only rows that differ are sent
+    // (an object changes its matrix rows; lights and viewport rarely change),
+    // which keeps ~900 objects a frame from filling the push buffer.
+    float gpuK[kXfConstantRegs - 1][4];
+    bool gpuKValid = false;
+
+    uint32_t *uploadConstants(uint32_t *p)
+    {
+        constexpr uint32_t rows = kXfConstantRegs - 1u;
+        uint32_t r = 0;
+        while (r < rows)
         {
-            uint32_t index, type, components, offset;
-        };
-        const Attribute attributes[] = {
-            {0, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 0},
-            {3, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, 16},
-            {9, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 20},
-        };
-        for (const Attribute &a : attributes)
-        {
-            p = pb_begin();
-            p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4 * a.index,
-                         a.type | (a.components << 4) | (uint32_t(sizeof(GpuVertex)) << 8));
-            p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * a.index,
-                         physical(reinterpret_cast<const uint8_t *>(vertices) + a.offset));
-            pb_end(p);
+            if (gpuKValid && std::memcmp(gpuK[r], xfK[r], 16) == 0)
+            {
+                ++r;
+                continue;
+            }
+            uint32_t end = r + 1u;
+            while (end < rows && (!gpuKValid || std::memcmp(gpuK[end], xfK[end], 16) != 0) && end - r < 8u)
+                ++end;
+            p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + r);
+            pb_push(p++, NV097_SET_TRANSFORM_CONSTANT, (end - r) * 4u);
+            std::memcpy(p, xfK[r], (end - r) * 16u);
+            p += (end - r) * 4u;
+            std::memcpy(gpuK[r], xfK[r], (end - r) * 16u);
+            r = end;
         }
+        gpuKValid = true;
+        return p;
+    }
+
+    GSXfVertex *reserveXf(const DrawKey &key, uint32_t count)
+    {
+        if (batchCount && !(key == batchKey))
+            flushBatch();
+        if (xfUsed + count > kMaxXfVertices)
+        {
+            ++g_nv2aTextureStats.waitXf;
+            waitIdle();
+            xfUsed = 0;
+        }
+        if (batchCount == 0)
+        {
+            batchKey = key;
+            batchFirst = xfUsed;
+        }
+        GSXfVertex *out = xfVertices + xfUsed;
+        xfUsed += count;
+        batchCount += count;
+        return out;
     }
 
     void beginFrame(const GSDrawState &state)
@@ -805,9 +983,7 @@ struct GSNv2aBackend::Impl
         pb_reset();
         pushHead = pb_begin();
         pb_end(pushHead);
-        pb_target_back_buffer();
         uploadVertexProgram();
-        setAttributes();
         uint32_t *p = pb_begin();
         // Z from the vertex, not W (the kernel leaves w-buffering on; with
         // w = 1 everywhere every pixel would tie and the last face drawn
@@ -832,6 +1008,7 @@ struct GSNv2aBackend::Impl
         stateValid = false;
         currentProgram = -1;
         verticesUsed = 0;
+        xfUsed = 0;
         // A frame the CPU changed since (loading screens, movies) starts from it.
         if (screenVramNewer)
             loadScreenFromVram();
@@ -995,6 +1172,13 @@ struct GSNv2aBackend::Impl
     {
         const bool all = !stateValid;
         const DrawKey &o = applied;
+        if (all || o.vertexMode != k.vertexMode)
+        {
+            p = setAttributes(p, k.vertexMode);
+            p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, programStart[k.vertexMode]);
+        }
+        if (k.vertexMode && (all || o.constSerial != k.constSerial || !o.vertexMode))
+            p = uploadConstants(p);
         if (k.program != currentProgram)
         {
             p = kPixelPrograms[k.program](p);
@@ -1078,6 +1262,7 @@ struct GSNv2aBackend::Impl
         uint32_t *p = pb_begin();
         if (!pushHead || size_t(p - pushHead) >= kPushLimitDwords)
         {
+            ++g_nv2aTextureStats.waitPush;
             while (pb_busy())
             {
             }
@@ -1102,11 +1287,29 @@ struct GSNv2aBackend::Impl
         uint32_t *p = openCursor();
         if (!stateValid || !(applied == batchKey))
             p = applyState(p, batchKey);
-        p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
-        for (uint32_t first = 0; first < batchCount; first += 256)
+        if (batchKey.topology == 1u)
         {
-            const uint32_t n = std::min<uint32_t>(batchCount - first, 256u);
-            p = pb_push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
+            // One strip; a draw takes at most 256 vertices, so consecutive
+            // draws overlap by two (a fresh strip continues the triangles;
+            // culling is off, so the flipped winding does not matter).
+            p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
+            for (uint32_t first = 0;;)
+            {
+                const uint32_t n = std::min<uint32_t>(batchCount - first, 256u);
+                p = pb_push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
+                if (first + n >= batchCount)
+                    break;
+                first += n - 2u;
+            }
+        }
+        else
+        {
+            p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
+            for (uint32_t first = 0; first < batchCount; first += 256)
+            {
+                const uint32_t n = std::min<uint32_t>(batchCount - first, 256u);
+                p = pb_push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
+            }
         }
         p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
         cursor = p;
@@ -1124,6 +1327,7 @@ struct GSNv2aBackend::Impl
             flushBatch();
         if (verticesUsed + count > kMaxVertices)
         {
+            ++g_nv2aTextureStats.waitVb;
             waitIdle();
             verticesUsed = 0;
             batchFirst = 0;
@@ -1177,9 +1381,13 @@ struct GSNv2aBackend::Impl
         auto emit = [&](GpuVertex &o, const GSVertex &v, const GSVertex &colorSource, float x, float y) {
             o.x = (x - ofx) * sx;
             o.y = (y - ofy) * sy;
+            // Only the displayed rows count: the game clears all 512 rows of
+            // the frame region but keeps CLUTs below row 448 and uploads them
+            // after the clear, so local memory is the newer copy there.
             const float row = y - ofy + 1.0f;
+            const uint32_t limit = std::min<uint32_t>(frameHeight, kDisplayRows);
             if (row > float(gpuRows))
-                gpuRows = row >= float(frameHeight) ? frameHeight : uint32_t(row);
+                gpuRows = row >= float(limit) ? limit : uint32_t(row);
             o.z = depth24(v.z, zpsm);
             o.w = 1.0f;
             o.color = d3dColor(colorSource.r, colorSource.g, colorSource.b, colorSource.a);
@@ -1222,9 +1430,9 @@ struct GSNv2aBackend::Impl
             const uint32_t n = std::min<uint32_t>(count, 64u);
             for (uint32_t i = 0; i < n; ++i)
                 emit(strip[i], verts[i], verts[i], verts[i].x, verts[i].y);
-            for (uint32_t i = 2; i < n; ++i)
+            GpuVertex *out = reserve(key, 3u * (n - 2u)); // one key check per strip
+            for (uint32_t i = 2; i < n; ++i, out += 3)
             {
-                GpuVertex *out = reserve(key, 3);
                 out[0] = strip[i - 2];
                 out[1] = strip[i - 1];
                 out[2] = strip[i];
@@ -1265,6 +1473,120 @@ struct GSNv2aBackend::Impl
         screenGpuNewer = true;
     }
 
+    // A strip of raw vertices for the transform programs: the frame and
+    // texture handling of submitScreenVerts, then the constants (with this
+    // frame's 640x480 mapping and depth format folded in) and the vertices
+    // as a triangle list with each triangle's last vertex first (the GS
+    // flat-shades with the last vertex, the NV2A with the first).
+    bool submitXf(const GSDrawState &state, const GSXfConstants &c, const GSXfVertex *v, const uint8_t *counts,
+                  uint32_t strips)
+    {
+        if (state.prim.type != GS_PRIM_TRISTRIP || strips == 0u || state.prim.fst || c.variant > 3u ||
+            !isScreenTarget(state))
+            return false;
+        uint32_t total = 0;
+        for (uint32_t i = 0; i < strips; ++i)
+        {
+            if (counts[i] < 3u || counts[i] > 64u)
+                return false;
+            total += counts[i];
+        }
+        if (frameOpen && state.context.frame.fbp != frameFbp)
+            finishFrame();
+        if (!frameOpen)
+            beginFrame(state);
+        else if (screenVramNewer)
+            loadScreenFromVram();
+
+        const Texture *tex = state.prim.tme ? texture(state) : nullptr;
+        DrawKey key = keyFor(state, tex);
+        key.vertexMode = 1u + c.variant;
+        key.topology = state.prim.iip ? 1u : 0u; // flat shading needs the list's vertex order
+        g_nv2aTextureStats.xfStrips += strips;
+        g_nv2aTextureStats.xfVertices += total;
+
+        const auto &ctx = state.context;
+        // Constants are fixed for a native run (c.serial) and this frame's
+        // mapping: rebuilt only when either changes.
+        if (c.serial != 0u && c.serial == xfBuiltSerial && frameFbw == xfBuiltFbw && frameHeight == xfBuiltHeight &&
+            ctx.xyoffset.ofx == xfBuiltOfx && ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm)
+        {
+            key.constSerial = xfSerial;
+            return emitXf(key, v, counts, strips);
+        }
+        xfBuiltSerial = c.serial;
+        xfBuiltFbw = frameFbw;
+        xfBuiltHeight = frameHeight;
+        xfBuiltOfx = ctx.xyoffset.ofx;
+        xfBuiltOfy = ctx.xyoffset.ofy;
+        xfBuiltZpsm = ctx.zbuf.psm;
+        const float ofx = float(ctx.xyoffset.ofx >> 4), ofy = float(ctx.xyoffset.ofy >> 4);
+        const float sx = float(kScreenWidth) / float(frameFbw * 64u);
+        const float sy = float(kScreenHeight) / float(frameHeight);
+        const float dz = depthScale(ctx.zbuf.psm);
+        float k[kXfConstantRegs - 1][4];
+        std::memcpy(k[0], c.mvp, sizeof(c.mvp));
+        std::memcpy(k[12], c.lightDir, sizeof(c.lightDir));
+        std::memcpy(k[24], c.lightColour, sizeof(c.lightColour));
+        const float scale[4] = {c.scale[0] * sx, c.scale[1] * sy, c.scale[2] * dz, 0.0f};
+        const float offset[4] = {(c.offset[0] - ofx) * sx, (c.offset[1] - ofy) * sy, c.offset[2] * dz, 0.0f};
+        std::memcpy(k[28], scale, 16);
+        std::memcpy(k[29], offset, 16);
+        std::memcpy(k[30], c.model, sizeof(c.model));
+        const float clampLit[4] = {127.0f / 255.0f, 0.0f, 0.5f, 16777215.0f}; // .w: depth range
+        std::memcpy(k[33], clampLit, 16);
+        if (std::memcmp(k, xfK, sizeof(k)) != 0)
+        {
+            if (batchCount)
+                flushBatch(); // the batch so far uses the old constants
+            std::memcpy(xfK, k, sizeof(k));
+            ++xfSerial;
+        }
+        key.constSerial = xfSerial;
+        return emitXf(key, v, counts, strips);
+    }
+
+    uint32_t xfBuiltSerial = 0, xfBuiltFbw = 0, xfBuiltHeight = 0, xfBuiltOfx = 0, xfBuiltOfy = 0, xfBuiltZpsm = 0;
+
+    GSXfVertex stripLast{}; // last vertex of the current strip batch (joins)
+
+    bool emitXf(const DrawKey &key, const GSXfVertex *v, const uint8_t *counts, uint32_t strips)
+    {
+        for (uint32_t s = 0; s < strips; v += counts[s], ++s)
+        {
+            const uint32_t n = counts[s];
+            if (key.topology == 1u)
+            {
+                // Joined to the batch's strip by two repeated vertices
+                // (degenerate triangles draw nothing).
+                const bool join = batchCount != 0u && key == batchKey;
+                GSXfVertex *out = reserveXf(key, n + (join ? 2u : 0u));
+                if (join)
+                {
+                    *out++ = stripLast;
+                    *out++ = v[0];
+                }
+                std::memcpy(out, v, n * sizeof(GSXfVertex));
+                stripLast = v[n - 1];
+            }
+            else
+            {
+                // Each triangle's last vertex first: the GS flat-shades with
+                // the last vertex, the NV2A with the first.
+                GSXfVertex *out = reserveXf(key, 3u * (n - 2u));
+                for (uint32_t i = 2; i < n; ++i, out += 3)
+                {
+                    out[0] = v[i];
+                    out[1] = v[i - 2];
+                    out[2] = v[i - 1];
+                }
+            }
+        }
+        gpuRows = std::min<uint32_t>(frameHeight, kDisplayRows); // where it lands is not known here
+        screenGpuNewer = true;
+        return true;
+    }
+
     // ----------------------------------------- screen <-> local memory
     // GPU pixels (back buffer, 640x480, R5G6B5 or X8R8G8B8) into the GS
     // frame buffer.
@@ -1273,6 +1595,8 @@ struct GSNv2aBackend::Impl
         g_nv2aStep = 40;
         if (!screenGpuNewer)
             return;
+        ++g_nv2aTextureStats.waitReadback;
+        const uint64_t readbackStart = cycles();
         waitIdle();
         const uint8_t *fb = frameOpen ? reinterpret_cast<const uint8_t *>(pb_back_buffer()) : reinterpret_cast<const uint8_t *>(lastShownBuffer());
         const uint32_t pitch = pb_back_buffer_pitch();
@@ -1308,14 +1632,17 @@ struct GSNv2aBackend::Impl
             cpu.WriteVramRect(framePsm, frameFbp * 32u, frameFbw, 0, y, width, 1, values.data());
         }
         cpu.TextureFlush();
-        bumpPages(screenRange());
+        bumpPages(frameRangeExact(framePsm, frameFbp, frameFbw, rows));
         screenGpuNewer = false;
+        readbackCycles += cycles() - readbackStart;
+        g_nv2aTextureStats.kcycReadback = uint32_t(readbackCycles / 1000u);
     }
 
     // Local memory's frame buffer into the back buffer (the CPU drew or
     // uploaded into it: loading screens, movies, CPU-side draws).
     void loadScreenFromVram()
     {
+        ++g_nv2aTextureStats.screenLoads;
         g_nv2aStep = 50;
         waitIdle();
         uint8_t *fb = reinterpret_cast<uint8_t *>(pb_back_buffer());
@@ -1395,7 +1722,8 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     }
     std::unique_ptr<GSNv2aBackend> backend(new GSNv2aBackend());
     backend->m->vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));
-    if (!backend->m->vertices)
+    backend->m->xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex)));
+    if (!backend->m->vertices || !backend->m->xfVertices)
     {
         pb_kill();
         return nullptr;
@@ -1426,6 +1754,7 @@ void GSNv2aBackend::Reset()
 {
     m->cpu.Reset();
     m->bumpPages({0, UINT64_MAX});
+    m->clutCbp[0] = m->clutCbp[1] = UINT32_MAX;
 }
 
 void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
@@ -1437,6 +1766,11 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
         return;
     }
     // Off-screen target: the CPU renderer draws it into local memory.
+    ++g_nv2aTextureStats.offscreenDraws;
+    g_nv2aTextureStats.offscreenFbp = batch.state.context.frame.fbp;
+    g_nv2aTextureStats.offscreenFbw = batch.state.context.frame.fbw;
+    g_nv2aTextureStats.offscreenPsm = batch.state.context.frame.psm;
+    g_nv2aTextureStats.offscreenPrim = batch.state.prim.type;
     const GSCpuBackend::VramRange textureRange = GSCpuBackend::TextureRange(batch.state);
     if (batch.state.prim.tme && m->screenGpuNewer && overlaps(textureRange, m->gpuRange()))
     {
@@ -1445,6 +1779,12 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
     }
     m->cpu.Submit(batch);
     m->noteCpuWrite(GSCpuBackend::FrameRange(batch.state));
+}
+
+bool GSNv2aBackend::SubmitStripsTransformed(const GSDrawState &state, const GSXfConstants &constants,
+                                            const GSXfVertex *vertices, const uint8_t *counts, uint32_t strips)
+{
+    return m->submitXf(state, constants, vertices, counts, strips);
 }
 
 bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count)
@@ -1457,6 +1797,9 @@ bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertic
 
 void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
 {
+    if (!m->clutLoads(tex0))
+        return;
+    ++g_nv2aTextureStats.clutLoads;
     if (m->screenGpuNewer && overlaps(GSCpuBackend::ClutRange(tex0), m->gpuRange()))
     {
         ++g_nv2aTextureStats.wbClut;

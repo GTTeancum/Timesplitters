@@ -97,7 +97,11 @@ VU_OBJS := $(call objof,$(wildcard $(GENVU)/*.cpp))
 $(VU_OBJS): GEN_FLAGS := $(COMMON) -O2
 
 # The software renderer and the Xbox presenter are the hottest code: -O2.
-FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj,$(OTHER_OBJS))
+FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj \
+                     $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
+                     $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj \
+                     $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj \
+                     $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/Kernel/EeScheduler.obj,$(OTHER_OBJS))
 $(FAST_OBJS): RUNTIME_FLAGS := $(COMMON) -O2 $(SDL_FLAGS) -DPS2_RUNTIME_LOGS=1 -DPS2X_POINT_SAMPLING=1
 
 # lld is a native Windows program: paths in its response file must be Windows paths.
@@ -153,7 +157,18 @@ PS_DEFINES_decal         := -DGS_DECAL
 PS_DEFINES_decal_tcc     := -DGS_DECAL -DGS_TCC
 PS_DEFINES_highlight     := -DGS_HIGHLIGHT
 PS_DEFINES_highlight_tcc := -DGS_HIGHLIGHT -DGS_TCC
-SHADER_INLS := $(SHADERS)/gs_vs.inl $(foreach v,$(PS_VARIANTS),$(SHADERS)/gs_ps_$(v).inl)
+XF_VARIANTS := plain lit env skin
+XF_DEFINES_plain :=
+XF_DEFINES_lit   := -DXF_LIT
+XF_DEFINES_env   := -DXF_ENV
+XF_DEFINES_skin  := -DXF_LIT -DXF_SKIN
+SHADER_INLS := $(SHADERS)/gs_vs.inl $(foreach v,$(PS_VARIANTS),$(SHADERS)/gs_ps_$(v).inl) \
+               $(foreach v,$(XF_VARIANTS),$(SHADERS)/gs_xf_$(v).inl)
+
+$(SHADERS)/gs_xf_%.inl: $(XBOX)/shaders/gs_xf.vs.cg
+	@mkdir -p $(dir $@)
+	@echo "[ CG      ] $(notdir $@)"
+	@$(CGC) -profile vp20 $(XF_DEFINES_$*) -o $@.vp $< > /dev/null && $(VP20) $@.vp > $@ && rm -f $@.vp
 
 $(SHADERS)/gs_vs.inl: $(XBOX)/shaders/gs.vs.cg
 	@mkdir -p $(dir $@)

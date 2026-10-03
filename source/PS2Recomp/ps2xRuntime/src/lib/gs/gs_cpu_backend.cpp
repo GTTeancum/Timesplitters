@@ -755,6 +755,55 @@ void GSCpuBackend::LoadClutUnlocked(const GSTex0Reg &tex0, const GSTexClutReg &t
     const bool loadCsm1Suffix = tex0.csm == 0u && thirtyTwoBit && !fourBit;
     const uint32_t firstEntry = loadCsm1Suffix ? destinationBase : 0u;
 
+#if defined(PLATFORM_XBOX)
+    // The CLUT's source rectangle read a row at a time straight from local
+    // memory (the game loads hundreds of CLUTs a frame; an entry at a time
+    // through the texture page cache cost about 4% of a frame).
+    if (m_vram)
+    {
+        static uint32_t rows[16][16];
+        static uint32_t line[256];
+        const bool csm1 = tex0.csm == 0u;
+        bool ok = true;
+        if (csm1)
+        {
+            // CSM1 swaps index bits 3 and 4: a 16-entry CLUT spans two rows.
+            for (uint32_t y = 0; y < (fourBit ? 2u : 16u) && ok; ++y)
+                ok = GSMem::ReadRow(tex0.cpsm, m_vram, tex0.cbp, 1u, 0u, y, 16u, rows[y]);
+        }
+        else
+        {
+            const uint32_t width = texclut.cbw != 0u ? static_cast<uint32_t>(texclut.cbw) : 1u;
+            ok = GSMem::ReadRow(tex0.cpsm, m_vram, tex0.cbp, width, static_cast<uint32_t>(texclut.cou) << 4u,
+                                static_cast<uint32_t>(texclut.cov), entryCount, line);
+        }
+        if (ok)
+        {
+            for (uint32_t entry = firstEntry; entry < entryCount; ++entry)
+            {
+                uint32_t raw;
+                if (csm1)
+                {
+                    const uint32_t sourceIndex = swizzleClutIndexCSM1(entry);
+                    raw = rows[sourceIndex >> 4u][sourceIndex & 0x0Fu];
+                }
+                else
+                    raw = line[entry];
+                const uint32_t destination = (loadCsm1Suffix ? entry : destinationBase + entry) & (sixteenBit ? 0x1FFu : 0x0FFu);
+                if (sixteenBit)
+                    m_clut[destination] = static_cast<uint16_t>(raw);
+                else
+                {
+                    m_clut[destination] = static_cast<uint16_t>(raw & 0xFFFFu);
+                    m_clut[destination + 256u] = static_cast<uint16_t>(raw >> 16u);
+                }
+            }
+            ++m_clutGeneration;
+            return;
+        }
+    }
+#endif
+
     for (uint32_t entry = firstEntry; entry < entryCount; ++entry)
     {
         uint32_t sourceX = 0u;
@@ -1344,11 +1393,24 @@ uint64_t GSCpuBackend::ClutContentHash()
 {
     if (m_clutHashGeneration != m_clutGeneration)
     {
+#if defined(PLATFORM_XBOX)
+        // 32-bit multiplies (a 64-bit one is a library call on the Pentium
+        // III; the game loads hundreds of CLUTs a frame).
+        uint32_t a = 2166136261u, b = 0x9E3779B9u;
+        const auto *words = reinterpret_cast<const uint32_t *>(m_clut.data());
+        for (size_t i = 0; i < m_clut.size() / 2u; ++i)
+        {
+            a = (a ^ words[i]) * 16777619u;
+            b = (b ^ words[i]) * 0x85EBCA6Bu + (b >> 13);
+        }
+        m_clutHash = (uint64_t(a) << 32) | b;
+#else
         uint64_t hash = 0xcbf29ce484222325ull;
         const auto *words = reinterpret_cast<const uint64_t *>(m_clut.data());
         for (size_t i = 0; i < m_clut.size() / 4u; ++i)
             hash = (hash ^ words[i]) * 0x100000001b3ull + (hash >> 29);
         m_clutHash = hash;
+#endif
         m_clutHashGeneration = m_clutGeneration;
     }
     return m_clutHash;

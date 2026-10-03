@@ -1,4 +1,4 @@
-// memcpy / memmove / memset, replacing nxdk's C library versions (the linker
+// memcpy / memmove / memset / memcmp, replacing nxdk's C library versions (the linker
 // takes these before the library's).
 //
 // nxdk's versions move one byte per loop iteration. The runtime copies guest
@@ -48,6 +48,29 @@ extern "C"
         else if (n != 0)
             copyBackward(d, s, n);
         return dest;
+    }
+
+    // Four bytes at a time until a word differs (nxdk's compares bytes; the
+    // renderer's draw-key checks made it 6% of a frame).
+    int memcmp(const void *a, const void *b, size_t n)
+    {
+        const unsigned char *x = static_cast<const unsigned char *>(a);
+        const unsigned char *y = static_cast<const unsigned char *>(b);
+        while (n >= 4)
+        {
+            uint32_t wa, wb;
+            __builtin_memcpy(&wa, x, 4);
+            __builtin_memcpy(&wb, y, 4);
+            if (wa != wb)
+                break;
+            x += 4;
+            y += 4;
+            n -= 4;
+        }
+        for (; n; --n, ++x, ++y)
+            if (*x != *y)
+                return *x < *y ? -1 : 1;
+        return 0;
     }
 
     void *memset(void *dest, int value, size_t n)

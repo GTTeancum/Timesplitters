@@ -1646,6 +1646,20 @@ void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t c
     }
 }
 
+bool GS::submitStripsTransformed(uint32_t primRegister, const GSXfConstants &constants, const GSXfVertex *vertices,
+                                 const uint8_t *counts, uint32_t strips)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
+    if (!m_backend || strips == 0u)
+        return false;
+    const GSPrimitiveBatch batch = buildDrawBatch(0);
+    if (!m_backend->SubmitStripsTransformed(batch.state, constants, vertices, counts, strips))
+        return false;
+    m_vtxCount = 0;
+    return true;
+}
+
 void GS::processImageData(const uint8_t *data, uint32_t sizeBytes)
 {
     if (m_backend)

@@ -1573,16 +1573,26 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     int tagsProcessed = 0;
                     uint32_t lastTagUpper = (chcr >> 16) & 0xFFFFu;
 
+                    uint32_t chainTags = 0;
+                    (void)chainTags;
                     for (;;)
                     {
                         if (asp > 2u)
                             PS2X_THROW(std::runtime_error("invalid DMA return-stack depth"));
+#if defined(PLATFORM_XBOX)
+                        // A tag count bounds a cyclic chain; the exact cycle check
+                        // cleared a 17 KB table per chain and hashed each tag with
+                        // 64-bit multiplies (library calls on the Pentium III).
+                        if (++chainTags > kMaxDmaControlStates)
+                            PS2X_THROW(std::runtime_error("DMA chain exceeds host control-state budget"));
+#else
                         const std::array<uint32_t, 4> state{
                             tagAddr, asp, asp > 0u ? asr0 : 0u, asp > 1u ? asr1 : 0u};
                         if (!chainStates.insert(state))
                             PS2X_THROW(std::runtime_error("cyclic DMA chain at TADR=" + std::to_string(tagAddr)));
                         if (chainStates.size() > kMaxDmaControlStates)
                             PS2X_THROW(std::runtime_error("DMA chain exceeds host control-state budget"));
+#endif
                         const uint32_t currentTagAddr = tagAddr;
                         const bool tagInSPR = isScratchpad(tagAddr);
                         uint32_t physTag = 0;

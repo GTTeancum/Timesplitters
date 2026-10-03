@@ -33,6 +33,18 @@ struct GSNv2aTextureStats
     // texture read of the screen, an off-screen draw reading it, a CLUT
     // load from it, a transfer reading it, a CPU write into it.
     uint32_t wbTexture = 0, wbDraw = 0, wbClut = 0, wbTransfer = 0, wbCpuWrite = 0;
+    // Off-screen draws the software renderer did (cumulative) and the last
+    // target (FRAME fbp / fbw / psm, primitive type); full GPU waits.
+    uint32_t offscreenDraws = 0, offscreenFbp = 0, offscreenFbw = 0, offscreenPsm = 0, offscreenPrim = 0;
+    uint32_t gpuWaits = 0;
+    // GPU waits by cause (vertex buffer, transform buffer, push buffer,
+    // texture retire, read-back), strips and vertices drawn, near-plane
+    // strips sent to the CPU clipper, palette loads that really loaded.
+    uint32_t waitVb = 0, waitXf = 0, waitPush = 0, waitRetire = 0, waitReadback = 0;
+    uint32_t xfStrips = 0, xfVertices = 0, nearFallbacks = 0, clutLoads = 0, screenLoads = 0;
+    // CPU cycles (rdtsc, cumulative, in thousands): native VU1 runs (renderer
+    // calls included), GPU idle waits, read-backs.
+    uint32_t kcycNative = 0, kcycWait = 0, kcycReadback = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 
@@ -48,6 +60,8 @@ public:
 
     void Submit(const GSPrimitiveBatch &batch) override;
     bool SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count) override;
+    bool SubmitStripsTransformed(const GSDrawState &state, const GSXfConstants &constants, const GSXfVertex *vertices,
+                                 const uint8_t *counts, uint32_t strips) override;
     void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) override;
 
     void BeginTransfer(const GSTransferCommand &command) override;

@@ -715,8 +715,47 @@ namespace
         ctx->pc = GPR_U32(ctx, 31);
     }
 
+#if defined(PLATFORM_XBOX)
+    // Glow/flare occlusion (Xbox). Each rendered frame the game copies a
+    // 640x224 16-bit depth image back from the GS (zbtestCopyZB, a local-to-
+    // host transfer that drains the GPU) and then reads one depth value per
+    // glow point (zbtestDoTest). On the Xbox the depth buffer lives on the
+    // GPU and the transfer only ever returned GS memory's stale contents, so
+    // the copy is skipped: the double-buffer toggle is kept, and each pending
+    // point gets depth 0 (nothing in front of it), as the stale copy gave.
+    void xboxZbtestCopyZB(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        (void)runtime;
+        const uint32_t gp = GPR_U32(ctx, 28);
+        const uint32_t next = 1u - READ32(gp - 0x4CDCu);
+        WRITE32(gp - 0x4CDCu, next);
+        SET_GPR_S32(ctx, 2, static_cast<int32_t>(next));
+        ctx->pc = GPR_U32(ctx, 31);
+    }
+
+    void xboxZbtestDoTest(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        (void)runtime;
+        const uint32_t gp = GPR_U32(ctx, 28);
+        const uint32_t buffer = READ32(gp - 0x467Cu);
+        const int32_t points = static_cast<int32_t>(READ32(0x01FEA0A0u + buffer * 4u)) * 9;
+        const uint32_t table = READ32(0x0036A590u + buffer * 4u);
+        for (int32_t i = 0; i < points; ++i)
+        {
+            const uint32_t entry = table + static_cast<uint32_t>(i) * 24u;
+            if (static_cast<int32_t>(READ32(entry)) >= 0)
+                WRITE16(entry + 0x12u, 0u);
+        }
+        ctx->pc = GPR_U32(ctx, 31);
+    }
+#endif
+
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
     {
+#if defined(PLATFORM_XBOX)
+        runtime.replaceFunction(0x2A70A0u, &xboxZbtestCopyZB);
+        runtime.replaceFunction(0x2A7108u, &xboxZbtestDoTest);
+#endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);
         runtime.replaceFunction(kUnlockedEx, &cheatUnlockedEx);

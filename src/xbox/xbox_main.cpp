@@ -97,6 +97,14 @@ namespace
                   << g_nv2aTextureStats.missNew << "/" << g_nv2aTextureStats.missVersion << "/"
                   << g_nv2aTextureStats.missClut << "/" << g_nv2aTextureStats.missEvicted << std::endl
                   << "  vu runs=" << g_vu1Stats.runs << " jit=" << g_vu1Stats.jitEntries << " handoff=" << g_vu1Stats.handoffs
+                  << " offscreen=" << g_nv2aTextureStats.offscreenDraws << "@" << std::hex << g_nv2aTextureStats.offscreenFbp
+                  << "/" << g_nv2aTextureStats.offscreenFbw << "/" << g_nv2aTextureStats.offscreenPsm << "/" << g_nv2aTextureStats.offscreenPrim
+                  << std::dec << " gpuwaits=" << g_nv2aTextureStats.gpuWaits << " (vb/xf/push/retire/rb "
+                  << g_nv2aTextureStats.waitVb << "/" << g_nv2aTextureStats.waitXf << "/" << g_nv2aTextureStats.waitPush << "/"
+                  << g_nv2aTextureStats.waitRetire << "/" << g_nv2aTextureStats.waitReadback << ") strips=" << g_nv2aTextureStats.xfStrips
+                  << " verts=" << g_nv2aTextureStats.xfVertices << " near=" << g_nv2aTextureStats.nearFallbacks
+                  << " clut=" << g_nv2aTextureStats.clutLoads << " screenloads=" << g_nv2aTextureStats.screenLoads << " kcyc native/wait/rb=" << g_nv2aTextureStats.kcycNative << "/"
+                  << g_nv2aTextureStats.kcycWait << "/" << g_nv2aTextureStats.kcycReadback
                   << " interp=" << g_vu1Stats.interpPairs << " cyc=" << g_vu1Stats.cycles / 1000u << "K kickwait="
                   << g_vu1Stats.kickWaitCycles / 1000u << "K gpuframes=" << g_nv2aTextureStats.frames << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();

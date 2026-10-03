@@ -1,0 +1,60 @@
+// TimeSplitters' vertex pipeline on the NV2A (project/game/vu1_native_ts.cpp
+// hands raw model-space vertices; this does what the VU1 microprogram did):
+// transform by the model-view-projection rows, perspective divide, viewport
+// scale (folded with the 640x480 mapping and the depth format), and per
+// variant (-D):
+//   XF_LIT   four directional lights: colour = min(vertex * lights, 127)
+//   XF_ENV   sphere-map texture coordinates from the rotated normal
+//   XF_SKIN  per-vertex bone (0..2): matrices and light rows chosen by index
+//
+// Constants (row vectors, as the VU1 program keeps them):
+//   k[0..11]   MVP rows, bones 0..2      k[12..23]  light direction rows
+//   k[24..27]  light colour rows         k[28] scale  k[29] offset
+//   k[30..32]  model rows (env map)      k[33] (127/255, 0, 0.5, depth max)
+struct vIn {
+    float4 pos : POSITION;
+    float4 nrm : NORMAL;
+    float4 col : DIFFUSE;
+    float4 tex : TEXCOORD0; // s, t, q divisor, bone * 4
+};
+
+struct vOut {
+    float4 pos : POSITION;
+    float4 col : COLOR0;
+    float4 tex : TEXCOORD0;
+};
+
+vOut main(vIn I, uniform float4 k[34] : C0)
+{
+    vOut o;
+#if defined(XF_SKIN)
+    float b = I.tex.w;
+#else
+    const int b = 0;
+#endif
+    float4 c = I.pos.x * k[b] + I.pos.y * k[b + 1] + I.pos.z * k[b + 2] + k[b + 3];
+    float rw = 1.0 / c.w;
+    // Screen-space x, y and depth with the real w: the NV2A (and xemu)
+    // multiply back by w and clip in homogeneous space, which does the near
+    // and far clipping the VU1 program's clipper did (its planes |x|,|y|,
+    // |z| <= w map onto the depth buffer's range), and interpolates
+    // texture coordinates and colours perspective-correctly.
+    o.pos.xyz = c.xyz * rw * k[28].xyz + k[29].xyz;
+    o.pos.w = c.w;
+#if defined(XF_LIT)
+    float4 inten = max(I.nrm.x * k[b + 12] + I.nrm.y * k[b + 13] + I.nrm.z * k[b + 14] + k[b + 15], 0.0);
+    float4 lc = inten.x * k[24] + inten.y * k[25] + inten.z * k[26] + inten.w * k[27];
+    o.col.rgb = min(I.col.rgb * lc.rgb, k[33].x);
+    o.col.a = I.col.a;
+#else
+    o.col = I.col;
+#endif
+#if defined(XF_ENV)
+    float rx = I.nrm.x * k[30].x + I.nrm.y * k[31].x + I.nrm.z * k[32].x;
+    float rz = I.nrm.x * k[30].z + I.nrm.y * k[31].z + I.nrm.z * k[32].z;
+    o.tex = float4((rx + 1.0) * 0.5, (rz + 1.0) * 0.5, 0.0, 1.0);
+#else
+    o.tex = float4(I.tex.x, I.tex.y, 0.0, I.tex.z);
+#endif
+    return o;
+}

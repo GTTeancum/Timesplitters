@@ -113,6 +113,10 @@ public:
     // the given PRIM register value, as a PACKED GIF packet with PRE set
     // would (used by native vertex pipelines, which skip packet encoding).
     void submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t count);
+    // Strips of raw vertices (one PRIM for all) transformed by the backend;
+    // false when the backend cannot (nothing drawn, PRIM still set).
+    bool submitStripsTransformed(uint32_t primRegister, const GSXfConstants &constants, const GSXfVertex *vertices,
+                                 const uint8_t *counts, uint32_t strips);
     enum class HostPresentationMode { VSync, Signal, Finish };
     void setHostPresentationMode(HostPresentationMode mode) { m_hostPresentationMode.store(mode); }
     HostPresentationMode hostPresentationMode() const { return m_hostPresentationMode.load(); }

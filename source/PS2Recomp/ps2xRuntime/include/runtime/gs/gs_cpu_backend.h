@@ -49,6 +49,13 @@ public:
     void WriteVramRect(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x0, uint32_t y0,
                        uint32_t width, uint32_t height, const uint32_t *values);
 
+    // Content hash of the CLUT buffer (recomputed only after a load).
+    uint64_t ClutHash()
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return ClutContentHash();
+    }
+
     // CLUT buffer state, for GS command captures (gs_threaded_backend).
     void GetClutState(std::array<uint16_t, 512> &clut, std::array<uint32_t, 2> &cbp) const
     {

@@ -74,7 +74,11 @@ namespace
             else if (key == "fullscreen")
                 settings.fullscreen = parseBool(value);
             else if (key == "widescreen")
+            {
+#if !defined(PLATFORM_XBOX) // 4:3 output; native strips skip the HUD adjustment
                 settings.widescreen = parseBool(value);
+#endif
+            }
             else if (key == "fxaa")
                 settings.fxaa = parseBool(value);
             else if (key == "texture_dump")

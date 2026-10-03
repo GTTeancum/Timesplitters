@@ -11,6 +11,7 @@
 #if defined(PLATFORM_XBOX)
 #include "../../src/xbox/gs_nv2a_backend.h" // status counters
 #include "runtime/ee_scheduler.h"
+#include "ts_native_math.h"
 #endif
 
 #include <algorithm>
@@ -838,6 +839,7 @@ namespace
         runtime.replaceFunction(0x2A70A0u, &xboxZbtestCopyZB);
         runtime.replaceFunction(0x2A7108u, &xboxZbtestDoTest);
         runtime.replaceFunction(0x2D0160u, &xboxWaitSema);
+        registerTsNativeMath(runtime); // sinf, cosf, sqrtf, VU0 matrices, ...
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);

@@ -4,7 +4,9 @@
 //   GS_MODULATE     tex * colour
 //   GS_DECAL        tex
 //   GS_HIGHLIGHT    tex * colour + colour alpha
-// plus GS_TCC when the texture's alpha is used.
+// plus GS_TCC when the texture's alpha is used, and GS_UNIT_ALPHA with it
+// for textures stored with one alpha bit (DXT1, A1R5G5B5) whose 1.0 stands
+// for GS 0x80.
 //
 // GS colours and alphas are 0..255 with 0x80 meaning 1.0 for the multiplies
 // and alphas, so products are scaled by 2 (and alpha by 2 once more): the
@@ -26,7 +28,14 @@ float4 main(float4 col : COLOR0,
 #else
     o.rgb = saturate(t.rgb * col.rgb * 2);
 #endif
-#if defined(GS_TCC)
+#if defined(GS_TCC) && defined(GS_UNIT_ALPHA)
+    // Texture alpha already a/128: only the colour alpha is scaled.
+#if defined(GS_MODULATE)
+    o.a = saturate(t.a * col.a * 2);
+#else
+    o.a = t.a;
+#endif
+#elif defined(GS_TCC)
 #if defined(GS_MODULATE)
     o.a = saturate(t.a * col.a * 4);
 #else

@@ -31,6 +31,7 @@
 #include "runtime/ee_scheduler.h"
 #include "runtime/ps2_io_stats.h"
 #include "ps2_runtime_macros.h"
+#include "../../project/game/ts_native_math.h"
 
 void xboxSetFrameHook(void (*hook)());
 void xboxLastBlit(int &width, int &height, int &litPercent);
@@ -86,7 +87,10 @@ namespace
         int blitWidth = 0, blitHeight = 0, lit = 0;
         xboxLastBlit(blitWidth, blitHeight, lit);
         out << std::endl << "  dma=" << g_rt->memory().dmaStartCount() << " gif=" << g_rt->memory().gifCopyCount()
-                  << " vif=" << g_rt->memory().vifWriteCount() << std::endl
+                  << " vif=" << g_rt->memory().vifWriteCount() << " vif1 chains=" << g_vif1StreamStats.chains
+                  << " pieces=" << g_vif1StreamStats.pieces << " split=" << g_vif1StreamStats.splits << " vec fast/slow="
+                  << g_vif1StreamStats.fastVectors << "/" << g_vif1StreamStats.slowVectors << " vifdiff="
+                  << g_vif1StreamStats.diffs << "/" << g_vif1StreamStats.checked << std::endl
                   << "  gs=" << g_rt->gs().hostPresentationSequence() << " shown=" << blitWidth << "x"
                   << blitHeight << " lit=" << lit << "% tex=" << g_nv2aTextureStats.fills << "/"
                   << g_nv2aTextureStats.fillBytes / 1024u << "K res=" << g_nv2aTextureStats.resident << "/"
@@ -114,7 +118,9 @@ namespace
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"
                   << calls.lastRpcNumber.load() << std::dec << " sched it=" << g_eeSchedulerStats.loopIterations
-                  << "/unw=" << g_eeSchedulerStats.unwinds << std::endl;
+                  << "/unw=" << g_eeSchedulerStats.unwinds << " mathdiff=" << g_tsNativeMath.mismatches << "("
+                  << (g_tsNativeMath.firstFailed ? g_tsNativeMath.firstFailed : "-") << ") nan="
+                  << g_tsNativeMath.nanPayloads << " native=" << g_tsNativeMath.native << std::endl;
         if (const R5900Context *ctx = g_rt->eeScheduler().currentContext())
         {
             static uint32_t samples[8];

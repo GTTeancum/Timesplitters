@@ -42,8 +42,9 @@ world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle c
   draws go to the GPU; off-screen draws, uploads and transfers stay on the
   software renderer, with copies between the two only when the game reads
   its screen back. 16-bit colour, 24-bit depth; textures cached as DXT1.
-- `shaders/`: the vertex program and the pixel-program variants (TFX/TCC),
-  compiled by nxdk's Cg tools (`gs_*.inl` under `build/xbox/gen/shaders`).
+- `shaders/`: the vertex program and the pixel-program variants (TFX/TCC,
+  and TCC for one-bit-alpha textures whose 1.0 is GS 0x80), compiled by
+  nxdk's Cg tools (`gs_*.inl` under `build/xbox/gen/shaders`).
 - `pbkit/pbkit_ts.c`, `winapi/sync_ts.c`: fixed copies of nxdk sources
   (double buffering and a selectable depth format; condition-variable
   timeouts).

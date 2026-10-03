@@ -30,17 +30,31 @@ namespace
 #if defined(PLATFORM_XBOX)
     // VIF1 chains (the level's display lists, over a megabyte) are not
     // copied on the Xbox: the chain is recorded as pieces of guest memory and
-    // processed in order from there. That is safe because the drain
-    // (processPendingTransfers) follows the DMA kick before the game runs
-    // again, and VIF1 keeps its state between pieces (the FIFO path feeds it
-    // 16 bytes at a time). A pending transfer with qwc == kSegmentedChain
-    // stands for the recorded pieces.
+    // decoded where they lie (processVIF1Pieces). That is safe because the
+    // drain (processPendingTransfers) follows the DMA kick before the game
+    // runs again. A pending transfer with qwc == kSegmentedChain stands for a
+    // chain; its srcAddr is where its pieces end in s_vif1Segments (they
+    // start where the previous chain's end).
     constexpr uint32_t kSegmentedChain = 0xFFFFFFFFu;
-    std::vector<std::pair<const uint8_t *, uint32_t>> s_vif1Segments;
-    // The pieces are fed through a fixed window (ps2_vif1_interpreter.cpp
-    // stops at a command that does not fit and reports what it consumed).
+    std::vector<PS2Memory::Vif1Piece> s_vif1Segments;
+    // TS_VIF_SELFCHECK 1: every VIF1 chain is also decoded by the old window
+    // path, both dry, and the two compared (vif1SelfCheck; vifdiff= in the
+    // status block). Development only: slow, and 512 KB more memory.
+#ifndef TS_VIF_SELFCHECK
+#define TS_VIF_SELFCHECK 0
+#endif
+// Chains checked, from boot (the check doubles the decode work; the rest
+// of a run measures the new path alone).
+#ifndef TS_VIF_SELFCHECK_CHAINS
+#define TS_VIF_SELFCHECK_CHAINS 2500u
+#endif
+#if TS_VIF_SELFCHECK
+    // The old path, for the comparison: the pieces fed through a fixed
+    // window (ps2_vif1_interpreter.cpp stops at a command that does not fit
+    // and reports what it consumed).
     constexpr size_t kVif1WindowBytes = 512u * 1024u;
     std::vector<uint8_t> s_vif1Window;
+#endif
 #endif
 }
 #include <vector>
@@ -1539,6 +1553,20 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #if defined(PLATFORM_XBOX)
                     const bool recordSegments = channelBase == 0x10009000u;
                     const size_t firstSegment = s_vif1Segments.size();
+                    size_t segmentBytes = 0;
+                    // A piece that continues the last one (a CNT tag's VIFcodes
+                    // and its data) extends it.
+                    auto addSegment = [&](const uint8_t *data, uint32_t bytes)
+                    {
+                        segmentBytes += bytes;
+                        if (segmentBytes > kMaxBufferedDmaBytes)
+                            PS2X_THROW(std::runtime_error("DMA chain exceeds host buffering budget"));
+                        if (s_vif1Segments.size() > firstSegment &&
+                            s_vif1Segments.back().first + s_vif1Segments.back().second == data)
+                            s_vif1Segments.back().second += bytes;
+                        else
+                            s_vif1Segments.emplace_back(data, bytes);
+                    };
                     if (!recordSegments)
 #endif
                     chainBuf.reserve(s_lastChainBytes + 4096u);
@@ -1577,7 +1605,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #if defined(PLATFORM_XBOX)
                             if (recordSegments)
                             {
-                                s_vif1Segments.emplace_back(base2 + src, chunk);
+                                addSegment(base2 + src, chunk);
                                 bytes -= chunk;
                                 src += chunk;
                                 continue;
@@ -1612,7 +1640,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #if defined(PLATFORM_XBOX)
                         if (recordSegments)
                         {
-                            s_vif1Segments.emplace_back(localBase + tagPhys + 8u, 8u);
+                            addSegment(localBase + tagPhys + 8u, 8u);
                             return;
                         }
 #endif
@@ -1647,8 +1675,17 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                             PS2X_THROW(std::runtime_error("DMA chain exceeds host control-state budget"));
 #endif
                         const uint32_t currentTagAddr = tagAddr;
+#if defined(PLATFORM_XBOX)
+                        // A tag in main RAM (nearly every one) is its own
+                        // physical address, which is what translateAddress returns.
+                        const bool tagInRam = tagAddr <= PS2_RAM_SIZE - 16u;
+                        const bool tagInSPR = !tagInRam && isScratchpad(tagAddr);
+                        uint32_t physTag = tagAddr;
+                        if (!tagInRam)
+#else
                         const bool tagInSPR = isScratchpad(tagAddr);
                         uint32_t physTag = 0;
+#endif
                         PS2X_TRY
                         {
                             physTag = translateAddress(tagAddr);
@@ -1751,6 +1788,22 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                             break;
                         }
 
+#if defined(PLATFORM_XBOX)
+                        // The tag was read from tp; a payload wholly in main RAM
+                        // is one piece where it lies (what appendData records).
+                        if (recordSegments)
+                        {
+                            if (transferTagData)
+                                addSegment(tp + 8u, 8u);
+                            const uint32_t payloadBytes = static_cast<uint32_t>(tagQwc) * 16u;
+                            if (hasPayload && dataAddr < PS2_RAM_SIZE && payloadBytes <= PS2_RAM_SIZE - dataAddr)
+                            {
+                                addSegment(m_rdram + dataAddr, payloadBytes);
+                                hasPayload = false;
+                            }
+                        }
+                        else
+#endif
                         if (transferTagData)
                             appendVifTagData(currentTagAddr);
 
@@ -1778,6 +1831,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     {
                         PendingTransfer pt;
                         pt.qwc = kSegmentedChain;
+                        pt.srcAddr = static_cast<uint32_t>(s_vif1Segments.size());
                         m_pendingVif1Transfers.push_back(std::move(pt));
                     }
                     else
@@ -1914,6 +1968,166 @@ void PS2Memory::completeDmacChannel(uint32_t channelBase, uint32_t cause)
     m_ioRegisters[kDStat] = dstat;
     queueCompletedDmacCause(cause);
 }
+
+#if defined(PLATFORM_XBOX) && TS_VIF_SELFCHECK
+namespace
+{
+    // The VIF1 chain path before processVIF1Pieces: the pieces copied through
+    // a window, processVIF1Data stopping at a command that does not fit.
+    void processVif1Window(PS2Memory &memory, const PS2Memory::Vif1Piece *pieces, size_t count)
+    {
+        std::vector<uint8_t> &window = s_vif1Window;
+        if (window.capacity() < kVif1WindowBytes)
+            window.reserve(kVif1WindowBytes);
+        window.clear();
+        size_t segment = 0, offset = 0;
+        g_vif1StopOnShort = true;
+        for (;;)
+        {
+            while (window.size() < kVif1WindowBytes && segment < count)
+            {
+                const auto &piece = pieces[segment];
+                const size_t take = std::min<size_t>(piece.second - offset, kVif1WindowBytes - window.size());
+                window.insert(window.end(), piece.first + offset, piece.first + offset + take);
+                offset += take;
+                if (offset == piece.second)
+                {
+                    ++segment;
+                    offset = 0;
+                }
+            }
+            if (window.empty())
+                break;
+            memory.processVIF1Data(window.data(), static_cast<uint32_t>(window.size()));
+            uint32_t consumed = g_vif1LastConsumed;
+            if (consumed == 0u)
+            {
+                // A command bigger than the window, or an incomplete one
+                // at the chain's end: processed as a plain buffer.
+                g_vif1StopOnShort = false;
+                memory.processVIF1Data(window.data(), static_cast<uint32_t>(window.size()));
+                g_vif1StopOnShort = true;
+                consumed = static_cast<uint32_t>(window.size());
+            }
+            window.erase(window.begin(), window.begin() + consumed);
+        }
+        g_vif1StopOnShort = false;
+    }
+
+    // FNV-1a over 32-bit words (every GIF packet VIF1 sends is whole quadwords).
+    uint32_t hashWords(uint32_t hash, const uint8_t *data, size_t bytes)
+    {
+        for (size_t i = 0; i + 4u <= bytes; i += 4u)
+        {
+            uint32_t word;
+            std::memcpy(&word, data + i, sizeof(word));
+            hash = (hash ^ word) * 16777619u;
+        }
+        for (size_t i = bytes & ~size_t(3); i < bytes; ++i)
+            hash = (hash ^ data[i]) * 16777619u;
+        return hash;
+    }
+
+    // Before a chain is decoded for real it is decoded twice, by the window
+    // path and by processVIF1Pieces, from the same VIF1, VU1-memory and PATH3
+    // state, both dry: MSCAL/MSCNT and GIF output are recorded instead of run
+    // (VU1 cannot run twice, and its outputs would make the two differ). The
+    // record holds, at each MSCAL/MSCNT, its arguments, a hash of VU1 data
+    // memory (what VIF1 alone wrote, VU1 not running) and of the GIF bytes so
+    // far; at the end, hashes of VU1 data and code memory and the VIF1
+    // registers. A chain whose two records differ counts in
+    // g_vif1StreamStats.diffs. All state is put back afterwards.
+    void vif1SelfCheck(PS2Memory &m, const PS2Memory::Vif1Piece *pieces, size_t count)
+    {
+        static std::vector<uint8_t> savedData, savedCode;
+        const VIFRegisters savedRegs = m.vif1_regs;
+        if (m.m_vu1Data)
+            savedData.assign(m.m_vu1Data, m.m_vu1Data + PS2_VU1_DATA_SIZE);
+        if (m.m_vu1Code)
+            savedCode.assign(m.m_vu1Code, m.m_vu1Code + PS2_VU1_CODE_SIZE);
+        const uint32_t savedPendingQwc = m.m_vif1PendingPath2ImageQwc;
+        const bool savedPendingHl = m.m_vif1PendingPath2DirectHl;
+        const bool savedPath3Masked = m.m_path3Masked;
+        const std::vector<std::vector<uint8_t>> savedPath3Fifo = m.m_path3MaskedFifo;
+        const uint64_t savedCodeGeneration = m.m_vu1CodeGeneration.load(std::memory_order_relaxed);
+        const Vif1StreamStats savedStats = g_vif1StreamStats;
+        auto restore = [&]()
+        {
+            m.vif1_regs = savedRegs;
+            if (m.m_vu1Data)
+                std::memcpy(m.m_vu1Data, savedData.data(), PS2_VU1_DATA_SIZE);
+            if (m.m_vu1Code)
+                std::memcpy(m.m_vu1Code, savedCode.data(), PS2_VU1_CODE_SIZE);
+            m.m_vif1PendingPath2ImageQwc = savedPendingQwc;
+            m.m_vif1PendingPath2DirectHl = savedPendingHl;
+            m.m_path3Masked = savedPath3Masked;
+            m.m_path3MaskedFifo = savedPath3Fifo;
+            m.m_vu1CodeGeneration.store(savedCodeGeneration, std::memory_order_relaxed);
+        };
+
+        PS2Memory::Vu1MscalCallback mscal = std::move(m.m_vu1MscalCallback);
+        PS2Memory::Vu1MscntCallback mscnt = std::move(m.m_vu1MscntCallback);
+        PS2Memory::GifPacketCallback gifCallback = std::move(m.m_gifPacketCallback);
+        GifArbiter *const arbiter = m.m_gifArbiter;
+        m.m_gifArbiter = nullptr; // GIF output reaches m_gifPacketCallback
+
+        constexpr uint32_t kFnvBasis = 2166136261u;
+        std::vector<uint32_t> records[2];
+        std::vector<uint32_t> *record = nullptr;
+        uint32_t gifHash = kFnvBasis, gifBytes = 0;
+        auto dataHash = [&]() { return m.m_vu1Data ? hashWords(kFnvBasis, m.m_vu1Data, PS2_VU1_DATA_SIZE) : 0u; };
+        m.m_vu1MscalCallback = [&](uint32_t startPC, uint32_t top, uint32_t itop)
+        { record->insert(record->end(), {1u, startPC, top, itop, dataHash(), gifHash, gifBytes}); };
+        m.m_vu1MscntCallback = [&](uint32_t top, uint32_t itop)
+        { record->insert(record->end(), {2u, top, itop, dataHash(), gifHash, gifBytes}); };
+        m.m_gifPacketCallback = [&](const uint8_t *data, uint32_t bytes)
+        {
+            gifHash = hashWords(gifHash, data, bytes);
+            gifBytes += bytes;
+        };
+
+        for (int run = 0; run < 2; ++run)
+        {
+            restore();
+            record = &records[run];
+            gifHash = kFnvBasis;
+            gifBytes = 0;
+            if (run == 0)
+                processVif1Window(m, pieces, count);
+            else
+                m.processVIF1Pieces(pieces, count);
+            record->insert(record->end(),
+                           {3u, dataHash(), m.m_vu1Code ? hashWords(kFnvBasis, m.m_vu1Code, PS2_VU1_CODE_SIZE) : 0u,
+                            hashWords(kFnvBasis, reinterpret_cast<const uint8_t *>(&m.vif1_regs), sizeof(VIFRegisters)),
+                            gifHash, gifBytes, m.m_vif1PendingPath2ImageQwc, m.m_vif1PendingPath2DirectHl ? 1u : 0u,
+                            m.m_path3Masked ? 1u : 0u});
+        }
+
+        restore();
+        m.m_vu1MscalCallback = std::move(mscal);
+        m.m_vu1MscntCallback = std::move(mscnt);
+        m.m_gifPacketCallback = std::move(gifCallback);
+        m.m_gifArbiter = arbiter;
+        g_vif1StreamStats = savedStats;
+        ++g_vif1StreamStats.checked;
+        if (records[0] != records[1])
+        {
+            ++g_vif1StreamStats.diffs;
+            if (g_vif1StreamStats.diffs <= 8u)
+            {
+                size_t at = 0;
+                while (at < records[0].size() && at < records[1].size() && records[0][at] == records[1][at])
+                    ++at;
+                RUNTIME_LOG("[VIF:selfcheck] chain " << g_vif1StreamStats.checked << " (" << count
+                    << " pieces) differs at record word " << at << " of " << records[0].size() << "/"
+                    << records[1].size() << ": window 0x" << std::hex
+                    << (at < records[0].size() ? records[0][at] : 0u) << ", in place 0x"
+                    << (at < records[1].size() ? records[1][at] : 0u) << std::dec << '\n');
+            }
+        }
+    }
+}
+#endif
 
 void PS2Memory::processPendingTransfers()
 {
@@ -2069,50 +2283,22 @@ void PS2Memory::processPendingTransfers()
     m_pendingVif0Transfers.clear();
 
     const bool hadVif1 = !m_pendingVif1Transfers.empty();
+#if defined(PLATFORM_XBOX)
+    size_t segmentStart = 0; // the pieces of the chains before this one
+#endif
     for (auto &p : m_pendingVif1Transfers)
     {
 #if defined(PLATFORM_XBOX)
         if (p.qwc == kSegmentedChain)
         {
-            // All recorded pieces, in order, through the window (a later
-            // segmented chain in the same drain finds the list consumed).
-            std::vector<uint8_t> &window = s_vif1Window;
-            if (window.capacity() < kVif1WindowBytes)
-                window.reserve(kVif1WindowBytes);
-            window.clear();
-            size_t segment = 0, offset = 0;
-            g_vif1StopOnShort = true;
-            for (;;)
-            {
-                while (window.size() < kVif1WindowBytes && segment < s_vif1Segments.size())
-                {
-                    const auto &piece = s_vif1Segments[segment];
-                    const size_t take = std::min<size_t>(piece.second - offset, kVif1WindowBytes - window.size());
-                    window.insert(window.end(), piece.first + offset, piece.first + offset + take);
-                    offset += take;
-                    if (offset == piece.second)
-                    {
-                        ++segment;
-                        offset = 0;
-                    }
-                }
-                if (window.empty())
-                    break;
-                processVIF1Data(window.data(), static_cast<uint32_t>(window.size()));
-                uint32_t consumed = g_vif1LastConsumed;
-                if (consumed == 0u)
-                {
-                    // A command bigger than the window, or an incomplete one
-                    // at the chain's end: processed as a plain buffer.
-                    g_vif1StopOnShort = false;
-                    processVIF1Data(window.data(), static_cast<uint32_t>(window.size()));
-                    g_vif1StopOnShort = true;
-                    consumed = static_cast<uint32_t>(window.size());
-                }
-                window.erase(window.begin(), window.begin() + consumed);
-            }
-            g_vif1StopOnShort = false;
-            s_vif1Segments.clear();
+            const Vif1Piece *pieces = s_vif1Segments.data() + segmentStart;
+            const size_t count = p.srcAddr - segmentStart;
+            segmentStart = p.srcAddr;
+#if TS_VIF_SELFCHECK
+            if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS)
+                vif1SelfCheck(*this, pieces, count);
+#endif
+            processVIF1Pieces(pieces, count);
             continue;
         }
 #endif
@@ -2170,6 +2356,9 @@ void PS2Memory::processPendingTransfers()
             }
         }
     }
+#if defined(PLATFORM_XBOX)
+    s_vif1Segments.clear();
+#endif
     m_pendingVif1Transfers.clear();
 
     if (m_gifArbiter)

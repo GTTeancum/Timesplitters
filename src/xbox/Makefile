@@ -80,7 +80,7 @@ IOP_SRCS := $(addprefix $(IOP)/src/, \
     emulator/imports/iop_timrman.cpp emulator/imports/iop_vblank.cpp \
     modules/dbcman.cpp modules/libsd.cpp modules/mcserv.cpp)
 
-GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp
+GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp $(GAME)/ts_native_math.cpp
 XBOX_SRCS := $(wildcard $(XBOX)/*.cpp)
 # register_functions.cpp is replaced by a compact table (see the rule below).
 GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
@@ -99,10 +99,13 @@ $(VU_OBJS): GEN_FLAGS := $(COMMON) -O2
 
 # The software renderer and the Xbox presenter are the hottest code: -O2.
 FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj \
+                     $(OBJ)/project/game/ts_native_math.obj \
                      $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj \
-                     $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/Kernel/EeScheduler.obj,$(OTHER_OBJS))
+                     $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/Kernel/EeScheduler.obj \
+                     $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_spu2.obj \
+                     $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_music.obj,$(OTHER_OBJS))
 $(FAST_OBJS): RUNTIME_FLAGS := $(COMMON) -O2 $(SDL_FLAGS) -DPS2_RUNTIME_LOGS=1 -DPS2X_POINT_SAMPLING=1
 
 # lld is a native Windows program: paths in its response file must be Windows paths.
@@ -150,7 +153,8 @@ CGC    := $(NXDK_DIR)/tools/cg/win/cgc.exe
 VP20   := $(NXDK_DIR)/tools/vp20compiler/vp20compiler.exe
 FP20   := $(NXDK_DIR)/tools/fp20compiler/fp20compiler.exe
 SHADERS := $(OUT)/gen/shaders
-PS_VARIANTS := untextured modulate modulate_tcc decal decal_tcc highlight highlight_tcc
+PS_VARIANTS := untextured modulate modulate_tcc decal decal_tcc highlight highlight_tcc \
+               modulate_tcc_unit decal_tcc_unit highlight_tcc_unit
 PS_DEFINES_untextured    := -DGS_UNTEXTURED
 PS_DEFINES_modulate      := -DGS_MODULATE
 PS_DEFINES_modulate_tcc  := -DGS_MODULATE -DGS_TCC
@@ -158,6 +162,10 @@ PS_DEFINES_decal         := -DGS_DECAL
 PS_DEFINES_decal_tcc     := -DGS_DECAL -DGS_TCC
 PS_DEFINES_highlight     := -DGS_HIGHLIGHT
 PS_DEFINES_highlight_tcc := -DGS_HIGHLIGHT -DGS_TCC
+# Textures whose one alpha bit stands for GS 0x80 (DXT1, A1R5G5B5).
+PS_DEFINES_modulate_tcc_unit  := -DGS_MODULATE -DGS_TCC -DGS_UNIT_ALPHA
+PS_DEFINES_decal_tcc_unit     := -DGS_DECAL -DGS_TCC -DGS_UNIT_ALPHA
+PS_DEFINES_highlight_tcc_unit := -DGS_HIGHLIGHT -DGS_TCC -DGS_UNIT_ALPHA
 XF_VARIANTS := plain lit env skin
 XF_DEFINES_plain :=
 XF_DEFINES_lit   := -DXF_LIT

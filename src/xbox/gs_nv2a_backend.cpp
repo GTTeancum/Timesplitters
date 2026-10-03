@@ -122,23 +122,41 @@ namespace
 #include "gs_ps_highlight_tcc.inl"
         return p;
     }
+    uint32_t *pushModulateTccUnit(uint32_t *p)
+    {
+#include "gs_ps_modulate_tcc_unit.inl"
+        return p;
+    }
+    uint32_t *pushDecalTccUnit(uint32_t *p)
+    {
+#include "gs_ps_decal_tcc_unit.inl"
+        return p;
+    }
+    uint32_t *pushHighlightTccUnit(uint32_t *p)
+    {
+#include "gs_ps_highlight_tcc_unit.inl"
+        return p;
+    }
 #undef MASK
 
     // Pixel program variants (index = shader key).
     uint32_t *(*const kPixelPrograms[])(uint32_t *) = {
         pushUntextured, pushModulate, pushModulateTcc, pushDecal, pushDecalTcc, pushHighlight, pushHighlightTcc,
+        pushModulateTccUnit, pushDecalTccUnit, pushHighlightTccUnit,
     };
 
-    int pixelProgramFor(const GSDrawState &state)
+    // unitAlpha: the texture's stored alpha 1.0 is GS 0x80 (Texture::unitAlpha),
+    // so its TCC programs leave out the alpha's x2.
+    int pixelProgramFor(const GSDrawState &state, bool unitAlpha)
     {
         if (!state.prim.tme)
             return 0;
         const bool tcc = state.context.tex0.tcc != 0;
         switch (state.context.tex0.tfx)
         {
-        case 0: return tcc ? 2 : 1;
-        case 1: return tcc ? 4 : 3;
-        default: return tcc ? 6 : 5;
+        case 0: return tcc ? (unitAlpha ? 7 : 2) : 1;
+        case 1: return tcc ? (unitAlpha ? 8 : 4) : 3;
+        default: return tcc ? (unitAlpha ? 9 : 6) : 5;
         }
     }
 
@@ -334,6 +352,7 @@ struct GSNv2aBackend::Impl
         uint32_t gpuWidth = 0, gpuHeight = 0; // stored size (large textures are halved)
         size_t bytes = 0;
         uint32_t lastFrame = 0;
+        bool unitAlpha = false; // one alpha bit whose 1.0 is GS 0x80 (selects the pixel program)
     };
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
     std::set<uint64_t> frameKeys, lastFrameKeys; // address/size keys drawn this and last frame (statistics)
@@ -589,9 +608,9 @@ struct GSNv2aBackend::Impl
     }
 
     // Decodes the GS texture (CLUT and TEXA applied) into `swizzled`, the
-    // layout the NV2A samples with wrapping: A1R5G5B5 when that loses
-    // nothing (16-bit sources, alpha only 0 or at least 0x80, which the
-    // pixel programs' x2 clamps to 1 either way), else A8R8G8B8.
+    // layout the NV2A samples with wrapping: DXT1/DXT5 from 8x8 up, else
+    // A1R5G5B5 when that loses nothing (16-bit sources, one-bit alpha as
+    // below), else A8R8G8B8.
     void decodeTexture(Texture &t, const GSDrawState &state)
     {
         // 2D draws (sprites: HUD, text) keep their texels; the halving is
@@ -626,14 +645,22 @@ struct GSNv2aBackend::Impl
         }
         const uint32_t width = t.gpuWidth, height = t.gpuHeight;
         const size_t count = size_t(width) * height;
-        bool binaryAlpha = true, fits16 = true;
-        for (size_t i = 0; i < count && binaryAlpha; ++i)
+        // One alpha bit (texel alpha 0 or not) is enough when every alpha is
+        // 0 or the game's opaque 0x7F/0x80: stored 1.0 then stands for 0x80
+        // and the unit-alpha pixel programs read it so (0x7F comes out
+        // 1/128 high). Alpha only 0 or at least 0x80 also fits one bit, read
+        // through the x2 programs as 2.0 (exact for 0xFF; DECAL and
+        // HIGHLIGHT clamp any of them to 1).
+        bool unitAlpha = true, highAlpha = true, fits16 = true;
+        for (size_t i = 0; i < count && (unitAlpha || highAlpha); ++i)
         {
             const uint32_t c = decoded[i], a = c >> 24;
-            binaryAlpha = a == 0u || a >= 0x80u;
+            unitAlpha = unitAlpha && (a == 0u || a == 0x7Fu || a == 0x80u);
+            highAlpha = highAlpha && (a == 0u || a >= 0x80u);
             if (c & 0x00070707u)
                 fits16 = false;
         }
+        const bool binaryAlpha = unitAlpha || highAlpha;
         // Most textures: DXT1 (4 bits a texel) so the cache holds a frame's
         // worth; the alpha bit is the 3-colour mode's transparent entry.
         if (width >= 8u && height >= 8u)
@@ -642,11 +669,13 @@ struct GSNv2aBackend::Impl
             t.format = binaryAlpha ? NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5
                                    : NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8;
             t.bytes = binaryAlpha ? count / 2u : count;
+            t.unitAlpha = unitAlpha;
             swizzled.resize(t.bytes);
             encodeDxt(width, height, !binaryAlpha, swizzled.data());
             return;
         }
         fits16 = fits16 && binaryAlpha;
+        t.unitAlpha = fits16 && unitAlpha;
         const Swizzle sw(width, height);
         spreadU.resize(width);
         for (uint32_t u = 0; u < width; ++u)
@@ -667,7 +696,7 @@ struct GSNv2aBackend::Impl
                 for (uint32_t u = 0; u < width; ++u)
                 {
                     const uint32_t c = src[u]; // R, G, B, A bytes
-                    dst[spreadU[u] | rowBits] = uint16_t(((c >> 16) & 0x8000u) | ((c & 0xF8u) << 7) |
+                    dst[spreadU[u] | rowBits] = uint16_t(((c >> 24) ? 0x8000u : 0u) | ((c & 0xF8u) << 7) |
                                                          ((c >> 6) & 0x03E0u) | ((c >> 19) & 0x1Fu));
                 }
             }
@@ -688,9 +717,11 @@ struct GSNv2aBackend::Impl
         }
     }
 
-    static uint16_t to565(uint32_t c) // R, G, B, A bytes
+    // Nearest 5/6-bit levels (truncation darkened the end points by up to
+    // 7 of 255).
+    static uint16_t to565(int r, int g, int b)
     {
-        return uint16_t(((c & 0xF8u) << 8) | ((c >> 5) & 0x07E0u) | ((c >> 19) & 0x1Fu));
+        return uint16_t((((r * 31 + 127) / 255) << 11) | (((g * 63 + 127) / 255) << 5) | ((b * 31 + 127) / 255));
     }
     static void from565(uint16_t v, int &r, int &g, int &b)
     {
@@ -699,11 +730,13 @@ struct GSNv2aBackend::Impl
         b = v & 31;         b = (b << 3) | (b >> 2);
     }
 
-    // DXT1 by colour-extent fit: each 4x4 block's colours span the box of
-    // its opaque texels; a block with transparent texels uses the 3-colour
-    // mode (colour0 <= colour1) whose fourth entry is transparent.
-    // DXT5: the same colour blocks preceded by an 8-byte alpha block (two
-    // end points, 3-bit indices into their 8-step interpolation).
+    // DXT1 by colour-extent fit: each 4x4 block's colours span a diagonal
+    // of the box of its opaque texels; a block with transparent texels
+    // (alpha 0: DXT1 textures have one-bit alpha) uses the 3-colour mode
+    // (colour0 <= colour1) whose fourth entry is transparent.
+    // DXT5: the same colour blocks (every texel coloured) preceded by an
+    // 8-byte alpha block (two end points, 3-bit indices into their 8-step
+    // interpolation).
     void encodeDxt(uint32_t w, uint32_t h, bool dxt5, uint8_t *out)
     {
         for (uint32_t by = 0; by < h; by += 4)
@@ -711,23 +744,27 @@ struct GSNv2aBackend::Impl
             {
                 uint32_t texel[16];
                 int minR = 255, minG = 255, minB = 255, maxR = 0, maxG = 0, maxB = 0;
-                bool transparent = false, opaque = false;
+                int n = 0, sumR = 0, sumG = 0, sumB = 0, sumRG = 0, sumRB = 0, sumGB = 0;
+                uint32_t clear = 0; // transparent texels (bit i)
                 for (uint32_t y = 0; y < 4; ++y)
                     for (uint32_t x = 0; x < 4; ++x)
                     {
                         const uint32_t c = decoded[size_t(by + y) * w + bx + x];
                         texel[y * 4 + x] = c;
-                        if (!dxt5 && (c >> 24) < 0x80u)
+                        if (!dxt5 && (c >> 24) == 0u)
                         {
-                            transparent = true;
+                            clear |= 1u << (y * 4 + x);
                             continue;
                         }
-                        opaque = true;
                         const int r = int(c & 0xFFu), g = int((c >> 8) & 0xFFu), b = int((c >> 16) & 0xFFu);
                         minR = std::min(minR, r); maxR = std::max(maxR, r);
                         minG = std::min(minG, g); maxG = std::max(maxG, g);
                         minB = std::min(minB, b); maxB = std::max(maxB, b);
+                        ++n;
+                        sumR += r; sumG += g; sumB += b;
+                        sumRG += r * g; sumRB += r * b; sumGB += g * b;
                     }
+                const bool transparent = clear != 0u, opaque = n != 0;
                 if (dxt5)
                 {
                     uint32_t aMax = 0, aMin = 255;
@@ -771,8 +808,32 @@ struct GSNv2aBackend::Impl
                     memset(out + 4, 0xFF, 4); // every texel the transparent entry
                     continue;
                 }
-                uint16_t c0 = to565(uint32_t(maxR) | (uint32_t(maxG) << 8) | (uint32_t(maxB) << 16));
-                uint16_t c1 = to565(uint32_t(minR) | (uint32_t(minG) << 8) | (uint32_t(minB) << 16));
+                // The end points are opposite corners of the box: the widest
+                // channel runs low to high and each other channel with it or
+                // against it, by the sign of their covariance (always both
+                // rising, as min/max alone gives, shifts the hues of blocks
+                // whose channels run against each other).
+                const int covRG = n * sumRG - sumR * sumG, covRB = n * sumRB - sumR * sumB,
+                          covGB = n * sumGB - sumG * sumB; // n^2 x covariance; fits 32 bits
+                const int spanR = maxR - minR, spanG = maxG - minG, spanB = maxB - minB;
+                bool flipR = false, flipG = false, flipB = false;
+                if (spanG >= spanR && spanG >= spanB)
+                {
+                    flipR = covRG < 0;
+                    flipB = covGB < 0;
+                }
+                else if (spanR >= spanB)
+                {
+                    flipG = covRG < 0;
+                    flipB = covRB < 0;
+                }
+                else
+                {
+                    flipR = covRB < 0;
+                    flipG = covGB < 0;
+                }
+                uint16_t c0 = to565(flipR ? minR : maxR, flipG ? minG : maxG, flipB ? minB : maxB);
+                uint16_t c1 = to565(flipR ? maxR : minR, flipG ? maxG : minG, flipB ? maxB : minB);
                 if (transparent ? c0 > c1 : c0 < c1)
                     std::swap(c0, c1);
                 int pr[4], pg[4], pb[4];
@@ -795,7 +856,7 @@ struct GSNv2aBackend::Impl
                 {
                     const uint32_t c = texel[i];
                     uint32_t index = 3; // transparent
-                    if ((c >> 24) >= 0x80u)
+                    if (!(clear & (1u << i)))
                     {
                         const int r = int(c & 0xFFu), g = int((c >> 8) & 0xFFu), b = int((c >> 16) & 0xFFu);
                         int best = INT32_MAX;
@@ -1231,7 +1292,7 @@ struct GSNv2aBackend::Impl
     {
         DrawKey k;
         k.texture = tex;
-        k.program = tex ? pixelProgramFor(state) : 0;
+        k.program = tex ? pixelProgramFor(state, tex->unitAlpha) : 0;
         const uint64_t clamp = state.context.clamp;
         const uint32_t wrapU = (clamp & 3u) == 0u || (clamp & 3u) == 3u ? 1u : 3u; // repeat : clamp to edge
         const uint32_t wrapV = ((clamp >> 2) & 3u) == 0u || ((clamp >> 2) & 3u) == 3u ? 1u : 3u;

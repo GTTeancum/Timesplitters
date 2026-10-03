@@ -12,6 +12,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <thread>
+#include <utility>
 
 #include "gs/ps2_gif_arbiter.h"
 #include "ps2_simd.h"
@@ -308,6 +309,17 @@ struct VIFRegisters
 };
 static_assert(sizeof(VIFRegisters) == (23u * sizeof(uint32_t)), "VIFRegisters layout changed unexpectedly");
 
+#if defined(PLATFORM_XBOX)
+// Development counters for the Xbox status block (cumulative).
+struct Vif1StreamStats
+{
+    unsigned chains = 0, pieces = 0, splits = 0;
+    unsigned long long fastVectors = 0, slowVectors = 0;
+    unsigned checked = 0, diffs = 0; // TS_VIF_SELFCHECK (ps2_memory.cpp)
+};
+extern Vif1StreamStats g_vif1StreamStats;
+#endif
+
 // PS2 DMA registers
 struct DMARegisters
 {
@@ -453,6 +465,13 @@ public:
     void processVIF0Data(const uint8_t *data, uint32_t sizeBytes);
     void processVIF1Data(uint32_t srcPhysAddr, uint32_t sizeBytes);
     void processVIF1Data(const uint8_t *data, uint32_t sizeBytes);
+#if defined(PLATFORM_XBOX)
+    // A VIF1 DMA chain as the pieces of guest memory it is made of, in order
+    // (recorded by the chain walk in ps2_memory.cpp): decoded where they lie,
+    // as processVIF1Data would decode them joined into one buffer.
+    using Vif1Piece = std::pair<const uint8_t *, uint32_t>;
+    void processVIF1Pieces(const Vif1Piece *pieces, size_t count);
+#endif
     void processPendingTransfers();
     std::vector<uint32_t> consumeCompletedDmacCauses();
 #if defined(PLATFORM_XBOX)

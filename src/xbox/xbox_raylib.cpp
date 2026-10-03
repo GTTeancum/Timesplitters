@@ -11,8 +11,10 @@
 #include "xbox_log.h"
 
 #include <SDL.h>
+#include <hal/audio.h>
 #include <hal/video.h>
 #include <pbkit/pbkit.h>
+#include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
 
 #include <algorithm>
@@ -105,29 +107,87 @@ namespace
         }
     }
 
-    // One audio stream (the SPU2 mix) played through SDL.
-    struct StreamState
+    // The one audio stream (the SPU2 and music mix, 48 kHz 16-bit stereo)
+    // goes straight to the AC97 analog engine: a feeder thread keeps
+    // kAudioAhead buffers queued by polling the engine's current descriptor.
+    // nxdk's interrupt-driven refill (and SDL's driver on top of it) also
+    // waits for the S/PDIF engine, which xemu never completes: one buffer of
+    // sound, then silence.
+    constexpr unsigned kAudioFrames = 1024; // per buffer: 21 ms
+    constexpr unsigned kAudioRing = 8;      // DMA buffers (the descriptor ring is 32)
+    constexpr unsigned kAudioAhead = 5;     // queued, about 0.1 s
+    struct AudioOut
     {
+        int16_t *buffers = nullptr; // kAudioRing x kAudioFrames stereo frames
+        unsigned provided = 0;      // buffers handed to the engine so far
+        std::mutex lock;            // callback and playing
         AudioCallback callback = nullptr;
-        SDL_AudioDeviceID device = 0;
-        unsigned channels = 2;
-    };
-    std::unordered_map<rAudioBuffer *, StreamState> g_streams;
-    int g_streamBufferFrames = 1024;
+        bool playing = false, started = false;
+        rAudioBuffer *key = nullptr; // the stream's handle
+    } g_audio;
 
-    void sdlAudioCallback(void *userdata, Uint8 *stream, int len)
+    void silentRefill(void *, void *) {} // nxdk's interrupt refill is not used
+
+    void provideAudio(int16_t *buffer)
     {
-        auto *state = static_cast<StreamState *>(userdata);
-        const unsigned frames = static_cast<unsigned>(len) / (2u * state->channels);
-        const uint64_t start = __builtin_ia32_rdtsc();
-        if (state->callback)
-            state->callback(stream, frames);
-        else
-            std::memset(stream, 0, static_cast<size_t>(len));
+        XAudioProvideSamples(reinterpret_cast<unsigned char *>(buffer), kAudioFrames * 4u, 0);
+        ++g_audio.provided;
+    }
+
+    DWORD WINAPI audioFeeder(LPVOID)
+    {
+        volatile const uint8_t *ac97 = reinterpret_cast<volatile const uint8_t *>(0xFEC00000u);
         static uint64_t mixCycles = 0;
-        mixCycles += __builtin_ia32_rdtsc() - start;
-        g_audioMixKcyc = uint32_t(mixCycles / 1000u);
-        ++g_audioBuffers;
+        for (;;)
+        {
+            const unsigned current = ac97[0x114] & 31u; // CIV: descriptor playing now
+            unsigned ahead = ((g_audio.provided - 1u) - current) & 31u;
+            for (; ahead < kAudioAhead; ++ahead)
+            {
+                int16_t *buffer = g_audio.buffers + size_t(g_audio.provided % kAudioRing) * kAudioFrames * 2u;
+                const uint64_t start = __builtin_ia32_rdtsc();
+                {
+                    std::lock_guard<std::mutex> guard(g_audio.lock);
+                    if (g_audio.playing && g_audio.callback)
+                        g_audio.callback(buffer, kAudioFrames);
+                    else
+                        std::memset(buffer, 0, kAudioFrames * 4u);
+                }
+                mixCycles += __builtin_ia32_rdtsc() - start;
+                g_audioMixKcyc = uint32_t(mixCycles / 1000u);
+                ++g_audioBuffers;
+                provideAudio(buffer);
+            }
+            Sleep(5);
+        }
+    }
+
+    // Starts the AC97 engine and the feeder (once).
+    bool startAudio()
+    {
+        if (g_audio.started)
+            return true;
+        void *memory = MmAllocateContiguousMemoryEx(kAudioRing * kAudioFrames * 4u, 0, 0x03FFAFFF, 0,
+                                                    PAGE_READWRITE | PAGE_WRITECOMBINE);
+        if (!memory)
+        {
+            xboxLogWrite("[TS:audio] no DMA memory\n", 25);
+            return false;
+        }
+        g_audio.buffers = static_cast<int16_t *>(memory);
+        std::memset(memory, 0, kAudioRing * kAudioFrames * 4u);
+        XAudioInit(16, 2, &silentRefill, nullptr);
+        provideAudio(g_audio.buffers); // two silent buffers before the engine runs
+        provideAudio(g_audio.buffers + kAudioFrames * 2u);
+        XAudioPlay();
+        HANDLE thread = CreateThread(nullptr, 0, &audioFeeder, nullptr, 0, nullptr);
+        if (thread)
+        {
+            SetThreadPriority(thread, THREAD_PRIORITY_TIME_CRITICAL);
+            CloseHandle(thread);
+        }
+        g_audio.started = true;
+        return true;
     }
 }
 
@@ -416,10 +476,10 @@ float GetGamepadAxisMovement(int gamepad, int axis)
 }
 
 // ------------------------------------------------------------------- audio
-void InitAudioDevice(void) { SDL_InitSubSystem(SDL_INIT_AUDIO); }
-void CloseAudioDevice(void) { SDL_QuitSubSystem(SDL_INIT_AUDIO); }
-bool IsAudioDeviceReady(void) { return SDL_WasInit(SDL_INIT_AUDIO) != 0; }
-void SetAudioStreamBufferSizeDefault(int size) { g_streamBufferFrames = size; }
+void InitAudioDevice(void) { startAudio(); }
+void CloseAudioDevice(void) {}
+bool IsAudioDeviceReady(void) { return g_audio.started; }
+void SetAudioStreamBufferSizeDefault(int) {}
 
 AudioStream LoadAudioStream(unsigned int sampleRate, unsigned int sampleSize, unsigned int channels)
 {
@@ -427,56 +487,53 @@ AudioStream LoadAudioStream(unsigned int sampleRate, unsigned int sampleSize, un
     stream.sampleRate = sampleRate;
     stream.sampleSize = sampleSize;
     stream.channels = channels;
-    // The buffer pointer is only a key for this stream's state.
-    stream.buffer = reinterpret_cast<rAudioBuffer *>(new char);
-    StreamState &state = g_streams[stream.buffer];
-    state.channels = channels;
-    SDL_AudioSpec want{}, have{};
-    want.freq = int(sampleRate);
-    want.format = AUDIO_S16LSB; // the runtime asks for 16-bit
-    want.channels = Uint8(channels);
-    want.samples = Uint16(g_streamBufferFrames);
-    want.callback = sdlAudioCallback;
-    want.userdata = &state;
-    state.device = SDL_OpenAudioDevice(nullptr, 0, &want, &have, 0);
-    if (!state.device)
-        xboxLogWrite("[TS:audio] SDL_OpenAudioDevice failed\n", 38);
+    if (sampleRate != 48000u || sampleSize != 16u || channels != 2u || g_audio.key || !startAudio())
+    {
+        xboxLogWrite("[TS:audio] stream not supported\n", 32);
+        return stream;
+    }
+    // The buffer pointer is only a key for the stream.
+    stream.buffer = g_audio.key = reinterpret_cast<rAudioBuffer *>(new char);
     return stream;
 }
 
 void SetAudioStreamCallback(AudioStream stream, AudioCallback callback)
 {
-    const auto it = g_streams.find(stream.buffer);
-    if (it == g_streams.end())
+    if (!stream.buffer || stream.buffer != g_audio.key)
         return;
-    SDL_LockAudioDevice(it->second.device);
-    it->second.callback = callback;
-    SDL_UnlockAudioDevice(it->second.device);
+    std::lock_guard<std::mutex> guard(g_audio.lock);
+    g_audio.callback = callback;
 }
 
 void PlayAudioStream(AudioStream stream)
 {
-    const auto it = g_streams.find(stream.buffer);
-    if (it != g_streams.end() && it->second.device)
-        SDL_PauseAudioDevice(it->second.device, 0);
+    if (stream.buffer && stream.buffer == g_audio.key)
+    {
+        std::lock_guard<std::mutex> guard(g_audio.lock);
+        g_audio.playing = true;
+    }
 }
 
 void StopAudioStream(AudioStream stream)
 {
-    const auto it = g_streams.find(stream.buffer);
-    if (it != g_streams.end() && it->second.device)
-        SDL_PauseAudioDevice(it->second.device, 1);
+    if (stream.buffer && stream.buffer == g_audio.key)
+    {
+        std::lock_guard<std::mutex> guard(g_audio.lock);
+        g_audio.playing = false;
+    }
 }
 
 void UnloadAudioStream(AudioStream stream)
 {
-    const auto it = g_streams.find(stream.buffer);
-    if (it == g_streams.end())
+    if (!stream.buffer || stream.buffer != g_audio.key)
         return;
-    if (it->second.device)
-        SDL_CloseAudioDevice(it->second.device);
+    {
+        std::lock_guard<std::mutex> guard(g_audio.lock);
+        g_audio.playing = false;
+        g_audio.callback = nullptr;
+    }
     delete reinterpret_cast<char *>(stream.buffer);
-    g_streams.erase(it);
+    g_audio.key = nullptr;
 }
 
 // One-shot sounds (a legacy VAG preview path): not played on the Xbox.

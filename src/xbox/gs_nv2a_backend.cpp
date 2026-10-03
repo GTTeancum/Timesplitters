@@ -4,6 +4,7 @@
 #include <hal/debug.h>
 #include <hal/video.h>
 #include <pbkit/pbkit.h>
+#include <pbkit/pbkit_dma.h>
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
 
@@ -864,6 +865,8 @@ struct GSNv2aBackend::Impl
             slot += vp.count / 4;
         }
         p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
+        // Fences go through their own DMA object (pushFence).
+        p = pb_push1(p, NV097_SET_CONTEXT_DMA_SEMAPHORE, kFenceDma);
         // The compiler's literals (c[34] = 0, 1, 0.5).
         p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + 34u);
         pb_push(p++, NV097_SET_TRANSFORM_CONSTANT, 4);
@@ -950,16 +953,53 @@ struct GSNv2aBackend::Impl
         return p;
     }
 
+    // The transform buffer is a ring of segments, each closed by a fence:
+    // the GPU writes the fence value (back-end semaphore, after the draws
+    // before it have rendered) and a segment is reused once its fence has
+    // passed, instead of draining the whole GPU when the buffer wraps.
+    static constexpr uint32_t kXfSegments = 4u, kXfSegment = kMaxXfVertices / kXfSegments;
+    volatile uint32_t *fence = nullptr; // GPU-written (semaphore offset)
+    uint32_t fenceSerial = 0, xfSegment = 0, segmentFence[kXfSegments] = {};
+
+    // The fence word has its own DMA object (handle kFenceDma, 64 bytes): the
+    // semaphore offset is 0 within it. (pbkit points the semaphore context
+    // at its own 32-byte buffer.)
+    static constexpr uint32_t kFenceDma = 21u;
+    uint32_t *pushFence(uint32_t *p, uint32_t value)
+    {
+        p = pb_push1(p, NV097_SET_SEMAPHORE_OFFSET, 0u);
+        return pb_push1(p, NV097_BACK_END_WRITE_SEMAPHORE_RELEASE, value);
+    }
+
+    void nextXfSegment()
+    {
+        flushBatch(); // the segment's last draws, then its fence
+        segmentFence[xfSegment] = ++fenceSerial;
+        cursor = pushFence(openCursor(), fenceSerial);
+        closeBlock(); // hand it to the GPU
+        xfSegment = (xfSegment + 1u) % kXfSegments;
+        xfUsed = xfSegment * kXfSegment;
+        const uint32_t needed = segmentFence[xfSegment];
+        if (needed != 0u && int32_t(*fence - needed) < 0)
+        {
+            ++g_nv2aTextureStats.waitXf;
+            const uint64_t start = cycles();
+            // An idle GPU has passed every fence (also covers a semaphore
+            // that never arrives).
+            while (int32_t(*fence - needed) < 0 && pb_busy())
+            {
+            }
+            waitCycles += cycles() - start;
+            g_nv2aTextureStats.kcycWait = uint32_t(waitCycles / 1000u);
+        }
+    }
+
     GSXfVertex *reserveXf(const DrawKey &key, uint32_t count)
     {
         if (batchCount && !(key == batchKey))
             flushBatch();
-        if (xfUsed + count > kMaxXfVertices)
-        {
-            ++g_nv2aTextureStats.waitXf;
-            waitIdle();
-            xfUsed = 0;
-        }
+        if (xfUsed + count > (xfSegment + 1u) * kXfSegment)
+            nextXfSegment();
         if (batchCount == 0)
         {
             batchKey = key;
@@ -1008,7 +1048,11 @@ struct GSNv2aBackend::Impl
         stateValid = false;
         currentProgram = -1;
         verticesUsed = 0;
+        // The GPU is idle at a frame's start (finishFrame): every fence passed.
         xfUsed = 0;
+        xfSegment = 0;
+        for (uint32_t &f : segmentFence)
+            f = 0u;
         // A frame the CPU changed since (loading screens, movies) starts from it.
         if (screenVramNewer)
             loadScreenFromVram();
@@ -1232,7 +1276,7 @@ struct GSNv2aBackend::Impl
     // memory): when most of it is used, let the GPU catch up and restart at
     // its head. GPU state carries over.
     uint32_t *pushHead = nullptr;
-    static constexpr size_t kPushLimitDwords = (96u * 1024u) / 4u;
+    static constexpr size_t kPushLimitDwords = (224u * 1024u) / 4u;
 
     // Commands accumulate in an open block and go to the GPU in chunks of
     // kBlockDwords (closeBlock): each hand-over costs several emulated
@@ -1714,7 +1758,7 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     XVideoSetMode(640, 480, 16, REFRESH_DEFAULT);
     pb_set_color_format(NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5, false);
     pb_ts_set_depth_format(NV097_SET_SURFACE_FORMAT_ZETA_Z24S8);
-    pb_size(128u * 1024u);
+    pb_size(256u * 1024u);
     if (pb_init() != 0)
     {
         debugPrint("pbkit: pb_init failed\n");
@@ -1723,7 +1767,16 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     std::unique_ptr<GSNv2aBackend> backend(new GSNv2aBackend());
     backend->m->vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));
     backend->m->xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex)));
-    if (!backend->m->vertices || !backend->m->xfVertices)
+    backend->m->fence = static_cast<volatile uint32_t *>(allocGpu(64));
+    if (backend->m->fence)
+    {
+        *backend->m->fence = 0u;
+        static s_CtxDma fenceDma;
+        pb_create_dma_ctx(Impl::kFenceDma, DMA_CLASS_3D, DWORD(reinterpret_cast<uintptr_t>(const_cast<uint32_t *>(backend->m->fence))),
+                          63u, &fenceDma);
+        pb_bind_channel(&fenceDma);
+    }
+    if (!backend->m->vertices || !backend->m->xfVertices || !backend->m->fence)
     {
         pb_kill();
         return nullptr;

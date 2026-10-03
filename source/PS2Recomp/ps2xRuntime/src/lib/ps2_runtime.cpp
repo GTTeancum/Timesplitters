@@ -1226,13 +1226,28 @@ namespace
 
 #if defined(PLATFORM_XBOX)
         // The Xbox table holds only the used entries, sorted by address
-        // (src/xbox/tools/compact_function_table.py).
+        // (src/xbox/tools/compact_function_table.py). Every guest call looks
+        // its target up (twice through dispatchGuestBranch): a direct-mapped
+        // cache of address -> slot saves the binary search over ~24,500
+        // entries. Slots never move, so it is never invalidated.
+        struct CachedSlot
+        {
+            uint32_t address, slot;
+        };
+        static CachedSlot cache[4096];
+        CachedSlot &cached = cache[(address >> 2) & 4095u];
+        if (cached.address == address)
+        {
+            slot = cached.slot;
+            return true;
+        }
         const uint32_t *first = g_ps2RecompiledFunctionAddresses;
         const uint32_t *last = first + g_ps2RecompiledFunctionTableSlotCount;
         const uint32_t *found = std::lower_bound(first, last, address);
         if (found == last || *found != address)
             return false;
         slot = static_cast<uint32_t>(found - first);
+        cached = {address, slot};
         return true;
 #endif
         const uint32_t offset = address - g_ps2RecompiledFunctionTableBase;

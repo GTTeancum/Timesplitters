@@ -1,7 +1,7 @@
 // Copy of nxdk's lib/pbkit/pbkit.c for the TimeSplitters Xbox build, built
 // in place of the library's (see src/xbox/Makefile). Changes, all marked TS:
-//  - double instead of triple buffering: one 640x480x32 screen buffer less
-//    (1.2 MB of the Xbox's 64 MB);
+//  - triple buffering kept (BackBufferCount; the frame buffers are 16-bit,
+//    0.6 MB each), the flip bookkeeping sized by the buffer count;
 //  - pb_ts_set_depth_format(): a 16-bit depth buffer (0.6 MB instead of 1.2);
 //  - pb_ts_front_buffer(): the buffer on screen.
 // clang-format off
@@ -2922,7 +2922,11 @@ int pb_init(void)
     Width=vm.width;
     Height=vm.height;
 
-    BackBufferCount=1;          //TS: double buffering (memory)
+    //TS: triple buffering. Frames are handed over without waiting for a
+    //vblank, so with two buffers the next frame could start drawing into the
+    //one still on screen before its flip: a half-drawn frame (the cleared
+    //screen and the far scenery) showed for a refresh. 600 KB more.
+    BackBufferCount=2;
                         //allows dynamic details adjustment
 
     pb_FrameBuffersCount=BackBufferCount+1; //front buffer + back buffers

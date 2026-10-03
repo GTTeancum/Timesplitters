@@ -351,6 +351,25 @@ struct GSNv2aBackend::Impl
 
     void refreshClutHash() { clutHash = cpu.ClutHash(); }
 
+    // Full CLUT loads (8-bit indices, a 32-bit CSM1 palette from CSA 0: all
+    // 512 halfwords replaced) cached by source address and format and the
+    // version of its GS-memory pages. The game loads ~590 palettes a frame,
+    // a few dozen distinct; a hit skips the row reads, the unswizzle and
+    // the rehash.
+    struct Palette
+    {
+        uint32_t cbp = UINT32_MAX, cpsm = 0;
+        uint64_t versions = 0, hash = 0;
+        std::array<uint16_t, 512> clut;
+    };
+    static constexpr uint32_t kPalettes = 128u; // direct-mapped by address
+    std::vector<Palette> palettes;              // allocated at the first load
+    static bool fullClutLoad(const GSTex0Reg &t)
+    {
+        return (t.psm == GS_PSM_T8 || t.psm == GS_PSM_T8H) && t.csm == 0u &&
+               (t.cpsm == GS_PSM_CT32 || t.cpsm == GS_PSM_CT24) && (t.csa & 0x0Fu) == 0u;
+    }
+
     // The GS's CLUT-load decision (TEX0/TEX2 CLD), mirrored so that only
     // real loads cost a read-back check, a lock and a rehash.
     uint32_t clutCbp[2] = {UINT32_MAX, UINT32_MAX};
@@ -839,13 +858,15 @@ struct GSNv2aBackend::Impl
     }
 
     // All vertex programs stay resident (78 of 136 slots); a mode switch is
-    // one PROGRAM_START write. One push-buffer block for the whole upload.
+    // one PROGRAM_START write. Loaded once, with the first frame's setup
+    // (nothing else touches the GPU's program memory, the literals or the
+    // semaphore context).
     uint32_t programStart[5] = {};
+    bool programsLoaded = false;
     uint64_t waitCycles = 0, readbackCycles = 0;
 
-    void uploadVertexProgram()
+    uint32_t *uploadVertexProgram(uint32_t *p)
     {
-        uint32_t *p = pb_begin();
         p = pb_push1(p, NV097_SET_TRANSFORM_EXECUTION_MODE,
                      NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM |
                          (NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV << 2));
@@ -873,7 +894,7 @@ struct GSNv2aBackend::Impl
         const float literals[4] = {0.0f, 1.0f, 0.5f, 0.0f};
         std::memcpy(p, literals, 16);
         p += 4;
-        pb_end(p);
+        return p;
     }
 
     // Vertex array formats for a vertex mode (0: GpuVertex, else GSXfVertex).
@@ -1000,7 +1021,10 @@ struct GSNv2aBackend::Impl
         flushBatch(); // the segment's last draws, then its fence
         segmentFence[xfSegment] = ++fenceSerial;
         cursor = pushFence(openCursor(), fenceSerial);
-        closeBlock(); // hand it to the GPU
+        // Hand the segment to the GPU now: held back until the block fills,
+        // the GPU starts late and the ring catches up with it (measured:
+        // about 4 ms a frame of transform-buffer waits).
+        closeBlock();
         xfSegment = (xfSegment + 1u) % kXfSegments;
         xfUsed = xfSegment * kXfSegment;
         const uint32_t needed = segmentFence[xfSegment];
@@ -1046,12 +1070,14 @@ struct GSNv2aBackend::Impl
         gpuRows = 0;
         settleFrame();
         pb_reset();
-        pushHead = pb_begin();
-        pb_end(pushHead);
-        lastPut = pushHead;
-        framePushDwords = 0;
-        uploadVertexProgram();
-        uint32_t *p = pb_begin();
+        // The frame's setup goes to the GPU as one block (each hand-over is
+        // a write-combine flush and a DMA register write).
+        uint32_t *p = pushHead = pb_begin();
+        if (!programsLoaded)
+        {
+            p = uploadVertexProgram(p);
+            programsLoaded = true;
+        }
         // Z from the vertex, not W (the kernel leaves w-buffering on; with
         // w = 1 everywhere every pixel would tie and the last face drawn
         // would win), fixed-point depth, perspective-correct texturing.
@@ -1061,9 +1087,7 @@ struct GSNv2aBackend::Impl
         p = pb_push1(p, NV097_SET_FOG_ENABLE, 0);
         for (unsigned i = 1; i < 4; ++i)
             p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0 + 64 * i, 0);
-        pb_end(p);
         // GS depth tests keep the greater value: start from the nearest-is-0 side.
-        p = pb_begin();
         pb_push(p++, NV097_SET_CLEAR_RECT_HORIZONTAL, 2);
         *p++ = ((kScreenWidth - 1u) << 16);
         *p++ = ((kScreenHeight - 1u) << 16);
@@ -1072,6 +1096,8 @@ struct GSNv2aBackend::Impl
         *p++ = 0;    // colour (unused)
         *p++ = 0x03; // clear depth and stencil
         pb_end(p);
+        lastPut = p;
+        framePushDwords = 0;
         stateValid = false;
         currentProgram = -1;
         verticesUsed = 0;
@@ -1321,7 +1347,7 @@ struct GSNv2aBackend::Impl
     // and the end of the last closed block.
     size_t framePushDwords = 0;
     uint32_t *lastPut = nullptr;
-    static constexpr size_t kBlockDwords = (16u * 1024u) / 4u;
+    static constexpr size_t kBlockDwords = (48u * 1024u) / 4u;
 
     void closeBlock()
     {
@@ -1899,6 +1925,30 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
     {
         ++g_nv2aTextureStats.wbClut;
         m->writeBackScreen();
+    }
+    if (Impl::fullClutLoad(tex0))
+    {
+        if (m->palettes.empty())
+            m->palettes.resize(Impl::kPalettes);
+        const uint32_t cbp = tex0.cbp;
+        Impl::Palette &e = m->palettes[(cbp ^ (cbp >> 7)) % Impl::kPalettes];
+        const uint64_t versions = m->versionSum(GSCpuBackend::ClutRange(tex0));
+        if (e.cbp == cbp && e.cpsm == tex0.cpsm && e.versions == versions)
+        {
+            ++g_nv2aTextureStats.paletteHits;
+            m->cpu.SetLoadedClut(tex0, e.clut, e.hash);
+            m->clutHash = e.hash;
+            return;
+        }
+        m->cpu.LoadClut(tex0, texclut);
+        m->refreshClutHash();
+        std::array<uint32_t, 2> mirror;
+        m->cpu.GetClutState(e.clut, mirror);
+        e.cbp = cbp;
+        e.cpsm = tex0.cpsm;
+        e.versions = versions;
+        e.hash = m->clutHash;
+        return;
     }
     m->cpu.LoadClut(tex0, texclut);
     m->refreshClutHash();

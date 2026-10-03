@@ -70,6 +70,21 @@ public:
         m_clutCbp = cbp;
         ++m_clutGeneration;
     }
+    // A CLUT load whose result the caller already has (the Xbox renderer's
+    // palette cache): the CLD address mirror as LoadClut keeps it, the
+    // buffer, and its content hash.
+    void SetLoadedClut(const GSTex0Reg &tex0, const std::array<uint16_t, 512> &clut, uint64_t hash)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (tex0.cld == 2u || tex0.cld == 4u)
+            m_clutCbp[0] = tex0.cbp;
+        else if (tex0.cld == 3u || tex0.cld == 5u)
+            m_clutCbp[1] = tex0.cbp;
+        m_clut = clut;
+        ++m_clutGeneration;
+        m_clutHash = hash;
+        m_clutHashGeneration = m_clutGeneration;
+    }
 
     // Byte ranges of GS local memory a primitive may read or write; end is
     // UINT64_MAX when the range is unknown or wraps. Conservative (whole

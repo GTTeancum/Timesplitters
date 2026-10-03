@@ -49,6 +49,8 @@ struct GSNv2aTextureStats
     // the draw thread without waiting for a vblank; the largest push-buffer
     // use of one frame (KB).
     uint32_t gameFrames = 0, earlyHandouts = 0, pushPeakKB = 0;
+    // CLUT loads served by the palette cache.
+    uint32_t paletteHits = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 

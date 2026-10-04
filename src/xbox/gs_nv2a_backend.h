@@ -51,6 +51,10 @@ struct GSNv2aTextureStats
     uint32_t gameFrames = 0, earlyHandouts = 0, pushPeakKB = 0;
     // CLUT loads served by the palette cache.
     uint32_t paletteHits = 0;
+    // Push-buffer hand-overs to the GPU (pb_end calls, pbkit's included): in
+    // the last finished frame, and in total (its change between two status
+    // lines over frames' change is the average per frame).
+    uint32_t framePbEnds = 0, pbEnds = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 

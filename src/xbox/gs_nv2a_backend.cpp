@@ -21,6 +21,7 @@
 void xboxGpuOwnsDisplay(bool owns);
 void xboxLogToScreen(bool enabled);
 extern "C" void pb_ts_set_depth_format(unsigned int fmt); // src/xbox/pbkit/pbkit_ts.c
+extern "C" unsigned int pb_ts_end_count;                  // pb_end calls so far (pbkit_ts.c)
 
 namespace
 {
@@ -31,12 +32,37 @@ namespace
     constexpr uint32_t kDisplayRows = 448u; // the game's displayed frame height
     constexpr uint32_t kMaxVertices = 8192u;             // per batch run (288 KB)
     constexpr size_t kTextureBudget = 1024u * 1024u;     // decoded textures kept on the GPU
+    // pbkit's push buffer (pb_size; pb_init allocates 8 KB more). A heavy
+    // match frame writes about 280 KB: it fits whole, so the GPU is not
+    // drained mid-frame to restart the buffer (openCursor).
+    constexpr uint32_t kPushBufferBytes = 512u * 1024u;
 
     uint32_t physical(const void *p) { return uint32_t(reinterpret_cast<uintptr_t>(p)) & 0x03FFFFFFu; }
 
     void *allocGpu(size_t bytes)
     {
         return MmAllocateContiguousMemoryEx(bytes, 0, kMaxGpuAddress, 0, PAGE_READWRITE | PAGE_WRITECOMBINE);
+    }
+
+    // Push-buffer methods written in place. pbkit's pb_push1 and pb_push are
+    // out of line and each goes through pb_push_to: two or three calls per
+    // register write, thousands a frame. Same words as pbkit's EncodeMethod
+    // (pbkit_ts.c): parameter count, subchannel (3D), method.
+    constexpr uint32_t methodHeader(uint32_t method, uint32_t count)
+    {
+        return (count << 18) + (uint32_t(SUBCH_3D) << 13) + method;
+    }
+    // The header of a method whose count parameters the caller writes next.
+    __attribute__((always_inline)) inline uint32_t *pushMethod(uint32_t *p, uint32_t method, uint32_t count)
+    {
+        *p = methodHeader(method, count);
+        return p + 1;
+    }
+    __attribute__((always_inline)) inline uint32_t *push1(uint32_t *p, uint32_t method, uint32_t value)
+    {
+        p[0] = methodHeader(method, 1u);
+        p[1] = value;
+        return p + 2;
     }
 
     uint32_t log2u(uint32_t v)
@@ -87,6 +113,9 @@ namespace
     constexpr uint32_t kMaxXfVertices = 8192u; // 352 KB
 
 #define MASK(mask, val) (((val) << (__builtin_ffs(mask) - 1)) & (mask))
+    // The generated programs call pb_push1 and advance p themselves: the
+    // inline encoder in its place (same words).
+#define pb_push1(p, method, value) push1(p, method, value)
     uint32_t *pushUntextured(uint32_t *p)
     {
 #include "gs_ps_untextured.inl"
@@ -137,6 +166,7 @@ namespace
 #include "gs_ps_highlight_tcc_unit.inl"
         return p;
     }
+#undef pb_push1
 #undef MASK
 
     // Pixel program variants (index = shader key).
@@ -928,11 +958,11 @@ struct GSNv2aBackend::Impl
 
     uint32_t *uploadVertexProgram(uint32_t *p)
     {
-        p = pb_push1(p, NV097_SET_TRANSFORM_EXECUTION_MODE,
-                     NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM |
-                         (NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV << 2));
-        p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
-        p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, 0);
+        p = push1(p, NV097_SET_TRANSFORM_EXECUTION_MODE,
+                  NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM |
+                      (NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV << 2));
+        p = push1(p, NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
+        p = push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, 0);
         uint32_t slot = 0;
         for (int m = 0; m < 5; ++m)
         {
@@ -940,18 +970,18 @@ struct GSNv2aBackend::Impl
             const VertexProgram &vp = kVertexPrograms[m];
             for (uint32_t i = 0; i < vp.count; i += 4)
             {
-                pb_push(p++, NV097_SET_TRANSFORM_PROGRAM, 4);
+                p = pushMethod(p, NV097_SET_TRANSFORM_PROGRAM, 4);
                 std::memcpy(p, vp.words + i, 16);
                 p += 4;
             }
             slot += vp.count / 4;
         }
-        p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
+        p = push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
         // Fences go through their own DMA object (pushFence).
-        p = pb_push1(p, NV097_SET_CONTEXT_DMA_SEMAPHORE, kFenceDma);
+        p = push1(p, NV097_SET_CONTEXT_DMA_SEMAPHORE, kFenceDma);
         // The compiler's literals (c[34] = 0, 1, 0.5).
-        p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + 34u);
-        pb_push(p++, NV097_SET_TRANSFORM_CONSTANT, 4);
+        p = push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + 34u);
+        p = pushMethod(p, NV097_SET_TRANSFORM_CONSTANT, 4);
         const float literals[4] = {0.0f, 1.0f, 0.5f, 0.0f};
         std::memcpy(p, literals, 16);
         p += 4;
@@ -961,7 +991,7 @@ struct GSNv2aBackend::Impl
     // Vertex array formats for a vertex mode (0: GpuVertex, else GSXfVertex).
     uint32_t *setAttributes(uint32_t *p, uint32_t mode)
     {
-        pb_push(p++, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
+        p = pushMethod(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
         for (int i = 0; i < 16; ++i)
             *p++ = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F; // size 0: disabled
         struct Attribute
@@ -986,8 +1016,8 @@ struct GSNv2aBackend::Impl
         for (int i = 0; i < count; ++i)
         {
             const Attribute &a = list[i];
-            p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4 * a.index, a.type | (a.components << 4) | (stride << 8));
-            p = pb_push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * a.index, physical(base + a.offset));
+            p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4 * a.index, a.type | (a.components << 4) | (stride << 8));
+            p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * a.index, physical(base + a.offset));
         }
         return p;
     }
@@ -1024,8 +1054,8 @@ struct GSNv2aBackend::Impl
             uint32_t end = r + 1u;
             while (end < rows && (!gpuKValid || std::memcmp(gpuK[end], xfK[end], 16) != 0) && end - r < 8u)
                 ++end;
-            p = pb_push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + r);
-            pb_push(p++, NV097_SET_TRANSFORM_CONSTANT, (end - r) * 4u);
+            p = push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + r);
+            p = pushMethod(p, NV097_SET_TRANSFORM_CONSTANT, (end - r) * 4u);
             std::memcpy(p, xfK[r], (end - r) * 16u);
             p += (end - r) * 4u;
             std::memcpy(gpuK[r], xfK[r], (end - r) * 16u);
@@ -1039,7 +1069,12 @@ struct GSNv2aBackend::Impl
     // the GPU writes the fence value (back-end semaphore, after the draws
     // before it have rendered) and a segment is reused once its fence has
     // passed, instead of draining the whole GPU when the buffer wraps.
-    static constexpr uint32_t kXfSegments = 4u, kXfSegment = kMaxXfVertices / kXfSegments;
+    // Segments of 4,096 vertices: each one closed is a hand-over to the GPU
+    // (nextXfSegment), so larger segments mean fewer of them. Two of them
+    // (the other gives the GPU 4,096 vertices of lead) keep the ring at
+    // 352 KB, leaving memory for triple buffering and the texture pack.
+    static constexpr uint32_t kXfSegments = 2u, kXfSegment = kMaxXfVertices / kXfSegments;
+    static_assert(kXfSegment == 4096u, "transform ring layout");
     volatile uint32_t *fence = nullptr; // GPU-written (semaphore offset)
     uint32_t fenceSerial = 0, xfSegment = 0, segmentFence[kXfSegments] = {};
 
@@ -1049,8 +1084,8 @@ struct GSNv2aBackend::Impl
     static constexpr uint32_t kFenceDma = 21u;
     uint32_t *pushFence(uint32_t *p, uint32_t value)
     {
-        p = pb_push1(p, NV097_SET_SEMAPHORE_OFFSET, 0u);
-        return pb_push1(p, NV097_BACK_END_WRITE_SEMAPHORE_RELEASE, value);
+        p = push1(p, NV097_SET_SEMAPHORE_OFFSET, 0u);
+        return push1(p, NV097_BACK_END_WRITE_SEMAPHORE_RELEASE, value);
     }
 
     // The end of the last frame on the GPU (finishFrame's fence). Until it
@@ -1142,17 +1177,17 @@ struct GSNv2aBackend::Impl
         // Z from the vertex, not W (the kernel leaves w-buffering on; with
         // w = 1 everywhere every pixel would tie and the last face drawn
         // would win), fixed-point depth, perspective-correct texturing.
-        p = pb_push1(p, NV097_SET_CONTROL0, NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE);
-        p = pb_push1(p, NV097_SET_STENCIL_TEST_ENABLE, 0);
-        p = pb_push1(p, NV097_SET_CULL_FACE_ENABLE, 0);
-        p = pb_push1(p, NV097_SET_FOG_ENABLE, 0);
+        p = push1(p, NV097_SET_CONTROL0, NV097_SET_CONTROL0_TEXTURE_PERSPECTIVE_ENABLE);
+        p = push1(p, NV097_SET_STENCIL_TEST_ENABLE, 0);
+        p = push1(p, NV097_SET_CULL_FACE_ENABLE, 0);
+        p = push1(p, NV097_SET_FOG_ENABLE, 0);
         for (unsigned i = 1; i < 4; ++i)
-            p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0 + 64 * i, 0);
+            p = push1(p, NV097_SET_TEXTURE_CONTROL0 + 64 * i, 0);
         // GS depth tests keep the greater value: start from the nearest-is-0 side.
-        pb_push(p++, NV097_SET_CLEAR_RECT_HORIZONTAL, 2);
+        p = pushMethod(p, NV097_SET_CLEAR_RECT_HORIZONTAL, 2);
         *p++ = ((kScreenWidth - 1u) << 16);
         *p++ = ((kScreenHeight - 1u) << 16);
-        pb_push(p++, NV097_SET_ZSTENCIL_CLEAR_VALUE, 3);
+        p = pushMethod(p, NV097_SET_ZSTENCIL_CLEAR_VALUE, 3);
         *p++ = 0;    // depth 0, stencil 0
         *p++ = 0;    // colour (unused)
         *p++ = 0x03; // clear depth and stencil
@@ -1199,11 +1234,16 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.frameTextureBytes = frameTextureBytes;
         g_nv2aTextureStats.frameFills = frameFills;
         frameTextures = frameTextureBytes = frameFills = 0;
+        // Hand-overs to the GPU (pb_end, pbkit's own included) since the
+        // last frame's end.
+        g_nv2aTextureStats.framePbEnds = pb_ts_end_count - frameEndPbEnds;
+        g_nv2aTextureStats.pbEnds = frameEndPbEnds = pb_ts_end_count;
         lastFrameKeys.swap(frameKeys);
         frameKeys.clear();
         ++frameNumber;
         g_nv2aTextureStats.frames = frameNumber;
     }
+    uint32_t frameEndPbEnds = 0;
 
     static uint32_t blendFactor(uint32_t sel, bool alphaFromDest)
     {
@@ -1341,7 +1381,7 @@ struct GSNv2aBackend::Impl
         if (all || o.vertexMode != k.vertexMode)
         {
             p = setAttributes(p, k.vertexMode);
-            p = pb_push1(p, NV097_SET_TRANSFORM_PROGRAM_START, programStart[k.vertexMode]);
+            p = push1(p, NV097_SET_TRANSFORM_PROGRAM_START, programStart[k.vertexMode]);
         }
         if (k.vertexMode && (all || o.constSerial != k.constSerial || !o.vertexMode))
             p = uploadConstants(p);
@@ -1351,7 +1391,7 @@ struct GSNv2aBackend::Impl
             // The untextured program leaves the texture stages as they were;
             // a stage still set to sample with no texture bound is invalid.
             if (k.program == 0)
-                p = pb_push1(p, NV097_SET_SHADER_STAGE_PROGRAM, 0);
+                p = push1(p, NV097_SET_SHADER_STAGE_PROGRAM, 0);
             currentProgram = k.program;
         }
         if (k.texture)
@@ -1359,21 +1399,21 @@ struct GSNv2aBackend::Impl
             const Texture &t = *k.texture;
             if (all || o.texture != k.texture)
             {
-                p = pb_push1(p, NV097_SET_TEXTURE_OFFSET, physical(t.texels));
-                p = pb_push1(p, NV097_SET_TEXTURE_FORMAT,
-                             0x0000002Au | (t.format << 8) | (1u << 16) |
-                                 (log2u(t.gpuWidth) << 20) | (log2u(t.gpuHeight) << 24));
+                p = push1(p, NV097_SET_TEXTURE_OFFSET, physical(t.texels));
+                p = push1(p, NV097_SET_TEXTURE_FORMAT,
+                          0x0000002Au | (t.format << 8) | (1u << 16) |
+                              (log2u(t.gpuWidth) << 20) | (log2u(t.gpuHeight) << 24));
             }
             if (all || !o.texture)
-                p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0, NV097_SET_TEXTURE_CONTROL0_ENABLE);
+                p = push1(p, NV097_SET_TEXTURE_CONTROL0, NV097_SET_TEXTURE_CONTROL0_ENABLE);
             if (all || o.address != k.address || !o.texture)
-                p = pb_push1(p, NV097_SET_TEXTURE_ADDRESS, k.address);
+                p = push1(p, NV097_SET_TEXTURE_ADDRESS, k.address);
             if (all || o.filter != k.filter || !o.texture)
-                p = pb_push1(p, NV097_SET_TEXTURE_FILTER, k.filter);
+                p = push1(p, NV097_SET_TEXTURE_FILTER, k.filter);
         }
         else if (all || o.texture)
-            p = pb_push1(p, NV097_SET_TEXTURE_CONTROL0, 0);
-#define TS_SET(field, reg)     if (all || o.field != k.field)         p = pb_push1(p, reg, k.field);
+            p = push1(p, NV097_SET_TEXTURE_CONTROL0, 0);
+#define TS_SET(field, reg)     if (all || o.field != k.field)         p = push1(p, reg, k.field);
         TS_SET(blendEnable, NV097_SET_BLEND_ENABLE)
         TS_SET(sfactor, NV097_SET_BLEND_FUNC_SFACTOR)
         TS_SET(dfactor, NV097_SET_BLEND_FUNC_DFACTOR)
@@ -1381,7 +1421,7 @@ struct GSNv2aBackend::Impl
         TS_SET(blendColor, NV097_SET_BLEND_COLOR)
         TS_SET(alphaTest, NV097_SET_ALPHA_TEST_ENABLE)
         if (all || o.alphaFunc != k.alphaFunc)
-            p = pb_push1(p, NV097_SET_ALPHA_FUNC, k.alphaFunc ? k.alphaFunc : NV097_SET_ALPHA_FUNC_V_ALWAYS);
+            p = push1(p, NV097_SET_ALPHA_FUNC, k.alphaFunc ? k.alphaFunc : NV097_SET_ALPHA_FUNC_V_ALWAYS);
         TS_SET(alphaRef, NV097_SET_ALPHA_REF)
         TS_SET(depthTest, NV097_SET_DEPTH_TEST_ENABLE)
         TS_SET(depthFunc, NV097_SET_DEPTH_FUNC)
@@ -1396,9 +1436,10 @@ struct GSNv2aBackend::Impl
 
     // pbkit's push buffer is not a ring (and overflowing it corrupts
     // memory): when most of it is used, let the GPU catch up and restart at
-    // its head. GPU state carries over.
+    // its head. GPU state carries over. The last 32 KB are slack for what is
+    // written past the check (a batch's state and draws, pbkit's flip).
     uint32_t *pushHead = nullptr;
-    static constexpr size_t kPushLimitDwords = (224u * 1024u) / 4u;
+    static constexpr size_t kPushLimitDwords = (kPushBufferBytes - 32u * 1024u) / 4u;
 
     // Commands accumulate in an open block and go to the GPU in chunks of
     // kBlockDwords (closeBlock): each hand-over costs several emulated
@@ -1465,11 +1506,11 @@ struct GSNv2aBackend::Impl
             // One strip; a draw takes at most 256 vertices, so consecutive
             // draws overlap by two (a fresh strip continues the triangles;
             // culling is off, so the flipped winding does not matter).
-            p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
+            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
             for (uint32_t first = 0;;)
             {
                 const uint32_t n = std::min<uint32_t>(batchCount - first, 256u);
-                p = pb_push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
+                p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
                 if (first + n >= batchCount)
                     break;
                 first += n - 2u;
@@ -1477,14 +1518,14 @@ struct GSNv2aBackend::Impl
         }
         else
         {
-            p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
+            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
             for (uint32_t first = 0; first < batchCount; first += 256)
             {
                 const uint32_t n = std::min<uint32_t>(batchCount - first, 256u);
-                p = pb_push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
+                p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
             }
         }
-        p = pb_push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
         cursor = p;
         if (size_t(cursor - openBlock) >= kBlockDwords)
             closeBlock();
@@ -1887,27 +1928,38 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     XVideoSetMode(640, 480, 16, REFRESH_DEFAULT);
     pb_set_color_format(NV097_SET_SURFACE_FORMAT_COLOR_LE_R5G6B5, false);
     pb_ts_set_depth_format(NV097_SET_SURFACE_FORMAT_ZETA_Z24S8);
-    pb_size(256u * 1024u);
-    if (pb_init() != 0)
+    // The push buffer (520 KB with pbkit's margin) is pb_init's one large
+    // contiguous allocation; it fails with -3 when that is not available.
+    pb_size(kPushBufferBytes);
+    if (const int error = pb_init(); error != 0)
     {
-        debugPrint("pbkit: pb_init failed\n");
+        debugPrint("pbkit: pb_init failed (%d)\n", error);
         return nullptr;
     }
     std::unique_ptr<GSNv2aBackend> backend(new GSNv2aBackend());
-    backend->m->vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));
-    backend->m->xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex)));
-    backend->m->fence = static_cast<volatile uint32_t *>(allocGpu(64));
-    if (backend->m->fence)
+    Impl &impl = *backend->m;
+    impl.vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));       // 288 KB
+    impl.xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex))); // 352 KB
+    impl.fence = static_cast<volatile uint32_t *>(allocGpu(64));
+    if (impl.fence)
     {
-        *backend->m->fence = 0u;
+        *impl.fence = 0u;
         static s_CtxDma fenceDma;
-        pb_create_dma_ctx(Impl::kFenceDma, DMA_CLASS_3D, DWORD(reinterpret_cast<uintptr_t>(const_cast<uint32_t *>(backend->m->fence))),
+        pb_create_dma_ctx(Impl::kFenceDma, DMA_CLASS_3D, DWORD(reinterpret_cast<uintptr_t>(const_cast<uint32_t *>(impl.fence))),
                           63u, &fenceDma);
         pb_bind_channel(&fenceDma);
     }
-    if (!backend->m->vertices || !backend->m->xfVertices || !backend->m->fence)
+    if (!impl.vertices || !impl.xfVertices || !impl.fence)
     {
+        debugPrint("nv2a: no contiguous memory for the vertex buffers\n");
         pb_kill();
+        // The software renderer takes over: give back what was allocated.
+        if (impl.vertices)
+            MmFreeContiguousMemory(impl.vertices);
+        if (impl.xfVertices)
+            MmFreeContiguousMemory(impl.xfVertices);
+        if (impl.fence)
+            MmFreeContiguousMemory(const_cast<uint32_t *>(impl.fence));
         return nullptr;
     }
     pb_show_front_screen();

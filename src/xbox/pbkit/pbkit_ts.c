@@ -3,7 +3,9 @@
 //  - triple buffering kept (BackBufferCount; the frame buffers are 16-bit,
 //    0.6 MB each), the flip bookkeeping sized by the buffer count;
 //  - pb_ts_set_depth_format(): a 16-bit depth buffer (0.6 MB instead of 1.2);
-//  - pb_ts_front_buffer(): the buffer on screen.
+//  - pb_ts_front_buffer(): the buffer on screen;
+//  - pb_ts_end_count: pb_end calls so far (the renderer's status line);
+//  - pb_init's early failures (-2, -3) free the Dma buffers.
 // clang-format off
 
 //pbKit core functions
@@ -103,6 +105,7 @@ static  DWORD           pb_Size=PBKIT_PUSHBUFFER_SIZE;//push buffer size, must b
 static  uint32_t        *pb_Head;   //points at push buffer head
 static  uint32_t        *pb_Tail;   //points at push buffer tail
 static  uint32_t        *pb_Put=NULL;   //where next command+params are to be written
+unsigned int            pb_ts_end_count=0; //TS: pb_end calls so far (read by gs_nv2a_backend.cpp)
 
 static  float           pb_CpuFrequency;
 
@@ -1868,6 +1871,8 @@ void pb_end(uint32_t *pEnd)
 
     pb_Put=pEnd;
 
+    ++pb_ts_end_count; //TS: each one is a write-combine flush and a register write
+
     pb_start(); //start (or continue) reading and sending data to GPU
 
     if (pb_trace_mode) //do we want to wait until block data has been sent (for debugging GPU errors)?
@@ -2192,6 +2197,15 @@ void pb_set_color_format(unsigned int fmt, bool swizzled)
     assert(swizzled == false);
 }
 
+//TS: pb_init's early failures (-2, -3) give back the Dma buffers.
+static void pb_ts_free_dma_buffers(void)
+{
+    if (pb_DmaBuffer8) MmFreeContiguousMemory(pb_DmaBuffer8);
+    if (pb_DmaBuffer2) MmFreeContiguousMemory(pb_DmaBuffer2);
+    if (pb_DmaBuffer7) MmFreeContiguousMemory(pb_DmaBuffer7);
+    pb_DmaBuffer8=pb_DmaBuffer2=pb_DmaBuffer7=NULL;
+}
+
 int pb_init(void)
 {
     DWORD           old;
@@ -2309,13 +2323,21 @@ int pb_init(void)
     pb_DmaBuffer8 = MmAllocateContiguousMemoryEx(32, 0, MAXRAM, 0, PAGE_READWRITE);
     pb_DmaBuffer2 = MmAllocateContiguousMemoryEx(32, 0, MAXRAM, 0, PAGE_READWRITE);
     pb_DmaBuffer7 = MmAllocateContiguousMemoryEx(32, 0, MAXRAM, 0, PAGE_READWRITE);
-    if ((pb_DmaBuffer8==NULL)||(pb_DmaBuffer2==NULL)||(pb_DmaBuffer7==NULL)) return -2;
+    if ((pb_DmaBuffer8==NULL)||(pb_DmaBuffer2==NULL)||(pb_DmaBuffer7==NULL))
+    {
+        pb_ts_free_dma_buffers(); //TS: not leaked (the caller falls back to the software renderer)
+        return -2;
+    }
     memset(pb_DmaBuffer8,0,32);
     memset(pb_DmaBuffer2,0,32);
     memset(pb_DmaBuffer7,0,32);
 
     pb_Head = MmAllocateContiguousMemoryEx(pb_Size+8*1024, 0, MAXRAM, 0, PAGE_READWRITE | PAGE_WRITECOMBINE);
-    if (pb_Head==NULL) return -3;
+    if (pb_Head==NULL)
+    {
+        pb_ts_free_dma_buffers(); //TS: not leaked (the caller falls back to the software renderer)
+        return -3;
+    }
 
     memset(pb_Head,0,pb_Size+8*1024);
 

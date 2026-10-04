@@ -1271,7 +1271,7 @@ struct GSNv2aBackend::Impl
         uint32_t alphaTest = 0, alphaFunc = 0, alphaRef = 0;
         uint32_t depthTest = 0, depthFunc = 0, depthMask = 0;
         uint32_t colorMask = 0, shade = 0;
-        uint32_t vertexMode = 0, constSerial = 0; // transform programs (SubmitStripsTransformed)
+        uint32_t vertexMode = 0, constSerial = 0; // transform programs (BeginXfRun)
         uint32_t topology = 0;                    // 0 triangle list, 1 one triangle strip (joined)
         bool operator==(const DrawKey &) const = default;
     };
@@ -1488,7 +1488,7 @@ struct GSNv2aBackend::Impl
     }
 
     // Room for count more transformed vertices in the batch of `key`, which
-    // the caller has already compared with batchKey (emitXf: once a run).
+    // the caller has already compared with batchKey (beginXfRun: once a run).
     GSXfVertex *reserveXf(const DrawKey &key, uint32_t count)
     {
         if (xfUsed + count > (xfSegment + 1u) * kXfSegment)
@@ -2049,24 +2049,18 @@ struct GSNv2aBackend::Impl
         screenGpuNewer = true;
     }
 
-    // A strip of raw vertices for the transform programs: the frame and
-    // texture handling of submitScreenVerts, then the constants (with this
-    // frame's 640x480 mapping and depth format folded in) and the vertices
-    // as a triangle list with each triangle's last vertex first (the GS
-    // flat-shades with the last vertex, the NV2A with the first).
-    bool submitXf(const GSDrawState &state, const GSXfConstants &c, const GSXfVertex *v, const uint8_t *counts,
-                  uint32_t strips)
+    // A run of strips of raw vertices for the transform programs: the frame
+    // and texture handling of submitScreenVerts, then the constants (with
+    // this frame's 640x480 mapping and depth format folded in). The strips
+    // follow (beginXfStrip / emitXfStrip), written into the transform ring
+    // by the caller or laid out from its array: one joined strip (gouraud),
+    // or a triangle list with each triangle's last vertex first (the GS
+    // flat-shades with the last vertex, the NV2A with the first). The caller
+    // sends no strip of fewer than three vertices.
+    bool beginXfRun(const GSDrawState &state, const GSXfConstants &c, bool &direct)
     {
-        if (state.prim.type != GS_PRIM_TRISTRIP || strips == 0u || state.prim.fst || c.variant > 3u ||
-            !isScreenTarget(state))
+        if (state.prim.type != GS_PRIM_TRISTRIP || state.prim.fst || c.variant > 3u || !isScreenTarget(state))
             return false;
-        uint32_t total = 0;
-        for (uint32_t i = 0; i < strips; ++i)
-        {
-            if (counts[i] < 3u || counts[i] > 64u)
-                return false;
-            total += counts[i];
-        }
         if (frameOpen && state.context.frame.fbp != frameFbp)
             finishFrame();
         if (!frameOpen)
@@ -2080,8 +2074,6 @@ struct GSNv2aBackend::Impl
         DrawKey key = keyFor(state, tex);
         key.vertexMode = 1u + c.variant;
         key.topology = state.prim.iip ? 1u : 0u; // flat shading needs the list's vertex order
-        g_nv2aTextureStats.xfStrips += strips;
-        g_nv2aTextureStats.xfVertices += total;
 
         const auto &ctx = state.context;
         // Constants stay while the native pipeline's do (c.serial: it moves
@@ -2090,89 +2082,100 @@ struct GSNv2aBackend::Impl
         const bool built = c.serial != 0u && c.serial == xfBuiltSerial && frameFbw == xfBuiltFbw &&
                            frameHeight == xfBuiltHeight && ctx.xyoffset.ofx == xfBuiltOfx &&
                            ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm;
-        if (built && !c.check)
+        if (!built || c.check)
         {
-            key.constSerial = xfSerial;
-            return emitXf(key, v, counts, strips);
-        }
-        xfBuiltSerial = c.serial;
-        xfBuiltFbw = frameFbw;
-        xfBuiltHeight = frameHeight;
-        xfBuiltOfx = ctx.xyoffset.ofx;
-        xfBuiltOfy = ctx.xyoffset.ofy;
-        xfBuiltZpsm = ctx.zbuf.psm;
-        const float ofx = float(ctx.xyoffset.ofx >> 4), ofy = float(ctx.xyoffset.ofy >> 4);
-        const float sx = float(kScreenWidth) / float(frameFbw * 64u);
-        const float sy = float(kScreenHeight) / float(frameHeight);
-        const float dz = depthScale(ctx.zbuf.psm);
-        float k[kXfConstantRegs - 1][4];
-        std::memcpy(k[0], c.mvp, sizeof(c.mvp));
-        std::memcpy(k[12], c.lightDir, sizeof(c.lightDir));
-        std::memcpy(k[24], c.lightColour, sizeof(c.lightColour));
-        const float scale[4] = {c.scale[0] * sx, c.scale[1] * sy, c.scale[2] * dz, 0.0f};
-        const float offset[4] = {(c.offset[0] - ofx) * sx, (c.offset[1] - ofy) * sy, c.offset[2] * dz, 0.0f};
-        std::memcpy(k[28], scale, 16);
-        std::memcpy(k[29], offset, 16);
-        std::memcpy(k[30], c.model, sizeof(c.model));
-        const float clampLit[4] = {127.0f / 255.0f, 0.0f, 0.5f, 16777215.0f}; // .w: depth range
-        std::memcpy(k[33], clampLit, 16);
-        if (std::memcmp(k, xfK, sizeof(k)) != 0)
-        {
-            if (built) // a check run: the rebuild the serial skipped would have changed them
-                noteDrawDiff("constants", c.serial, xfSerial);
-            if (batchCount)
-                flushBatch(); // the batch so far uses the old constants
-            std::memcpy(xfK, k, sizeof(k));
-            ++xfSerial;
+            xfBuiltSerial = c.serial;
+            xfBuiltFbw = frameFbw;
+            xfBuiltHeight = frameHeight;
+            xfBuiltOfx = ctx.xyoffset.ofx;
+            xfBuiltOfy = ctx.xyoffset.ofy;
+            xfBuiltZpsm = ctx.zbuf.psm;
+            const float ofx = float(ctx.xyoffset.ofx >> 4), ofy = float(ctx.xyoffset.ofy >> 4);
+            const float sx = float(kScreenWidth) / float(frameFbw * 64u);
+            const float sy = float(kScreenHeight) / float(frameHeight);
+            const float dz = depthScale(ctx.zbuf.psm);
+            float k[kXfConstantRegs - 1][4];
+            std::memcpy(k[0], c.mvp, sizeof(c.mvp));
+            std::memcpy(k[12], c.lightDir, sizeof(c.lightDir));
+            std::memcpy(k[24], c.lightColour, sizeof(c.lightColour));
+            const float scale[4] = {c.scale[0] * sx, c.scale[1] * sy, c.scale[2] * dz, 0.0f};
+            const float offset[4] = {(c.offset[0] - ofx) * sx, (c.offset[1] - ofy) * sy, c.offset[2] * dz, 0.0f};
+            std::memcpy(k[28], scale, 16);
+            std::memcpy(k[29], offset, 16);
+            std::memcpy(k[30], c.model, sizeof(c.model));
+            const float clampLit[4] = {127.0f / 255.0f, 0.0f, 0.5f, 16777215.0f}; // .w: depth range
+            std::memcpy(k[33], clampLit, 16);
+            if (std::memcmp(k, xfK, sizeof(k)) != 0)
+            {
+                if (built) // a check run: the rebuild the serial skipped would have changed them
+                    noteDrawDiff("constants", c.serial, xfSerial);
+                if (batchCount)
+                    flushBatch(); // the batch so far uses the old constants
+                std::memcpy(xfK, k, sizeof(k));
+                ++xfSerial;
+            }
         }
         key.constSerial = xfSerial;
-        return emitXf(key, v, counts, strips);
-    }
-
-    uint32_t xfBuiltSerial = 0, xfBuiltFbw = 0, xfBuiltHeight = 0, xfBuiltOfx = 0, xfBuiltOfy = 0, xfBuiltZpsm = 0;
-
-    GSXfVertex stripLast{}; // last vertex of the current strip batch (joins)
-
-    bool emitXf(const DrawKey &key, const GSXfVertex *v, const uint8_t *counts, uint32_t strips)
-    {
         // The run's strips share the key: one comparison for all of them
         // (a batch open after it has this key; a segment change starts a
         // new batch of it).
         if (batchCount && !(key == batchKey))
             flushBatch();
-        for (uint32_t s = 0; s < strips; v += counts[s], ++s)
+        runKey = key;
+        direct = key.topology == 1u;
+        return true;
+    }
+
+    uint32_t xfBuiltSerial = 0, xfBuiltFbw = 0, xfBuiltHeight = 0, xfBuiltOfx = 0, xfBuiltOfy = 0, xfBuiltZpsm = 0;
+
+    DrawKey runKey{};       // the open run's (beginXfRun)
+    GSXfVertex stripLast{}; // last vertex of the current strip batch (joins): a cached copy, the ring is write-combined
+
+    // Room for a strip of n vertices, joined to the batch's strip by two
+    // repeated vertices (degenerate triangles draw nothing); the caller
+    // writes the n and hands the last one to endXfStrip.
+    GSXfVertex *beginXfStrip(uint32_t n, const GSXfVertex &first)
+    {
+        ++g_nv2aTextureStats.xfStrips;
+        g_nv2aTextureStats.xfVertices += n;
+        const bool join = batchCount != 0u;
+        GSXfVertex *out = reserveXf(runKey, n + (join ? 2u : 0u));
+        if (join)
         {
-            const uint32_t n = counts[s];
-            if (key.topology == 1u)
-            {
-                // Joined to the batch's strip by two repeated vertices
-                // (degenerate triangles draw nothing).
-                const bool join = batchCount != 0u;
-                GSXfVertex *out = reserveXf(key, n + (join ? 2u : 0u));
-                if (join)
-                {
-                    *out++ = stripLast;
-                    *out++ = v[0];
-                }
-                std::memcpy(out, v, n * sizeof(GSXfVertex));
-                stripLast = v[n - 1];
-            }
-            else
-            {
-                // Each triangle's last vertex first: the GS flat-shades with
-                // the last vertex, the NV2A with the first.
-                GSXfVertex *out = reserveXf(key, 3u * (n - 2u));
-                for (uint32_t i = 2; i < n; ++i, out += 3)
-                {
-                    out[0] = v[i];
-                    out[1] = v[i - 2];
-                    out[2] = v[i - 1];
-                }
-            }
+            *out++ = stripLast;
+            *out++ = first;
         }
+        return out;
+    }
+
+    void endXfStrip(const GSXfVertex &last) { stripLast = last; }
+
+    void emitXfStrip(const GSXfVertex *v, uint32_t n)
+    {
+        if (runKey.topology == 1u)
+        {
+            GSXfVertex *out = beginXfStrip(n, v[0]);
+            std::memcpy(out, v, n * sizeof(GSXfVertex));
+            stripLast = v[n - 1];
+            return;
+        }
+        ++g_nv2aTextureStats.xfStrips;
+        g_nv2aTextureStats.xfVertices += n;
+        // Each triangle's last vertex first: the GS flat-shades with the
+        // last vertex, the NV2A with the first.
+        GSXfVertex *out = reserveXf(runKey, 3u * (n - 2u));
+        for (uint32_t i = 2; i < n; ++i, out += 3)
+        {
+            out[0] = v[i];
+            out[1] = v[i - 2];
+            out[2] = v[i - 1];
+        }
+    }
+
+    void endXfRun()
+    {
         gpuRows = std::min<uint32_t>(frameHeight, kDisplayRows); // where it lands is not known here
         screenGpuNewer = true;
-        return true;
     }
 
     // ----------------------------------------- screen <-> local memory
@@ -2397,11 +2400,21 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
     m->markTargetPages(target, true);
 }
 
-bool GSNv2aBackend::SubmitStripsTransformed(const GSDrawState &state, const GSXfConstants &constants,
-                                            const GSXfVertex *vertices, const uint8_t *counts, uint32_t strips)
+bool GSNv2aBackend::BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, bool &direct)
 {
-    return m->submitXf(state, constants, vertices, counts, strips);
+    return m->beginXfRun(state, constants, direct);
 }
+
+GSXfVertex *GSNv2aBackend::BeginXfStrip(uint32_t count, const GSXfVertex &first)
+{
+    return m->beginXfStrip(count, first);
+}
+
+void GSNv2aBackend::EndXfStrip(const GSXfVertex &last) { m->endXfStrip(last); }
+
+void GSNv2aBackend::EmitXfStrip(const GSXfVertex *vertices, uint32_t count) { m->emitXfStrip(vertices, count); }
+
+void GSNv2aBackend::EndXfRun() { m->endXfRun(); }
 
 bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count)
 {

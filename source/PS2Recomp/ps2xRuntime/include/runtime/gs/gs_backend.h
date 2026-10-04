@@ -47,14 +47,26 @@ public:
     // A whole triangle strip in one call (the Xbox renderer); false when
     // the backend wants it as individual primitives.
     virtual bool SubmitStrip(const GSDrawState &, const GSVertex *, uint32_t) { return false; }
-    // Triangle strips of raw vertices (counts[i] vertices each, back to back)
-    // for the backend's own transform (the Xbox renderer's vertex
-    // programs); false: the caller transforms them itself.
-    virtual bool SubmitStripsTransformed(const GSDrawState &, const GSXfConstants &, const GSXfVertex *,
-                                         const uint8_t * /*counts*/, uint32_t /*strips*/)
-    {
-        return false;
-    }
+    // A run of triangle strips of raw vertices for the backend's own
+    // transform (the Xbox renderer's vertex programs), written by the caller
+    // straight into the backend's vertex memory, so a vertex decoded from
+    // the game's data is stored once. BeginXfRun takes the run's state and
+    // constants (false: the caller transforms the strips itself; every strip
+    // of the run must have three vertices or more). Then, per strip, either
+    // BeginXfStrip returns room for `count` vertices in strip order, which
+    // the caller fills without reading back (the memory may be
+    // write-combined; `first` is the strip's first vertex, which the backend
+    // may need before the room exists), and EndXfStrip hands over a cached
+    // copy of the strip's last vertex (strips are joined by repeated
+    // vertices); or, when `direct` came back false (the backend lays the
+    // strip out itself), EmitXfStrip takes the strip from the caller's
+    // array. EndXfRun closes the run; nothing else may touch the GS between
+    // BeginXfRun and EndXfRun.
+    virtual bool BeginXfRun(const GSDrawState &, const GSXfConstants &, bool & /*direct*/) { return false; }
+    virtual GSXfVertex *BeginXfStrip(uint32_t /*count*/, const GSXfVertex & /*first*/) { return nullptr; }
+    virtual void EndXfStrip(const GSXfVertex & /*last*/) {}
+    virtual void EmitXfStrip(const GSXfVertex *, uint32_t /*count*/) {}
+    virtual void EndXfRun() {}
     virtual void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) = 0;
     // Development: the CLUT buffer and its CLD address mirror as one value,
     // for self-checks that compare backend state (0: not tracked).

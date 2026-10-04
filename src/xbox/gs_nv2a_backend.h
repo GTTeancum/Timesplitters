@@ -73,10 +73,14 @@ struct GSNv2aTextureStats
     // repeated (nothing to apply), found in the material table, decoded
     // afresh; transform-constant rebuilds; texture lookups answered by the
     // recent-texture table. TS_NATIVE_DRAW_SELFCHECK: runs checked against
-    // the old path, and the differences found.
+    // the old path, and the differences found. TS_NATIVE_RING_SELFCHECK:
+    // runs whose vertices, written straight into the transform ring, were
+    // compared with the pipeline's earlier decode, and the runs that
+    // differed (must stay 0).
     uint32_t materialRepeats = 0, materialHits = 0, materialMisses = 0, constRebuilds = 0, textureFast = 0;
     uint32_t drawChecked = 0, drawDiffs = 0;
     char drawDiffLast[24] = ""; // what differed last (status line)
+    uint32_t ringChecked = 0, ringDiffs = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 
@@ -92,8 +96,11 @@ public:
 
     void Submit(const GSPrimitiveBatch &batch) override;
     bool SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count) override;
-    bool SubmitStripsTransformed(const GSDrawState &state, const GSXfConstants &constants, const GSXfVertex *vertices,
-                                 const uint8_t *counts, uint32_t strips) override;
+    bool BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, bool &direct) override;
+    GSXfVertex *BeginXfStrip(uint32_t count, const GSXfVertex &first) override;
+    void EndXfStrip(const GSXfVertex &last) override;
+    void EmitXfStrip(const GSXfVertex *vertices, uint32_t count) override;
+    void EndXfRun() override;
     void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) override;
     uint64_t DebugClutState() override;
 

@@ -1716,18 +1716,29 @@ void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t c
     }
 }
 
-bool GS::submitStripsTransformed(uint32_t primRegister, const GSXfConstants &constants, const GSXfVertex *vertices,
-                                 const uint8_t *counts, uint32_t strips)
+bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, bool &direct)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    // The lock is held until endXfRun (the mutex is recursive; the caller's
+    // thread writes the strips in between), as one submit held it before.
+    m_stateMutex.lock();
     writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
-    if (!m_backend || strips == 0u)
-        return false;
-    const GSPrimitiveBatch batch = buildDrawBatch(0);
-    if (!m_backend->SubmitStripsTransformed(batch.state, constants, vertices, counts, strips))
-        return false;
-    m_vtxCount = 0;
-    return true;
+    if (m_backend)
+    {
+        const GSPrimitiveBatch batch = buildDrawBatch(0);
+        if (m_backend->BeginXfRun(batch.state, constants, direct))
+        {
+            m_vtxCount = 0; // as a PACKED packet with PRE set leaves the vertex queue
+            return true;
+        }
+    }
+    m_stateMutex.unlock();
+    return false;
+}
+
+void GS::endXfRun()
+{
+    m_backend->EndXfRun();
+    m_stateMutex.unlock();
 }
 
 bool GS::decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out)

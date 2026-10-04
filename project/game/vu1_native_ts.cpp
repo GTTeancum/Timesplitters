@@ -25,6 +25,7 @@
 #include "runtime/ps2_vu1_watch.h"
 #include "runtime/gs/gs_frontend.h"
 #include "runtime/gs/ps2_gif_arbiter.h"
+#include "vu1_native_xf.h"
 
 #if defined(PLATFORM_XBOX)
 #include "../../src/xbox/gs_nv2a_backend.h" // status counters
@@ -38,7 +39,7 @@
 // rebuild. Differences count in drawdiff= (status block), the first few are
 // logged, and the old path's result is the one used.
 #ifndef TS_NATIVE_DRAW_SELFCHECK
-#define TS_NATIVE_DRAW_SELFCHECK 1
+#define TS_NATIVE_DRAW_SELFCHECK 0
 #endif
 #ifndef TS_NATIVE_DRAW_SELFCHECK_RUNS
 #define TS_NATIVE_DRAW_SELFCHECK_RUNS 0xFFFFFFFFu // validation run: the whole session
@@ -46,11 +47,26 @@
 #ifndef TS_NATIVE_DRAW_SELFCHECK_EVERY
 #define TS_NATIVE_DRAW_SELFCHECK_EVERY 32u
 #endif
+// TS_NATIVE_RING_SELFCHECK 1: on one draw run in TS_NATIVE_RING_SELFCHECK_EVERY
+// (the whole session) every strip the renderer transforms is also decoded
+// the way the pipeline first did it (into a cached array, vu1_native_xf.h),
+// and compared bit for bit with the records written into the renderer's
+// transform ring (from a cached shadow of the writes: the ring is
+// write-combined memory, never read back). Differences count in ringdiff=
+// (status block; must stay 0), the first few are logged.
+#ifndef TS_NATIVE_RING_SELFCHECK
+#define TS_NATIVE_RING_SELFCHECK 0
+#endif
+#ifndef TS_NATIVE_RING_SELFCHECK_EVERY
+#define TS_NATIVE_RING_SELFCHECK_EVERY 32u
+#endif
 #include <iostream>
 #else
 #define TS_NATIVE_STAT(expr) ((void)0)
 #undef TS_NATIVE_DRAW_SELFCHECK // (the renderer's path is the Xbox's)
 #define TS_NATIVE_DRAW_SELFCHECK 0
+#undef TS_NATIVE_RING_SELFCHECK
+#define TS_NATIVE_RING_SELFCHECK 0
 #endif
 
 #include <algorithm>
@@ -63,15 +79,10 @@
 namespace
 {
     constexpr uint64_t kProgramHash = 0x38ae1e855cd83deeull;
-    constexpr uint32_t kDataQwords = 1024u;
+    using ts_native_xf::kDataQwords;
+    using ts_native_xf::Layout;
     constexpr float kLitClamp = 127.0f; // minii in the lit entries
     constexpr float kGuardBand = 4.0f;  // |x|,|y| <= 4w keeps 12.4 screen coordinates in range
-
-    struct Layout
-    {
-        uint32_t vertexBase, pos, rgba, st, normal, boneIndex;
-        bool lit, skinned, envMap;
-    };
 
     const Layout *layoutFor(uint32_t pc)
     {
@@ -582,120 +593,168 @@ namespace
             }
         };
 
-        // GPU path: a run's unclipped strips go to the renderer together
-        // (raw vertices, one call), in order with everything else.
-        static GSXfVertex s_batch[64u * 64u];
-        static uint8_t s_counts[64];
-        struct Pending
+        // The strip headers, read first: the renderer takes a run's strips
+        // in groups of one PRIM, and whether a group can go to it (every
+        // strip has three vertices or more) must be known before the
+        // group's first vertex is written into its memory.
+        struct Strip
         {
             uint32_t tag[4];
             uint32_t n, vi;
         };
-        static Pending s_pending[64];
-        uint32_t batchStrips = 0, batchVerts = 0, batchPrim = 0;
-        bool anything = false;
-        auto flushGpu = [&]() {
-            if (batchStrips == 0u)
-                return;
-            packet.submit(); // the state block and anything before go first
-            if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
-                memory->gifArbiter()->drain();
-            if (!gs.submitStripsTransformed(batchPrim, *xc, s_batch, s_counts, batchStrips))
-                for (uint32_t i = 0; i < batchStrips; ++i)
-                    cpuStrip(s_pending[i].tag, s_pending[i].n, s_pending[i].vi);
-            batchStrips = batchVerts = 0;
-        };
-        auto finish = [&]() {
-            flushGpu();
-            if (anything) // the state block and the strips; nothing at all otherwise
-                packet.submit();
-            return anything;
-        };
-
-        uint32_t header = top, vi = top + L.vertexBase;
-        for (uint32_t strip = 0; strip < 64u; ++strip)
+        static Strip strips[64]; // (runDraw is not re-entered)
+        uint32_t stripCount = 0;
+        for (uint32_t header = top, vi = top + L.vertexBase; stripCount < 64u;)
         {
-            uint32_t tag[4];
-            loadI(data, header, tag);
-            const uint32_t n = tag[0] & 0x7FFFu;
-            const bool last = (tag[0] & 0x8000u) != 0u;
-            if (n == 0u || n > 64u || ((tag[1] >> 28) & 0xFu) != 3u)
-                return finish();
+            Strip &s = strips[stripCount];
+            loadI(data, header, s.tag);
+            const uint32_t n = s.tag[0] & 0x7FFFu;
+            if (n == 0u || n > 64u || ((s.tag[1] >> 28) & 0xFu) != 3u)
+                break;
             if (vi + L.st + n > kDataQwords || vi + L.rgba + n > kDataQwords ||
                 ((L.lit || L.envMap) && vi + L.normal + n > kDataQwords))
-                return finish();
-            sendState();
-
-            bool queued = false;
-            if (gpuTransform && (tag[1] & (1u << 14)) != 0u)
-            {
-                const uint32_t prim = (tag[1] >> 15) & 0x7FFu;
-                if (batchStrips != 0u && prim != batchPrim)
-                    flushGpu();
-                // Raw vertices for the GPU's transform and clipping: copies and
-                // integer work only (float maths is slow under emulation, and
-                // the GPU clips in homogeneous space like the VU1 program).
-                GSXfVertex *raw = s_batch + batchVerts;
-                bool nearOk = true;
-                for (uint32_t v = 0; v < n && nearOk; ++v)
-                {
-                    GSXfVertex &o = raw[v];
-                    std::memcpy(&o.x, data + ((vi + L.pos + v) & (kDataQwords - 1u)) * 16u, 12);
-                    uint32_t bone = 0;
-                    if (L.skinned)
-                    {
-                        uint32_t index[4];
-                        loadI(data, vi + L.boneIndex + v, index);
-                        bone = std::min<uint32_t>(index[0] & 0xFFFFu, 2u);
-                    }
-                    o.bone4 = static_cast<float>(bone * 4u);
-                    if (L.lit || L.envMap)
-                        std::memcpy(&o.nx, data + ((vi + L.normal + v) & (kDataQwords - 1u)) * 16u, 12);
-                    else
-                        o.nx = o.ny = o.nz = 0.0f;
-                    uint32_t rgba[4];
-                    loadI(data, vi + L.rgba + v, rgba);
-                    // The low byte, as a PACKED RGBAQ write keeps it.
-                    o.color = (rgba[2] & 0xFFu) | ((rgba[1] & 0xFFu) << 8) | ((rgba[0] & 0xFFu) << 16) | ((rgba[3] & 0xFFu) << 24);
-                    if (L.envMap)
-                    {
-                        o.s = o.t = 0.0f;
-                        o.q = 1.0f;
-                    }
-                    else
-                    {
-                        std::memcpy(&o.s, data + ((vi + L.st + v) & (kDataQwords - 1u)) * 16u, 12);
-                        if (o.q == 0.0f)
-                            o.q = 1.0f; // as the GS treats Q = 0
-                    }
-                }
-                if (nearOk)
-                {
-                    s_counts[batchStrips] = static_cast<uint8_t>(n);
-                    Pending &pd = s_pending[batchStrips];
-                    std::memcpy(pd.tag, tag, 16);
-                    pd.n = n;
-                    pd.vi = vi;
-                    ++batchStrips;
-                    batchVerts += n;
-                    batchPrim = prim;
-                    queued = true;
-                }
-                else
-                    TS_NATIVE_STAT(++g_nv2aTextureStats.nearFallbacks);
-            }
-            if (!queued)
-            {
-                flushGpu(); // keep the order of the strips
-                cpuStrip(tag, n, vi);
-            }
-            anything = true;
-            if (last)
+                break;
+            s.n = n;
+            s.vi = vi;
+            ++stripCount;
+            if (s.tag[0] & 0x8000u) // EOP: the last strip
                 break;
             ++header;
             vi += n;
         }
-        return finish();
+        if (stripCount == 0u)
+            return false; // nothing at all: not even the state block
+        sendState();
+
+#if TS_NATIVE_RING_SELFCHECK
+        static uint32_t s_ringRuns = 0;
+        const bool ringCheck = gpuTransform && (s_ringRuns++ % TS_NATIVE_RING_SELFCHECK_EVERY) == 0u;
+        bool ringChecked = false, ringDiffered = false;
+        // The strip the pipeline's first decode gives, and a cached shadow
+        // of the records written into the ring.
+        static GSXfVertex s_ringRef[64], s_ringShadow[64];
+        auto checkRingStrip = [&](const Strip &strip, const GSXfVertex *written) {
+            for (uint32_t i = 0; i < strip.n; ++i)
+                ts_native_xf::decodeXfVertexReference(L, data, strip.vi, i, s_ringRef[i]);
+            ringChecked = true;
+            if (std::memcmp(s_ringRef, written, strip.n * sizeof(GSXfVertex)) == 0)
+                return;
+            if (ringDiffered)
+                return;
+            ringDiffered = true;
+            if (g_nv2aTextureStats.ringDiffs >= 16u)
+                return;
+            uint32_t i = 0;
+            while (std::memcmp(&s_ringRef[i], &written[i], sizeof(GSXfVertex)) == 0)
+                ++i;
+            uint32_t word = 0;
+            while (std::memcmp(reinterpret_cast<const uint8_t *>(&s_ringRef[i]) + word * 4u,
+                               reinterpret_cast<const uint8_t *>(&written[i]) + word * 4u, 4) == 0)
+                ++word;
+            std::cout << "[TS:ringcheck] run " << g_nv2aTextureStats.ringChecked << ": strip of " << strip.n
+                      << " at qword " << strip.vi << ", vertex " << i << ", word " << word << " differs" << std::endl;
+        };
+#endif
+
+        // GPU path: a strip's vertices decoded from the arrays straight into
+        // the renderer's transform ring (one joined strip; the ring is
+        // write-combined memory, written front to back and never read
+        // back; the first and last vertices also go through a cached copy,
+        // which the renderer's joins need), or into a local array the
+        // renderer lays out itself (a triangle list, flat shading).
+        auto gpuStrip = [&](const Strip &strip, bool direct) {
+            const uint32_t n = strip.n, vi = strip.vi;
+            if (direct)
+            {
+                GSXfVertex v;
+                ts_native_xf::decodeXfVertex(L, data, vi, 0u, &v);
+                GSXfVertex *out = gs.beginXfStrip(n, v);
+                out[0] = v;
+#if TS_NATIVE_RING_SELFCHECK
+                if (ringCheck)
+                {
+                    // The production path's own stores into the ring (decoded
+                    // in place), decoded a second time into the shadow.
+                    s_ringShadow[0] = v;
+                    for (uint32_t i = 1; i + 1 < n; ++i)
+                    {
+                        ts_native_xf::decodeXfVertex(L, data, vi, i, out + i);
+                        ts_native_xf::decodeXfVertex(L, data, vi, i, &s_ringShadow[i]);
+                    }
+                    ts_native_xf::decodeXfVertex(L, data, vi, n - 1u, &v);
+                    out[n - 1u] = v;
+                    s_ringShadow[n - 1u] = v;
+                    gs.endXfStrip(v);
+                    checkRingStrip(strip, s_ringShadow);
+                    return;
+                }
+#endif
+                for (uint32_t i = 1; i + 1 < n; ++i)
+                    ts_native_xf::decodeXfVertex(L, data, vi, i, out + i);
+                ts_native_xf::decodeXfVertex(L, data, vi, n - 1u, &v);
+                out[n - 1u] = v;
+                gs.endXfStrip(v);
+            }
+            else
+            {
+                GSXfVertex list[64];
+                for (uint32_t i = 0; i < n; ++i)
+                    ts_native_xf::decodeXfVertex(L, data, vi, i, &list[i]);
+#if TS_NATIVE_RING_SELFCHECK
+                if (ringCheck)
+                    checkRingStrip(strip, list);
+#endif
+                gs.emitXfStrip(list, n);
+            }
+        };
+
+        // A strip the renderer transforms: PRE set (the tag carries PRIM).
+        auto gpuEligible = [&](const Strip &s) { return gpuTransform && (s.tag[1] & (1u << 14)) != 0u; };
+        for (uint32_t i = 0; i < stripCount;)
+        {
+            if (!gpuEligible(strips[i]))
+            {
+                cpuStrip(strips[i].tag, strips[i].n, strips[i].vi);
+                ++i;
+                continue;
+            }
+            // The run of strips of one PRIM, back to back, the renderer takes
+            // as one call, in order with everything else. A strip of fewer
+            // than three vertices sends the whole group to the CPU path (as
+            // the renderer declined such a group before).
+            const uint32_t prim = (strips[i].tag[1] >> 15) & 0x7FFu;
+            uint32_t j = i;
+            bool ok = true;
+            while (j < stripCount && gpuEligible(strips[j]) && ((strips[j].tag[1] >> 15) & 0x7FFu) == prim)
+            {
+                ok = ok && strips[j].n >= 3u;
+                ++j;
+            }
+            packet.submit(); // the state block and anything before go first
+            if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
+                memory->gifArbiter()->drain(); // packets queued behind other paths, in order
+            bool direct = false;
+            if (ok && gs.beginXfRun(prim, *xc, direct))
+            {
+                for (uint32_t k = i; k < j; ++k)
+                    gpuStrip(strips[k], direct);
+                gs.endXfRun();
+            }
+            else
+                for (uint32_t k = i; k < j; ++k)
+                    cpuStrip(strips[k].tag, strips[k].n, strips[k].vi);
+            i = j;
+        }
+#if TS_NATIVE_RING_SELFCHECK
+        if (ringChecked)
+        {
+            ++g_nv2aTextureStats.ringChecked;
+            if (ringDiffered)
+                ++g_nv2aTextureStats.ringDiffs;
+        }
+#endif
+        packet.submit(); // the state block and the strips
+        return true;
     }
 
     // The constant entries: copies from the batch at TOP into the fixed

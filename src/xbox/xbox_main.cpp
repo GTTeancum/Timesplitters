@@ -125,7 +125,8 @@ namespace
                   << "  mat rep/hit/miss=" << g_nv2aTextureStats.materialRepeats << "/" << g_nv2aTextureStats.materialHits
                   << "/" << g_nv2aTextureStats.materialMisses << " kconst=" << g_nv2aTextureStats.constRebuilds
                   << " texfast=" << g_nv2aTextureStats.textureFast << " drawdiff=" << g_nv2aTextureStats.drawDiffs << "/"
-                  << g_nv2aTextureStats.drawChecked << "(" << g_nv2aTextureStats.drawDiffLast << ") idle="
+                  << g_nv2aTextureStats.drawChecked << "(" << g_nv2aTextureStats.drawDiffLast << ") ringdiff="
+                  << g_nv2aTextureStats.ringDiffs << "/" << g_nv2aTextureStats.ringChecked << " idle="
                   << wait.waitedMicroseconds.load() / 1000 << "ms" << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec

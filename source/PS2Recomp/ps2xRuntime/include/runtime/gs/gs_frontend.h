@@ -113,10 +113,16 @@ public:
     // the given PRIM register value, as a PACKED GIF packet with PRE set
     // would (used by native vertex pipelines, which skip packet encoding).
     void submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t count);
-    // Strips of raw vertices (one PRIM for all) transformed by the backend;
-    // false when the backend cannot (nothing drawn, PRIM still set).
-    bool submitStripsTransformed(uint32_t primRegister, const GSXfConstants &constants, const GSXfVertex *vertices,
-                                 const uint8_t *counts, uint32_t strips);
+    // A run of strips of raw vertices (one PRIM for all) transformed by the
+    // backend, written into its vertex memory strip by strip (see
+    // GSRasterBackend::BeginXfRun); begin is false when the backend cannot
+    // (nothing drawn, PRIM still set). The GS state stays locked from a
+    // successful begin to end: nothing else may touch the GS in between.
+    bool beginXfRun(uint32_t primRegister, const GSXfConstants &constants, bool &direct);
+    GSXfVertex *beginXfStrip(uint32_t count, const GSXfVertex &first) { return m_backend->BeginXfStrip(count, first); }
+    void endXfStrip(const GSXfVertex &last) { m_backend->EndXfStrip(last); }
+    void emitXfStrip(const GSXfVertex *vertices, uint32_t count) { m_backend->EmitXfStrip(vertices, count); }
+    void endXfRun();
     // Render-state blocks of native vertex pipelines (project/game/
     // vu1_native_ts.cpp): a PACKED GIF packet of one tag, no PRE, every
     // register A+D, writing drawing-state registers only (no vertex, PRIM,

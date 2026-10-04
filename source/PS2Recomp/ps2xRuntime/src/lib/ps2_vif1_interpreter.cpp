@@ -848,43 +848,66 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
 }
 
 #if defined(PLATFORM_XBOX)
+#include <xmmintrin.h> // the row copies and prefetches below (SSE1)
 Vif1StreamStats g_vif1StreamStats;
 
 namespace
 {
+    // The Pentium III has no hardware prefetch and ~150 ns to memory, with
+    // four misses in flight. A chain's pieces are scattered (a tag's two
+    // VIFcodes here, its payload elsewhere), so each one read cold costs
+    // more than its decoding. The piece list is known in full: the decoder
+    // asks for the pieces ahead itself.
+    inline void prefetchLine(const uint8_t *p)
+    {
+        _mm_prefetch(reinterpret_cast<const char *>(p), _MM_HINT_T0);
+    }
+    constexpr uint32_t kCacheLine = 32u;
+    constexpr size_t kPrefetchPieces = 2;     // pieces ahead of the one being read
+    constexpr uint32_t kPrefetchRunBytes = 128u; // ahead within a run of vectors
+
     // The VIF1 stream of a DMA chain, read where it lies: the pieces of guest
-    // memory the chain walk recorded, in order. A command or vector that runs
-    // from one piece into the next is gathered.
+    // memory the chain walk recorded, in order. The piece being read is
+    // [m_cur, m_end); the pieces after it hold m_tail bytes. A VIFcode or an
+    // UNPACK's data wholly inside the piece (nearly all of them) costs a
+    // pointer compare; what runs from one piece into the next is gathered.
     class Vif1PieceReader
     {
     public:
         Vif1PieceReader(const PS2Memory::Vif1Piece *pieces, size_t count)
-            : m_next(pieces), m_last(pieces + count)
+            : m_next(pieces), m_prefetch(pieces), m_last(pieces + count)
         {
             for (size_t i = 0; i < count; ++i)
-                left += pieces[i].second;
+                m_tail += pieces[i].second;
+            nextPiece();
         }
 
-        uint32_t left = 0; // unread bytes, all pieces
+        uint32_t left() const { return static_cast<uint32_t>(m_end - m_cur) + m_tail; } // unread bytes, all pieces
 
         // Bytes readable in place; moves on to the next piece when this one is used up.
         uint32_t avail()
         {
-            while (m_cur == m_end && m_next != m_last)
-            {
-                m_cur = m_next->first;
-                m_end = m_cur + m_next->second;
-                ++m_next;
-            }
+            if (m_cur == m_end)
+                nextPiece();
             return static_cast<uint32_t>(m_end - m_cur);
         }
         const uint8_t *here() const { return m_cur; }
-        void advance(uint32_t n) // n <= avail()
+        void advance(uint32_t n) { m_cur += n; } // n <= avail()
+
+        // The next VIFcode; false at the chain's end. Inlined into the
+        // command loop, the piece boundary (wordNext) a call: folded in,
+        // it made this too big to inline and every command paid a call.
+        __attribute__((always_inline)) bool word(uint32_t &value)
         {
-            m_cur += n;
-            left -= n;
+            if (static_cast<size_t>(m_end - m_cur) >= 4u)
+            {
+                std::memcpy(&value, m_cur, sizeof(value));
+                m_cur += 4u;
+                return true;
+            }
+            return wordNext(value);
         }
-        void read(void *destination, uint32_t n) // n <= left
+        void read(void *destination, uint32_t n) // n <= left()
         {
             uint8_t *out = static_cast<uint8_t *>(destination);
             while (n != 0u)
@@ -892,43 +915,78 @@ namespace
                 const uint32_t chunk = std::min(n, avail());
                 std::memcpy(out, m_cur, chunk);
                 out += chunk;
-                advance(chunk);
+                m_cur += chunk;
                 n -= chunk;
             }
         }
-        void skip(uint32_t n) // n <= left
+        void skip(uint32_t n) // n <= left()
         {
             while (n != 0u)
             {
                 const uint32_t chunk = std::min(n, avail());
-                advance(chunk);
+                m_cur += chunk;
                 n -= chunk;
             }
         }
-        // n bytes (n <= left) in one place: where they lie, or gathered into buffer.
+        // n bytes (n <= left()) in one place: where they lie, or gathered into buffer.
         const uint8_t *take(uint32_t n, uint8_t *buffer)
         {
             if (avail() >= n)
             {
                 const uint8_t *data = m_cur;
-                advance(n);
+                m_cur += n;
                 return data;
             }
             ++g_vif1StreamStats.splits;
             read(buffer, n);
             return buffer;
         }
-        uint32_t word() // left >= 4
-        {
-            uint8_t buffer[4];
-            uint32_t value;
-            std::memcpy(&value, take(4u, buffer), sizeof(value));
-            return value;
-        }
 
     private:
-        const PS2Memory::Vif1Piece *m_next, *m_last;
+        // The piece is used up: on to the next one that holds anything, and
+        // the first lines of the pieces behind it are asked for.
+        void nextPiece()
+        {
+            while (m_cur == m_end && m_next != m_last)
+            {
+                m_cur = m_next->first;
+                m_end = m_cur + m_next->second;
+                m_tail -= m_next->second;
+                ++m_next;
+            }
+            // Two pieces, two lines each: as many as the four fill buffers hold.
+            if (m_prefetch < m_next)
+                m_prefetch = m_next;
+            const PS2Memory::Vif1Piece *until = m_next + std::min<size_t>(kPrefetchPieces, m_last - m_next);
+            for (; m_prefetch < until; ++m_prefetch)
+            {
+                prefetchLine(m_prefetch->first);
+                if (m_prefetch->second > kCacheLine)
+                    prefetchLine(m_prefetch->first + kCacheLine);
+            }
+        }
+        // A VIFcode at a piece boundary: the next piece holds it whole (a
+        // tag's two VIFcodes are one piece) or, rarely, it is split.
+        __attribute__((noinline)) bool wordNext(uint32_t &value)
+        {
+            if (m_cur == m_end)
+                nextPiece();
+            if (static_cast<size_t>(m_end - m_cur) >= 4u)
+            {
+                std::memcpy(&value, m_cur, sizeof(value));
+                m_cur += 4u;
+                return true;
+            }
+            if (left() < 4u)
+                return false;
+            uint8_t buffer[4];
+            std::memcpy(&value, take(4u, buffer), sizeof(value));
+            return true;
+        }
+
         const uint8_t *m_cur = nullptr, *m_end = nullptr;
+        uint32_t m_tail = 0;
+        const PS2Memory::Vif1Piece *m_next, *m_prefetch, *m_last;
     };
 
     // Where the next UNPACK write goes: processVIF1Data's per-write
@@ -963,7 +1021,17 @@ namespace
         if (cl == wl)
         {
             // Nothing skipped: consecutive quadwords (the cycle position is
-            // not needed by this UNPACK's later runs either).
+            // not needed by this UNPACK's later runs either). A long run
+            // keeps the lines ahead of it coming (see prefetchLine).
+            if constexpr (kBytes >= 8u)
+            {
+                constexpr uint32_t kAhead = kPrefetchRunBytes / kBytes;
+                for (; n > kAhead; --n, ++dest, src += kBytes)
+                {
+                    prefetchLine(src + kPrefetchRunBytes);
+                    write(vu + (dest & 0x3FFu) * 16u, src);
+                }
+            }
             for (uint32_t i = 0; i < n; ++i, ++dest, src += kBytes)
                 write(vu + (dest & 0x3FFu) * 16u, src);
             c.dest = dest;
@@ -998,6 +1066,22 @@ namespace
         std::memcpy(&value, p, sizeof(value));
         return value;
     }
+    inline void storeU32(uint8_t *p, uint32_t value)
+    {
+        std::memcpy(p, &value, sizeof(value));
+    }
+    // Whole and half quadwords through an SSE register: one load and one
+    // store (movups / movlps), where four scalar moves each way ran out of
+    // the i386's seven registers and spilled. The bits are not interpreted.
+    inline void copyQword(uint8_t *d, const uint8_t *s)
+    {
+        _mm_storeu_ps(reinterpret_cast<float *>(d), _mm_loadu_ps(reinterpret_cast<const float *>(s)));
+    }
+    inline void copyHalfQword(uint8_t *d, const uint8_t *s)
+    {
+        // (The upper half of the register is never stored.)
+        _mm_storel_pi(reinterpret_cast<__m64 *>(d), _mm_loadl_pi(_mm_undefined_ps(), reinterpret_cast<const __m64 *>(s)));
+    }
     template <bool kZero>
     inline uint32_t extend16(uint16_t raw)
     {
@@ -1012,8 +1096,13 @@ namespace
     template <uint32_t kLanes>
     inline void storeLanes(uint8_t *dest, uint32_t x, uint32_t y, uint32_t z, uint32_t w)
     {
-        const uint32_t lanes[4] = {x, y, z, w};
-        std::memcpy(dest, lanes, kLanes * 4u);
+        storeU32(dest, x);
+        if (kLanes > 1u)
+            storeU32(dest + 4, y);
+        if (kLanes > 2u)
+            storeU32(dest + 8, z);
+        if (kLanes > 3u)
+            storeU32(dest + 12, w);
     }
 
     // Unmasked UNPACK in mode 0 with CL >= WL, one loop per format: the bytes
@@ -1026,17 +1115,18 @@ namespace
         {
         case 0x0: // S-32
             unpackRun<4>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
-                const uint32_t v = loadU32(s);
-                storeLanes<4>(d, v, v, v, v); });
+                _mm_storeu_ps(reinterpret_cast<float *>(d), _mm_load1_ps(reinterpret_cast<const float *>(s))); });
             break;
         case 0x4: // V2-32
-            unpackRun<8>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) { std::memcpy(d, s, 8u); });
+            unpackRun<8>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) { copyHalfQword(d, s); });
             break;
         case 0x8: // V3-32
-            unpackRun<12>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) { std::memcpy(d, s, 12u); });
+            unpackRun<12>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                copyHalfQword(d, s);
+                storeU32(d + 8, loadU32(s + 8)); });
             break;
         case 0xC: // V4-32
-            unpackRun<16>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) { std::memcpy(d, s, 16u); });
+            unpackRun<16>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) { copyQword(d, s); });
             break;
         case 0x1: // S-16
             unpackRun<2>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
@@ -1232,6 +1322,8 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
     static_assert(PS2_VU1_DATA_SIZE == 1024u * 16u, "UNPACK writes wrap at 1024 quadwords");
     ++g_vif1StreamStats.chains;
     g_vif1StreamStats.pieces += static_cast<unsigned>(count);
+    // Counted here, added to the (64-bit) status counters once per chain.
+    uint32_t fastVectors = 0, slowVectors = 0;
 
     Vif1PieceReader in(pieces, count);
     uint8_t split[16]; // a vector or STROW/STCOL data split between pieces
@@ -1247,11 +1339,11 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
             std::vector<uint8_t>().swap(s_vif1Block);
     };
 
-    while (in.left >= 4u)
+    for (;;)
     {
         if (m_vif1PendingPath2ImageQwc != 0u)
         {
-            const uint32_t availableQw = in.left / 16u;
+            const uint32_t availableQw = in.left() / 16u;
             if (availableQw == 0u)
                 break;
 
@@ -1267,7 +1359,9 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
             continue;
         }
 
-        const uint32_t cmd = in.word();
+        uint32_t cmd;
+        if (!in.word(cmd))
+            break;
         const uint8_t opcode = (cmd >> 24) & 0x7F;
         const uint16_t imm = cmd & 0xFFFF;
         const uint8_t num = (cmd >> 16) & 0xFF;
@@ -1315,7 +1409,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
 
             const uint32_t sourceBytes = sourceVectorCount * bytesPerVector;
             const uint32_t totalBytes = (sourceBytes + 3u) & ~3u;
-            if (totalBytes > in.left)
+            if (totalBytes > in.left())
                 break;
 
             uint32_t vuAddr = (uint32_t)imm & 0x3FFu;
@@ -1328,21 +1422,28 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
                 continue;
             }
 
-            g_vu1WatchedRows.note(vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl));
+            // (The span needs a division; nothing to note without watched rows.)
+            if (g_vu1WatchedRows.ranges != 0u)
+                g_vu1WatchedRows.note(vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl));
             UnpackCursor cursor{vuAddr, 0u, cl, wl};
             const bool maskEnable = (opcode & 0x10u) != 0u;
             const bool zeroExtend = (imm & 0x4000u) != 0u;
             if (!maskEnable && (vif1_regs.mode & 3u) == 0u && cl >= wl && (vl != 3u || vn == 3u))
             {
                 // Every write reads one vector: whole runs straight from the
-                // piece, a vector split between pieces on its own.
+                // piece (nearly always the whole UNPACK: a tag's payload), a
+                // vector split between pieces on its own.
                 const uint32_t format = opcode & 0xFu;
                 for (uint32_t n = sourceVectorCount; n != 0u;)
                 {
                     const uint32_t avail = in.avail();
-                    uint32_t vectors = (avail >= n * bytesPerVector) ? n : avail / bytesPerVector;
+                    uint32_t vectors = n;
                     const uint8_t *src = in.here();
-                    if (vectors != 0u)
+                    if (avail >= n * bytesPerVector)
+                    {
+                        in.advance(n * bytesPerVector);
+                    }
+                    else if ((vectors = avail / bytesPerVector) != 0u)
                     {
                         in.advance(vectors * bytesPerVector);
                     }
@@ -1357,7 +1458,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
                         unpackFast<false>(m_vu1Data, src, vectors, cursor, format);
                     n -= vectors;
                 }
-                g_vif1StreamStats.fastVectors += sourceVectorCount;
+                fastVectors += sourceVectorCount;
             }
             else
             {
@@ -1369,7 +1470,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
                     unpackGeneral(vif1_regs, m_vu1Data + (cursor.dest & 0x3FFu) * 16u, src, cursor.cyclePos, format);
                     cursor.step();
                 }
-                g_vif1StreamStats.slowVectors += writeVectorCount;
+                slowVectors += writeVectorCount;
             }
             in.skip(totalBytes - sourceBytes); // padding to a word
             continue;
@@ -1450,14 +1551,13 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
         }
         else if (opcode == VIF_STMASK)
         {
-            if (in.left < 4u)
+            if (!in.word(vif1_regs.mask))
                 break;
-            vif1_regs.mask = in.word();
             continue;
         }
         else if (opcode == VIF_STROW || opcode == VIF_STCOL)
         {
-            if (in.left < 16u)
+            if (in.left() < 16u)
                 break;
             std::memcpy(opcode == VIF_STROW ? vif1_regs.row : vif1_regs.col, in.take(16u, split), 16u);
             continue;
@@ -1473,14 +1573,14 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
                 uint32_t copyBytes = mpgBytes;
                 if (destAddr + copyBytes > PS2_VU1_CODE_SIZE)
                     copyBytes = PS2_VU1_CODE_SIZE - destAddr;
-                if (copyBytes <= in.left)
+                if (copyBytes <= in.left())
                 {
                     in.read(m_vu1Code + destAddr, copyBytes);
                     copied = copyBytes;
                     markVU1CodeModified();
                 }
             }
-            if (mpgBytes - copied > in.left)
+            if (mpgBytes - copied > in.left())
                 break;
             in.skip(mpgBytes - copied);
             continue;
@@ -1490,7 +1590,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
             uint32_t qwCount = imm;
             if (qwCount == 0)
                 qwCount = 65536;
-            const uint32_t availableQw = in.left / 16u;
+            const uint32_t availableQw = in.left() / 16u;
             const bool truncated = qwCount > availableQw;
             if (truncated)
                 qwCount = availableQw;
@@ -1514,5 +1614,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
             continue;
         }
     }
+    g_vif1StreamStats.fastVectors += fastVectors;
+    g_vif1StreamStats.slowVectors += slowVectors;
 }
 #endif

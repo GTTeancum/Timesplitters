@@ -41,7 +41,8 @@ namespace
     std::vector<PS2Memory::Vif1Piece> s_vif1Segments;
     // TS_VIF_SELFCHECK 1: every VIF1 chain is also decoded by the old window
     // path, both dry, and the two compared (vif1SelfCheck; vifdiff= in the
-    // status block). Development only: slow, and 512 KB more memory.
+    // status block). Development only: slow, and 512 KB more memory. On for
+    // the validation build of the leaner piece decoder; back to 0 after.
 #ifndef TS_VIF_SELFCHECK
 #define TS_VIF_SELFCHECK 0
 #endif
@@ -1806,6 +1807,17 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         // is one piece where it lies (what appendData records).
                         if (recordSegments)
                         {
+                            // The tags after the next one (REF tags lie in
+                            // sequence, two to a 32-byte line): asked for now,
+                            // since the Pentium III does not prefetch on its own.
+                            // (Uncached-alias tag pointers, 0x2/0x3xxxxxxx, are masked like
+                            // translateAddress does.)
+                            const uint32_t tagPhys = tagAddr & PS2_RAM_MASK;
+                            if (!isScratchpad(tagAddr) && tagPhys < PS2_RAM_SIZE - 64u)
+                            {
+                                _mm_prefetch(reinterpret_cast<const char *>(m_rdram + tagPhys + 32u), _MM_HINT_T0);
+                                _mm_prefetch(reinterpret_cast<const char *>(m_rdram + tagPhys + 64u), _MM_HINT_T0);
+                            }
                             if (transferTagData)
                                 addSegment(tp + 8u, 8u);
                             const uint32_t payloadBytes = static_cast<uint32_t>(tagQwc) * 16u;

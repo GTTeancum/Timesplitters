@@ -84,8 +84,16 @@ world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle c
   checked bit-exact against the interpreter with `timesplitters_vu_replay`
   and `vu1_diff.py` over the 4,000-input capture). FMAC arithmetic on SSE1
   (`PS2X_VU1_SSE1`), object built at -O2.
-- `tools/patch_generated.py`: patched copies of game functions (a busy wait
-  in `soundLoad`).
+- `tools/patch_generated.py`, `tools/direct_calls.py`: every game function
+  is compiled from a patched copy under `build/xbox/gen`. Constant calls
+  (12,200 JAL sites) call through the function table directly with the
+  target's slot resolved at build time (`PS2X_CALL_SLOT`,
+  `ps2_direct_call_xbox.h`) instead of `dispatchGuestBranch`; one-off
+  patches (a busy wait in `soundLoad`). The hottest game functions of a
+  match frame (`GEN_FAST_NAMES` in the Makefile) are built at -O2 with the
+  calls inlined; the rest call the same code out of line and stay as small
+  as before. A stamp of the flags and the list rebuilds the generated code
+  when they change.
 - `tools/xtpbuild.py`: the texture pack builder (pack format at the top of
   the script): PC-port texture keys, mip chains that keep alpha-tested
   coverage, and a DXT1/DXT5 encoder in numpy.

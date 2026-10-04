@@ -84,10 +84,11 @@ GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp $(GAME)/ts_nativ
 XBOX_SRCS := $(wildcard $(XBOX)/*.cpp)
 # register_functions.cpp is replaced by a compact table (see the rule below).
 GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
-# Game functions compiled from patched copies (src/xbox/tools/patch_generated.py).
-GEN_PATCHED_NAMES := soundLoad_0x2052b8.cpp
-GEN_PATCHED := $(addprefix $(OUT)/gen/,$(GEN_PATCHED_NAMES))
-GEN_SRCS  := $(filter-out $(GENERATED)/register_functions.cpp $(addprefix $(GENERATED)/,$(GEN_PATCHED_NAMES)),$(wildcard $(GENERATED)/*.cpp))              $(wildcard $(GENVU)/*.cpp) $(GEN_TABLE) $(GEN_PATCHED)
+# Every game function is compiled from a patched copy under build/xbox/gen
+# (src/xbox/tools/patch_generated.py: constant calls go through the function
+# table directly, plus a few one-off patches).
+GEN_PATCHED := $(patsubst $(GENERATED)/%.cpp,$(OUT)/gen/%.cpp,$(filter-out $(GENERATED)/register_functions.cpp,$(wildcard $(GENERATED)/*.cpp)))
+GEN_SRCS  := $(GEN_PATCHED) $(wildcard $(GENVU)/*.cpp) $(GEN_TABLE)
 
 # Objects mirror the source path under build/xbox/obj.
 objof = $(patsubst $(ROOT)/%.cpp,$(OBJ)/%.obj,$(1))
@@ -96,6 +97,34 @@ OTHER_OBJS := $(call objof,$(RUNTIME_SRCS) $(IOP_SRCS) $(GAME_SRCS) $(XBOX_SRCS)
 # The VU1 microprogram is the hottest code of all (most of a match frame): -O2.
 VU_OBJS := $(call objof,$(wildcard $(GENVU)/*.cpp))
 $(VU_OBJS): GEN_FLAGS := $(COMMON) -O2
+# The game functions that take most of a busy match frame (sample profiles
+# of the scripted arcade match): -O2, and their constant calls are inlined
+# (PS2X_DIRECT_CALL_INLINE, ps2_direct_call_xbox.h); the other files call
+# the same code out of line, which keeps them as small as before.
+GEN_FAST_FLAGS := $(COMMON) -O2 -DPS2X_DIRECT_CALL_INLINE=1
+GEN_FAST_NAMES := partGfx_0x260ae0 obInstLightUpdate_0x25c160 animMtxTick_0x273bb0 moveTest_0x27d0c0 \
+    calMatrices_0x212e08 obInstGfx_0x262a60 bgGfx_0x256830 enemyTick_0x2bb470 chrPropTick_0x26ddc0 \
+    hittestLineTri_0x209818 hittestLinePoly_0x209b08 bgPortalCrossed_0x258cf0 bgPortalCalcPos_0x258108 \
+    bgPortalPlaneClip_0x257f20 bgPortalBackFaceTest_0x257860 decalDraw_0x2a5b20 decalTick_0x2a4bd8 \
+    gunTick_0x2946c0 rotateChr_0x2bc5d0 obInstLineTest_0x263768 calDoubleFillets_0x214a88 \
+    bgBulletGetClosest_0x25bc88 matrixScaleSet_0x2b4f20 obinstCalcAmbientLight_0x25aae0 \
+    pickupPropTick_0x26a330 spawnfxTick_0x2abea0 particleTick_0x29bc58 quaternionToMatrix_0x2b3f90 \
+    extractAnimData_0x215280 animUpdate_0x212cf8 moveFindFloorHeight_0x27c578 bgGetRoomsTick_0x256c58 \
+    bglightGet_0x25a7d0 setAnim_0x214d68 dlSetBlend_0x2b7ea8 dlSetClip_0x2b8050 dlTextureRectangle_0x2b8c08 \
+    dlDrawTriangleStrip_0x2b8a10 camTick_0x27e320 findweapon_0x2c4d70 MoveTestWall_0x27cce0
+GEN_FAST_MISSING := $(filter-out $(notdir $(basename $(GEN_PATCHED))),$(GEN_FAST_NAMES))
+$(if $(and $(GEN_FAST_MISSING),$(filter-out clean,$(MAKECMDGOALS))),$(error GEN_FAST_NAMES not in project/generated: $(GEN_FAST_MISSING)))
+GEN_FAST_OBJS := $(foreach n,$(GEN_FAST_NAMES),$(OBJ)/build/xbox/gen/$(n).obj)
+$(GEN_FAST_OBJS): GEN_FLAGS := $(GEN_FAST_FLAGS)
+# An object does not record the flags it was built with. The generated flags
+# and the -O2 list are written to a stamp (only when they change) that every
+# generated object depends on, so a flag change or a file moved between the
+# two lists rebuilds the generated code instead of linking a stale object.
+GEN_FLAGS_STAMP := $(OUT)/gen/gen_flags.stamp
+GEN_FLAGS_TEXT  := $(GEN_FLAGS) / $(GEN_FAST_FLAGS): $(GEN_FAST_NAMES)
+$(shell mkdir -p $(OUT)/gen && { [ "$$(cat $(GEN_FLAGS_STAMP) 2>/dev/null)" = "$(GEN_FLAGS_TEXT)" ] || printf '%s\n' "$(GEN_FLAGS_TEXT)" > $(GEN_FLAGS_STAMP); })
+.DEFAULT_GOAL := all # dependency rules above this line must not become the default
+$(GEN_OBJS): $(GEN_FLAGS_STAMP)
 
 # The software renderer and the Xbox presenter are the hottest code: -O2.
 FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj \
@@ -134,10 +163,12 @@ $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function
 	@echo "[ TABLE   ] $@"
 	@python $(XBOX)/tools/compact_function_table.py $< $@
 
-$(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(XBOX)/tools/patch_generated.py
+# The patcher reads the call targets' slots from the compact table, so a
+# regenerated table re-patches (and recompiles) every game function.
+$(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(GEN_TABLE) $(XBOX)/tools/patch_generated.py $(XBOX)/tools/direct_calls.py
 	@mkdir -p $(dir $@)
 	@echo "[ PATCH   ] $(notdir $@)"
-	@python $(XBOX)/tools/patch_generated.py $< $@
+	@python $(XBOX)/tools/patch_generated.py $< $(GEN_TABLE) $@
 
 # Fixed copies of nxdk C sources, built in place of the library's
 # (pbkit: double-buffered; winapi/sync: condition-variable timeouts).

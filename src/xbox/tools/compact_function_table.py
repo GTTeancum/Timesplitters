@@ -4,6 +4,8 @@ The generated table has a slot for every 4-byte guest address in the code
 region (about 245,000 slots, 1 MB) filled in by a constructor. The Xbox has
 64 MB, so it gets two sorted arrays of the used entries instead, statically
 initialised; ps2_runtime.cpp looks addresses up by binary search there.
+direct_calls.py reads the address array back out of the output (a target's
+slot is its index there) to resolve the generated files' constant calls.
 
 usage: compact_function_table.py <register_functions.cpp> <output.cpp>
 """

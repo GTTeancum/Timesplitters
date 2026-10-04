@@ -19,6 +19,12 @@ namespace
 #include "ps2_runtime_macros.h"
 #include "runtime/gs/gs_frontend.h"
 #include "runtime/ee_scheduler.h"
+#if defined(PLATFORM_XBOX)
+// The patched generated files charge the dispatch cycles inline.
+#include "ps2_direct_call_xbox.h"
+static_assert(PS2X_GUEST_DISPATCH_CYCLES == EeScheduler::kGuestDispatchCycles,
+              "ps2_direct_call_xbox.h must charge EeScheduler::kGuestDispatchCycles");
+#endif
 #include "ThreadNaming.h"
 #include "Kernel/Stubs/Audio.h"
 #include "Kernel/Stubs/GS.h"
@@ -1541,6 +1547,9 @@ bool PS2Runtime::dispatchGuestBranch(uint8_t *rdram,
     }
 
 #if defined(PLATFORM_XBOX)
+    // Constant calls in the patched generated files inline this path with
+    // the slot resolved at build time (ps2_direct_call_xbox.h, keep in
+    // step); it still serves indirect calls and the debug dispatch kinds.
     // One table read both checks and fetches the target (hasFunction then
     // lookupFunction found the slot twice per call).
     uint32_t targetSlot = 0u;
@@ -1650,6 +1659,18 @@ bool PS2Runtime::dispatchGuestBranch(uint8_t *rdram,
 
     return ctx->pc == fallthroughPc;
 }
+
+#if defined(PLATFORM_XBOX)
+// The out-of-line form of a constant call in the patched generated files
+// (ps2_direct_call_xbox.h): the DirectCall path above without the lookup.
+bool __attribute__((fastcall)) ps2xDirectCall(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime,
+                                              const PS2Runtime::RecompiledFunction *entry, uint32_t target,
+                                              uint32_t resume)
+{
+    PS2X_CALL_ENTRY(*entry, target, resume, return false);
+    return true;
+}
+#endif
 
 void PS2Runtime::SignalException(R5900Context *ctx, PS2Exception exception)
 {
@@ -2453,10 +2474,12 @@ void PS2Runtime::requestStop()
     }
 }
 
+#if !defined(PLATFORM_XBOX) // inline in the header there
 bool PS2Runtime::isStopRequested() const
 {
     return m_stopRequested.load(std::memory_order_relaxed);
 }
+#endif
 
 EeScheduler &PS2Runtime::eeScheduler()
 {

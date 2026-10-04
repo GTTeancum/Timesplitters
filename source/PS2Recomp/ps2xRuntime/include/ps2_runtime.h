@@ -420,7 +420,12 @@ public:
     std::atomic<uint32_t> m_asyncVpuStopBits{UINT32_MAX};
 
     void requestStop();
+#if defined(PLATFORM_XBOX)
+    // Inlined into every direct guest call (ps2_direct_call_xbox.h).
+    bool isStopRequested() const noexcept { return m_stopRequested.load(std::memory_order_relaxed); }
+#else
     bool isStopRequested() const;
+#endif
 
     EeScheduler &eeScheduler();
     const EeScheduler &eeScheduler() const;

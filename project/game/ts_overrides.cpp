@@ -13,6 +13,7 @@
 #include "runtime/ee_scheduler.h"
 #include "ts_native_fp.h"
 #include "ts_native_game.h"
+#include "ts_native_game2.h"
 #include "ts_native_math.h"
 #endif
 
@@ -844,6 +845,7 @@ namespace
         registerTsNativeMath(runtime); // sinf, cosf, sqrtf, VU0 matrices, ...
         registerTsNativeFp(runtime);   // the soft-double routines (dpadd, dpmul, dptofp, ...)
         registerTsNativeGame(runtime); // portals, floor height, slerp, acosf, display-list packets, ...
+        registerTsNativeGame2(runtime); // partGfx, calMatrices, animMtxTick, rotateChr, moveTest, ambient light, ...
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);

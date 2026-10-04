@@ -80,7 +80,8 @@ IOP_SRCS := $(addprefix $(IOP)/src/, \
     emulator/imports/iop_timrman.cpp emulator/imports/iop_vblank.cpp \
     modules/dbcman.cpp modules/libsd.cpp modules/mcserv.cpp)
 
-GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp $(GAME)/ts_native_math.cpp $(GAME)/ts_native_fp.cpp
+GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp $(GAME)/ts_native_math.cpp $(GAME)/ts_native_fp.cpp \
+    $(GAME)/ts_native_game.cpp
 XBOX_SRCS := $(wildcard $(XBOX)/*.cpp)
 # register_functions.cpp is replaced by a compact table (see the rule below).
 GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
@@ -129,6 +130,7 @@ $(GEN_OBJS): $(GEN_FLAGS_STAMP)
 # The software renderer and the Xbox presenter are the hottest code: -O2.
 FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj \
                      $(OBJ)/project/game/ts_native_math.obj $(OBJ)/project/game/ts_native_fp.obj \
+                     $(OBJ)/project/game/ts_native_game.obj \
                      $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj \

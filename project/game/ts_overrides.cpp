@@ -12,6 +12,7 @@
 #include "../../src/xbox/gs_nv2a_backend.h" // status counters
 #include "runtime/ee_scheduler.h"
 #include "ts_native_fp.h"
+#include "ts_native_game.h"
 #include "ts_native_math.h"
 #endif
 
@@ -842,6 +843,7 @@ namespace
         runtime.replaceFunction(0x2D0160u, &xboxWaitSema);
         registerTsNativeMath(runtime); // sinf, cosf, sqrtf, VU0 matrices, ...
         registerTsNativeFp(runtime);   // the soft-double routines (dpadd, dpmul, dptofp, ...)
+        registerTsNativeGame(runtime); // portals, floor height, slerp, acosf, display-list packets, ...
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);

@@ -1716,7 +1716,7 @@ void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t c
     }
 }
 
-bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, bool &direct)
+bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, GSXfCursor &cursor)
 {
     // The lock is held until endXfRun (the mutex is recursive; the caller's
     // thread writes the strips in between), as one submit held it before.
@@ -1725,7 +1725,7 @@ bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, bool 
     if (m_backend)
     {
         const GSPrimitiveBatch batch = buildDrawBatch(0);
-        if (m_backend->BeginXfRun(batch.state, constants, direct))
+        if (m_backend->BeginXfRun(batch.state, constants, cursor))
         {
             m_vtxCount = 0; // as a PACKED packet with PRE set leaves the vertex queue
             return true;
@@ -1735,9 +1735,9 @@ bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, bool 
     return false;
 }
 
-void GS::endXfRun()
+void GS::endXfRun(GSXfCursor &cursor)
 {
-    m_backend->EndXfRun();
+    m_backend->EndXfRun(cursor);
     m_stateMutex.unlock();
 }
 

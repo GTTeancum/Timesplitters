@@ -56,5 +56,7 @@ inline uint32_t vu1UnpackSpan(uint32_t writes, uint32_t cl, uint32_t wl)
 {
     if (writes == 0u)
         return 0u;
+    if (cl == wl) // nothing skipped (nearly every UNPACK): no division
+        return writes;
     return cl >= wl ? ((writes - 1u) / wl) * cl + (writes - 1u) % wl + 1u : writes;
 }

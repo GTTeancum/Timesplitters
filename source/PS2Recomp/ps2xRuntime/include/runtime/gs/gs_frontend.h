@@ -118,11 +118,10 @@ public:
     // GSRasterBackend::BeginXfRun); begin is false when the backend cannot
     // (nothing drawn, PRIM still set). The GS state stays locked from a
     // successful begin to end: nothing else may touch the GS in between.
-    bool beginXfRun(uint32_t primRegister, const GSXfConstants &constants, bool &direct);
-    GSXfVertex *beginXfStrip(uint32_t count, const GSXfVertex &first) { return m_backend->BeginXfStrip(count, first); }
-    void endXfStrip(const GSXfVertex &last) { m_backend->EndXfStrip(last); }
+    bool beginXfRun(uint32_t primRegister, const GSXfConstants &constants, GSXfCursor &cursor);
+    void growXfCursor(GSXfCursor &cursor, uint32_t count) { m_backend->GrowXfCursor(cursor, count); }
     void emitXfStrip(const GSXfVertex *vertices, uint32_t count) { m_backend->EmitXfStrip(vertices, count); }
-    void endXfRun();
+    void endXfRun(GSXfCursor &cursor);
     // Render-state blocks of native vertex pipelines (project/game/
     // vu1_native_ts.cpp): a PACKED GIF packet of one tag, no PRE, every
     // register A+D, writing drawing-state registers only (no vertex, PRIM,

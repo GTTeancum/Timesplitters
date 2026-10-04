@@ -1428,7 +1428,27 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
             UnpackCursor cursor{vuAddr, 0u, cl, wl};
             const bool maskEnable = (opcode & 0x10u) != 0u;
             const bool zeroExtend = (imm & 0x4000u) != 0u;
-            if (!maskEnable && (vif1_regs.mode & 3u) == 0u && cl >= wl && (vl != 3u || vn == 3u))
+            if (!maskEnable && (vif1_regs.mode & 3u) == 0u && cl == wl && (opcode & 0xFu) == 0xCu &&
+                in.avail() >= sourceBytes)
+            {
+                // V4-32 into consecutive rows, the data wholly in this piece:
+                // the game's vertex arrays, nearly every UNPACK. The rows are
+                // copied here (unpackFast's V4-32 run, without its call, its
+                // format switch and the piece loop around it).
+                const uint8_t *src = in.here();
+                in.advance(sourceBytes);
+                uint32_t dest = vuAddr;
+                uint32_t n = sourceVectorCount;
+                for (; n > kPrefetchRunBytes / 16u; --n, ++dest, src += 16)
+                {
+                    prefetchLine(src + kPrefetchRunBytes);
+                    copyQword(m_vu1Data + (dest & 0x3FFu) * 16u, src);
+                }
+                for (; n != 0u; --n, ++dest, src += 16)
+                    copyQword(m_vu1Data + (dest & 0x3FFu) * 16u, src);
+                fastVectors += sourceVectorCount;
+            }
+            else if (!maskEnable && (vif1_regs.mode & 3u) == 0u && cl >= wl && (vl != 3u || vn == 3u))
             {
                 // Every write reads one vector: whole runs straight from the
                 // piece (nearly always the whole UNPACK: a tag's payload), a

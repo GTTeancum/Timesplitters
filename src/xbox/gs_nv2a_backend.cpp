@@ -2052,12 +2052,12 @@ struct GSNv2aBackend::Impl
     // A run of strips of raw vertices for the transform programs: the frame
     // and texture handling of submitScreenVerts, then the constants (with
     // this frame's 640x480 mapping and depth format folded in). The strips
-    // follow (beginXfStrip / emitXfStrip), written into the transform ring
+    // follow (the run's cursor / emitXfStrip), written into the transform ring
     // by the caller or laid out from its array: one joined strip (gouraud),
     // or a triangle list with each triangle's last vertex first (the GS
     // flat-shades with the last vertex, the NV2A with the first). The caller
     // sends no strip of fewer than three vertices.
-    bool beginXfRun(const GSDrawState &state, const GSXfConstants &c, bool &direct)
+    bool beginXfRun(const GSDrawState &state, const GSXfConstants &c, GSXfCursor &cursor)
     {
         if (state.prim.type != GS_PRIM_TRISTRIP || state.prim.fst || c.variant > 3u || !isScreenTarget(state))
             return false;
@@ -2122,8 +2122,53 @@ struct GSNv2aBackend::Impl
         if (batchCount && !(key == batchKey))
             flushBatch();
         runKey = key;
-        direct = key.topology == 1u;
+        cursor.direct = key.topology == 1u;
+        cursor.strips = cursor.vertices = 0u;
+        if (cursor.direct)
+            openXfCursor(cursor);
+        else
+            cursor.next = cursor.end = nullptr;
         return true;
+    }
+
+    // The joined strips of a direct run are written by the caller (cursor):
+    // the ring from xfUsed to the segment's end is the open batch's, and
+    // what the caller wrote is taken into the batch when the cursor comes
+    // back (growXfCursor, endXfRun). No call per strip, one key comparison
+    // per run (beginXfRun), the segment check once per cursor.
+    void openXfCursor(GSXfCursor &cursor)
+    {
+        if (batchCount == 0)
+        {
+            batchKey = runKey;
+            batchFirst = xfUsed;
+        }
+        cursor.next = xfVertices + xfUsed;
+        cursor.end = xfVertices + (xfSegment + 1u) * kXfSegment;
+        cursor.join = batchCount != 0u;
+        if (cursor.join)
+            cursor.last = stripLast;
+    }
+    void takeXfCursor(GSXfCursor &cursor)
+    {
+        const uint32_t written = uint32_t(cursor.next - (xfVertices + xfUsed));
+        xfUsed += written;
+        batchCount += written;
+        if (written)
+            stripLast = cursor.last;
+        g_nv2aTextureStats.xfStrips += cursor.strips;
+        g_nv2aTextureStats.xfVertices += cursor.vertices;
+        cursor.strips = cursor.vertices = 0u;
+    }
+    // The next strip (count records with its join) does not fit in the
+    // segment: the segment's draws and fence go, and the cursor continues
+    // in the next one (a fresh batch: its first strip needs no join).
+    void growXfCursor(GSXfCursor &cursor, uint32_t count)
+    {
+        takeXfCursor(cursor);
+        if (xfUsed + count > (xfSegment + 1u) * kXfSegment)
+            nextXfSegment();
+        openXfCursor(cursor);
     }
 
     uint32_t xfBuiltSerial = 0, xfBuiltFbw = 0, xfBuiltHeight = 0, xfBuiltOfx = 0, xfBuiltOfy = 0, xfBuiltZpsm = 0;
@@ -2131,34 +2176,9 @@ struct GSNv2aBackend::Impl
     DrawKey runKey{};       // the open run's (beginXfRun)
     GSXfVertex stripLast{}; // last vertex of the current strip batch (joins): a cached copy, the ring is write-combined
 
-    // Room for a strip of n vertices, joined to the batch's strip by two
-    // repeated vertices (degenerate triangles draw nothing); the caller
-    // writes the n and hands the last one to endXfStrip.
-    GSXfVertex *beginXfStrip(uint32_t n, const GSXfVertex &first)
-    {
-        ++g_nv2aTextureStats.xfStrips;
-        g_nv2aTextureStats.xfVertices += n;
-        const bool join = batchCount != 0u;
-        GSXfVertex *out = reserveXf(runKey, n + (join ? 2u : 0u));
-        if (join)
-        {
-            *out++ = stripLast;
-            *out++ = first;
-        }
-        return out;
-    }
-
-    void endXfStrip(const GSXfVertex &last) { stripLast = last; }
-
+    // A strip of a run that is not direct (flat shading: a triangle list).
     void emitXfStrip(const GSXfVertex *v, uint32_t n)
     {
-        if (runKey.topology == 1u)
-        {
-            GSXfVertex *out = beginXfStrip(n, v[0]);
-            std::memcpy(out, v, n * sizeof(GSXfVertex));
-            stripLast = v[n - 1];
-            return;
-        }
         ++g_nv2aTextureStats.xfStrips;
         g_nv2aTextureStats.xfVertices += n;
         // Each triangle's last vertex first: the GS flat-shades with the
@@ -2172,8 +2192,10 @@ struct GSNv2aBackend::Impl
         }
     }
 
-    void endXfRun()
+    void endXfRun(GSXfCursor &cursor)
     {
+        if (cursor.direct)
+            takeXfCursor(cursor);
         gpuRows = std::min<uint32_t>(frameHeight, kDisplayRows); // where it lands is not known here
         screenGpuNewer = true;
     }
@@ -2400,21 +2422,16 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
     m->markTargetPages(target, true);
 }
 
-bool GSNv2aBackend::BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, bool &direct)
+bool GSNv2aBackend::BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, GSXfCursor &cursor)
 {
-    return m->beginXfRun(state, constants, direct);
+    return m->beginXfRun(state, constants, cursor);
 }
 
-GSXfVertex *GSNv2aBackend::BeginXfStrip(uint32_t count, const GSXfVertex &first)
-{
-    return m->beginXfStrip(count, first);
-}
-
-void GSNv2aBackend::EndXfStrip(const GSXfVertex &last) { m->endXfStrip(last); }
+void GSNv2aBackend::GrowXfCursor(GSXfCursor &cursor, uint32_t count) { m->growXfCursor(cursor, count); }
 
 void GSNv2aBackend::EmitXfStrip(const GSXfVertex *vertices, uint32_t count) { m->emitXfStrip(vertices, count); }
 
-void GSNv2aBackend::EndXfRun() { m->endXfRun(); }
+void GSNv2aBackend::EndXfRun(GSXfCursor &cursor) { m->endXfRun(cursor); }
 
 bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count)
 {

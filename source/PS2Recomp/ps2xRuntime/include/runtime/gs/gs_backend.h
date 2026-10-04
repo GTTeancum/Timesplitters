@@ -35,6 +35,20 @@ struct GSXfConstants
     uint32_t check = 0;
 };
 
+// Where a run of joined strips goes in the backend's transform ring
+// (GSRasterBackend::BeginXfRun): the caller writes records from next up to
+// end and keeps a cached copy of the last one it wrote (the ring is
+// write-combined and never read back; the next strip's join repeats it).
+// Handed back at EndXfRun, so a strip costs no call into the backend.
+struct GSXfCursor
+{
+    GSXfVertex *next = nullptr, *end = nullptr;
+    bool direct = false; // one joined strip into the ring (else EmitXfStrip)
+    bool join = false;   // a strip goes before: the next one starts with (last, first)
+    uint32_t strips = 0, vertices = 0; // counted by the caller (status block)
+    GSXfVertex last{};
+};
+
 class GSRasterBackend
 {
 public:
@@ -52,21 +66,23 @@ public:
     // straight into the backend's vertex memory, so a vertex decoded from
     // the game's data is stored once. BeginXfRun takes the run's state and
     // constants (false: the caller transforms the strips itself; every strip
-    // of the run must have three vertices or more). Then, per strip, either
-    // BeginXfStrip returns room for `count` vertices in strip order, which
-    // the caller fills without reading back (the memory may be
-    // write-combined; `first` is the strip's first vertex, which the backend
-    // may need before the room exists), and EndXfStrip hands over a cached
-    // copy of the strip's last vertex (strips are joined by repeated
-    // vertices); or, when `direct` came back false (the backend lays the
-    // strip out itself), EmitXfStrip takes the strip from the caller's
-    // array. EndXfRun closes the run; nothing else may touch the GS between
-    // BeginXfRun and EndXfRun.
-    virtual bool BeginXfRun(const GSDrawState &, const GSXfConstants &, bool & /*direct*/) { return false; }
-    virtual GSXfVertex *BeginXfStrip(uint32_t /*count*/, const GSXfVertex & /*first*/) { return nullptr; }
-    virtual void EndXfStrip(const GSXfVertex & /*last*/) {}
+    // of the run must have three vertices or more) and hands out a cursor.
+    // With cursor.direct the run's strips go into the backend's ring as one
+    // joined strip: the caller writes each strip's records at cursor.next
+    // (without reading back: the memory may be write-combined), two
+    // repeated vertices first when cursor.join is set (the last record
+    // written and the strip's first: degenerate triangles draw nothing),
+    // moves next on and sets join; a strip that does not fit before
+    // cursor.end asks GrowXfCursor for room (it takes the records written
+    // so far and starts a fresh batch, join clear). Without direct (the
+    // backend lays the strips out itself), EmitXfStrip takes each strip
+    // from the caller's array. EndXfRun takes the cursor back and closes
+    // the run; nothing else may touch the GS between BeginXfRun and
+    // EndXfRun.
+    virtual bool BeginXfRun(const GSDrawState &, const GSXfConstants &, GSXfCursor &) { return false; }
+    virtual void GrowXfCursor(GSXfCursor &, uint32_t /*count*/) {}
     virtual void EmitXfStrip(const GSXfVertex *, uint32_t /*count*/) {}
-    virtual void EndXfRun() {}
+    virtual void EndXfRun(GSXfCursor &) {}
     virtual void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) = 0;
     // Development: the CLUT buffer and its CLD address mirror as one value,
     // for self-checks that compare backend state (0: not tracked).

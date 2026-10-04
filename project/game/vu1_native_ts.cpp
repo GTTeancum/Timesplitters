@@ -50,9 +50,10 @@
 // TS_NATIVE_RING_SELFCHECK 1: on one draw run in TS_NATIVE_RING_SELFCHECK_EVERY
 // (the whole session) every strip the renderer transforms is also decoded
 // the way the pipeline first did it (into a cached array, vu1_native_xf.h),
-// and compared bit for bit with the records written into the renderer's
-// transform ring (from a cached shadow of the writes: the ring is
-// write-combined memory, never read back). Differences count in ringdiff=
+// and compared bit for bit with a second decode by the per-layout decoder
+// (decodeXfStrip) that the ring writer uses. This covers the decoders only:
+// join placement and segment moves in the ring are covered by the host test
+// (src/xbox/test/vu1_native_xf_test.cpp). Differences count in ringdiff=
 // (status block; must stay 0), the first few are logged.
 #ifndef TS_NATIVE_RING_SELFCHECK
 #define TS_NATIVE_RING_SELFCHECK 0
@@ -84,19 +85,17 @@ namespace
     constexpr float kLitClamp = 127.0f; // minii in the lit entries
     constexpr float kGuardBand = 4.0f;  // |x|,|y| <= 4w keeps 12.4 screen coordinates in range
 
+    // The draw entries' layouts (ts_native_xf::kLayouts, by kind).
     const Layout *layoutFor(uint32_t pc)
     {
-        static const Layout plain{24, 0, 64, 128, 0, 0, false, false, false};
-        static const Layout env{24, 0, 64, 0, 128, 0, false, false, true};
-        static const Layout lit{24, 0, 48, 96, 144, 0, true, false, false};
-        static const Layout skinned{32, 0, 36, 72, 144, 108, true, true, false};
+        using namespace ts_native_xf;
         switch (pc)
         {
-        case 0x0000: return &plain;
-        case 0x0d20: return &env; // texture coordinates from the rotated normal (sphere map)
-        case 0x1ae0: return &lit;
-        case 0x3520: return &lit; // clips the near plane only; the same pipeline
-        case 0x2800: return &skinned;
+        case 0x0000: return &kLayouts[Plain];
+        case 0x0d20: return &kLayouts[EnvMap]; // texture coordinates from the rotated normal (sphere map)
+        case 0x1ae0: return &kLayouts[Lit];
+        case 0x3520: return &kLayouts[Lit]; // clips the near plane only; the same pipeline
+        case 0x2800: return &kLayouts[Skinned];
         default: return nullptr;
         }
     }
@@ -657,49 +656,39 @@ namespace
 #endif
 
         // GPU path: a strip's vertices decoded from the arrays straight into
-        // the renderer's transform ring (one joined strip; the ring is
-        // write-combined memory, written front to back and never read
-        // back; the first and last vertices also go through a cached copy,
-        // which the renderer's joins need), or into a local array the
-        // renderer lays out itself (a triangle list, flat shading).
-        auto gpuStrip = [&](const Strip &strip, bool direct) {
+        // the renderer's transform ring through the run's cursor (one
+        // joined strip; the ring is write-combined memory, written front to
+        // back and never read back; the strip's last vertex also goes into
+        // the cursor's cached copy, which the next strip's join repeats),
+        // or into a local array the renderer lays out itself (a triangle
+        // list, flat shading). The strip header loop above keeps every
+        // array inside VU1 memory, so the decode needs no wrap per vertex.
+        const uint32_t kind = static_cast<uint32_t>(&L - ts_native_xf::kLayouts);
+        GSXfCursor cursor;
+        auto gpuStrip = [&](const Strip &strip) {
             const uint32_t n = strip.n, vi = strip.vi;
-            if (direct)
+            if (cursor.direct)
             {
-                GSXfVertex v;
-                ts_native_xf::decodeXfVertex(L, data, vi, 0u, &v);
-                GSXfVertex *out = gs.beginXfStrip(n, v);
-                out[0] = v;
+                // Room for the strip and its join, else the next segment.
+                if (cursor.next + (n + 2u) > cursor.end)
+                    gs.growXfCursor(cursor, n + 2u);
+                // Joined to the strip before by two repeated vertices.
+                ts_native_xf::writeJoinedStrip(kind, cursor, data, vi, n);
 #if TS_NATIVE_RING_SELFCHECK
                 if (ringCheck)
                 {
-                    // The production path's own stores into the ring (decoded
-                    // in place), decoded a second time into the shadow.
-                    s_ringShadow[0] = v;
-                    for (uint32_t i = 1; i + 1 < n; ++i)
-                    {
-                        ts_native_xf::decodeXfVertex(L, data, vi, i, out + i);
-                        ts_native_xf::decodeXfVertex(L, data, vi, i, &s_ringShadow[i]);
-                    }
-                    ts_native_xf::decodeXfVertex(L, data, vi, n - 1u, &v);
-                    out[n - 1u] = v;
-                    s_ringShadow[n - 1u] = v;
-                    gs.endXfStrip(v);
+                    // The production decode's records, a second time into
+                    // a cached shadow (the ring is not read back).
+                    ts_native_xf::decodeXfStrip(kind, data, vi, n - 1u, s_ringShadow);
+                    s_ringShadow[n - 1u] = cursor.last;
                     checkRingStrip(strip, s_ringShadow);
-                    return;
                 }
 #endif
-                for (uint32_t i = 1; i + 1 < n; ++i)
-                    ts_native_xf::decodeXfVertex(L, data, vi, i, out + i);
-                ts_native_xf::decodeXfVertex(L, data, vi, n - 1u, &v);
-                out[n - 1u] = v;
-                gs.endXfStrip(v);
             }
             else
             {
                 GSXfVertex list[64];
-                for (uint32_t i = 0; i < n; ++i)
-                    ts_native_xf::decodeXfVertex(L, data, vi, i, &list[i]);
+                ts_native_xf::decodeXfStrip(kind, data, vi, n, list);
 #if TS_NATIVE_RING_SELFCHECK
                 if (ringCheck)
                     checkRingStrip(strip, list);
@@ -733,12 +722,11 @@ namespace
             packet.submit(); // the state block and anything before go first
             if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
                 memory->gifArbiter()->drain(); // packets queued behind other paths, in order
-            bool direct = false;
-            if (ok && gs.beginXfRun(prim, *xc, direct))
+            if (ok && gs.beginXfRun(prim, *xc, cursor))
             {
                 for (uint32_t k = i; k < j; ++k)
-                    gpuStrip(strips[k], direct);
-                gs.endXfRun();
+                    gpuStrip(strips[k]);
+                gs.endXfRun(cursor);
             }
             else
                 for (uint32_t k = i; k < j; ++k)

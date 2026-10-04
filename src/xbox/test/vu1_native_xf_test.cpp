@@ -4,10 +4,14 @@
 // record, byte for byte, as the pipeline's first decode, for every layout
 // and for the values that matter (Q = 0 and -0, NaN, bone indices beyond
 // the last bone, colour bytes above 8 bits, rows wrapping at the end of
-// VU1 memory), and it must write every byte of the record.
+// VU1 memory), and it must write every byte of the record. The strip
+// decoder (SSE1 whole-row moves, one instantiation per layout) must give
+// the same records for every strip length, at every position, including
+// strips that reach the end of VU1 memory (it then wraps like the others).
 //
 //   clang++ -std=c++20 -O2 -I source/PS2Recomp/ps2xRuntime/include \
 //       src/xbox/test/vu1_native_xf_test.cpp -o vu1_native_xf_test && ./vu1_native_xf_test
+// (also as a 32-bit SSE1 build: the strip decoder takes its SSE path there too)
 #include "../../../project/game/vu1_native_xf.h"
 
 #include <cstdio>
@@ -21,13 +25,7 @@ namespace
     using ts_native_xf::kDataQwords;
     using ts_native_xf::Layout;
 
-    // The layouts of project/game/vu1_native_ts.cpp (layoutFor).
-    const Layout kLayouts[4] = {
-        {24, 0, 64, 128, 0, 0, false, false, false}, // plain
-        {24, 0, 64, 0, 128, 0, false, false, true},  // environment map
-        {24, 0, 48, 96, 144, 0, true, false, false}, // lit
-        {32, 0, 36, 72, 144, 108, true, true, false} // skinned
-    };
+    using ts_native_xf::kLayouts; // the layouts of the microprogram's draw entries
     const char *const kNames[4] = {"plain", "envmap", "lit", "skinned"};
 
     int failures = 0;
@@ -37,6 +35,41 @@ namespace
             std::printf("FAIL %s: layout %s, vi %u, vertex %u, word %u\n", what, layout, vi, v, word);
     }
 
+
+    // A run of joined strips through the cursor writer (the renderer's
+    // ring layout): each strip after the first starts with the last record
+    // before it and its own first, then its records; the cursor's cached
+    // last is the run's last record.
+    void checkJoinedRun(uint32_t kind, const char *name, const uint8_t *data, std::mt19937 &rng)
+    {
+        static GSXfVertex ring[8 * 66], expect[8 * 66];
+        std::memset(ring, 0xAB, sizeof(ring));
+        GSXfCursor cursor;
+        cursor.direct = true;
+        cursor.next = ring;
+        cursor.end = ring + 8 * 66;
+        uint32_t e = 0, vi = 24u;
+        const uint32_t strips = 1u + rng() % 8u;
+        for (uint32_t k = 0; k < strips; ++k)
+        {
+            const uint32_t n = 3u + rng() % 62u;
+            if (vi + 144u + n > kDataQwords)
+                vi = 24u;
+            if (k != 0)
+            {
+                expect[e] = expect[e - 1];
+                ++e;
+                ts_native_xf::decodeXfVertexReference(kLayouts[kind], data, vi, 0, expect[e++]);
+            }
+            for (uint32_t v = 0; v < n; ++v)
+                ts_native_xf::decodeXfVertexReference(kLayouts[kind], data, vi, v, expect[e++]);
+            ts_native_xf::writeJoinedStrip(kind, cursor, data, vi, n);
+            vi += n;
+        }
+        if (cursor.next != ring + e || std::memcmp(ring, expect, e * sizeof(GSXfVertex)) != 0 ||
+            std::memcmp(&cursor.last, &expect[e - 1], sizeof(GSXfVertex)) != 0 || cursor.strips != strips)
+            fail("joined run differs", name, vi, e, 0);
+    }
     uint32_t firstDifferingWord(const GSXfVertex &a, const GSXfVertex &b)
     {
         const uint8_t *pa = reinterpret_cast<const uint8_t *>(&a), *pb = reinterpret_cast<const uint8_t *>(&b);
@@ -62,6 +95,29 @@ namespace
             fail("a byte not written", name, vi, v, firstDifferingWord(a, b));
         else if (std::memcmp(&a, &ref, sizeof(a)) != 0)
             fail("record differs from the reference", name, vi, v, firstDifferingWord(a, ref));
+    }
+
+    // A strip of n vertices at vi through the strip decoder, against the
+    // reference record by record (two fills again: every byte written).
+    void checkStrip(uint32_t kind, const char *name, const uint8_t *data, uint32_t vi, uint32_t n)
+    {
+        static GSXfVertex a[66], b[66];
+        std::memset(a, 0x00, sizeof(a));
+        std::memset(b, 0xFF, sizeof(b));
+        ts_native_xf::decodeXfStrip(kind, data, vi, n, a + 1);
+        ts_native_xf::decodeXfStrip(kind, data, vi, n, b + 1);
+        for (uint32_t v = 0; v < n; ++v)
+        {
+            GSXfVertex ref;
+            ts_native_xf::decodeXfVertexReference(kLayouts[kind], data, vi, v, ref);
+            if (std::memcmp(&a[1 + v], &b[1 + v], sizeof(ref)) != 0)
+                fail("strip: a byte not written", name, vi, v, firstDifferingWord(a[1 + v], b[1 + v]));
+            else if (std::memcmp(&a[1 + v], &ref, sizeof(ref)) != 0)
+                fail("strip: record differs from the reference", name, vi, v, firstDifferingWord(a[1 + v], ref));
+        }
+        // Nothing written before or after the strip.
+        if (std::memcmp(&a[0], &b[0], sizeof(GSXfVertex)) == 0 || std::memcmp(&a[1 + n], &b[1 + n], sizeof(GSXfVertex)) == 0)
+            fail("strip: wrote outside the strip", name, vi, n, 0);
     }
 }
 
@@ -97,6 +153,16 @@ int main()
                 check(L, kNames[li], data, vi, v);
                 ++checked;
             }
+            for (int k = 0; k < 400; ++k)
+            {
+                const uint32_t n = 1u + rng() % 64u;
+                // Anywhere, including strips that reach past the end (wrapped).
+                const uint32_t vi = (k & 1) ? rng() % kDataQwords : kDataQwords - 144u - n + rng() % 8u;
+                checkStrip(li, kNames[li], data, vi, n);
+                checked += n;
+            }
+            for (int k = 0; k < 50; ++k)
+                checkJoinedRun(li, kNames[li], data, rng);
         }
     }
     if (failures)

@@ -96,11 +96,10 @@ public:
 
     void Submit(const GSPrimitiveBatch &batch) override;
     bool SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count) override;
-    bool BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, bool &direct) override;
-    GSXfVertex *BeginXfStrip(uint32_t count, const GSXfVertex &first) override;
-    void EndXfStrip(const GSXfVertex &last) override;
+    bool BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, GSXfCursor &cursor) override;
+    void GrowXfCursor(GSXfCursor &cursor, uint32_t count) override;
     void EmitXfStrip(const GSXfVertex *vertices, uint32_t count) override;
-    void EndXfRun() override;
+    void EndXfRun(GSXfCursor &cursor) override;
     void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) override;
     uint64_t DebugClutState() override;
 

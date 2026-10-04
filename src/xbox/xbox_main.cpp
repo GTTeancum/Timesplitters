@@ -5,6 +5,7 @@
 //   D:\game-data\...          the game's own files (SLUS_200.90, PAK, MUSIC, ...)
 //   D:\ps2disc.iso            the PS2 disc image: the game reads its directory
 //                             sectors itself, as on the PC build
+//   D:\textures.xtp           prebuilt textures (optional; xbox_texture_pack.h)
 // Writable data on the hard disk:
 //   E:\TimeSplitters\mc0\     memory card 1
 //   E:\TimeSplitters\timesplitters.log
@@ -14,6 +15,7 @@
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
+#include "runtime/ps2_spu2.h"
 
 #include <hal/debug.h>
 #include <hal/video.h>
@@ -101,7 +103,12 @@ namespace
                   << g_nv2aTextureStats.wbTexture << "/" << g_nv2aTextureStats.wbDraw << "/" << g_nv2aTextureStats.wbClut << "/"
                   << g_nv2aTextureStats.wbTransfer << "/" << g_nv2aTextureStats.wbCpuWrite << " miss new/ver/clut/evict "
                   << g_nv2aTextureStats.missNew << "/" << g_nv2aTextureStats.missVersion << "/"
-                  << g_nv2aTextureStats.missClut << "/" << g_nv2aTextureStats.missEvicted << std::endl
+                  << g_nv2aTextureStats.missClut << "/" << g_nv2aTextureStats.missEvicted << " pack hit/load/miss/wait/full/busy "
+                  << g_nv2aTextureStats.packHits << "/" << g_nv2aTextureStats.packLoads << "/" << g_nv2aTextureStats.packMisses
+                  << "/" << g_nv2aTextureStats.packWaits << "/" << g_nv2aTextureStats.packNoRoom << "/" << g_nv2aTextureStats.packBusy
+                  << " pool=" << g_nv2aTextureStats.packPoolBytes / 1024u << "K evict=" << g_nv2aTextureStats.packEvictions
+                  << " (max " << g_nv2aTextureStats.packMostVictims << ") read=" << g_nv2aTextureStats.packLoadMs << "ms (max "
+                  << g_nv2aTextureStats.packLongestMs << ") budget=" << g_nv2aTextureStats.textureBudgetKB << "K" << std::endl
                   << "  vu runs=" << g_vu1Stats.runs << " jit=" << g_vu1Stats.jitEntries << " handoff=" << g_vu1Stats.handoffs
                   << " offscreen=" << g_nv2aTextureStats.offscreenDraws << "@" << std::hex << g_nv2aTextureStats.offscreenFbp
                   << "/" << g_nv2aTextureStats.offscreenFbw << "/" << g_nv2aTextureStats.offscreenPsm << "/" << g_nv2aTextureStats.offscreenPrim
@@ -113,7 +120,8 @@ namespace
                   << g_nv2aTextureStats.kcycWait << "/" << g_nv2aTextureStats.kcycReadback
                   << " interp=" << g_vu1Stats.interpPairs << " cyc=" << g_vu1Stats.cycles / 1000u << "K kickwait="
                   << g_vu1Stats.kickWaitCycles / 1000u << "K gpuframes=" << g_nv2aTextureStats.frames << " game=" << g_nv2aTextureStats.gameFrames
-                  << " early=" << g_nv2aTextureStats.earlyHandouts << " pushpeak=" << g_nv2aTextureStats.pushPeakKB << "K pbend=" << g_nv2aTextureStats.framePbEnds << "/" << g_nv2aTextureStats.pbEnds << " pal=" << g_nv2aTextureStats.paletteHits << " snd=" << g_audioBuffers << "/" << g_audioMixKcyc << "K" << std::endl;
+                  << " early=" << g_nv2aTextureStats.earlyHandouts << " pushpeak=" << g_nv2aTextureStats.pushPeakKB << "K pbend=" << g_nv2aTextureStats.framePbEnds << "/" << g_nv2aTextureStats.pbEnds << " pal=" << g_nv2aTextureStats.paletteHits << " snd=" << g_audioBuffers << "/" << g_audioMixKcyc << "K/"
+                  << g_spu2VoiceSamples / 1000u << "Kv" << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"

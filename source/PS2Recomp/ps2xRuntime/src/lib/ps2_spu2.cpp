@@ -1,9 +1,15 @@
 #include "runtime/ps2_spu2.h"
+#include "runtime/ps2_spu_gauss.h"
 
 #include <algorithm>
+#include <bit>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
+
+#if defined(PLATFORM_XBOX)
+unsigned long long g_spu2VoiceSamples = 0;
+#endif
 
 namespace
 {
@@ -21,42 +27,71 @@ namespace
     unsigned coreOf(uint32_t entry) { return entry & 1u; }
     unsigned voiceOf(uint32_t entry) { return (entry >> 1) & 0x1Fu; }
     unsigned idOf(uint32_t entry) { return (entry >> 8) & 0xFFu; }
-}
 
-// Envelope step as on the PS1/PS2 SPU: a 7-bit rate (shift << 2 | step), the
-// step scaled by the level in exponential decrease, slowed above 0x6000 in
-// exponential increase.
-bool Spu2::Envelope::tick(uint32_t rate, bool decreasing, bool exponential)
-{
-    rate &= 0x7Fu;
-    const int shift = static_cast<int>(rate >> 2);
-    int32_t step = decreasing ? -8 + static_cast<int32_t>(rate & 3u) : 7 - static_cast<int32_t>(rate & 3u);
-    uint32_t increment = 0x8000u;
-    if (shift > 11)
-        increment = 0x8000u >> std::min(shift - 11, 31);
-    else
-        step *= 1 << (11 - shift);
-    if (exponential)
+    // Envelope step as on the PS1/PS2 SPU, per 7-bit rate (shift << 2 |
+    // step): the level moves by `step` each time the counter, advanced by
+    // `increment` per sample, reaches 0x8000. Worked out once here because
+    // every playing voice ticks an envelope 48,000 times a second.
+    struct EnvelopeRate
     {
-        if (decreasing)
-            step = (step * level) >> 15;
-        else if (level >= 0x6000)
+        int32_t step;
+        uint32_t increment;
+    };
+    // kExponentialHigh: exponential increase from level 0x6000 up.
+    enum EnvelopeKind { kIncrease, kDecrease, kExponentialHigh, kEnvelopeKinds };
+    struct EnvelopeRates
+    {
+        EnvelopeRate rates[kEnvelopeKinds][128];
+    };
+
+    constexpr EnvelopeRates makeEnvelopeRates()
+    {
+        EnvelopeRates table{};
+        for (int rate = 0; rate < 128; ++rate)
         {
-            if (rate < 40)
-                step >>= 2;
-            else if (rate >= 44)
-                increment >>= 2;
-            else
+            const int shift = rate >> 2;
+            for (int kind = 0; kind < kEnvelopeKinds; ++kind)
             {
-                step >>= 1;
-                increment >>= 1;
+                int32_t step = kind == kDecrease ? -8 + (rate & 3) : 7 - (rate & 3);
+                uint32_t increment = 0x8000u;
+                if (shift > 11)
+                    increment = 0x8000u >> (shift - 11);
+                else
+                    step *= 1 << (11 - shift);
+                // Exponential increase slows down above level 0x6000.
+                if (kind == kExponentialHigh)
+                {
+                    if (rate < 40)
+                        step >>= 2;
+                    else if (rate >= 44)
+                        increment >>= 2;
+                    else
+                    {
+                        step >>= 1;
+                        increment >>= 1;
+                    }
+                }
+                table.rates[kind][rate] = {step, increment};
             }
         }
+        return table;
     }
-    counter += increment;
+    constexpr EnvelopeRates kEnvelopeRates = makeEnvelopeRates();
+}
+
+// Exponential decrease scales the step by the level; exponential increase
+// is slower above 0x6000.
+bool Spu2::Envelope::tick(uint32_t rate, bool decreasing, bool exponential)
+{
+    const EnvelopeKind kind = decreasing ? kDecrease : (exponential && level >= 0x6000) ? kExponentialHigh : kIncrease;
+    const EnvelopeRate &r = kEnvelopeRates.rates[kind][rate & 0x7Fu];
+    counter += r.increment;
     if ((counter & 0x8000u) == 0u)
         return false;
     counter = 0;
+    int32_t step = r.step;
+    if (decreasing && exponential)
+        step = (step * level) >> 15;
     level = std::clamp(level + step, 0, 0x7FFF);
     return true;
 }
@@ -78,8 +113,10 @@ void Spu2::Volume::tick()
     current = (reg & 0x1000u) ? -sweep.level : sweep.level;
 }
 
+// Decodes the block at NAX after the last three samples of the previous one.
 void Spu2::decodeBlock(Voice &v)
 {
+    std::copy(v.samples.end() - 3, v.samples.end(), v.samples.begin());
     const uint32_t address = v.nax & kRamMask & ~15u;
     const uint8_t *block = m_ram + address;
     const uint8_t header = block[0];
@@ -101,9 +138,8 @@ void Spu2::decodeBlock(Voice &v)
         const int16_t s = clamp16(sample);
         v.prev2 = v.prev1;
         v.prev1 = s;
-        v.block[i] = s;
+        v.samples[3 + i] = s;
     }
-    v.index = 0;
 }
 
 static bool spu2Trace()
@@ -125,21 +161,19 @@ void Spu2::keyOn(Core &core, unsigned voice)
     v.env.counter = 0;
     v.counter = 0;
     v.prev1 = v.prev2 = 0;
+    // A new note interpolates from silence, not from the voice's last sound.
+    v.samples.fill(0);
     decodeBlock(v);
-    v.last = 0;
-    v.current = v.block[0];
+    v.index = 0;
     core.endx &= ~(1u << voice);
+    core.playing |= 1u << voice;
 }
 
-// Advances one source sample (crossing into the next ADPCM block as needed).
-void Spu2::stepVoice(Core &core, unsigned index, Voice &v)
+// Moves past the end of the current ADPCM block: follows its loop flags and
+// decodes the next block.
+void Spu2::nextBlock(Core &core, unsigned index, Voice &v)
 {
-    v.last = v.current;
-    if (++v.index < 28)
-    {
-        v.current = v.block[v.index];
-        return;
-    }
+    v.index -= 28;
     if (v.blockFlags & 1u)
     {
         core.endx |= 1u << index;
@@ -155,7 +189,6 @@ void Spu2::stepVoice(Core &core, unsigned index, Voice &v)
     else
         v.nax = (v.blockAddr + 16u) & kRamMask;
     decodeBlock(v);
-    v.current = v.block[0];
 }
 
 int16_t Spu2::tickVoice(Core &core, unsigned index, Voice &v)
@@ -163,8 +196,9 @@ int16_t Spu2::tickVoice(Core &core, unsigned index, Voice &v)
     if (v.phase == Phase::Off)
         return 0;
 
-    const int32_t frac = static_cast<int32_t>(v.counter & 0xFFFu);
-    const int32_t sample = v.last + (((v.current - v.last) * frac) >> 12);
+    // samples[index + 3] is the current sample; the three before it are its
+    // history. Bits 4..11 of the pitch counter pick the Gaussian phase.
+    const int32_t sample = ps2_spu::gaussInterpolate(&v.samples[v.index], (v.counter >> 4) & 0xFFu);
 
     switch (v.phase)
     {
@@ -190,20 +224,26 @@ int16_t Spu2::tickVoice(Core &core, unsigned index, Voice &v)
         break;
     }
 
+    // This tick's output uses this tick's level, even when the voice then
+    // reaches its end block and stops.
+    const int16_t out = static_cast<int16_t>((sample * v.env.level) >> 15);
+
+    // At most 4 samples per output sample (pitch below 0x4000), so the
+    // position crosses at most one block boundary.
     v.counter += std::min<uint32_t>(v.pitch, 0x3FFFu);
-    while (v.counter >= 0x1000u)
-    {
-        v.counter -= 0x1000u;
-        stepVoice(core, index, v);
-        if (v.phase == Phase::Off)
-            break;
-    }
-    return static_cast<int16_t>((sample * v.env.level) >> 15);
+    v.index += v.counter >> 12;
+    v.counter &= 0xFFFu;
+    if (v.index >= 28u)
+        nextBlock(core, index, v);
+    return out;
 }
 
 void Spu2::mix(int16_t *out, unsigned frames)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+#if defined(PLATFORM_XBOX)
+    unsigned voiceSamples = 0;
+#endif
     for (unsigned f = 0; f < frames; ++f)
     {
         int32_t coreOutL = 0, coreOutR = 0;
@@ -211,14 +251,20 @@ void Spu2::mix(int16_t *out, unsigned frames)
         {
             Core &core = m_cores[c];
             int32_t dryL = 0, dryR = 0;
-            for (unsigned i = 0; i < 24; ++i)
+            // Only the playing voices (a handful of the 48 most of the time),
+            // lowest first.
+            for (uint32_t playing = core.playing; playing != 0u; playing &= playing - 1u)
             {
+                const unsigned i = static_cast<unsigned>(std::countr_zero(playing));
                 Voice &v = core.voices[i];
-                if (v.phase == Phase::Off)
-                    continue;
+#if defined(PLATFORM_XBOX)
+                ++voiceSamples;
+#endif
                 v.volL.tick();
                 v.volR.tick();
                 const int32_t s = tickVoice(core, i, v);
+                if (v.phase == Phase::Off)
+                    core.playing &= ~(1u << i);
                 if (core.vmixL & (1u << i))
                     dryL += (s * v.volL.current) >> 15;
                 if (core.vmixR & (1u << i))
@@ -234,6 +280,9 @@ void Spu2::mix(int16_t *out, unsigned frames)
         out[f * 2] = clamp16(coreOutL);
         out[f * 2 + 1] = clamp16(coreOutR);
     }
+#if defined(PLATFORM_XBOX)
+    g_spu2VoiceSamples += voiceSamples;
+#endif
 }
 
 void Spu2::setParam(uint32_t entry, uint32_t value)

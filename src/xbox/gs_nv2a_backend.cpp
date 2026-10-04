@@ -1,5 +1,7 @@
 // GS renderer for the original Xbox (NV2A via pbkit). See gs_nv2a_backend.h.
 #include "gs_nv2a_backend.h"
+#include "xbox_texture_pack.h"
+#include "runtime/gs/gs_texture_hash.h"
 
 #include <hal/debug.h>
 #include <hal/video.h>
@@ -10,10 +12,12 @@
 
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <iostream>
 #include <list>
 #include <set>
 #include <vector>
@@ -36,6 +40,27 @@ namespace
     // match frame writes about 280 KB: it fits whole, so the GPU is not
     // drained mid-frame to restart the buffer (openCursor).
     constexpr uint32_t kPushBufferBytes = 512u * 1024u;
+
+    // The prebuilt texture pack (xbox_texture_pack.h) and the GPU memory its
+    // entries are read into. The world textures of one match (the PC
+    // port's dump of a session) come to about 1.14 MB with mip chains.
+    constexpr const char *kTexturePackPath = "D:\\textures.xtp";
+    constexpr uint32_t kTexturePoolBytes = 1280u * 1024u;
+    // While the pack carries the world textures, the runtime path keeps only
+    // what the pack lacks (front-end art, screen copies, palettes made at
+    // run time), and its budget is lowered to pay for part of the pool. Not
+    // before the pack has shown it: the runtime path's own textures must
+    // stay under half the lower budget for kPackTrialFrames frames in a row
+    // (a pack whose keys do not match, or a full pool, leaves the world on
+    // the runtime path, which the lower budget would turn into one-frame
+    // textures and GPU waits). One frame over three quarters of it restores
+    // the full budget at once.
+    constexpr size_t kTextureBudgetWithPack = 512u * 1024u;
+    constexpr uint32_t kPackTrialFrames = 300u;
+    // A pack texture that found no room in the pool is drawn through the
+    // runtime path; it tries the pool again after this many frames (by then
+    // the entries it would displace have been idle long enough to go).
+    constexpr uint32_t kPackRetryFrames = 30u;
 
     uint32_t physical(const void *p) { return uint32_t(reinterpret_cast<uintptr_t>(p)) & 0x03FFFFFFu; }
 
@@ -383,11 +408,23 @@ struct GSNv2aBackend::Impl
         size_t bytes = 0;
         uint32_t lastFrame = 0;
         bool unitAlpha = false; // one alpha bit whose 1.0 is GS 0x80 (selects the pixel program)
+        // Texture pack: the entry with this texture's key (-1: none). Pooled
+        // textures are the pack's copy in its pool (bytes 0: the pack owns
+        // the memory); others are drawn from the runtime path while the
+        // entry is not in the pool (on its way from the disc, or no room for
+        // it), and try again from packRetryFrame on.
+        int packEntry = -1;
+        bool pooled = false;
+        bool forceLinear = false; // HD replacement: always filtered, as on the PC
+        uint32_t levels = 1;      // mip levels (pack textures only have more than one)
+        uint32_t packRetryFrame = 0;
     };
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
     std::set<uint64_t> frameKeys, lastFrameKeys; // address/size keys drawn this and last frame (statistics)
     size_t retiredBytes = 0;
     static constexpr size_t kRetiredLimit = 768u * 1024u; // beyond this, wait and free at once
+    size_t textureBudget = kTextureBudget; // lower while the pack carries the world (kTextureBudgetWithPack)
+    uint32_t packQuietFrames = 0;          // frames in a row the runtime path stayed under half of that
     // A list: draw keys hold pointers into it across insertions and removals.
     std::list<Texture> textures;
     std::list<Texture> retired; // dropped textures the GPU may still read; freed at the frame's end
@@ -455,6 +492,13 @@ struct GSNv2aBackend::Impl
             flushBatch();
         if (applied.texture == &*it)
             stateValid = false; // the address may be reused by a new texture
+        if (it->pooled)
+        {
+            // The texels belong to the pack, which keeps them while a frame
+            // in flight may read them: only the record goes.
+            textures.erase(it);
+            return;
+        }
         textureBytes -= it->bytes;
         retiredBytes += it->bytes;
         retired.splice(retired.end(), textures, it);
@@ -472,7 +516,8 @@ struct GSNv2aBackend::Impl
         if (batchCount)
             flushBatch(); // a one-frame texture may be the batch's
         for (Texture &t : retired)
-            MmFreeContiguousMemory(t.texels);
+            if (!t.pooled) // pool memory is the pack's
+                MmFreeContiguousMemory(t.texels);
         retired.clear();
         retiredBytes = 0;
         stateValid = false; // a bound one-frame texture's address may be reused
@@ -540,6 +585,9 @@ struct GSNv2aBackend::Impl
             if (t.versions == versions)
             {
                 t.lastUse = ++textureTick;
+                if (t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame)
+                    if (Texture *pooled = retryPack(it))
+                        return pooled;
                 noteUse(t);
                 return &t;
             }
@@ -583,17 +631,27 @@ struct GSNv2aBackend::Impl
             frameKeys.insert(uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40));
         }
         Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
-        decodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
+        cpu.DecodeTexture(state, decoded);
+        const bool whole = decoded.size() >= size_t(w) * h;
+        if (!whole)
+            decoded.assign(size_t(w) * h, 0u);
+        // The pack's copy when it has this texture (render targets and
+        // screen copies are never looked up, as on the PC).
+        if (whole && pack.enabled() && !renderTarget(range))
+            if (Texture *pooled = packTexture(t))
+                return pooled;
+        encodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
         // Room in the cache: textures not used in this or the last frame
         // go first. When a frame's textures exceed the budget the cache
         // keeps what it has (LRU would cycle the whole set every frame)
         // and the newcomer lives in a one-frame slot (the retired list).
+        // Pack textures cost the cache nothing and stay.
         bool cached = true;
-        while (textureBytes + t.bytes > kTextureBudget)
+        while (textureBytes + t.bytes > textureBudget)
         {
             auto oldest = textures.end();
             for (auto it = textures.begin(); it != textures.end(); ++it)
-                if (it->lastFrame + 1u < frameNumber && (oldest == textures.end() || it->lastUse < oldest->lastUse))
+                if (!it->pooled && it->lastFrame + 1u < frameNumber && (oldest == textures.end() || it->lastUse < oldest->lastUse))
                     oldest = it;
             if (oldest == textures.end())
             {
@@ -635,20 +693,213 @@ struct GSNv2aBackend::Impl
         t.lastFrame = frameNumber;
         ++frameTextures;
         frameTextureBytes += uint32_t(t.bytes);
+        if (t.pooled)
+            pack.touch(t.packEntry, frameNumber);
     }
 
-    // Decodes the GS texture (CLUT and TEXA applied) into `swizzled`, the
-    // layout the NV2A samples with wrapping: DXT1/DXT5 from 8x8 up, else
-    // A1R5G5B5 when that loses nothing (16-bit sources, one-bit alpha as
-    // below), else A8R8G8B8.
-    void decodeTexture(Texture &t, const GSDrawState &state)
+    // ------------------------------------------------------ texture pack
+    XboxTexturePack pack;
+    uint8_t *packPool = nullptr;
+    std::vector<int> packEvicted;
+
+    // Only when Create gives up on the GPU: the software renderer gets the
+    // pool's memory back (once the loader has stopped writing into it).
+    ~Impl()
+    {
+        pack.close();
+        if (packPool)
+            MmFreeContiguousMemory(packPool);
+    }
+
+    // Opens the pack and takes its pool: at start-up, while 1.25 MB of
+    // contiguous memory is still easy to find. Without the file (or the
+    // memory, or the loader) everything runs as before.
+    void openTexturePack()
+    {
+        if (!pack.open(kTexturePackPath))
+            return;
+        packPool = static_cast<uint8_t *>(allocGpu(kTexturePoolBytes));
+        if (!packPool)
+        {
+            std::cout << "[TS:xbox] texture pack: no memory for its pool, not used" << std::endl;
+            pack.close();
+            return;
+        }
+        if (!pack.attachPool(packPool, kTexturePoolBytes))
+        {
+            MmFreeContiguousMemory(packPool);
+            packPool = nullptr;
+        }
+    }
+
+    // Once a frame: the loader's finished reads, the counters, and the
+    // runtime path's budget (kTextureBudgetWithPack). frameTextureBytes is
+    // what the runtime path drew this frame (pack textures count nothing).
+    void packFrameEnd()
+    {
+        if (!pack.enabled())
+            return;
+        pack.poll();
+        updatePackStats();
+        packQuietFrames = frameTextureBytes > kTextureBudgetWithPack / 2u ? 0u : std::min(packQuietFrames + 1u, kPackTrialFrames);
+        if (frameTextureBytes > kTextureBudgetWithPack * 3u / 4u)
+            textureBudget = kTextureBudget;
+        else if (packQuietFrames >= kPackTrialFrames)
+            textureBudget = kTextureBudgetWithPack;
+        g_nv2aTextureStats.textureBudgetKB = uint32_t(textureBudget / 1024u);
+    }
+
+    void updatePackStats()
+    {
+        const XboxTexturePack::Stats &s = pack.stats();
+        g_nv2aTextureStats.packLoads = s.loads;
+        g_nv2aTextureStats.packEvictions = s.evictions;
+        g_nv2aTextureStats.packMostVictims = s.mostVictims;
+        g_nv2aTextureStats.packBusy = s.busy;
+        g_nv2aTextureStats.packPoolBytes = s.usedBytes;
+        g_nv2aTextureStats.packLoadMs = uint32_t(s.loadMicroseconds / 1000u);
+        g_nv2aTextureStats.packLongestMs = (s.longestMicroseconds + 999u) / 1000u;
+    }
+
+    // Records still pointing at entries the pack evicted.
+    void dropEvicted()
+    {
+        for (int entry : packEvicted)
+            for (auto it = textures.begin(); it != textures.end();)
+            {
+                const auto next = std::next(it);
+                if (it->pooled && it->packEntry == entry)
+                    retireTexture(it);
+                it = next;
+            }
+        packEvicted.clear();
+    }
+
+    // Makes t the pack's copy of entry `index` when that is in the pool.
+    // Otherwise t keeps the runtime path for now and remembers when to try
+    // again: next frame while the entry is on its way from the disc (or the
+    // loader is busy), later when the pool had no room, never when the
+    // entry cannot be read.
+    bool usePack(Texture &t, int index)
+    {
+        XboxTexturePack::Status status = XboxTexturePack::kUnavailable;
+        uint8_t *texels = pack.acquire(index, frameNumber, packEvicted, status);
+        if (!packEvicted.empty())
+            dropEvicted();
+        if (!texels)
+        {
+            switch (status)
+            {
+            case XboxTexturePack::kLoading:
+            case XboxTexturePack::kBusy:
+                ++g_nv2aTextureStats.packWaits;
+                t.packEntry = index;
+                t.packRetryFrame = frameNumber + 1u;
+                break;
+            case XboxTexturePack::kNoRoom:
+                ++g_nv2aTextureStats.packNoRoom;
+                t.packEntry = index;
+                t.packRetryFrame = frameNumber + kPackRetryFrames;
+                break;
+            default:
+                t.packEntry = -1;
+                break;
+            }
+            return false;
+        }
+        static const uint32_t kFormats[4] = {
+            NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5, NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
+            NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8, NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5};
+        const XboxTexturePack::Entry &e = pack.entry(index);
+        t.texels = texels;
+        t.format = kFormats[e.format]; // checked when the pack was opened
+        t.gpuWidth = e.width;
+        t.gpuHeight = e.height;
+        t.levels = e.levels;
+        t.unitAlpha = (e.flags & XboxTexturePack::kUnitAlpha) != 0u;
+        t.forceLinear = (e.flags & XboxTexturePack::kReplacement) != 0u;
+        t.bytes = 0;
+        t.packEntry = index;
+        t.pooled = true;
+        return true;
+    }
+
+    // A cache miss whose decoded texels (in `decoded`) may be in the pack.
+    // Null when they are not, or not in the pool yet: then t remembers the
+    // entry and the caller encodes the texture as before.
+    Texture *packTexture(Texture &t)
+    {
+        const int index = pack.find(gs_texture_hash::hash(decoded.data(), t.width, t.height));
+        if (index < 0)
+        {
+            ++g_nv2aTextureStats.packMisses;
+            return nullptr;
+        }
+        ++g_nv2aTextureStats.packHits;
+        if (!usePack(t, index))
+            return nullptr;
+        textures.push_back(t);
+        noteUse(textures.back());
+        return &textures.back();
+    }
+
+    // A texture drawn from the runtime path while its pack entry was not in
+    // the pool tries again; once it is, the pack's copy replaces it (its
+    // own memory retires as usual).
+    Texture *retryPack(std::list<Texture>::iterator it)
+    {
+        Texture t = *it;
+        if (!usePack(t, it->packEntry))
+        {
+            it->packEntry = t.packEntry;
+            it->packRetryFrame = t.packRetryFrame;
+            return nullptr;
+        }
+        retireTexture(it);
+        textures.push_back(t);
+        noteUse(textures.back());
+        return &textures.back();
+    }
+
+    // Render targets and screen copies: GS pages the GPU draws (the
+    // display buffers) or that off-screen draws and copies of either wrote,
+    // until an upload or a copy of texels replaces them. Their contents are
+    // never in the pack, and hashing them would cost time for nothing.
+    std::bitset<kPageCount> targetPages;
+    GSCpuBackend::VramRange lastTargetMark{}; // consecutive off-screen draws share a target
+
+    void markTargetPages(const GSCpuBackend::VramRange &range, bool target)
+    {
+        if (range.end == UINT64_MAX || (target && range.begin == lastTargetMark.begin && range.end == lastTargetMark.end))
+            return;
+        lastTargetMark = target ? range : GSCpuBackend::VramRange{};
+        for (uint64_t p = range.begin / kPageBytes; p < (range.end + kPageBytes - 1) / kPageBytes && p < kPageCount; ++p)
+            targetPages[p] = target;
+    }
+
+    bool renderTarget(const GSCpuBackend::VramRange &range) const
+    {
+        if (range.end == UINT64_MAX || range.end > kPageCount * kPageBytes)
+            return true;
+        const uint32_t rows = std::min<uint32_t>(frameHeight, kDisplayRows);
+        for (const uint32_t fbp : {displayFbp[0], displayFbp[1], frameFbp})
+            if (fbp != UINT32_MAX && overlaps(range, frameRangeExact(framePsm, fbp, frameFbw, rows)))
+                return true;
+        for (uint64_t p = range.begin / kPageBytes; p < (range.end + kPageBytes - 1) / kPageBytes; ++p)
+            if (targetPages[p])
+                return true;
+        return false;
+    }
+
+    // Encodes the decoded GS texture (`decoded`: CLUT and TEXA applied) into
+    // `swizzled`, the layout the NV2A samples with wrapping: DXT1/DXT5 from
+    // 8x8 up, else A1R5G5B5 when that loses nothing (16-bit sources,
+    // one-bit alpha as below), else A8R8G8B8.
+    void encodeTexture(Texture &t, const GSDrawState &state)
     {
         // 2D draws (sprites: HUD, text) keep their texels; the halving is
         // for the world's triangles.
         const bool allowHalf = state.prim.type != GS_PRIM_SPRITE;
-        cpu.DecodeTexture(state, decoded);
-        if (decoded.size() < size_t(t.width) * t.height)
-            decoded.assign(size_t(t.width) * t.height, 0u);
         // Textures of 256 or more are stored at half size (2x2 average):
         // a match's textures are about 3 MB a frame at full size, three
         // times what 64 MB leaves for the cache.
@@ -917,7 +1168,7 @@ struct GSNv2aBackend::Impl
     {
         const Texture *texture = nullptr;
         int program = 0;
-        uint32_t address = 0, filter = 0;
+        uint32_t address = 0, filter = 0, levels = 0; // levels: the texture's mip count (CONTROL0's LOD clamp)
         uint32_t blendEnable = 0, sfactor = 0, dfactor = 0, equation = 0, blendColor = 0;
         uint32_t alphaTest = 0, alphaFunc = 0, alphaRef = 0;
         uint32_t depthTest = 0, depthFunc = 0, depthMask = 0;
@@ -1230,6 +1481,7 @@ struct GSNv2aBackend::Impl
         frameEndPending = true;
         frameOpen = false;
         screenGpuNewer = true;
+        packFrameEnd();
         g_nv2aTextureStats.frameTextures = frameTextures;
         g_nv2aTextureStats.frameTextureBytes = frameTextureBytes;
         g_nv2aTextureStats.frameFills = frameFills;
@@ -1337,7 +1589,15 @@ struct GSNv2aBackend::Impl
         const uint32_t wrapU = (clamp & 3u) == 0u || (clamp & 3u) == 3u ? 1u : 3u; // repeat : clamp to edge
         const uint32_t wrapV = ((clamp >> 2) & 3u) == 0u || ((clamp >> 2) & 3u) == 3u ? 1u : 3u;
         k.address = wrapU | (wrapV << 8) | (3u << 16);
-        k.filter = state.linearFilter ? 0x02022000u : 0x01012000u; // linear : nearest (min/mag)
+        // Linear : nearest (min/mag), level 0 only. Mipmapped (pack)
+        // textures drawn linear also blend between levels (min 6,
+        // TENT_TENT_LOD: trilinear), which is what stops the shimmer of
+        // distant surfaces; HD replacements are always drawn so, as on the PC.
+        const bool linear = state.linearFilter || (tex && tex->forceLinear);
+        k.filter = linear ? 0x02022000u : 0x01012000u;
+        k.levels = tex ? tex->levels : 0u;
+        if (linear && k.levels > 1u)
+            k.filter = 0x02062000u;
         blendState(state, k);
         const uint64_t test = state.context.test;
         if (test & 1u)
@@ -1401,11 +1661,15 @@ struct GSNv2aBackend::Impl
             {
                 p = push1(p, NV097_SET_TEXTURE_OFFSET, physical(t.texels));
                 p = push1(p, NV097_SET_TEXTURE_FORMAT,
-                          0x0000002Au | (t.format << 8) | (1u << 16) |
-                              (log2u(t.gpuWidth) << 20) | (log2u(t.gpuHeight) << 24));
+                             0x0000002Au | (t.format << 8) | (t.levels << 16) |
+                                 (log2u(t.gpuWidth) << 20) | (log2u(t.gpuHeight) << 24));
             }
-            if (all || !o.texture)
-                p = push1(p, NV097_SET_TEXTURE_CONTROL0, NV097_SET_TEXTURE_CONTROL0_ENABLE);
+            // MAX_LOD_CLAMP (4.8 fixed point, bits 6..17) lets the sampler
+            // reach the last level; one level leaves it 0, as before.
+            if (all || !o.texture || o.levels != k.levels)
+                p = push1(p, NV097_SET_TEXTURE_CONTROL0,
+                             NV097_SET_TEXTURE_CONTROL0_ENABLE |
+                                 (((k.levels - 1u) << 8 << 6) & NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP));
             if (all || o.address != k.address || !o.texture)
                 p = push1(p, NV097_SET_TEXTURE_ADDRESS, k.address);
             if (all || o.filter != k.filter || !o.texture)
@@ -1923,6 +2187,11 @@ struct GSNv2aBackend::Impl
 // ------------------------------------------------------------------------
 std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
 {
+    // The texture pack's pool first: its 1.25 MB in one piece is surest to
+    // be found before the screen buffers, the GPU buffers and the game take
+    // their share.
+    std::unique_ptr<GSNv2aBackend> backend(new GSNv2aBackend());
+    backend->m->openTexturePack();
     // 16-bit colour and depth, like the game's own buffers: a 640x480 screen
     // buffer is 0.6 MB instead of 1.2, and there are two plus the depth buffer.
     XVideoSetMode(640, 480, 16, REFRESH_DEFAULT);
@@ -1936,7 +2205,6 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
         debugPrint("pbkit: pb_init failed (%d)\n", error);
         return nullptr;
     }
-    std::unique_ptr<GSNv2aBackend> backend(new GSNv2aBackend());
     Impl &impl = *backend->m;
     impl.vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));       // 288 KB
     impl.xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex))); // 352 KB
@@ -1989,6 +2257,7 @@ void GSNv2aBackend::Reset()
     m->cpu.Reset();
     m->bumpPages({0, UINT64_MAX});
     m->clutCbp[0] = m->clutCbp[1] = UINT32_MAX;
+    m->targetPages.reset();
 }
 
 void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
@@ -2012,7 +2281,9 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
         m->writeBackScreen();
     }
     m->cpu.Submit(batch);
-    m->noteCpuWrite(GSCpuBackend::FrameRange(batch.state));
+    const GSCpuBackend::VramRange target = GSCpuBackend::FrameRange(batch.state);
+    m->noteCpuWrite(target);
+    m->markTargetPages(target, true);
 }
 
 bool GSNv2aBackend::SubmitStripsTransformed(const GSDrawState &state, const GSXfConstants &constants,
@@ -2084,8 +2355,16 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
     }
     m->cpu.BeginTransfer(command);
     if (command.direction == 2u)
-        m->noteCpuWrite(frameRangeRows(buf.dpsm, buf.dbp / 32u, buf.dbw,
-                                       uint32_t(command.trxpos.dsay) + command.trxreg.rrh + 1u));
+    {
+        const auto dest = frameRangeRows(buf.dpsm, buf.dbp / 32u, buf.dbw,
+                                         uint32_t(command.trxpos.dsay) + command.trxreg.rrh + 1u);
+        m->noteCpuWrite(dest);
+        // A copy of a render target (a screen copy) is one too; a copy of
+        // texels is texels.
+        const auto source = frameRangeRows(buf.spsm, buf.sbp / 32u, buf.sbw,
+                                           uint32_t(command.trxpos.ssay) + command.trxreg.rrh + 1u);
+        m->markTargetPages(dest, m->renderTarget(source));
+    }
 }
 
 void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
@@ -2095,6 +2374,7 @@ void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
     const auto dest = frameRangeRows(c.bitbltbuf.dpsm, c.bitbltbuf.dbp / 32u, c.bitbltbuf.dbw,
                                      uint32_t(c.trxpos.dsay) + c.trxreg.rrh + 1u);
     m->noteCpuWrite({dest.begin, dest.end == UINT64_MAX ? UINT64_MAX : dest.end + 2u * kPageBytes});
+    m->markTargetPages(dest, false); // uploaded texels: textures again
 }
 
 void GSNv2aBackend::Flush() { m->flushBatch(); }

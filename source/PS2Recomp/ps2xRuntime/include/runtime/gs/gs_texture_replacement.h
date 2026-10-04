@@ -25,6 +25,7 @@ namespace gs_texture_replacement
 
     bool dumping();
 
+    // The texture's key, gs_texture_hash::hash (shared with the Xbox pack).
     uint64_t hash(const uint32_t *texels, uint32_t width, uint32_t height);
 
     // True when the texture's alpha goes above the GS opaque value (128).

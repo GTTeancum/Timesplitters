@@ -8,7 +8,9 @@
 // off-screen draws (render-to-texture). GPU-drawn screen pixels are written
 // back to local memory only when something reads them (texture decode,
 // local->host or local->local transfers), and CPU writes to the screen are
-// loaded into the back buffer before the next GPU draw or flip.
+// loaded into the back buffer before the next GPU draw or flip. Textures are
+// decoded from local memory; the prebuilt pack's copy (xbox_texture_pack.h)
+// is drawn when it has the texture, else the decode is encoded here.
 #include "runtime/gs/gs_cpu_backend.h"
 
 #include <memory>
@@ -55,6 +57,18 @@ struct GSNv2aTextureStats
     // the last finished frame, and in total (its change between two status
     // lines over frames' change is the average per frame).
     uint32_t framePbEnds = 0, pbEnds = 0;
+    // Texture pack (D:\textures.xtp, cumulative): cache misses whose key it
+    // has (hits) or has not (misses); draws from the runtime path while the
+    // entry was on its way from the disc (waits) or for want of pool room;
+    // requests turned away by a full loader queue (busy); entries read and
+    // evicted, the most evicted for one read; the reads' total and longest
+    // time (on the loader thread, not the game's); pool bytes in use now.
+    uint32_t packHits = 0, packMisses = 0, packWaits = 0, packNoRoom = 0, packBusy = 0;
+    uint32_t packLoads = 0, packEvictions = 0, packMostVictims = 0, packLoadMs = 0, packLongestMs = 0;
+    uint32_t packPoolBytes = 0;
+    // The runtime path's texture budget now: 1024 KB, or 512 KB while the
+    // pack carries the world textures.
+    uint32_t textureBudgetKB = 1024;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 

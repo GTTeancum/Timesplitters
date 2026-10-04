@@ -210,27 +210,67 @@ $(OUT)/iso/ps2disc.iso: $(ROOT)/project/disc/TimeSplitters.iso
 	@echo "[ COPY    ] $@"
 	@cp $< $@
 
+# The texture pack (tools/xtpbuild.py): the disc's textures at full size with
+# mip chains, DXT-compressed offline and looked up by the PC port's texture
+# key; the runtime keeps its own path for anything not in it. Built from the
+# user's MISC.PAK into build/ only, never into the source tree. Without
+# MISC.PAK, or without a Python that has numpy and Pillow (MSYS2's own python
+# usually lacks both, so XTP_PYTHON, else the first candidate below that has
+# them; python.org installs live under local AppData, CSIDL 28), the ISO is
+# built without it. XTP_FLAGS adds options and rebuilds the pack when it
+# changes, e.g.
+#   make XTP_FLAGS="--replacements $(ROOT)/textures/replacements --dump $(ROOT)/textures/dump"
+MISC_PAK   ?= $(ROOT)/project/game-data/PAK/MISC.PAK
+XTP        := $(OUT)/iso/textures.xtp
+XTP_FLAGS  ?=
+XTP_PYTHON ?=
+XTP_STAMP  := $(OUT)/gen/xtp.flags
+XTP_DEP    := $(if $(wildcard $(MISC_PAK)),$(XTP))
+
+# Rewritten only when XTP_FLAGS changes, so the pack rebuilds only then.
+$(XTP_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(XTP_FLAGS)' ] || echo '$(XTP_FLAGS)' > $@
+
+$(XTP): $(MISC_PAK) $(XBOX)/tools/xtpbuild.py $(XTP_STAMP)
+	@mkdir -p $(dir $@)
+	@echo "[ XTP     ] $@"
+	@py='$(XTP_PYTHON)'; local="$$(cygpath -u -F 28 2>/dev/null)"; \
+	if [ -z "$$py" ]; then \
+	    for c in python python3 py "$$local"/Programs/Python/Python3*/python.exe "$$local"/Programs/Python/Launcher/py.exe; do \
+	        if "$$c" -c "import numpy, PIL" > /dev/null 2>&1; then py="$$c"; break; fi; \
+	    done; \
+	fi; \
+	if [ -z "$$py" ]; then \
+	    echo "[ XTP     ] skipped: no Python with numpy and Pillow (set XTP_PYTHON); runtime textures only"; rm -f $@; \
+	else \
+	    "$$py" $(XBOX)/tools/xtpbuild.py $(XTP_FLAGS) $< $@; \
+	fi
+
 # The disc carries the game's own files from project/game-data (not in git).
 # make AUTOPLAY=<pad script>: the disc plays that controller script (tests).
 AUTOPLAY ?=
 
-$(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso FORCE
+$(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso $(XTP_DEP) FORCE
 	@echo "[ XISO    ] $@"
+	@$(if $(XTP_DEP),,echo "[ XTP     ] skipped: no $(MISC_PAK); runtime textures only" && rm -f $(XTP))
 	@rm -f $(OUT)/iso/autoplay.pad
 	@$(if $(AUTOPLAY),cp $(AUTOPLAY) $(OUT)/iso/autoplay.pad)
 	@rm -rf $(OUT)/iso/game-data && cp -r $(ROOT)/project/game-data $(OUT)/iso/game-data
 	@rm -rf $(OUT)/iso/game-data/mc0 $(OUT)/iso/game-data/mc1
 	@cd $(OUT) && $(XISO) -c iso TimeSplitters.iso > /dev/null
 
-# Compile one group only, e.g. make runtime / make generated
+# Compile one group only, e.g. make runtime / make generated / make textures
 runtime: $(OTHER_OBJS)
 generated: $(GEN_OBJS)
+textures: $(XTP_DEP)
+	@$(if $(XTP_DEP),,echo "[ XTP     ] skipped: no $(MISC_PAK)")
 
 clean:
 	rm -rf $(OUT)
 
 vuflags:
 	@echo $(CXX) $(GEN_FLAGS) -O2
-.PHONY: all runtime generated clean FORCE vuflags
+.PHONY: all runtime generated textures clean FORCE vuflags
 FORCE:
 -include $(GEN_OBJS:.obj=.d) $(OTHER_OBJS:.obj=.d)

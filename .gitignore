@@ -83,3 +83,7 @@ project/analysis/extracted/MODULES/
 
 # Texture dumps and replacement packs (see KNOWN-ISSUES.md)
 /textures/
+# Xbox texture packs and their previews, built from the user's own disc
+# (src/xbox/tools/xtpbuild.py)
+*.xtp
+*.dds

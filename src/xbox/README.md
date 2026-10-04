@@ -18,6 +18,16 @@ and the PS2 disc image, which the game reads sector by sector). With
 blank memory card (the PC build's `TS_PAD_SCRIPT` format); `arcade-match.pad`
 starts an arcade match.
 
+The disc also carries `textures.xtp` (`build/xbox/iso/textures.xtp`, about
+11 MB, built in about 12 s): MISC.PAK's textures at full size with mip
+chains, DXT-compressed offline by `tools/xtpbuild.py` and keyed like the PC
+port's texture replacements. It needs a Python with numpy and Pillow (MSYS2's
+own python has neither; the build looks for a python.org install, or set
+`XTP_PYTHON`); without one, or without MISC.PAK, the disc is built without
+it. `build.sh textures` builds only the pack;
+`XTP_FLAGS="--replacements textures/replacements --dump textures/dump"`
+(absolute paths) adds HD replacements, `--preview DIR` writes .dds files.
+
 ## Test in xemu
 
     xemu.exe -dvd_path build\xbox\TimeSplitters.iso -gdb tcp::1235
@@ -42,6 +52,15 @@ world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle c
   draws go to the GPU; off-screen draws, uploads and transfers stay on the
   software renderer, with copies between the two only when the game reads
   its screen back. 16-bit colour, 24-bit depth; textures cached as DXT1.
+- `xbox_texture_pack.cpp`: reads `D:\textures.xtp` (prebuilt full-size
+  textures with mip chains, made from the user's own game data at build
+  time) into a 1.25 MB GPU pool, on a loader thread of its own so that no
+  disc read stops the game; the renderer looks textures up by the PC
+  port's texture key and draws them trilinear, and draws a texture from
+  the runtime path until its entry has arrived. The runtime path's budget
+  drops from 1 MB to 512 KB only while the pack is seen to carry the world
+  textures. Without the file, textures come from the runtime path only, as
+  before.
 - `shaders/`: the vertex program and the pixel-program variants (TFX/TCC,
   and TCC for one-bit-alpha textures whose 1.0 is GS 0x80), compiled by
   nxdk's Cg tools (`gs_*.inl` under `build/xbox/gen/shaders`).
@@ -67,3 +86,6 @@ world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle c
   (`PS2X_VU1_SSE1`), object built at -O2.
 - `tools/patch_generated.py`: patched copies of game functions (a busy wait
   in `soundLoad`).
+- `tools/xtpbuild.py`: the texture pack builder (pack format at the top of
+  the script): PC-port texture keys, mip chains that keep alpha-tested
+  coverage, and a DXT1/DXT5 encoder in numpy.

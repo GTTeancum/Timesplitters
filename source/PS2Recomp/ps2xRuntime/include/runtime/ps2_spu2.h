@@ -5,11 +5,17 @@
 #include <mutex>
 
 // SPU2 sound processor: two cores of 24 voices playing 4-bit ADPCM from the
-// shared 2 MiB sound RAM, with ADSR envelopes, pitch, looping, per-voice and
-// master volume. Driven at the libsd level (sceSdSetParam/Switch/Addr/
-// CoreAttr, which map one-to-one onto SPU2 registers) and mixed to 48 kHz
-// stereo on the host audio thread. Not modelled yet: reverb, noise, pitch
-// modulation, SPU IRQs, core input streaming (AutoDMA).
+// shared 2 MiB sound RAM, with the hardware's Gaussian interpolation, ADSR
+// envelopes, pitch, looping, per-voice and master volume. Driven at the libsd
+// level (sceSdSetParam/Switch/Addr/CoreAttr, which map one-to-one onto SPU2
+// registers) and mixed to 48 kHz stereo on the host audio thread. Not
+// modelled: noise, pitch modulation, core input streaming (AutoDMA), and
+// reverb. TimeSplitters turns the reverb on for both cores (soundRestart:
+// effect enable, Hall preset) but sets the effect return volume EVOL to 0
+// there, directly and again through the effect's depth, and nothing writes
+// it afterwards: the game's other libsd calls and batches, and its music
+// driver, only set voice registers, key on/off and transfer. On the PS2 none
+// of the reverb reaches the output, so computing it would be wasted time.
 class Spu2
 {
 public:
@@ -70,16 +76,19 @@ private:
         Envelope env;
         uint32_t counter = 0; // 12-bit fractional sample position
         int32_t prev1 = 0, prev2 = 0;
-        std::array<int16_t, 28> block{};
+        // The last three samples of the previous block, then the current
+        // block's 28: the interpolation reads the four samples ending at the
+        // current one, across block boundaries and loops as the hardware does.
+        std::array<int16_t, 3 + 28> samples{};
         uint8_t blockFlags = 0;
         uint32_t blockAddr = 0;
-        unsigned index = 0;
-        int16_t last = 0, current = 0; // for interpolation
+        unsigned index = 0; // current sample within the block
     };
 
     struct Core
     {
         std::array<Voice, 24> voices{};
+        uint32_t playing = 0; // voices not Off: the mix visits only these
         Volume mvolL, mvolR;
         uint16_t mmix = 0, evolL = 0, evolR = 0, avolL = 0, avolR = 0, bvolL = 0, bvolR = 0;
         uint32_t vmixL = 0xFFFFFFu, vmixR = 0xFFFFFFu, vmixEL = 0, vmixER = 0, pmon = 0, non = 0, endx = 0;
@@ -93,7 +102,7 @@ private:
     void keyOn(Core &core, unsigned voice);
     void checkIrq(uint32_t byteAddress, uint32_t bytes);
     void decodeBlock(Voice &v);
-    void stepVoice(Core &core, unsigned index, Voice &v);
+    void nextBlock(Core &core, unsigned index, Voice &v);
     int16_t tickVoice(Core &core, unsigned index, Voice &v);
 
     uint8_t *m_ram;
@@ -102,3 +111,10 @@ private:
     std::array<Core, 2> m_cores{};
     std::mutex m_mutex;
 };
+
+#if defined(PLATFORM_XBOX)
+// Development counter for the Xbox status block (cumulative): voice samples
+// mixed, one per playing voice per output frame. With the mix's CPU time it
+// gives the cost per voice sample.
+extern unsigned long long g_spu2VoiceSamples;
+#endif

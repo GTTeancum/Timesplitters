@@ -1,4 +1,5 @@
 #include "runtime/gs/gs_texture_replacement.h"
+#include "runtime/gs/gs_texture_hash.h"
 #include "runtime/ps2_host_settings.h"
 
 #include "raylib.h"
@@ -148,19 +149,7 @@ namespace gs_texture_replacement
 
     uint64_t hash(const uint32_t *texels, uint32_t width, uint32_t height)
     {
-        // FNV-1a over 64-bit words, seeded with the size.
-        uint64_t h = 0xcbf29ce484222325ull ^ (uint64_t(width) << 32 | height);
-        const size_t count = size_t(width) * height;
-        size_t i = 0;
-        for (; i + 1 < count; i += 2)
-        {
-            uint64_t pair;
-            std::memcpy(&pair, texels + i, sizeof(pair));
-            h = (h ^ pair) * 0x100000001b3ull;
-        }
-        if (i < count)
-            h = (h ^ texels[i]) * 0x100000001b3ull;
-        return h;
+        return gs_texture_hash::hash(texels, width, height);
     }
 
     bool rawAlpha(const uint32_t *texels, uint32_t width, uint32_t height)

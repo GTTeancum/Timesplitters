@@ -121,7 +121,12 @@ namespace
                   << " interp=" << g_vu1Stats.interpPairs << " cyc=" << g_vu1Stats.cycles / 1000u << "K kickwait="
                   << g_vu1Stats.kickWaitCycles / 1000u << "K gpuframes=" << g_nv2aTextureStats.frames << " game=" << g_nv2aTextureStats.gameFrames
                   << " early=" << g_nv2aTextureStats.earlyHandouts << " pushpeak=" << g_nv2aTextureStats.pushPeakKB << "K pbend=" << g_nv2aTextureStats.framePbEnds << "/" << g_nv2aTextureStats.pbEnds << " pal=" << g_nv2aTextureStats.paletteHits << " snd=" << g_audioBuffers << "/" << g_audioMixKcyc << "K/"
-                  << g_spu2VoiceSamples / 1000u << "Kv" << std::endl;
+                  << g_spu2VoiceSamples / 1000u << "Kv"
+                  << "  mat rep/hit/miss=" << g_nv2aTextureStats.materialRepeats << "/" << g_nv2aTextureStats.materialHits
+                  << "/" << g_nv2aTextureStats.materialMisses << " kconst=" << g_nv2aTextureStats.constRebuilds
+                  << " texfast=" << g_nv2aTextureStats.textureFast << " drawdiff=" << g_nv2aTextureStats.drawDiffs << "/"
+                  << g_nv2aTextureStats.drawChecked << "(" << g_nv2aTextureStats.drawDiffLast << ") idle="
+                  << wait.waitedMicroseconds.load() / 1000 << "ms" << std::endl;
         const ps2x::GuestCallProbe &calls = ps2x::guestCallProbe();
         out << "  sys=" << calls.syscalls.load() << " last " << std::hex << calls.lastSyscall.load() << std::dec
                   << " rpc=" << calls.rpcs.load() << " last " << std::hex << calls.lastRpcClient.load() << "/"

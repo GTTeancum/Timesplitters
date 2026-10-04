@@ -69,6 +69,14 @@ struct GSNv2aTextureStats
     // The runtime path's texture budget now: 1024 KB, or 512 KB while the
     // pack carries the world textures.
     uint32_t textureBudgetKB = 1024;
+    // Native draw runs (project/game/vu1_native_ts.cpp): render-state blocks
+    // repeated (nothing to apply), found in the material table, decoded
+    // afresh; transform-constant rebuilds; texture lookups answered by the
+    // recent-texture table. TS_NATIVE_DRAW_SELFCHECK: runs checked against
+    // the old path, and the differences found.
+    uint32_t materialRepeats = 0, materialHits = 0, materialMisses = 0, constRebuilds = 0, textureFast = 0;
+    uint32_t drawChecked = 0, drawDiffs = 0;
+    char drawDiffLast[24] = ""; // what differed last (status line)
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 
@@ -87,6 +95,7 @@ public:
     bool SubmitStripsTransformed(const GSDrawState &state, const GSXfConstants &constants, const GSXfVertex *vertices,
                                  const uint8_t *counts, uint32_t strips) override;
     void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) override;
+    uint64_t DebugClutState() override;
 
     void BeginTransfer(const GSTransferCommand &command) override;
     void UploadImage(const uint8_t *data, uint32_t sizeBytes) override;

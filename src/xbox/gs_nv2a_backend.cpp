@@ -333,9 +333,11 @@ struct GSNv2aBackend::Impl
 
     // ------------------------------------------------------ page versions
     std::array<uint32_t, kPageCount> pageVersion{};
+    uint32_t pageEpoch = 1; // moves with every bump: no page changed while it stands still
 
     void bumpPages(const GSCpuBackend::VramRange &range)
     {
+        ++pageEpoch;
         if (range.end == UINT64_MAX || range.end > kPageCount * kPageBytes)
         {
             for (uint32_t &v : pageVersion)
@@ -437,6 +439,21 @@ struct GSNv2aBackend::Impl
 
     void refreshClutHash() { clutHash = cpu.ClutHash(); }
 
+    // TEXFLUSH reaches the CPU renderer (its texture page cache) just before
+    // the renderer is next used, not at once: every native draw run's
+    // render-state block flushes, and the CPU renderer is used rarely in
+    // between.
+    bool textureFlushPending = false;
+    GSCpuBackend &cpuFlushed()
+    {
+        if (textureFlushPending)
+        {
+            textureFlushPending = false;
+            cpu.TextureFlush();
+        }
+        return cpu;
+    }
+
     // Full CLUT loads (8-bit indices, a 32-bit CSM1 palette from CSA 0: all
     // 512 halfwords replaced) cached by source address and format and the
     // version of its GS-memory pages. The game loads ~590 palettes a frame,
@@ -515,6 +532,8 @@ struct GSNv2aBackend::Impl
         lastTexture = nullptr; // may be a one-frame texture
         if (batchCount)
             flushBatch(); // a one-frame texture may be the batch's
+        if (!retired.empty())
+            recentTextures.fill({}); // may point at them
         for (Texture &t : retired)
             if (!t.pooled) // pool memory is the pack's
                 MmFreeContiguousMemory(t.texels);
@@ -525,7 +544,79 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.resident = uint32_t(textures.size());
     }
 
+    // Recent lookups, direct-mapped by TEX0: the texture an address, format,
+    // TEXA and CLUT resolved to. One stands while no GS memory page changed
+    // since (pageEpoch) or, after a change, while the texture's own pages
+    // still have the versions it was decoded from - lookupTexture's own test.
+    // Native draws alternate between a few dozen textures, which the single
+    // last-texture check below misses. Cleared when retired textures are
+    // freed (the pointers die).
+    struct RecentTexture
+    {
+        uint64_t tex0 = 0, clut = 0;
+        uint32_t texa = 0, size = 0, epoch = 0;
+        Texture *texture = nullptr;
+    };
+    static constexpr uint32_t kRecentTextures = 64u;
+    std::array<RecentTexture, kRecentTextures> recentTextures{};
+    bool checkRun = false; // TS_NATIVE_DRAW_SELFCHECK: also take the full lookup and compare
+
     const Texture *texture(const GSDrawState &state)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        const uint32_t w = std::max<uint32_t>(state.textureWidth, 1u), h = std::max<uint32_t>(state.textureHeight, 1u);
+        if (w > 1024u || h > 1024u)
+            return nullptr;
+        const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
+        const uint64_t hash = isIndexed(tex.psm) ? clutHash : 0u;
+        const uint64_t tex0Bits = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                                  (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+        const uint32_t size = w | (h << 16);
+        RecentTexture &recent = recentTextures[(tex.tbp0 ^ (tex.tbp0 >> 6) ^ (uint32_t(tex.psm) << 3)) % kRecentTextures];
+        if (recent.texture && recent.tex0 == tex0Bits && recent.texa == texa && recent.clut == hash && recent.size == size)
+        {
+            Texture &t = *recent.texture;
+            // The same range as the full path's (the same address, format and size).
+            if (screenGpuNewer && overlaps(t.range, gpuRange()))
+            {
+                ++g_nv2aTextureStats.wbTexture;
+                writeBackScreen();
+            }
+            if (recent.epoch == pageEpoch || versionSum(t.range) == t.versions)
+            {
+                recent.epoch = pageEpoch;
+                t.lastUse = ++textureTick;
+                noteUse(t);
+                ++g_nv2aTextureStats.textureFast;
+                if (!checkRun)
+                    return &t;
+                const uint32_t fastTbp0 = t.tbp0; // (the lookup may free retired textures)
+                Texture *full = textureLookup(state);
+                if (full != &t)
+                {
+                    noteDrawDiff("texture", fastTbp0, full ? full->tbp0 : UINT32_MAX);
+                    recent = {tex0Bits, hash, texa, size, pageEpoch, full};
+                }
+                return full;
+            }
+        }
+        Texture *found = textureLookup(state);
+        if (found)
+            recent = {tex0Bits, hash, texa, size, pageEpoch, found};
+        return found;
+    }
+
+    // A difference the self-check found (TS_NATIVE_DRAW_SELFCHECK); the first
+    // few are logged.
+    static void noteDrawDiff(const char *what, uint64_t fast, uint64_t full)
+    {
+        if (++g_nv2aTextureStats.drawDiffs <= 16u)
+            std::cout << "[TS:drawcheck] " << what << " differs: fast 0x" << std::hex << fast << ", full 0x" << full
+                      << std::dec << std::endl;
+    }
+
+    // The lookup without the recent table: the last texture, else the cache.
+    Texture *textureLookup(const GSDrawState &state)
     {
         const GSTex0Reg &tex = state.context.tex0;
         const uint32_t w = std::max<uint32_t>(state.textureWidth, 1u), h = std::max<uint32_t>(state.textureHeight, 1u);
@@ -900,6 +991,9 @@ struct GSNv2aBackend::Impl
         // 2D draws (sprites: HUD, text) keep their texels; the halving is
         // for the world's triangles.
         const bool allowHalf = state.prim.type != GS_PRIM_SPRITE;
+        cpuFlushed().DecodeTexture(state, decoded);
+        if (decoded.size() < size_t(t.width) * t.height)
+            decoded.assign(size_t(t.width) * t.height, 0u);
         // Textures of 256 or more are stored at half size (2x2 average):
         // a match's textures are about 3 MB a frame at full size, three
         // times what 64 MB leaves for the cache.
@@ -1389,10 +1483,10 @@ struct GSNv2aBackend::Impl
         }
     }
 
+    // Room for count more transformed vertices in the batch of `key`, which
+    // the caller has already compared with batchKey (emitXf: once a run).
     GSXfVertex *reserveXf(const DrawKey &key, uint32_t count)
     {
-        if (batchCount && !(key == batchKey))
-            flushBatch();
         if (xfUsed + count > (xfSegment + 1u) * kXfSegment)
             nextXfSegment();
         if (batchCount == 0)
@@ -1976,7 +2070,9 @@ struct GSNv2aBackend::Impl
         else if (screenVramNewer)
             loadScreenFromVram();
 
+        checkRun = c.check != 0u;
         const Texture *tex = state.prim.tme ? texture(state) : nullptr;
+        checkRun = false;
         DrawKey key = keyFor(state, tex);
         key.vertexMode = 1u + c.variant;
         key.topology = state.prim.iip ? 1u : 0u; // flat shading needs the list's vertex order
@@ -1984,10 +2080,13 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.xfVertices += total;
 
         const auto &ctx = state.context;
-        // Constants are fixed for a native run (c.serial) and this frame's
-        // mapping: rebuilt only when either changes.
-        if (c.serial != 0u && c.serial == xfBuiltSerial && frameFbw == xfBuiltFbw && frameHeight == xfBuiltHeight &&
-            ctx.xyoffset.ofx == xfBuiltOfx && ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm)
+        // Constants stay while the native pipeline's do (c.serial: it moves
+        // only when their VU1 rows were written) and this frame's mapping
+        // does: rebuilt only when either changes.
+        const bool built = c.serial != 0u && c.serial == xfBuiltSerial && frameFbw == xfBuiltFbw &&
+                           frameHeight == xfBuiltHeight && ctx.xyoffset.ofx == xfBuiltOfx &&
+                           ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm;
+        if (built && !c.check)
         {
             key.constSerial = xfSerial;
             return emitXf(key, v, counts, strips);
@@ -2015,6 +2114,8 @@ struct GSNv2aBackend::Impl
         std::memcpy(k[33], clampLit, 16);
         if (std::memcmp(k, xfK, sizeof(k)) != 0)
         {
+            if (built) // a check run: the rebuild the serial skipped would have changed them
+                noteDrawDiff("constants", c.serial, xfSerial);
             if (batchCount)
                 flushBatch(); // the batch so far uses the old constants
             std::memcpy(xfK, k, sizeof(k));
@@ -2030,6 +2131,11 @@ struct GSNv2aBackend::Impl
 
     bool emitXf(const DrawKey &key, const GSXfVertex *v, const uint8_t *counts, uint32_t strips)
     {
+        // The run's strips share the key: one comparison for all of them
+        // (a batch open after it has this key; a segment change starts a
+        // new batch of it).
+        if (batchCount && !(key == batchKey))
+            flushBatch();
         for (uint32_t s = 0; s < strips; v += counts[s], ++s)
         {
             const uint32_t n = counts[s];
@@ -2037,7 +2143,7 @@ struct GSNv2aBackend::Impl
             {
                 // Joined to the batch's strip by two repeated vertices
                 // (degenerate triangles draw nothing).
-                const bool join = batchCount != 0u && key == batchKey;
+                const bool join = batchCount != 0u;
                 GSXfVertex *out = reserveXf(key, n + (join ? 2u : 0u));
                 if (join)
                 {
@@ -2107,7 +2213,7 @@ struct GSNv2aBackend::Impl
                 values[x] = sixteen ? (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10) | (a >= 0xFFu ? 0x8000u : 0u)
                                     : r | (g << 8) | (b << 16) | ((a / 2u) << 24);
             }
-            cpu.WriteVramRect(framePsm, frameFbp * 32u, frameFbw, 0, y, width, 1, values.data());
+            cpuFlushed().WriteVramRect(framePsm, frameFbp * 32u, frameFbw, 0, y, width, 1, values.data());
         }
         cpu.TextureFlush();
         bumpPages(frameRangeExact(framePsm, frameFbp, frameFbw, rows));
@@ -2255,6 +2361,7 @@ void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
 void GSNv2aBackend::Reset()
 {
     m->cpu.Reset();
+    m->textureFlushPending = false; // the reset invalidated the page cache
     m->bumpPages({0, UINT64_MAX});
     m->clutCbp[0] = m->clutCbp[1] = UINT32_MAX;
     m->targetPages.reset();
@@ -2280,7 +2387,7 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
         ++g_nv2aTextureStats.wbDraw;
         m->writeBackScreen();
     }
-    m->cpu.Submit(batch);
+    m->cpuFlushed().Submit(batch);
     const GSCpuBackend::VramRange target = GSCpuBackend::FrameRange(batch.state);
     m->noteCpuWrite(target);
     m->markTargetPages(target, true);
@@ -2304,6 +2411,7 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
 {
     if (!m->clutLoads(tex0))
         return;
+    m->cpuFlushed();
     ++g_nv2aTextureStats.clutLoads;
     if (m->screenGpuNewer && overlaps(GSCpuBackend::ClutRange(tex0), m->gpuRange()))
     {
@@ -2338,6 +2446,17 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
     m->refreshClutHash();
 }
 
+uint64_t GSNv2aBackend::DebugClutState()
+{
+    std::array<uint16_t, 512> clut;
+    std::array<uint32_t, 2> cpuCbp;
+    m->cpu.GetClutState(clut, cpuCbp);
+    uint64_t state = m->cpu.ClutHash();
+    for (const uint64_t v : {uint64_t(cpuCbp[0]), uint64_t(cpuCbp[1]), uint64_t(m->clutCbp[0]), uint64_t(m->clutCbp[1]), m->clutHash})
+        state = state * 0x100000001B3ull + v;
+    return state;
+}
+
 void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
 {
     m->transfer = command;
@@ -2353,7 +2472,7 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
             m->writeBackScreen();
         }
     }
-    m->cpu.BeginTransfer(command);
+    m->cpuFlushed().BeginTransfer(command);
     if (command.direction == 2u)
     {
         const auto dest = frameRangeRows(buf.dpsm, buf.dbp / 32u, buf.dbw,
@@ -2369,7 +2488,7 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
 
 void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
 {
-    m->cpu.UploadImage(data, sizeBytes);
+    m->cpuFlushed().UploadImage(data, sizeBytes);
     const GSTransferCommand &c = m->transfer;
     const auto dest = frameRangeRows(c.bitbltbuf.dpsm, c.bitbltbuf.dbp / 32u, c.bitbltbuf.dbw,
                                      uint32_t(c.trxpos.dsay) + c.trxreg.rrh + 1u);
@@ -2378,7 +2497,7 @@ void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
 }
 
 void GSNv2aBackend::Flush() { m->flushBatch(); }
-void GSNv2aBackend::TextureFlush() { m->cpu.TextureFlush(); }
+void GSNv2aBackend::TextureFlush() { m->textureFlushPending = true; }
 void GSNv2aBackend::Sync(GSSyncReason reason) { m->cpu.Sync(reason); }
 
 PresentationFrame GSNv2aBackend::Present(const GSPresentationRequest &request)
@@ -2413,14 +2532,14 @@ bool GSNv2aBackend::ClearFramebuffer(const GSContext &context, uint32_t rgba)
 {
     GSDrawState state{};
     state.context = context;
-    const bool result = m->cpu.ClearFramebuffer(context, rgba);
+    const bool result = m->cpuFlushed().ClearFramebuffer(context, rgba);
     m->noteCpuWrite(GSCpuBackend::FrameRange(state));
     return result;
 }
 
 uint32_t GSNv2aBackend::ConsumeLocalToHostBytes(uint8_t *dst, uint32_t maxBytes)
 {
-    return m->cpu.ConsumeLocalToHostBytes(dst, maxBytes);
+    return m->cpuFlushed().ConsumeLocalToHostBytes(dst, maxBytes);
 }
 
 uint32_t GSNv2aBackend::ReadVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y) const
@@ -2430,7 +2549,7 @@ uint32_t GSNv2aBackend::ReadVram(uint32_t psm, uint32_t base, uint32_t bw, uint3
 
 void GSNv2aBackend::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y, uint32_t value)
 {
-    m->cpu.WriteVram(psm, base, bw, x, y, value);
+    m->cpuFlushed().WriteVram(psm, base, bw, x, y, value);
     m->noteCpuWrite({0, UINT64_MAX});
 }
 

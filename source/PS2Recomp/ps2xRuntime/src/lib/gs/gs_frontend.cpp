@@ -96,6 +96,68 @@ namespace
                                     { return true; });
     }
 
+    // Registers a native state block may write (GS::decodeStateBlock):
+    // drawing state whose write does nothing beyond storing the value, a CLUT
+    // load (TEX0, TEX2) or a texture-cache flush.
+    bool isStateRegister(uint8_t reg)
+    {
+        switch (reg)
+        {
+        case GS_REG_TEX0_1: case GS_REG_TEX0_2: case GS_REG_CLAMP_1: case GS_REG_CLAMP_2:
+        case GS_REG_TEX1_1: case GS_REG_TEX1_2: case GS_REG_TEX2_1: case GS_REG_TEX2_2:
+        case GS_REG_XYOFFSET_1: case GS_REG_XYOFFSET_2: case GS_REG_TEXCLUT: case GS_REG_SCANMSK:
+        case GS_REG_MIPTBP1_1: case GS_REG_MIPTBP1_2: case GS_REG_MIPTBP2_1: case GS_REG_MIPTBP2_2:
+        case GS_REG_TEXA: case GS_REG_FOGCOL: case GS_REG_TEXFLUSH:
+        case GS_REG_SCISSOR_1: case GS_REG_SCISSOR_2: case GS_REG_ALPHA_1: case GS_REG_ALPHA_2:
+        case GS_REG_DIMX: case GS_REG_DTHE: case GS_REG_COLCLAMP: case GS_REG_TEST_1: case GS_REG_TEST_2:
+        case GS_REG_PABE: case GS_REG_FBA_1: case GS_REG_FBA_2: case GS_REG_FRAME_1: case GS_REG_FRAME_2:
+        case GS_REG_ZBUF_1: case GS_REG_ZBUF_2:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool isClutRegister(uint8_t reg)
+    {
+        return reg == GS_REG_TEX0_1 || reg == GS_REG_TEX0_2 || reg == GS_REG_TEX2_1 || reg == GS_REG_TEX2_2;
+    }
+
+    // The registers GS::m_textureStateWrites counts.
+    bool isTextureRegister(uint8_t reg)
+    {
+        return isClutRegister(reg) || reg == GS_REG_TEX1_1 || reg == GS_REG_TEX1_2 || reg == GS_REG_CLAMP_1 ||
+               reg == GS_REG_CLAMP_2 || reg == GS_REG_MIPTBP1_1 || reg == GS_REG_MIPTBP1_2 ||
+               reg == GS_REG_MIPTBP2_1 || reg == GS_REG_MIPTBP2_2;
+    }
+
+    // A TEX0/TEX2 value whose write loads the CLUT whatever was loaded before
+    // (an indexed format with CLD 1-3); CLD 4 and 5 load only when CBP
+    // differs from the address the last load recorded.
+    bool alwaysLoadsClut(uint64_t value)
+    {
+        const uint32_t psm = static_cast<uint32_t>((value >> 20) & 0x3Fu), cld = static_cast<uint32_t>((value >> 61) & 7u);
+        const bool indexed = psm == GS_PSM_T8 || psm == GS_PSM_T4 || psm == GS_PSM_T8H || psm == GS_PSM_T4HL ||
+                             psm == GS_PSM_T4HH;
+        return indexed && cld >= 1u && cld <= 3u;
+    }
+
+    bool sameTex0(const GSTex0Reg &a, const GSTex0Reg &b)
+    {
+        return a.tbp0 == b.tbp0 && a.tbw == b.tbw && a.psm == b.psm && a.tw == b.tw && a.th == b.th && a.tcc == b.tcc &&
+               a.tfx == b.tfx && a.cbp == b.cbp && a.cpsm == b.cpsm && a.csm == b.csm && a.csa == b.csa && a.cld == b.cld;
+    }
+
+    bool sameContext(const GSContext &a, const GSContext &b)
+    {
+        return a.frame.fbp == b.frame.fbp && a.frame.fbw == b.frame.fbw && a.frame.psm == b.frame.psm &&
+               a.frame.fbmsk == b.frame.fbmsk && a.scissor.x0 == b.scissor.x0 && a.scissor.x1 == b.scissor.x1 &&
+               a.scissor.y0 == b.scissor.y0 && a.scissor.y1 == b.scissor.y1 && sameTex0(a.tex0, b.tex0) &&
+               a.xyoffset.ofx == b.xyoffset.ofx && a.xyoffset.ofy == b.xyoffset.ofy && a.zbuf.zbp == b.zbuf.zbp &&
+               a.zbuf.psm == b.zbuf.psm && a.zbuf.zmask == b.zbuf.zmask && a.tex1 == b.tex1 && a.miptbp1 == b.miptbp1 &&
+               a.miptbp2 == b.miptbp2 && a.clamp == b.clamp && a.alpha == b.alpha && a.test == b.test && a.fba == b.fba;
+    }
+
     std::atomic<uint32_t> s_debugGifPacketCount{0};
     std::atomic<uint32_t> s_debugGsRegisterCount{0};
     std::atomic<uint32_t> s_debugGsPackedVertexCount{0};
@@ -129,6 +191,7 @@ void GS::reset()
     std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
     std::memset(m_ctx, 0, sizeof(m_ctx));
     m_gifStreams = {};
+    m_lastStateBlock = 0; // the backend's CLUT is reset below
     m_hostPresentationSequence.fetch_add(1, std::memory_order_release);
     m_prim = {};
     m_primRegister = {};
@@ -1255,6 +1318,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         t.csm = static_cast<uint8_t>((value >> 55) & 0x1);
         t.csa = static_cast<uint8_t>((value >> 56) & 0x1F);
         t.cld = static_cast<uint8_t>((value >> 61) & 0x7);
+        ++m_textureStateWrites;
         m_backend->LoadClut(t, m_texclut);
         break;
     }
@@ -1263,6 +1327,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
     {
         int ci = (regAddr == GS_REG_CLAMP_2) ? 1 : 0;
         m_ctx[ci].clamp = value;
+        ++m_textureStateWrites;
         break;
     }
     case GS_REG_FOG:
@@ -1273,6 +1338,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
     {
         int ci = (regAddr == GS_REG_TEX1_2) ? 1 : 0;
         m_ctx[ci].tex1 = value;
+        ++m_textureStateWrites;
         break;
     }
     case GS_REG_TEX2_1:
@@ -1286,6 +1352,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         t.csm = static_cast<uint8_t>((value >> 55) & 0x1);
         t.csa = static_cast<uint8_t>((value >> 56) & 0x1F);
         t.cld = static_cast<uint8_t>((value >> 61) & 0x7);
+        ++m_textureStateWrites;
         m_backend->LoadClut(t, m_texclut);
         break;
     }
@@ -1448,6 +1515,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
     {
         const int ci = (regAddr == GS_REG_MIPTBP1_2) ? 1 : 0;
         m_ctx[ci].miptbp1 = value;
+        ++m_textureStateWrites;
         break;
     }
     case GS_REG_MIPTBP2_1:
@@ -1455,6 +1523,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
     {
         const int ci = (regAddr == GS_REG_MIPTBP2_2) ? 1 : 0;
         m_ctx[ci].miptbp2 = value;
+        ++m_textureStateWrites;
         break;
     }
     case GS_REG_TEXA:
@@ -1539,7 +1608,8 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         break;
     }
 
-    recordRegisterDebugEventUnlocked(regAddr, value);
+    if (!m_debugHistoryPaused) // (paused unless a debugger asks: no call per register)
+        recordRegisterDebugEventUnlocked(regAddr, value);
 }
 
 void GS::vertexKick(bool drawing)
@@ -1660,6 +1730,100 @@ bool GS::submitStripsTransformed(uint32_t primRegister, const GSXfConstants &con
     return true;
 }
 
+bool GS::decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out)
+{
+    if (!data || sizeBytes < 32u || (sizeBytes & 15u) != 0u)
+        return false;
+    const uint64_t lo = loadLE64(data), hi = loadLE64(data + 8u);
+    const uint32_t nloop = static_cast<uint32_t>(lo & 0x7FFFu);
+    const uint32_t nreg = ((lo >> 60u) & 0xFu) ? static_cast<uint32_t>((lo >> 60u) & 0xFu) : 16u;
+    if (((lo >> 58u) & 3u) != GIF_FMT_PACKED || ((lo >> 46u) & 1u) != 0u || nloop == 0u)
+        return false;
+    for (uint32_t i = 0; i < nreg; ++i)
+        if (((hi >> (i * 4u)) & 0xFu) != 0xEu)
+            return false;
+    const uint32_t writes = nloop * nreg;
+    if (writes > StateBlock::kMaxWrites || 16u + writes * 16u != sizeBytes)
+        return false;
+    out.count = writes;
+    out.nloop = nloop;
+    out.nreg = nreg;
+    out.flushes = false;
+    out.idempotent = true;
+    uint32_t clutWrites = 0;
+    bool textureOnly = true;
+    for (uint32_t i = 0; i < writes; ++i)
+    {
+        const uint8_t *qword = data + 16u + i * 16u;
+        const uint8_t reg = qword[8]; // A+D: the address is the high half's low byte
+        if (!isStateRegister(reg))
+            return false;
+        out.regs[i] = reg;
+        out.values[i] = loadLE64(qword);
+        if (reg == GS_REG_TEXFLUSH)
+            out.flushes = true;
+        else if (!isTextureRegister(reg))
+            textureOnly = false;
+        // Written again, a CLD 1-3 load loads again, and a second CLUT write
+        // loads over the first one's CBP.
+        if (isClutRegister(reg) && (++clutWrites > 1u || alwaysLoadsClut(out.values[i])))
+            out.idempotent = false;
+    }
+    out.repeatable = out.idempotent && textureOnly;
+    return true;
+}
+
+GS::StateBlockResult GS::applyStateBlock(const StateBlock &block)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    const GifStreamState &path1 = m_gifStreams[0];
+    if (!m_backend || block.count == 0u || path1.remaining || path1.padding || path1.unitBytes)
+        return StateBlockResult::NotApplied;
+    // Each PACKED register write starts from the tag's Q (1.0).
+    m_curQ = 1.0f;
+    if (block.repeatable && block.serial != 0u && block.serial == m_lastStateBlock &&
+        m_textureStateWrites == m_lastStateBlockWrites && m_debugHistoryPaused)
+    {
+        if (block.flushes)
+            m_backend->TextureFlush();
+        return StateBlockResult::Repeated;
+    }
+    if (!m_debugHistoryPaused)
+        recordGifTagDebugEventUnlocked(16u + block.count * 16u, block.nloop, GIF_FMT_PACKED, block.nreg);
+    for (uint32_t i = 0; i < block.count; ++i)
+        writeRegisterUnlocked(block.regs[i], block.values[i]);
+    m_lastStateBlock = block.serial;
+    m_lastStateBlockWrites = m_textureStateWrites;
+    return StateBlockResult::Applied;
+}
+
+bool GS::checkStateBlock(const uint8_t *data, uint32_t sizeBytes)
+{
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    if (!m_backend)
+        return true;
+    const GSContext ctx0 = m_ctx[0], ctx1 = m_ctx[1];
+    const GSTexaReg texa = m_texa;
+    const GSTexClutReg texclut = m_texclut;
+    const uint64_t scanmsk = m_scanmsk, dimx = m_dimx, dthe = m_dthe, colclamp = m_colclamp;
+    const bool pabe = m_pabe;
+    const uint8_t fog[3] = {m_fogR, m_fogG, m_fogB};
+    const float q = m_curQ;
+    const uint64_t clut = m_backend->DebugClutState();
+    const uint32_t textureWrites = m_textureStateWrites;
+    processGIFPacket(data, sizeBytes, GifPathId::Path1);
+    const bool same = sameContext(ctx0, m_ctx[0]) && sameContext(ctx1, m_ctx[1]) && texa.ta0 == m_texa.ta0 &&
+                      texa.aem == m_texa.aem && texa.ta1 == m_texa.ta1 && texclut.cbw == m_texclut.cbw &&
+                      texclut.cou == m_texclut.cou && texclut.cov == m_texclut.cov && scanmsk == m_scanmsk &&
+                      dimx == m_dimx && dthe == m_dthe && colclamp == m_colclamp && pabe == m_pabe &&
+                      fog[0] == m_fogR && fog[1] == m_fogG && fog[2] == m_fogB && q == m_curQ &&
+                      clut == m_backend->DebugClutState();
+    // The same values written again: repeats go on as without the check.
+    if (same)
+        m_textureStateWrites = textureWrites;
+    return same;
+}
+
 void GS::processImageData(const uint8_t *data, uint32_t sizeBytes)
 {
     if (m_backend)
@@ -1712,6 +1876,7 @@ void GS::setRasterBackend(std::unique_ptr<GSRasterBackend> backend)
 
     m_backend = std::move(backend);
     m_backend->Initialize(m_localMemoryStorage, m_localMemorySize);
+    m_lastStateBlock = 0; // a new CLUT
 }
 
 uint32_t GS::ReadVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y) const

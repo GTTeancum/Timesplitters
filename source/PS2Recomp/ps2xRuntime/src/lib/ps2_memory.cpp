@@ -1,4 +1,5 @@
 #include "runtime/ps2_memory.h"
+#include "runtime/ps2_vu1_watch.h"
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_address.h"
@@ -17,6 +18,7 @@ namespace
 }
 extern uint32_t g_vif1LastConsumed;
 extern bool g_vif1StopOnShort;
+Vu1WatchedRows g_vu1WatchedRows;
 namespace
 {
     // A consumed DMA chain's buffer is released at once: holding it for the
@@ -456,6 +458,7 @@ bool PS2Memory::initialize(size_t ramSize)
         m_vu1Data = new uint8_t[PS2_VU1_DATA_SIZE];
         std::memset(m_vu1Code, 0, PS2_VU1_CODE_SIZE);
         std::memset(m_vu1Data, 0, PS2_VU1_DATA_SIZE);
+        g_vu1WatchedRows.noteAll();
         markVU0CodeModified();
         markVU1CodeModified();
 
@@ -998,6 +1001,8 @@ void PS2Memory::write8(uint32_t address, uint8_t value)
                 markVU0CodeModified();
             else if (vuMem == m_vu1Code)
                 markVU1CodeModified();
+            else if (vuMem == m_vu1Data)
+                g_vu1WatchedRows.noteBytes(vuOffset, sizeof(uint8_t));
             return;
         }
     }
@@ -1042,6 +1047,8 @@ void PS2Memory::write16(uint32_t address, uint16_t value)
                 markVU0CodeModified();
             else if (vuMem == m_vu1Code)
                 markVU1CodeModified();
+            else if (vuMem == m_vu1Data)
+                g_vu1WatchedRows.noteBytes(vuOffset, sizeof(uint16_t));
             return;
         }
     }
@@ -1107,6 +1114,8 @@ void PS2Memory::write32(uint32_t address, uint32_t value)
                 markVU0CodeModified();
             else if (vuMem == m_vu1Code)
                 markVU1CodeModified();
+            else if (vuMem == m_vu1Data)
+                g_vu1WatchedRows.noteBytes(vuOffset, sizeof(uint32_t));
             return;
         }
     }
@@ -1163,6 +1172,8 @@ void PS2Memory::write64(uint32_t address, uint64_t value)
                 markVU0CodeModified();
             else if (vuMem == m_vu1Code)
                 markVU1CodeModified();
+            else if (vuMem == m_vu1Data)
+                g_vu1WatchedRows.noteBytes(vuOffset, sizeof(uint64_t));
             return;
         }
     }
@@ -1222,6 +1233,8 @@ void PS2Memory::write128(uint32_t address, __m128i value)
                 markVU0CodeModified();
             else if (vuMem == m_vu1Code)
                 markVU1CodeModified();
+            else if (vuMem == m_vu1Data)
+                g_vu1WatchedRows.noteBytes(vuOffset, sizeof(__m128i));
             return;
         }
     }

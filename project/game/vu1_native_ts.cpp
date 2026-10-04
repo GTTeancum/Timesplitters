@@ -22,18 +22,41 @@
 // render-state block (one A+D GIF packet) at top+216.
 #include "runtime/ps2_vu1_jit.h"
 #include "runtime/ps2_memory.h"
+#include "runtime/ps2_vu1_watch.h"
 #include "runtime/gs/gs_frontend.h"
 #include "runtime/gs/ps2_gif_arbiter.h"
 
 #if defined(PLATFORM_XBOX)
 #include "../../src/xbox/gs_nv2a_backend.h" // status counters
 #define TS_NATIVE_STAT(expr) (expr)
+// TS_NATIVE_DRAW_SELFCHECK 1: the first TS_NATIVE_DRAW_SELFCHECK_RUNS draw
+// runs on the renderer's path (one in TS_NATIVE_DRAW_SELFCHECK_EVERY) also
+// take the old one and compare what reaches the GS and the renderer: the
+// render-state block processed again as a GIF packet over the applied one
+// (it must change no register and no CLUT), the transform constants copied
+// afresh from VU1 memory, the renderer's full texture lookup and constant
+// rebuild. Differences count in drawdiff= (status block), the first few are
+// logged, and the old path's result is the one used.
+#ifndef TS_NATIVE_DRAW_SELFCHECK
+#define TS_NATIVE_DRAW_SELFCHECK 1
+#endif
+#ifndef TS_NATIVE_DRAW_SELFCHECK_RUNS
+#define TS_NATIVE_DRAW_SELFCHECK_RUNS 0xFFFFFFFFu // validation run: the whole session
+#endif
+#ifndef TS_NATIVE_DRAW_SELFCHECK_EVERY
+#define TS_NATIVE_DRAW_SELFCHECK_EVERY 32u
+#endif
+#include <iostream>
 #else
 #define TS_NATIVE_STAT(expr) ((void)0)
+#undef TS_NATIVE_DRAW_SELFCHECK // (the renderer's path is the Xbox's)
+#define TS_NATIVE_DRAW_SELFCHECK 0
 #endif
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
 
@@ -222,6 +245,116 @@ namespace
         return n;
     }
 
+#if TS_NATIVE_DRAW_SELFCHECK
+    void noteDrawDiff(const char *what)
+    {
+        std::snprintf(g_nv2aTextureStats.drawDiffLast, sizeof(g_nv2aTextureStats.drawDiffLast), "%s", what);
+        if (++g_nv2aTextureStats.drawDiffs <= 16u)
+            std::cout << "[TS:drawcheck] run " << g_nv2aTextureStats.drawChecked << ": " << what << " differs" << std::endl;
+    }
+#endif
+
+    // Render-state blocks (top+216: TEXFLUSH, TEX1, TEX0, MIPTBP1/2, CLAMP,
+    // built once per texture by the game, emLoadTexture_0x2b7190) decoded
+    // once into the GS front end's register writes, found again by their
+    // bytes (two ways per set: a level has a few hundred). A run usually
+    // repeats the block before it, else a texture seen before.
+    constexpr uint32_t kMaterialSets = 128u;
+    constexpr uint32_t kMaxMaterialBytes = (1u + GS::StateBlock::kMaxWrites) * 16u;
+    struct Material
+    {
+        uint32_t size = 0; // block bytes (0: empty slot)
+        uint8_t bytes[kMaxMaterialBytes];
+        GS::StateBlock block;
+    };
+
+    // The decoded block, or null when the block is not one GS::decodeStateBlock
+    // takes (it then goes as a packet). `found`: it was decoded before.
+    const GS::StateBlock *materialFor(const uint8_t *block, uint32_t size, bool &found)
+    {
+        static Material s_materials[kMaterialSets][2];
+        static uint8_t s_older[kMaterialSets]; // the way to replace next
+        static Material *s_last = nullptr;
+        static uint32_t s_serial = 0;
+        found = true;
+        if (size > kMaxMaterialBytes)
+            return nullptr;
+        if (s_last && s_last->size == size && std::memcmp(s_last->bytes, block, size) == 0)
+            return &s_last->block;
+        uint32_t hash = 2166136261u;
+        for (uint32_t i = 0; i < size; i += 4u)
+        {
+            uint32_t word;
+            std::memcpy(&word, block + i, 4);
+            hash = (hash ^ word) * 16777619u;
+        }
+        const uint32_t set = (hash ^ (hash >> 15)) % kMaterialSets;
+        uint32_t way = 0;
+        while (way < 2u && (s_materials[set][way].size != size || std::memcmp(s_materials[set][way].bytes, block, size) != 0))
+            ++way;
+        if (way == 2u)
+        {
+            found = false;
+            GS::StateBlock decoded;
+            if (!GS::decodeStateBlock(block, size, decoded))
+                return nullptr;
+            decoded.serial = ++s_serial ? s_serial : ++s_serial;
+            way = s_older[set];
+            Material &m = s_materials[set][way];
+            m.size = size;
+            std::memcpy(m.bytes, block, size);
+            m.block = decoded;
+        }
+        s_older[set] = static_cast<uint8_t>(way ^ 1u);
+        s_last = &s_materials[set][way];
+        return &s_last->block;
+    }
+
+    void loadConstants(GSXfConstants &xc, const uint8_t *data)
+    {
+        std::memcpy(xc.mvp[0], data + 8u * 16u, 64);
+        std::memcpy(xc.mvp[1], data + 12u * 16u, 64);
+        std::memcpy(xc.mvp[2], data + 16u * 16u, 64);
+        std::memcpy(xc.lightDir[0], data + 110u * 16u, 64);
+        std::memcpy(xc.lightDir[1], data + 114u * 16u, 64);
+        std::memcpy(xc.lightDir[2], data + 118u * 16u, 64);
+        std::memcpy(xc.lightColour, data + 106u * 16u, 64);
+        std::memcpy(xc.scale, data + 20u * 16u, 16);
+        std::memcpy(xc.offset, data + 21u * 16u, 16);
+        std::memcpy(xc.model, data + 4u * 16u, 48);
+    }
+
+    // The GPU transform's constants (raw VU1 rows 4-21 and 106-121), copied
+    // out again only after one of those rows was written (g_vu1WatchedRows:
+    // the constant entries below, UNPACKs, the translated microprogram, EE
+    // stores). A new serial tells the renderer to rebuild its constant block;
+    // otherwise it keeps the one it has (the serial used to change every run,
+    // and every run rebuilt and compared ~550 bytes).
+    GSXfConstants &transformConstants(const uint8_t *data, bool check)
+    {
+        static GSXfConstants s_xc{};
+        static uint32_t s_writes = 0, s_serial = 0;
+        static bool s_valid = false;
+        if (s_valid && s_writes == g_vu1WatchedRows.writes)
+        {
+            if (!check)
+                return s_xc;
+#if TS_NATIVE_DRAW_SELFCHECK
+            GSXfConstants fresh{};
+            loadConstants(fresh, data);
+            if (std::memcmp(&fresh, &s_xc, offsetof(GSXfConstants, variant)) == 0)
+                return s_xc;
+            noteDrawDiff("transform constants (a VU1 row write was missed)");
+#endif
+        }
+        loadConstants(s_xc, data);
+        s_xc.serial = ++s_serial ? s_serial : ++s_serial;
+        s_writes = g_vu1WatchedRows.writes;
+        s_valid = true;
+        TS_NATIVE_STAT(++g_nv2aTextureStats.constRebuilds);
+        return s_xc;
+    }
+
     bool runDraw(const Layout &L, uint8_t *data, uint32_t top, PS2Memory *memory, GS &gs)
     {
         static uint8_t packetBuffer[48u * 1024u];
@@ -234,53 +367,102 @@ namespace
         const uint32_t stateQwords = 1u + nloop * nreg;
         if (stateQwords > 32u || ((top + 216u + stateQwords) > kDataQwords))
             return false;
-        std::memcpy(packet.buf, data + (top + 216u) * 16u, stateQwords * 16u);
-        packet.used = stateQwords * 16u;
-        packet.lastTag = 0; // (an EOP on the state block only matters if nothing follows)
+        const uint8_t *const stateBlock = data + (top + 216u) * 16u;
+        const uint32_t stateBytes = stateQwords * 16u;
 
-        Mat mvp[3], lightDir[3];
-        mvp[0] = loadM(data, 8);
-        lightDir[0] = loadM(data, 110);
-        if (L.skinned)
-        {
-            mvp[1] = loadM(data, 12);
-            mvp[2] = loadM(data, 16);
-            lightDir[1] = loadM(data, 114);
-            lightDir[2] = loadM(data, 118);
-        }
-        const Mat lightColour = loadM(data, 106);
-        const Mat model = loadM(data, 4); // environment map: the normal's rotation
-
-        // The GPU transform's constants (raw VU1 rows) for this batch.
-        GSXfConstants xc;
-        std::memcpy(xc.mvp[0], data + 8u * 16u, 64);
-        std::memcpy(xc.mvp[1], data + 12u * 16u, 64);
-        std::memcpy(xc.mvp[2], data + 16u * 16u, 64);
-        std::memcpy(xc.lightDir[0], data + 110u * 16u, 64);
-        std::memcpy(xc.lightDir[1], data + 114u * 16u, 64);
-        std::memcpy(xc.lightDir[2], data + 118u * 16u, 64);
-        std::memcpy(xc.lightColour, data + 106u * 16u, 64);
-        std::memcpy(xc.scale, data + 20u * 16u, 16);
-        std::memcpy(xc.offset, data + 21u * 16u, 16);
-        std::memcpy(xc.model, data + 4u * 16u, 48);
-        static uint32_t s_constSerial = 0;
-        xc.serial = ++s_constSerial ? s_constSerial : ++s_constSerial;
-        xc.variant = L.envMap ? GSXfConstants::EnvMap
-                     : L.skinned ? GSXfConstants::Skinned
-                     : L.lit     ? GSXfConstants::Lit
-                                 : GSXfConstants::Plain;
 #if defined(PLATFORM_XBOX)
         const bool gpuTransform = !PS2Memory::onVif1Worker(); // the NV2A renderer's vertex programs
 #else
         const bool gpuTransform = false; // no PC renderer takes raw vertices
 #endif
-        const V4 scale = loadV(data, 20), offset = loadV(data, 21);
+#if TS_NATIVE_DRAW_SELFCHECK
+        static uint32_t s_runs = 0;
+        const bool check = gpuTransform && g_nv2aTextureStats.drawChecked < TS_NATIVE_DRAW_SELFCHECK_RUNS &&
+                           (s_runs++ % TS_NATIVE_DRAW_SELFCHECK_EVERY) == 0u;
+#else
+        const bool check = false;
+#endif
+        // On the renderer's path the block is decoded once (materialFor) and
+        // applied to the GS front end directly: no GIF packet, and a repeat
+        // of the block before it applies nothing.
+        bool materialFound = false;
+        const GS::StateBlock *material = gpuTransform ? materialFor(stateBlock, stateBytes, materialFound) : nullptr;
+        // The block goes ahead of the run's first strip, as the microprogram
+        // kicks it: applied directly, else as the start of the run's packet.
+        bool stateSent = false;
+        auto sendState = [&]() {
+            if (stateSent)
+                return;
+            stateSent = true;
+#if TS_NATIVE_DRAW_SELFCHECK
+            if (check)
+                ++g_nv2aTextureStats.drawChecked;
+#endif
+            // Packets queued behind other paths keep the GIF arbiter's order:
+            // this block then goes as a packet too.
+            if (material && !(memory && memory->gifArbiter() && !memory->gifArbiter()->empty()))
+            {
+                const GS::StateBlockResult applied = gs.applyStateBlock(*material);
+                if (applied != GS::StateBlockResult::NotApplied)
+                {
+                    TS_NATIVE_STAT(applied == GS::StateBlockResult::Repeated ? ++g_nv2aTextureStats.materialRepeats
+                                   : materialFound                           ? ++g_nv2aTextureStats.materialHits
+                                                                             : ++g_nv2aTextureStats.materialMisses);
+#if TS_NATIVE_DRAW_SELFCHECK
+                    if (check && material->idempotent && !gs.checkStateBlock(stateBlock, stateBytes))
+                        noteDrawDiff(applied == GS::StateBlockResult::Repeated ? "GS state (repeated block)"
+                                                                               : "GS state (applied block)");
+#endif
+                    return;
+                }
+            }
+            std::memcpy(packet.buf, stateBlock, stateBytes);
+            packet.used = stateBytes;
+            packet.lastTag = 0; // (an EOP on the state block only matters if nothing follows)
+        };
+
+        // The CPU path's matrices, read when it is first taken (on the
+        // renderer's path most runs never take it).
+        Mat mvp[3], lightDir[3], lightColour, model;
+        V4 scale, offset;
+        bool cpuConstants = false;
+        auto loadCpuConstants = [&]() {
+            if (cpuConstants)
+                return;
+            cpuConstants = true;
+            mvp[0] = loadM(data, 8);
+            lightDir[0] = loadM(data, 110);
+            if (L.skinned)
+            {
+                mvp[1] = loadM(data, 12);
+                mvp[2] = loadM(data, 16);
+                lightDir[1] = loadM(data, 114);
+                lightDir[2] = loadM(data, 118);
+            }
+            lightColour = loadM(data, 106);
+            model = loadM(data, 4); // environment map: the normal's rotation
+            scale = loadV(data, 20);
+            offset = loadV(data, 21);
+        };
+
+        // The GPU transform's constants (raw VU1 rows) for this batch.
+        GSXfConstants *xc = nullptr;
+        if (gpuTransform)
+        {
+            xc = &transformConstants(data, check);
+            xc->variant = L.envMap ? GSXfConstants::EnvMap
+                          : L.skinned ? GSXfConstants::Skinned
+                          : L.lit     ? GSXfConstants::Lit
+                                      : GSXfConstants::Plain;
+            xc->check = check ? 1u : 0u;
+        }
 
         ClipVertex verts[64];
 
         // The CPU path for one strip: transform, light and clip here, then
         // to the GS as decoded vertices or as a packet.
         auto cpuStrip = [&](const uint32_t *tag, uint32_t n, uint32_t vi) {
+            loadCpuConstants();
             bool allInside = true;
             for (uint32_t v = 0; v < n; ++v)
             {
@@ -418,17 +600,16 @@ namespace
             packet.submit(); // the state block and anything before go first
             if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
                 memory->gifArbiter()->drain();
-            if (!gs.submitStripsTransformed(batchPrim, xc, s_batch, s_counts, batchStrips))
+            if (!gs.submitStripsTransformed(batchPrim, *xc, s_batch, s_counts, batchStrips))
                 for (uint32_t i = 0; i < batchStrips; ++i)
                     cpuStrip(s_pending[i].tag, s_pending[i].n, s_pending[i].vi);
             batchStrips = batchVerts = 0;
         };
         auto finish = [&]() {
             flushGpu();
-            const bool emitted = anything || packet.used != stateQwords * 16u;
-            if (emitted)
+            if (anything) // the state block and the strips; nothing at all otherwise
                 packet.submit();
-            return emitted;
+            return anything;
         };
 
         uint32_t header = top, vi = top + L.vertexBase;
@@ -443,6 +624,7 @@ namespace
             if (vi + L.st + n > kDataQwords || vi + L.rgba + n > kDataQwords ||
                 ((L.lit || L.envMap) && vi + L.normal + n > kDataQwords))
                 return finish();
+            sendState();
 
             bool queued = false;
             if (gpuTransform && (tag[1] & (1u << 14)) != 0u)
@@ -518,10 +700,12 @@ namespace
 
     // The constant entries: copies from the batch at TOP into the fixed
     // slots, and the matrix products (slot 8 + 4k = model k x view-projection).
+    // Both write rows the renderer's constants come from (transformConstants).
     void copyQwords(uint8_t *data, uint32_t from, uint32_t to, uint32_t count)
     {
         for (uint32_t i = 0; i < count; ++i)
             std::memmove(data + ((to + i) & (kDataQwords - 1u)) * 16u, data + ((from + i) & (kDataQwords - 1u)) * 16u, 16);
+        g_vu1WatchedRows.note(to, count);
     }
 
     void modelViewProjection(uint8_t *data, uint32_t modelQ, uint32_t outQ)
@@ -533,6 +717,7 @@ namespace
             const V4 o = transform(vp, m.x, m.y, m.z, m.w);
             std::memcpy(data + ((outQ + r) & (kDataQwords - 1u)) * 16u, &o, 16);
         }
+        g_vu1WatchedRows.note(outQ, 4u);
     }
 
     // XGKICK of a prebuilt GIF packet: its length from the tags, up to EOP.
@@ -618,6 +803,12 @@ namespace
 
     struct Register
     {
-        Register() { registerVu1NativeProgram({kProgramHash, &run, "ts_da1f094c native"}); }
+        Register()
+        {
+            registerVu1NativeProgram({kProgramHash, &run, "ts_da1f094c native"});
+            // transformConstants' rows: matrices and viewport, lights.
+            g_vu1WatchedRows.watch(4u, 22u); // loadConstants reads rows 4-21
+            g_vu1WatchedRows.watch(106u, 122u);
+        }
     } registration;
 }

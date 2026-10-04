@@ -117,6 +117,38 @@ public:
     // false when the backend cannot (nothing drawn, PRIM still set).
     bool submitStripsTransformed(uint32_t primRegister, const GSXfConstants &constants, const GSXfVertex *vertices,
                                  const uint8_t *counts, uint32_t strips);
+    // Render-state blocks of native vertex pipelines (project/game/
+    // vu1_native_ts.cpp): a PACKED GIF packet of one tag, no PRE, every
+    // register A+D, writing drawing-state registers only (no vertex, PRIM,
+    // transfer, SIGNAL/FINISH/LABEL or privileged ones). The pipeline decodes
+    // a block once and applies it without the GIF stream.
+    struct StateBlock
+    {
+        static constexpr uint32_t kMaxWrites = 8u;
+        uint32_t serial = 0;       // the owner's: equal serials, equal writes (0: none)
+        uint32_t count = 0;        // A+D writes, in packet order
+        uint32_t nloop = 0, nreg = 0;
+        bool repeatable = false;   // see applyStateBlock
+        bool idempotent = false;   // applying it twice is applying it once (but for TEXFLUSH)
+        bool flushes = false;      // writes TEXFLUSH
+        uint8_t regs[kMaxWrites] = {};
+        uint64_t values[kMaxWrites] = {};
+    };
+    static bool decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out);
+    // Applies a decoded block as processGIFPacket would apply its packet on
+    // PATH1: the same register writes, in order. Repeated: the block is the
+    // one applied last here (same serial) and no texture register (TEX0,
+    // TEX1, TEX2, CLAMP, MIPTBP1/2 of either context) was written since, so
+    // its values and its CLUT are still in place and writing it again would
+    // only flush the texture cache, which is done. Only blocks of texture
+    // registers and TEXFLUSH whose CLUT load is conditional (CLD 0, 4, 5)
+    // repeat. NotApplied: PATH1 is inside a packet (send the block as one).
+    enum class StateBlockResult : uint8_t { NotApplied, Applied, Repeated };
+    StateBlockResult applyStateBlock(const StateBlock &block);
+    // Development (TS_NATIVE_DRAW_SELFCHECK): processes an idempotent block
+    // again as a PATH1 packet; true when that changed no drawing state and no
+    // CLUT (the block's effect was already in place).
+    bool checkStateBlock(const uint8_t *data, uint32_t sizeBytes);
     enum class HostPresentationMode { VSync, Signal, Finish };
     void setHostPresentationMode(HostPresentationMode mode) { m_hostPresentationMode.store(mode); }
     HostPresentationMode hostPresentationMode() const { return m_hostPresentationMode.load(); }
@@ -211,6 +243,11 @@ private:
         std::vector<uint8_t> image;
     };
     std::array<GifStreamState, 3> m_gifStreams{};
+    // Writes to the texture registers (TEX0, TEX1, TEX2, CLAMP, MIPTBP1/2),
+    // and where the count stood after the last state block applied
+    // (applyStateBlock's repeats).
+    uint32_t m_textureStateWrites = 0;
+    uint32_t m_lastStateBlock = 0, m_lastStateBlockWrites = 0;
     std::atomic<HostPresentationMode> m_hostPresentationMode{HostPresentationMode::VSync};
     std::atomic<uint64_t> m_hostPresentationSequence{0};
     uint8_t *m_localMemoryStorage = nullptr;

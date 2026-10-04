@@ -2,6 +2,7 @@
 #include "runtime/gs/ps2_gif_arbiter.h"
 #include "runtime/gs/gs_frontend.h"
 #include "runtime/ps2_memory.h"
+#include "runtime/ps2_vu1_watch.h"
 #include "ps2_vu1_detail.h"
 #include "ps2_vu_capture.h"
 #include "runtime/ps2_vu1_jit.h"
@@ -1653,6 +1654,9 @@ void VU1Interpreter::execute(uint8_t *vuCode, uint32_t codeSize,
                 m_state.stoppedByT = false;
                 return;
             }
+    // The microprogram itself runs: it may write any VU1 data row.
+    if (m_unit == Unit::VU1)
+        g_vu1WatchedRows.noteAll();
     resetScheduler();
     m_state.pc = startPC & microAddressMask();
     m_state.ebit = false;
@@ -1683,6 +1687,8 @@ void VU1Interpreter::resume(uint8_t *vuCode, uint32_t codeSize,
     m_state.itop = itop;
     m_state.stoppedByD = false;
     m_state.stoppedByT = false;
+    if (m_unit == Unit::VU1)
+        g_vu1WatchedRows.noteAll();
     run(vuCode, codeSize, vuData, dataSize, gs, memory, maxCycles);
 }
 

@@ -30,6 +30,9 @@ struct GSXfConstants
     float model[3][4];         // environment map: the normal's rotation rows
     uint32_t variant;
     uint32_t serial;           // changes whenever the values may have (0: always rebuild)
+    // Development (TS_NATIVE_DRAW_SELFCHECK): the backend also takes its full
+    // paths (texture lookup, constant rebuild) and reports any difference.
+    uint32_t check = 0;
 };
 
 class GSRasterBackend
@@ -53,6 +56,9 @@ public:
         return false;
     }
     virtual void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) = 0;
+    // Development: the CLUT buffer and its CLD address mirror as one value,
+    // for self-checks that compare backend state (0: not tracked).
+    virtual uint64_t DebugClutState() { return 0; }
 
     virtual void BeginTransfer(const GSTransferCommand &command) = 0;
     virtual void UploadImage(const uint8_t *data, uint32_t sizeBytes) = 0;

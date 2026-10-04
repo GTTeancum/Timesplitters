@@ -53,6 +53,7 @@ namespace ps2x
         std::atomic<int64_t> requestedMicroseconds{0};
         std::atomic<int64_t> startedMicroseconds{0};
         std::atomic<uint64_t> waits{0};
+        std::atomic<int64_t> waitedMicroseconds{0}; // time spent in the waits (the game's idle time)
     };
 
     inline SchedulerWaitProbe &schedulerWaitProbe()
@@ -84,8 +85,17 @@ namespace ps2x
             probe.startedMicroseconds.store(steadyMicroseconds(), std::memory_order_relaxed);
             probe.waits.fetch_add(1, std::memory_order_relaxed);
             probe.site.store(site, std::memory_order_release);
+            m_started = probe.startedMicroseconds.load(std::memory_order_relaxed);
         }
-        ~SchedulerWaitScope() { schedulerWaitProbe().site.store(0, std::memory_order_release); }
+        ~SchedulerWaitScope()
+        {
+            SchedulerWaitProbe &probe = schedulerWaitProbe();
+            probe.waitedMicroseconds.fetch_add(steadyMicroseconds() - m_started, std::memory_order_relaxed);
+            probe.site.store(0, std::memory_order_release);
+        }
+
+    private:
+        int64_t m_started = 0;
     };
 }
 

@@ -1,5 +1,6 @@
 // Based on Blackline Interactive implementation
 #include "runtime/ps2_memory.h"
+#include "runtime/ps2_vu1_watch.h"
 #include <algorithm>
 #include <cstring>
 
@@ -595,6 +596,7 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
 
             if (m_vu1Data && totalBytes > 0 && pos + totalBytes <= sizeBytes)
             {
+                g_vu1WatchedRows.note(vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl));
                 const uint8_t *srcBase = data + pos;
                 uint32_t srcIndex = 0u;
                 // Fast path for the common unmasked, non-accumulating unpacks
@@ -1326,6 +1328,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
                 continue;
             }
 
+            g_vu1WatchedRows.note(vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl));
             UnpackCursor cursor{vuAddr, 0u, cl, wl};
             const bool maskEnable = (opcode & 0x10u) != 0u;
             const bool zeroExtend = (imm & 0x4000u) != 0u;

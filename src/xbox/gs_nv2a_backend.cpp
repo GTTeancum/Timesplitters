@@ -582,7 +582,11 @@ struct GSNv2aBackend::Impl
                 ++g_nv2aTextureStats.wbTexture;
                 writeBackScreen();
             }
-            if (recent.epoch == pageEpoch || versionSum(t.range) == t.versions)
+            // A runtime-path texture whose pack entry may be in the pool by now
+            // takes the full lookup, which swaps the pack's copy in (the
+            // self-check found the fast path keeping the fallback).
+            const bool packDue = t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame;
+            if (!packDue && (recent.epoch == pageEpoch || versionSum(t.range) == t.versions))
             {
                 recent.epoch = pageEpoch;
                 t.lastUse = ++textureTick;

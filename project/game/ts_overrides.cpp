@@ -14,6 +14,7 @@
 #include "ts_native_fp.h"
 #include "ts_native_game.h"
 #include "ts_native_game2.h"
+#include "ts_native_game3.h"
 #include "ts_native_math.h"
 #endif
 
@@ -846,6 +847,7 @@ namespace
         registerTsNativeFp(runtime);   // the soft-double routines (dpadd, dpmul, dptofp, ...)
         registerTsNativeGame(runtime); // portals, floor height, slerp, acosf, display-list packets, ...
         registerTsNativeGame2(runtime); // partGfx, calMatrices, animMtxTick, rotateChr, moveTest, ambient light, ...
+        registerTsNativeGame3(runtime); // decals, chrPropTick, setAnimation, particles, animUpdate, routes, ...
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);

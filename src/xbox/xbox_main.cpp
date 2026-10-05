@@ -12,6 +12,7 @@
 #include "ps2_runtime.h"
 #include "runtime/gs/gs_frontend.h"
 #include "xbox_log.h"
+#include "xbox_hwprof.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
@@ -62,6 +63,16 @@ namespace
     // Every few seconds: is the game advancing? (development aid)
     void statusHook()
     {
+        if (g_rt)
+        {
+            // make TS_HWPROF=1: the sampling profiler's window (else nothing).
+            HwprofCounters counters;
+            counters.scriptReads = g_rt->padBackend().scriptActive() ? uint32_t(g_rt->padBackend().scriptReadCount()) : 0u;
+            counters.gameFrames = g_nv2aTextureStats.gameFrames;
+            counters.eeWaitMicroseconds = ps2x::schedulerWaitProbe().waitedMicroseconds.load();
+            counters.gpuWaitKcyc = g_nv2aTextureStats.kcycWait;
+            hwprofFrame(counters);
+        }
         static double next = 0.0;
         const double now = GetTime();
         if (now < next || !g_rt)
@@ -234,6 +245,7 @@ int main()
     checkClocks();
     checkCpuSpeed();
     checkCalendar();
+    hwprofInit();
 
     static PS2Runtime rt; // large; keep it off the stack
     logMemory("runtime constructed");

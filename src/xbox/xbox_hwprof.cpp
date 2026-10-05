@@ -344,23 +344,37 @@ namespace
     uint32_t g_frameHist[kFrameBins];
     uint64_t g_qpcFrequency = 1;
 
-    bool openWindow(const HwprofCounters &counters)
+    // Once, at start-up, before the game claims its memory: the largest
+    // table that fits, 6 bytes an entry, filled to 7/8. The texture pack's
+    // pool is smaller by the same amount in profiler builds
+    // (gs_nv2a_backend.cpp), so the game keeps the memory it normally has.
+    void reserveTable()
     {
-        // Largest table that fits: 6 bytes an entry, filled to 7/8.
         for (uint32_t bits = 14; bits >= 11; --bits)
         {
             const uint32_t entries = 1u << bits;
-            void *memory = VirtualAlloc(nullptr, entries * 6u, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-            if (!memory)
-                continue;
-            std::memset(memory, 0, entries * 6u);
-            g_tableMemory = memory;
-            g_keys = static_cast<uint32_t *>(memory);
+            if (void *memory = VirtualAlloc(nullptr, entries * 6u, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE))
+            {
+                g_tableMemory = memory;
+                g_bits = bits;
+                return;
+            }
+        }
+    }
+
+    bool openWindow(const HwprofCounters &counters)
+    {
+        // The table was reserved at start-up (reserveTable): during a match
+        // the game runs with a few hundred KB free, and taking them then
+        // made its next large allocation fail (real console, 2026-10-05).
+        if (g_tableMemory)
+        {
+            const uint32_t entries = 1u << g_bits;
+            std::memset(g_tableMemory, 0, entries * 6u);
+            g_keys = static_cast<uint32_t *>(g_tableMemory);
             g_counts = reinterpret_cast<uint16_t *>(g_keys + entries);
-            g_bits = bits;
             g_mask = entries - 1u;
             g_limit = entries - entries / 8u;
-            break;
         }
         if (!g_tableMemory)
         {
@@ -551,6 +565,12 @@ void hwprofInit()
                   TS_HWPROF_FROM, TS_HWPROF_TO);
     xboxLogWrite(text, unsigned(std::strlen(text)));
     g_phase = g_primary == kSrcNone ? Phase::Off : Phase::Waiting;
+    if (g_phase == Phase::Waiting)
+    {
+        reserveTable();
+        std::snprintf(text, sizeof(text), "[TS:prof] table reserved: %u entries\n", g_tableMemory ? 1u << g_bits : 0u);
+        xboxLogWrite(text, unsigned(std::strlen(text)));
+    }
 }
 
 void hwprofFrame(const HwprofCounters &counters)

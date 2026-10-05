@@ -45,7 +45,13 @@ namespace
     // entries are read into. The world textures of one match (the PC
     // port's dump of a session) come to about 1.14 MB with mip chains.
     constexpr const char *kTexturePackPath = "D:\\textures.xtp";
+#if TS_HWPROF
+    // Profiler builds: the profiler's 96 KB table is reserved at start-up
+    // (xbox_hwprof.cpp) and comes out of this pool, not the game's memory.
+    constexpr uint32_t kTexturePoolBytes = 1280u * 1024u - 128u * 1024u;
+#else
     constexpr uint32_t kTexturePoolBytes = 1280u * 1024u;
+#endif
     // While the pack carries the world textures, the runtime path keeps only
     // what the pack lacks (front-end art, screen copies, palettes made at
     // run time), and its budget is lowered to pay for part of the pool. Not

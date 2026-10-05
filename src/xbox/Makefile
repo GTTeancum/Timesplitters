@@ -228,10 +228,10 @@ $(OBJ)/src/xbox/gs_nv2a_backend.obj: RUNTIME_FLAGS += -I$(SHADERS)
 
 # make TS_HWPROF=1: the sampling profiler for real consoles (xbox_hwprof.cpp),
 # written to the log between script reads 1500 and 2700. Off by default. Only
-# the two files that use it see the switch; a stamp rebuilds them when it changes.
+# the three files that use it see the switch; a stamp rebuilds them when it changes.
 TS_HWPROF ?= 0
 HWPROF_STAMP := $(OUT)/gen/hwprof.flags
-HWPROF_OBJS := $(OBJ)/src/xbox/xbox_hwprof.obj $(OBJ)/src/xbox/xbox_main.obj
+HWPROF_OBJS := $(OBJ)/src/xbox/xbox_hwprof.obj $(OBJ)/src/xbox/xbox_main.obj $(OBJ)/src/xbox/gs_nv2a_backend.obj
 $(HWPROF_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(TS_HWPROF)' ] || echo '$(TS_HWPROF)' > $@

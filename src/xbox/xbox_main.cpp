@@ -155,6 +155,11 @@ namespace
                       << std::hex << thread.pc << "<" << thread.ra << std::dec;
         out << std::endl;
         xboxLogSetStatus(out.str());
+        // One short timing line in the log file too: on real hardware there is
+        // no debugger reading the status block, the log is copied off the disk.
+        std::cout << "[TS:perf] t=" << int(now) << " vsync=" << g_rt->eeScheduler().currentVSyncTick()
+                  << " game=" << g_nv2aTextureStats.gameFrames << " idle=" << wait.waitedMicroseconds.load() / 1000
+                  << "ms reads=" << g_rt->padBackend().scriptReadCount() << std::endl;
     }
 
     // std::chrono on nxdk: check the clocks advance like the kernel timer.

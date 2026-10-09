@@ -8,6 +8,7 @@
 //   - gamepads and the audio stream go through nxdk's SDL2;
 //   - keyboard queries report nothing pressed.
 #include "raylib.h"
+#include "runtime/ps2_music.h"
 #include "xbox_log.h"
 
 #include <SDL.h>
@@ -25,7 +26,27 @@
 #include <unordered_map>
 #include <vector>
 
-extern uint32_t g_audioBuffers, g_audioMixKcyc;
+// The audio feeder mixes each buffer into cached memory (4 KB, static) and
+// copies it into the AC97 ring in one pass. The ring is write-combined memory:
+// cheap to store into, but every read of it is an uncached bus read, and the
+// music mix adds onto the samples the SPU2 mix stored (on the console
+// Ps2Music::mix took 14x its xemu time). The mixers set every sample before
+// anything reads one, so the ring gets the same bytes either way
+// (src/xbox/test/audio_staging_test.cpp). 0: mix straight into the ring.
+#ifndef TS_AUDIO_STAGING
+#define TS_AUDIO_STAGING 1
+#endif
+// SDL's event queue is emptied after every pad update. Nothing reads it (the
+// pads are read directly, and SDL's game controller layer sees each event on
+// its way in), yet every change of a stick, trigger or button queues two
+// events (the joystick's and the game controller's), each a heap block of
+// about 80 bytes until SDL's 65,535-event limit (5 MB): real play would fill
+// that, and a match has no free memory. 0: the events pile up, as before.
+#ifndef TS_SDL_EVENT_FLUSH
+#define TS_SDL_EVENT_FLUSH 1
+#endif
+
+extern uint32_t g_audioBuffers, g_audioMixKcyc, g_audioMusicKcyc, g_audioDiscKcyc; // defined below
 
 namespace
 {
@@ -77,6 +98,9 @@ namespace
     void refreshPads()
     {
         SDL_GameControllerUpdate();
+#if TS_SDL_EVENT_FLUSH
+        SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+#endif
         for (int i = 0; i < 4; ++i)
         {
             if (g_pads[i] && !SDL_GameControllerGetAttached(g_pads[i]))
@@ -128,6 +152,12 @@ namespace
 
     void silentRefill(void *, void *) {} // nxdk's interrupt refill is not used
 
+#if TS_AUDIO_STAGING
+    // One buffer's mix, in cached memory; 32-byte aligned, like the ring's
+    // 4 KB slots, so the copy moves whole cache lines.
+    alignas(32) int16_t g_audioStaging[kAudioFrames * 2u];
+#endif
+
     void provideAudio(int16_t *buffer)
     {
         XAudioProvideSamples(reinterpret_cast<unsigned char *>(buffer), kAudioFrames * 4u, 0);
@@ -137,7 +167,7 @@ namespace
     DWORD WINAPI audioFeeder(LPVOID)
     {
         volatile const uint8_t *ac97 = reinterpret_cast<volatile const uint8_t *>(0xFEC00000u);
-        static uint64_t mixCycles = 0;
+        static uint64_t mixCycles = 0, musicCycles = 0, discCycles = 0;
         for (;;)
         {
             const unsigned current = ac97[0x114] & 31u; // CIV: descriptor playing now
@@ -145,16 +175,33 @@ namespace
             for (; ahead < kAudioAhead; ++ahead)
             {
                 int16_t *buffer = g_audio.buffers + size_t(g_audio.provided % kAudioRing) * kAudioFrames * 2u;
+#if TS_AUDIO_STAGING
+                int16_t *const mixInto = g_audioStaging;
+#else
+                int16_t *const mixInto = buffer;
+#endif
+                const uint64_t musicBefore = g_musicMixCycles, discBefore = g_musicDiscCycles;
                 const uint64_t start = __builtin_ia32_rdtsc();
                 {
                     std::lock_guard<std::mutex> guard(g_audio.lock);
                     if (g_audio.playing && g_audio.callback)
-                        g_audio.callback(buffer, kAudioFrames);
+                        g_audio.callback(mixInto, kAudioFrames);
                     else
-                        std::memset(buffer, 0, kAudioFrames * 4u);
+                        std::memset(mixInto, 0, kAudioFrames * 4u);
                 }
-                mixCycles += __builtin_ia32_rdtsc() - start;
+#if TS_AUDIO_STAGING
+                std::memcpy(buffer, g_audioStaging, kAudioFrames * 4u);
+#endif
+                // The music player's disc reads (one chunk pair every 1.3 s
+                // of music) block this thread while the game runs: counted
+                // apart, so the mix figures are this thread's own CPU time.
+                const uint64_t disc = g_musicDiscCycles - discBefore;
+                mixCycles += __builtin_ia32_rdtsc() - start - disc;
+                musicCycles += g_musicMixCycles - musicBefore - disc;
+                discCycles += disc;
                 g_audioMixKcyc = uint32_t(mixCycles / 1000u);
+                g_audioMusicKcyc = uint32_t(musicCycles / 1000u);
+                g_audioDiscKcyc = uint32_t(discCycles / 1000u);
                 ++g_audioBuffers;
                 provideAudio(buffer);
             }
@@ -191,9 +238,13 @@ namespace
     }
 }
 
-// Audio output health (status block): buffers played, and the CPU the mix
-// took (thousands of cycles). About 47 buffers a second means sound plays.
-uint32_t g_audioBuffers = 0, g_audioMixKcyc = 0;
+// Audio output health (status block): buffers played, and in thousands of
+// CPU cycles, cumulative: the feeder's mix (SPU2, music and the copy into the
+// ring), the music's part of it, and the music player's waits for the disc,
+// which the other two leave out (logs from before g_audioDiscKcyc show mix +
+// disc). About 47 buffers a second means sound plays; at 733 MHz, mix Kcyc
+// per second / 7330 is the feeder's percentage of the CPU.
+uint32_t g_audioBuffers = 0, g_audioMixKcyc = 0, g_audioMusicKcyc = 0, g_audioDiscKcyc = 0;
 
 // ------------------------------------------------------------------ window
 void InitWindow(int, int, const char *)
@@ -204,6 +255,19 @@ void InitWindow(int, int, const char *)
         std::memset(frameBuffer(), 0, kScreenWidth * kScreenHeight * 4);
     }
     SDL_Init(SDL_INIT_GAMECONTROLLER);
+#if TS_SDL_EVENT_FLUSH
+    // A queued event takes a heap block only while SDL's free list is empty
+    // (flushed ones go there and are never freed): queue and flush 64 now
+    // (about 5 KB), so the pad events of a match reuse those instead of
+    // allocating. Four pads rarely change more than 32 inputs in one update.
+    {
+        SDL_Event reserve{};
+        reserve.type = SDL_USEREVENT;
+        for (int i = 0; i < 64; ++i)
+            SDL_PeepEvents(&reserve, 1, SDL_ADDEVENT, 0, 0);
+        SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    }
+#endif
     g_timerFrequency = KeQueryPerformanceFrequency();
     g_timerStart = KeQueryPerformanceCounter();
     g_windowReady = true;

@@ -91,12 +91,15 @@ void xboxLogWrite(const char *text, unsigned length)
 {
     std::lock_guard<std::mutex> lock(g_logMutex);
     DbgPrint("%.*s", static_cast<int>(length), text);
-    std::string line(text, length);
-    while (!line.empty() && isLineEnd(line.back()))
-        line.pop_back();
-    if (line.size() > kOverlayColumns)
-        line.resize(kOverlayColumns);
-    g_recent[g_recentNext] = std::move(line);
+    // The overlay keeps a line's first kOverlayColumns characters, copied
+    // into the slot's own buffer: once the ring has gone round a line
+    // allocates nothing, and a slot never holds more than that (a copy of
+    // the whole line, cut with resize, kept all of it: 200 status lines of
+    // 300-400 characters held ~70 KB in a match that has almost none).
+    size_t shown = length;
+    while (shown && isLineEnd(text[shown - 1]))
+        --shown;
+    g_recent[g_recentNext].assign(text, std::min(shown, kOverlayColumns));
     g_recentNext = (g_recentNext + 1) % kOverlayLines;
     if (g_toScreen)
         debugPrint("%.*s", static_cast<int>(length), text);

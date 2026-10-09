@@ -73,6 +73,19 @@ public:
     VU1State &state() { return m_state; }
     const VU1State &state() const { return m_state; }
 
+    // For a caller that tries the native microprogram itself (the Xbox MSCAL
+    // fast path, ps2_vif1_interpreter.cpp): the one execute() would try for
+    // this code (null: none), and execute() without that attempt.
+    bool (*nativeProgram(const uint8_t *vuCode, uint32_t codeSize, const PS2Memory *memory))(uint32_t, uint8_t *, uint32_t, uint32_t, PS2Memory *, GS &)
+    {
+        return lookupNativeProgram(vuCode, codeSize, memory);
+    }
+    void executeInterpreted(uint8_t *vuCode, uint32_t codeSize,
+                            uint8_t *vuData, uint32_t dataSize,
+                            GS &gs, PS2Memory *memory,
+                            uint32_t startPC, uint32_t top, uint32_t itop,
+                            uint32_t maxCycles);
+
 private:
     friend struct Vu1Jit;
 

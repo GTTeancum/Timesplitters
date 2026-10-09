@@ -58,6 +58,44 @@ namespace
     constexpr size_t kVif1WindowBytes = 512u * 1024u;
     std::vector<uint8_t> s_vif1Window;
 #endif
+// TS_WALK_SKIP_ZERO_TTE 1 (rewrite plan M1.5): a VIF1 chain's tag upper half
+// that is all zero (two VIF NOPs, sent with CHCR.TTE) is left out of the
+// pieces, which saves the decoder a piece (a cache miss) for each such tag.
+// A NOP's only effect is VIF1 CODE/NUM, which the next command sets again;
+// a chain that ends in such halves gets its last one back, so CODE/NUM end
+// as before. Exact only where every zero half sits between commands, never
+// inside one's data (an UNPACK, DIRECT or image data running on into the
+// next tag): TS_VIF_SELFCHECK then decodes the chain without the skip on
+// the old path and compares (vifdiff= must stay 0). Off until the render
+// counters show the halves are common (tte= in [TS:render2], make
+// TS_RENDER_COUNTERS=2).
+#ifndef TS_WALK_SKIP_ZERO_TTE
+#define TS_WALK_SKIP_ZERO_TTE 0
+#endif
+// TS_WALK_INLINE_SEGMENT 1: the piece recorder (addSegment) is inlined into
+// the walk instead of called per tag and payload: the same pieces, code
+// only. Goes with TS_WALK_SKIP_ZERO_TTE unless set on its own.
+#ifndef TS_WALK_INLINE_SEGMENT
+#define TS_WALK_INLINE_SEGMENT TS_WALK_SKIP_ZERO_TTE
+#endif
+#if TS_WALK_INLINE_SEGMENT
+#define TS_WALK_INLINE __attribute__((always_inline))
+#else
+#define TS_WALK_INLINE
+#endif
+#if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
+    // Every chain's pieces without the skip, for the self-check's old path,
+    // and where each chain ends in them (development builds only: these grow).
+    std::vector<PS2Memory::Vif1Piece> s_vif1FullSegments;
+    std::vector<size_t> s_vif1FullEnds;
+#endif
+// TS_VIF_TAIL_FROM_WALK 1 (M1.4): a chain's byte total comes from the walk,
+// which adds it up as it records the pieces (PendingTransfer::pieceBytes).
+// 0: processVIF1Pieces adds up the piece list again first, a pass over
+// every piece of the chain. TS_VIF_SELFCHECK compares the two totals.
+#ifndef TS_VIF_TAIL_FROM_WALK
+#define TS_VIF_TAIL_FROM_WALK 1
+#endif
 #endif
 }
 #include <vector>
@@ -1568,10 +1606,31 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     const bool recordSegments = channelBase == 0x10009000u;
                     const size_t firstSegment = s_vif1Segments.size();
                     size_t segmentBytes = 0;
+#if TS_WALK_SKIP_ZERO_TTE
+                    // A zero TTE half left out with no piece recorded after it (null: none).
+                    const uint8_t *skippedTte = nullptr;
+#endif
+#if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
+                    const size_t firstFullSegment = s_vif1FullSegments.size();
+                    auto addFullSegment = [&](const uint8_t *data, uint32_t bytes)
+                    {
+                        if (s_vif1FullSegments.size() > firstFullSegment &&
+                            s_vif1FullSegments.back().first + s_vif1FullSegments.back().second == data)
+                            s_vif1FullSegments.back().second += bytes;
+                        else
+                            s_vif1FullSegments.emplace_back(data, bytes);
+                    };
+#endif
                     // A piece that continues the last one (a CNT tag's VIFcodes
                     // and its data) extends it.
-                    auto addSegment = [&](const uint8_t *data, uint32_t bytes)
+                    auto addSegment = [&](const uint8_t *data, uint32_t bytes) TS_WALK_INLINE
                     {
+#if TS_WALK_SKIP_ZERO_TTE
+                        skippedTte = nullptr;
+#if TS_VIF_SELFCHECK
+                        addFullSegment(data, bytes);
+#endif
+#endif
                         segmentBytes += bytes;
                         if (segmentBytes > kMaxBufferedDmaBytes)
                             PS2X_THROW(std::runtime_error("DMA chain exceeds host buffering budget"));
@@ -1731,6 +1790,9 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         uint32_t addr = static_cast<uint32_t>((tag >> 32) & 0x7FFFFFFF);
                         lastTagUpper = static_cast<uint32_t>((tag >> 16) & 0xFFFFu);
                         ++tagsProcessed;
+#if defined(PLATFORM_XBOX) && TS_RENDER_COUNTERS >= 2
+                        const uint32_t inCall = asp != 0u ? 1u : 0u; // a CALLed chain's tag (render counters)
+#endif
 
                         uint32_t dataAddr = 0;
                         bool hasPayload = (tagQwc > 0);
@@ -1818,12 +1880,53 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                                 _mm_prefetch(reinterpret_cast<const char *>(m_rdram + tagPhys + 32u), _MM_HINT_T0);
                                 _mm_prefetch(reinterpret_cast<const char *>(m_rdram + tagPhys + 64u), _MM_HINT_T0);
                             }
+#if TS_RENDER_COUNTERS >= 2
+                            // Render counters, tag by tag (ps2_render_counters.h).
+                            ++g_renderCounters.tagIds[id];
+                            g_renderCounters.tagsCalled += inCall;
+                            if (hasPayload)
+                                g_renderCounters.payloadQw[inCall] += tagQwc;
+#endif
                             if (transferTagData)
-                                addSegment(tp + 8u, 8u);
+                            {
+#if TS_WALK_SKIP_ZERO_TTE || TS_RENDER_COUNTERS >= 2
+                                uint32_t tte[2]; // (on the tag's line: read already)
+                                std::memcpy(tte, tp + 8u, sizeof(tte));
+                                const bool tteZero = (tte[0] | tte[1]) == 0u;
+                                TS_RENDER_COUNT2(++g_renderCounters.tteHalves);
+                                TS_RENDER_COUNT2(g_renderCounters.tteZero += tteZero ? 1u : 0u);
+#endif
+#if TS_WALK_SKIP_ZERO_TTE
+                                if (tteZero)
+                                {
+                                    skippedTte = tp + 8u;
+                                    TS_RENDER_COUNT(++g_renderCounters.tteSkipped);
+#if TS_VIF_SELFCHECK
+                                    addFullSegment(tp + 8u, 8u);
+#endif
+                                }
+                                else
+#endif
+                                {
+#if TS_RENDER_COUNTERS >= 2
+                                    const size_t pieces = s_vif1Segments.size();
+                                    addSegment(tp + 8u, 8u);
+                                    ++(s_vif1Segments.size() != pieces ? g_renderCounters.pieceTteNew : g_renderCounters.pieceTteJoined);
+#else
+                                    addSegment(tp + 8u, 8u);
+#endif
+                                }
+                            }
                             const uint32_t payloadBytes = static_cast<uint32_t>(tagQwc) * 16u;
                             if (hasPayload && dataAddr < PS2_RAM_SIZE && payloadBytes <= PS2_RAM_SIZE - dataAddr)
                             {
+#if TS_RENDER_COUNTERS >= 2
+                                const size_t pieces = s_vif1Segments.size();
                                 addSegment(m_rdram + dataAddr, payloadBytes);
+                                ++(s_vif1Segments.size() != pieces ? g_renderCounters.piecePayloadNew : g_renderCounters.piecePayloadJoined);
+#else
+                                addSegment(m_rdram + dataAddr, payloadBytes);
+#endif
                                 hasPayload = false;
                             }
                         }
@@ -1852,12 +1955,41 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     m_ioRegisters[channelBase + 0x00] = chcr;
 
 #if defined(PLATFORM_XBOX)
+#if TS_WALK_SKIP_ZERO_TTE
+                    // The chain ends in left-out halves: the last one goes back,
+                    // so the decoder ends on its NOPs (CODE/NUM as without the skip).
+                    if (recordSegments && skippedTte)
+                    {
+#if TS_VIF_SELFCHECK
+                        const size_t fullCount = s_vif1FullSegments.size();
+#endif
+                        addSegment(skippedTte, 8u);
+                        TS_RENDER_COUNT(--g_renderCounters.tteSkipped);
+#if TS_VIF_SELFCHECK
+                        // addSegment put it in the full list a second time
+                        // (it went in when it was left out): that comes off.
+                        if (s_vif1FullSegments.size() != fullCount)
+                            s_vif1FullSegments.pop_back();
+                        else
+                            s_vif1FullSegments.back().second -= 8u;
+#endif
+                    }
+#endif
+                    if (recordSegments)
+                    {
+                        TS_RENDER_COUNT(++g_renderCounters.chains);
+                        TS_RENDER_COUNT(g_renderCounters.chainTags += static_cast<uint32_t>(tagsProcessed));
+                    }
                     if (recordSegments && s_vif1Segments.size() > firstSegment)
                     {
                         PendingTransfer pt;
                         pt.qwc = kSegmentedChain;
                         pt.srcAddr = static_cast<uint32_t>(s_vif1Segments.size());
+                        pt.pieceBytes = static_cast<uint32_t>(segmentBytes);
                         m_pendingVif1Transfers.push_back(std::move(pt));
+#if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
+                        s_vif1FullEnds.push_back(s_vif1FullSegments.size());
+#endif
                     }
                     else
 #endif
@@ -2062,7 +2194,11 @@ namespace
     // far; at the end, hashes of VU1 data and code memory and the VIF1
     // registers. A chain whose two records differ counts in
     // g_vif1StreamStats.diffs. All state is put back afterwards.
-    void vif1SelfCheck(PS2Memory &m, const PS2Memory::Vif1Piece *pieces, size_t count)
+    // The window path is given oldPieces, the chain as recorded without
+    // TS_WALK_SKIP_ZERO_TTE (else the same pieces); processVIF1Pieces the
+    // pieces with the walk's byte total, which is checked against them too.
+    void vif1SelfCheck(PS2Memory &m, const PS2Memory::Vif1Piece *pieces, size_t count, uint32_t bytes,
+                       const PS2Memory::Vif1Piece *oldPieces, size_t oldCount)
     {
         static std::vector<uint8_t> savedData, savedCode;
         const VIFRegisters savedRegs = m.vif1_regs;
@@ -2076,6 +2212,10 @@ namespace
         const std::vector<std::vector<uint8_t>> savedPath3Fifo = m.m_path3MaskedFifo;
         const uint64_t savedCodeGeneration = m.m_vu1CodeGeneration.load(std::memory_order_relaxed);
         const Vif1StreamStats savedStats = g_vif1StreamStats;
+        const RenderCounters savedCounters = g_renderCounters;
+        // The MSCAL fast path would run VU1: off while the MSCALs are recorded.
+        const PS2Memory::Vu1MscalFast savedFast = m.m_vu1MscalFast;
+        m.m_vu1MscalFast.owner = nullptr;
         auto restore = [&]()
         {
             m.vif1_regs = savedRegs;
@@ -2118,9 +2258,9 @@ namespace
             gifHash = kFnvBasis;
             gifBytes = 0;
             if (run == 0)
-                processVif1Window(m, pieces, count);
+                processVif1Window(m, oldPieces, oldCount);
             else
-                m.processVIF1Pieces(pieces, count);
+                m.processVIF1Pieces(pieces, count, bytes);
             record->insert(record->end(),
                            {3u, dataHash(), m.m_vu1Code ? hashWords(kFnvBasis, m.m_vu1Code, PS2_VU1_CODE_SIZE) : 0u,
                             hashWords(kFnvBasis, reinterpret_cast<const uint8_t *>(&m.vif1_regs), sizeof(VIFRegisters)),
@@ -2133,8 +2273,20 @@ namespace
         m.m_vu1MscntCallback = std::move(mscnt);
         m.m_gifPacketCallback = std::move(gifCallback);
         m.m_gifArbiter = arbiter;
+        m.m_vu1MscalFast = savedFast;
         g_vif1StreamStats = savedStats;
+        g_renderCounters = savedCounters;
         ++g_vif1StreamStats.checked;
+        uint32_t sum = 0;
+        for (size_t i = 0; i < count; ++i)
+            sum += pieces[i].second;
+        if (sum != bytes)
+        {
+            // The walk's total (TS_VIF_TAIL_FROM_WALK) is not the pieces'.
+            records[1].push_back(0xB7E5u);
+            RUNTIME_LOG("[VIF:selfcheck] chain " << g_vif1StreamStats.checked << ": walk total " << bytes
+                        << " bytes, pieces " << sum << '\n');
+        }
         if (records[0] != records[1])
         {
             ++g_vif1StreamStats.diffs;
@@ -2310,6 +2462,9 @@ void PS2Memory::processPendingTransfers()
     const bool hadVif1 = !m_pendingVif1Transfers.empty();
 #if defined(PLATFORM_XBOX)
     size_t segmentStart = 0; // the pieces of the chains before this one
+#if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
+    size_t fullStart = 0, fullChain = 0;
+#endif
 #endif
     for (auto &p : m_pendingVif1Transfers)
     {
@@ -2320,10 +2475,23 @@ void PS2Memory::processPendingTransfers()
             const size_t count = p.srcAddr - segmentStart;
             segmentStart = p.srcAddr;
 #if TS_VIF_SELFCHECK
-            if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS)
-                vif1SelfCheck(*this, pieces, count);
+#if TS_WALK_SKIP_ZERO_TTE
+            // The old path decodes the chain without the skip.
+            const Vif1Piece *fullPieces = s_vif1FullSegments.data() + fullStart;
+            const size_t fullCount = s_vif1FullEnds[fullChain] - fullStart;
+            fullStart = s_vif1FullEnds[fullChain++];
+#else
+            const Vif1Piece *fullPieces = pieces;
+            const size_t fullCount = count;
 #endif
+            if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS)
+                vif1SelfCheck(*this, pieces, count, p.pieceBytes, fullPieces, fullCount);
+#endif
+#if TS_VIF_TAIL_FROM_WALK
+            processVIF1Pieces(pieces, count, p.pieceBytes);
+#else
             processVIF1Pieces(pieces, count);
+#endif
             continue;
         }
 #endif
@@ -2383,6 +2551,10 @@ void PS2Memory::processPendingTransfers()
     }
 #if defined(PLATFORM_XBOX)
     s_vif1Segments.clear();
+#if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
+    s_vif1FullSegments.clear();
+    s_vif1FullEnds.clear();
+#endif
 #endif
     m_pendingVif1Transfers.clear();
 

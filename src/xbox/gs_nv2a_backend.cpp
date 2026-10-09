@@ -1,7 +1,30 @@
 // GS renderer for the original Xbox (NV2A via pbkit). See gs_nv2a_backend.h.
 #include "gs_nv2a_backend.h"
+#include "gs_nv2a_clip.h"
 #include "xbox_texture_pack.h"
 #include "runtime/gs/gs_texture_hash.h"
+
+// Split screen (REWRITE-PLAN.md M2.3). Each switch at 0 restores the old path.
+// TS_NV2A_DISPLAY_HEIGHT 1: the GS frame's height (its mapping onto the
+// 640x480 screen) comes from the display registers of the last presentation
+// (gs_nv2a_clip::frameRows), not from the first draw's scissor, which only
+// gives the frame's height when the first draw covers the whole frame. In a
+// match it does, split screen too (bossMainLoop starts every frame with
+// dlClearFB under a 640x224 scissor, before the views); the display is the
+// sturdier source, and what the PS2 and the PC presenters show.
+#ifndef TS_NV2A_DISPLAY_HEIGHT
+#define TS_NV2A_DISPLAY_HEIGHT 1
+#endif
+// TS_NV2A_SCISSOR 1: the GS scissor is applied as the NV2A window clip, so a
+// view (playerSetWindow: 2 players top and bottom, 3-4 in quarters) draws
+// inside its own rectangle only, as on the PS2 and in the PC renderer
+// (glScissor). The game's full-screen scissor is pbkit's own full-screen
+// clip, which is never pushed; smaller ones (rooms seen through portals,
+// bgGfx and propGfxRoom; HUD windows) now clip as on the PS2, where the old
+// path drew past them.
+#ifndef TS_NV2A_SCISSOR
+#define TS_NV2A_SCISSOR 1
+#endif
 
 #include <hal/debug.h>
 #include <hal/video.h>
@@ -14,6 +37,7 @@
 #include <array>
 #include <bitset>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -21,6 +45,51 @@
 #include <list>
 #include <set>
 #include <vector>
+
+// TS_TEXTURE_INDEX 1: the texture cache's records are found through a hash
+// index over their whole key (Impl::textureIndex); 0: by a walk of the list.
+#ifndef TS_TEXTURE_INDEX
+#define TS_TEXTURE_INDEX 1
+#endif
+// TS_TEXTURE_RECENT_WAYS: ways of the recent-texture table's 64 sets (4: a
+// texture's palette and TEXA variants, and textures whose addresses share
+// a set, stay side by side; 1: 64 entries by address, as before).
+#ifndef TS_TEXTURE_RECENT_WAYS
+#define TS_TEXTURE_RECENT_WAYS 4
+#endif
+// TS_GPU_RANGE_MEMO 1: the local-memory range the GPU has drawn this frame
+// is worked out again only when the rows drawn or the frame change (once or
+// twice a frame); 0: at every use.
+#ifndef TS_GPU_RANGE_MEMO
+#define TS_GPU_RANGE_MEMO 1
+#endif
+// TS_CLUT_IDENTITY 1: full CLUT loads are found by identity (CBP, format and
+// GS page versions -> the content hash; 24 bytes an entry) and the CPU
+// renderer's CLUT buffer is filled only when something reads it; 0: the
+// 128-entry palette cache holding each buffer (1 KB an entry), as before.
+// Off by itself when the boot self-test of the load order fails.
+#ifndef TS_CLUT_IDENTITY
+#define TS_CLUT_IDENTITY 1
+#endif
+// TS_XF_DIRTY_ROWS 1: only the transform-constant rows the native pipeline
+// says changed (nv2aXfConstantsChanged) are rebuilt and compared, and only
+// rows rebuilt with a new value are sent to the GPU; 0: the whole block
+// rebuilt and compared, and every row compared with the GPU's copy.
+#ifndef TS_XF_DIRTY_ROWS
+#define TS_XF_DIRTY_ROWS 1
+#endif
+// TS_NV2A_SELFCHECK 1 (default: TS_NATIVE_DRAW_SELFCHECK's value): every
+// texture lookup also walks the list and every full CLUT load also takes
+// the CPU renderer's row reads, every constant upload checks the rows it
+// leaves out; differences count in drawdiff= and the [TS:tex] line, the
+// first few are logged, and the old path's result is the one used.
+#ifndef TS_NV2A_SELFCHECK
+#if defined(TS_NATIVE_DRAW_SELFCHECK)
+#define TS_NV2A_SELFCHECK TS_NATIVE_DRAW_SELFCHECK
+#else
+#define TS_NV2A_SELFCHECK 0
+#endif
+#endif
 
 void xboxGpuOwnsDisplay(bool owns);
 void xboxLogToScreen(bool enabled);
@@ -330,6 +399,30 @@ namespace
 // Development aid: the renderer's current step, read with a debugger.
 extern "C" volatile int g_nv2aStep = 0;
 GSNv2aTextureStats g_nv2aTextureStats{};
+namespace
+{
+    GSNv2aLookupStats s_lookupStats{};
+    // nv2aXfConstantsChanged's last serial and its rows.
+    uint32_t s_xfChangedSerial = 0;
+    uint64_t s_xfChangedRows = ~0ull;
+}
+GSNv2aLookupStats nv2aLookupStats() { return s_lookupStats; }
+
+void nv2aXfConstantsChanged(uint32_t serial, uint64_t rows)
+{
+    s_xfChangedSerial = serial;
+    s_xfChangedRows = rows;
+}
+
+std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &s)
+{
+    return out << "look=" << s.textures << " slow=" << s.textureSlow << " ovf=" << s.indexOverflows
+               << " idxdiff=" << s.indexDiffs << " clut=" << s.clutLoads << " hit=" << s.clutHits
+               << " miss new/conf/ver/other=" << s.clutNew << "/" << s.clutConflicts << "/" << s.clutVersions << "/"
+               << s.clutOther << " old hit/new/conf/ver=" << s.oldHits << "/" << s.oldNew << "/" << s.oldConflicts
+               << "/" << s.oldVersions << " fill=" << s.clutFills << " cdiff=" << s.clutDiffs << " krows=" << s.constRows
+               << " kup=" << s.constUploads;
+}
 
 struct GSNv2aBackend::Impl
 {
@@ -374,6 +467,12 @@ struct GSNv2aBackend::Impl
     std::array<uint32_t, 2> displayFbp{UINT32_MAX, UINT32_MAX};
     bool frameOpen = false;
     uint32_t frameFbp = 0, frameFbw = 10, framePsm = GS_PSM_CT16, frameHeight = 224;
+#if TS_NV2A_DISPLAY_HEIGHT
+    // What the display showed at the last presentation (rows 0: nothing yet;
+    // the first draw's scissor decides).
+    gs_nv2a_clip::Display display{};
+    uint32_t heightNotes = 0; // frames whose first draw's scissor disagreed (logged, the first few)
+#endif
     bool screenGpuNewer = false;   // GPU pixels not yet in local memory
     bool screenVramNewer = false;  // local memory changed after the GPU drew
     uint32_t lastPresentedFbp = UINT32_MAX;
@@ -389,10 +488,29 @@ struct GSNv2aBackend::Impl
     // (the game keeps its CLUTs under the visible 448 rows, inside the
     // 512-row frame region) need no read-back of the GPU's pixels.
     uint32_t gpuRows = 0;
+#if TS_GPU_RANGE_MEMO
+    // The range and what it was worked out from (rows 0: none yet).
+    GSCpuBackend::VramRange gpuRangeMemo{};
+    uint32_t gpuRangeRows = 0, gpuRangeFbp = 0, gpuRangeFbw = 0, gpuRangePsm = 0;
+    GSCpuBackend::VramRange gpuRange()
+    {
+        const uint32_t rows = std::max<uint32_t>(gpuRows, 1u);
+        if (rows != gpuRangeRows || frameFbp != gpuRangeFbp || frameFbw != gpuRangeFbw || framePsm != gpuRangePsm)
+        {
+            gpuRangeRows = rows;
+            gpuRangeFbp = frameFbp;
+            gpuRangeFbw = frameFbw;
+            gpuRangePsm = framePsm;
+            gpuRangeMemo = frameRangeExact(framePsm, frameFbp, frameFbw, rows);
+        }
+        return gpuRangeMemo;
+    }
+#else
     GSCpuBackend::VramRange gpuRange() const
     {
         return frameRangeExact(framePsm, frameFbp, frameFbw, std::max<uint32_t>(gpuRows, 1u));
     }
+#endif
 
     bool isScreenTarget(const GSDrawState &state) const
     {
@@ -426,6 +544,7 @@ struct GSNv2aBackend::Impl
         bool forceLinear = false; // HD replacement: always filtered, as on the PC
         uint32_t levels = 1;      // mip levels (pack textures only have more than one)
         uint32_t packRetryFrame = 0;
+        uint32_t indexTag = 0;    // its key's hash (textureIndex)
     };
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
     std::set<uint64_t> frameKeys, lastFrameKeys; // address/size keys drawn this and last frame (statistics)
@@ -434,6 +553,8 @@ struct GSNv2aBackend::Impl
     size_t textureBudget = kTextureBudget; // lower while the pack carries the world (kTextureBudgetWithPack)
     uint32_t packQuietFrames = 0;          // frames in a row the runtime path stayed under half of that
     // A list: draw keys hold pointers into it across insertions and removals.
+    // One record a key (a lookup that finds a record retires it before a new
+    // decode adds another), so a key finds at most one (textureIndex).
     std::list<Texture> textures;
     std::list<Texture> retired; // dropped textures the GPU may still read; freed at the frame's end
     size_t textureBytes = 0;
@@ -479,6 +600,105 @@ struct GSNv2aBackend::Impl
                (t.cpsm == GS_PSM_CT32 || t.cpsm == GS_PSM_CT24) && (t.csa & 0x0Fu) == 0u;
     }
 
+#if TS_CLUT_IDENTITY
+    // Full CLUT loads by identity (TS_CLUT_IDENTITY): source address and
+    // format, the version of its GS-memory pages, and the content hash of
+    // the CLUT buffer the load leaves. No buffer: the CPU renderer fills
+    // its own from local memory only if something reads it (DeferClutLoad),
+    // and a miss reads the source once, in a fixed order (ReadFullClut).
+    // 64 sets of four, the least recently used out.
+    struct PaletteId
+    {
+        uint32_t key = UINT32_MAX; // cbp | cpsm << 16 (UINT32_MAX: free)
+        uint32_t lastUse = 0;
+        uint64_t versions = 0, hash = 0;
+    };
+    static constexpr uint32_t kPaletteSets = 64u, kPaletteWays = 4u;
+    std::array<PaletteId, kPaletteSets * kPaletteWays> paletteIds{};
+    uint32_t paletteTick = 0;
+    bool clutIdentity = true;  // false: the boot self-test found the load order wrong
+    bool clutOrderChecked = false;
+    // The palette cache this replaces, as tags only (1 KB): what it would
+    // have done with each full load, so the [TS:tex] line tells whether its
+    // misses were slot conflicts or GS pages changing (old hit/new/conf/ver).
+    struct OldPaletteTag
+    {
+        uint32_t key = UINT32_MAX, versions = 0; // (versions: the sum's low half)
+    };
+    std::array<OldPaletteTag, kPalettes> oldPaletteTags{};
+
+    // Loads that take this path: full loads whose source is contiguous.
+    bool identityLoad(const GSTex0Reg &t) const
+    {
+        return clutIdentity && vram && GSCpuBackend::FullClutLoad(t) && t.cbp <= GSCpuBackend::kLastContiguousClutCbp;
+    }
+
+    void loadFullClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
+    {
+        const uint32_t key = tex0.cbp | (uint32_t(tex0.cpsm) << 16);
+        const uint64_t versions = versionSum(GSCpuBackend::ClutRange(tex0));
+        OldPaletteTag &old = oldPaletteTags[(tex0.cbp ^ (tex0.cbp >> 7)) % kPalettes]; // (its slot)
+        if (old.key != key)
+            ++(old.key == UINT32_MAX ? s_lookupStats.oldNew : s_lookupStats.oldConflicts);
+        else
+            ++(old.versions != uint32_t(versions) ? s_lookupStats.oldVersions : s_lookupStats.oldHits);
+        old = {key, uint32_t(versions)};
+        PaletteId *const set = &paletteIds[((tex0.cbp * 0x9E3779B1u) >> 26) * kPaletteWays];
+        PaletteId *entry = nullptr, *victim = set;
+        for (uint32_t way = 0; way < kPaletteWays; ++way)
+        {
+            if (set[way].key == key)
+            {
+                entry = &set[way];
+                break;
+            }
+            if (set[way].lastUse < victim->lastUse)
+                victim = &set[way];
+        }
+        if (entry && entry->versions == versions)
+        {
+            ++s_lookupStats.clutHits;
+            ++g_nv2aTextureStats.paletteHits;
+        }
+        else
+        {
+            if (entry)
+                ++s_lookupStats.clutVersions;
+            else
+            {
+                ++(victim->key == UINT32_MAX ? s_lookupStats.clutNew : s_lookupStats.clutConflicts);
+                entry = victim;
+                entry->key = key;
+            }
+            uint16_t clut[512];
+            cpu.ReadFullClut(tex0.cbp, tex0.cpsm, clut); // (identityLoad: the source is contiguous)
+            entry->versions = versions;
+            entry->hash = GSCpuBackend::HashClut(clut);
+        }
+        entry->lastUse = ++paletteTick;
+        cpu.DeferClutLoad(tex0, entry->hash);
+        clutHash = entry->hash;
+#if TS_NV2A_SELFCHECK
+        // The CPU renderer's own load over the deferred one: the same buffer
+        // and hash (DebugClutState's parts; the CLD mirrors are shared).
+        std::array<uint16_t, 512> fast, full;
+        std::array<uint32_t, 2> mirror;
+        cpu.GetClutState(fast, mirror);
+        cpu.LoadClutAgain(tex0, texclut);
+        cpu.GetClutState(full, mirror);
+        const uint64_t fullHash = cpu.ClutHash();
+        if (fast != full || fullHash != clutHash)
+        {
+            ++s_lookupStats.clutDiffs;
+            noteDrawDiff("CLUT identity", clutHash, fullHash);
+            clutHash = entry->hash = fullHash;
+        }
+#else
+        (void)texclut;
+#endif
+    }
+#endif
+
     // The GS's CLUT-load decision (TEX0/TEX2 CLD), mirrored so that only
     // real loads cost a read-back check, a lock and a rehash.
     uint32_t clutCbp[2] = {UINT32_MAX, UINT32_MAX};
@@ -515,10 +735,16 @@ struct GSNv2aBackend::Impl
             flushBatch();
         if (applied.texture == &*it)
             stateValid = false; // the address may be reused by a new texture
+#if TS_TEXTURE_INDEX
+        indexRemove(it);
+#endif
         if (it->pooled)
         {
             // The texels belong to the pack, which keeps them while a frame
-            // in flight may read them: only the record goes.
+            // in flight may read them: only the record goes, and with it
+            // the recent table's entries for it (they would point at freed
+            // memory, or at a new record in its place).
+            forgetRecent(&*it);
             textures.erase(it);
             return;
         }
@@ -550,22 +776,48 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.resident = uint32_t(textures.size());
     }
 
-    // Recent lookups, direct-mapped by TEX0: the texture an address, format,
-    // TEXA and CLUT resolved to. One stands while no GS memory page changed
-    // since (pageEpoch) or, after a change, while the texture's own pages
-    // still have the versions it was decoded from - lookupTexture's own test.
+    // Recent lookups by TEX0: the texture an address, format, TEXA and CLUT
+    // resolved to. One stands while no GS memory page changed since
+    // (pageEpoch) or, after a change, while the texture's own pages still
+    // have the versions it was decoded from - lookupTexture's own test.
     // Native draws alternate between a few dozen textures, which the single
-    // last-texture check below misses. Cleared when retired textures are
-    // freed (the pointers die).
+    // last-texture check below misses. Sets of kRecentWays (most recent
+    // first; TS_TEXTURE_RECENT_WAYS) chosen by address and format (and, with
+    // more than one way, the CLUT). Cleared when retired textures are freed
+    // (the pointers die).
     struct RecentTexture
     {
         uint64_t tex0 = 0, clut = 0;
         uint32_t texa = 0, size = 0, epoch = 0;
         Texture *texture = nullptr;
     };
-    static constexpr uint32_t kRecentTextures = 64u;
-    std::array<RecentTexture, kRecentTextures> recentTextures{};
+    static constexpr uint32_t kRecentSets = 64u, kRecentWays = TS_TEXTURE_RECENT_WAYS;
+    static_assert(kRecentWays >= 1u && kRecentWays <= 8u, "recent-texture ways");
+    std::array<RecentTexture, kRecentSets * kRecentWays> recentTextures{};
     bool checkRun = false; // TS_NATIVE_DRAW_SELFCHECK: also take the full lookup and compare
+
+    RecentTexture *recentSet(const GSTex0Reg &tex, uint64_t clut)
+    {
+        uint32_t set = tex.tbp0 ^ (tex.tbp0 >> 6) ^ (uint32_t(tex.psm) << 3);
+        if (kRecentWays > 1u)
+            set ^= uint32_t(clut) ^ uint32_t(clut >> 32);
+        return &recentTextures[(set % kRecentSets) * kRecentWays];
+    }
+    // The set's entry for this key (its way, if any) becomes the first, as
+    // `entry`; the others move down one, the last one out.
+    static RecentTexture &rememberRecent(RecentTexture *set, uint32_t way, const RecentTexture entry)
+    {
+        for (; way > 0u; --way)
+            set[way] = set[way - 1u];
+        set[0] = entry;
+        return set[0];
+    }
+    void forgetRecent(const Texture *t)
+    {
+        for (RecentTexture &recent : recentTextures)
+            if (recent.texture == t)
+                recent = {};
+    }
 
     const Texture *texture(const GSDrawState &state)
     {
@@ -573,15 +825,20 @@ struct GSNv2aBackend::Impl
         const uint32_t w = std::max<uint32_t>(state.textureWidth, 1u), h = std::max<uint32_t>(state.textureHeight, 1u);
         if (w > 1024u || h > 1024u)
             return nullptr;
+        ++s_lookupStats.textures;
         const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
         const uint64_t hash = isIndexed(tex.psm) ? clutHash : 0u;
         const uint64_t tex0Bits = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
                                   (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
         const uint32_t size = w | (h << 16);
-        RecentTexture &recent = recentTextures[(tex.tbp0 ^ (tex.tbp0 >> 6) ^ (uint32_t(tex.psm) << 3)) % kRecentTextures];
-        if (recent.texture && recent.tex0 == tex0Bits && recent.texa == texa && recent.clut == hash && recent.size == size)
+        RecentTexture *const set = recentSet(tex, hash);
+        uint32_t way = 0;
+        while (way < kRecentWays && !(set[way].texture && set[way].tex0 == tex0Bits && set[way].texa == texa &&
+                                      set[way].clut == hash && set[way].size == size))
+            ++way;
+        if (way < kRecentWays)
         {
-            Texture &t = *recent.texture;
+            Texture &t = *set[way].texture;
             // The same range as the full path's (the same address, format and size).
             if (screenGpuNewer && overlaps(t.range, gpuRange()))
             {
@@ -592,8 +849,9 @@ struct GSNv2aBackend::Impl
             // takes the full lookup, which swaps the pack's copy in (the
             // self-check found the fast path keeping the fallback).
             const bool packDue = t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame;
-            if (!packDue && (recent.epoch == pageEpoch || versionSum(t.range) == t.versions))
+            if (!packDue && (set[way].epoch == pageEpoch || versionSum(t.range) == t.versions))
             {
+                RecentTexture &recent = way ? rememberRecent(set, way, set[way]) : set[0];
                 recent.epoch = pageEpoch;
                 t.lastUse = ++textureTick;
                 noteUse(t);
@@ -612,7 +870,7 @@ struct GSNv2aBackend::Impl
         }
         Texture *found = textureLookup(state);
         if (found)
-            recent = {tex0Bits, hash, texa, size, pageEpoch, found};
+            rememberRecent(set, way < kRecentWays ? way : kRecentWays - 1u, {tex0Bits, hash, texa, size, pageEpoch, found});
         return found;
     }
 
@@ -668,9 +926,132 @@ struct GSNv2aBackend::Impl
     uint64_t lastTex0 = 0, lastClut = 0, lastVersions = 0;
     uint32_t lastTexa = 0;
 
+#if TS_TEXTURE_INDEX
+    // The records in `textures` by their whole key (TS_TEXTURE_INDEX): open
+    // addressing with linear probing, 1,024 slots (8 KB, part of the Impl,
+    // allocated with the renderer), each slot the key's hash and the record.
+    // A match keeps about 200 records. Past kIndexFull (a cache of tiny
+    // textures) the index is left (indexValid false) and lookups walk the
+    // list until the cache is back under kIndexRefill, when finishFrame
+    // builds it again.
+    struct IndexSlot
+    {
+        uint32_t tag = 0; // the key's hash, never 0 (0: a free slot)
+        std::list<Texture>::iterator texture;
+    };
+    static constexpr uint32_t kIndexSlots = 1024u, kIndexFull = 768u, kIndexRefill = 512u;
+    std::array<IndexSlot, kIndexSlots> textureIndex{};
+    uint32_t indexCount = 0;
+    bool indexValid = true;
+
+    // The hash of a whole key (CLUT fields 0 for formats without one, as
+    // lookupTexture's match ignores them there).
+    static uint32_t keyTag(uint32_t tbp0, uint32_t tbw, uint32_t psm, uint32_t w, uint32_t h, uint32_t texa,
+                           uint64_t clut, uint32_t cpsm, uint32_t csm, uint32_t csa)
+    {
+        uint32_t x = 0x9E3779B9u;
+        const uint32_t words[5] = {tbp0 | (tbw << 14) | (psm << 20) | (csm << 26) | (cpsm << 27),
+                                   w | (h << 11) | (csa << 22), texa, uint32_t(clut), uint32_t(clut >> 32)};
+        for (const uint32_t word : words)
+        {
+            x = (x ^ word) * 0x85EBCA6Bu;
+            x ^= x >> 13;
+        }
+        x *= 0xC2B2AE35u;
+        x ^= x >> 16;
+        return x ? x : 1u;
+    }
+
+    template <typename Matches>
+    std::list<Texture>::iterator indexFind(uint32_t tag, const Matches &matches)
+    {
+        for (uint32_t i = tag & (kIndexSlots - 1u);; i = (i + 1u) & (kIndexSlots - 1u))
+        {
+            const IndexSlot &slot = textureIndex[i];
+            if (!slot.tag)
+                return textures.end();
+            if (slot.tag == tag && matches(*slot.texture))
+                return slot.texture;
+        }
+    }
+
+    void indexAdd(std::list<Texture>::iterator it)
+    {
+        if (!indexValid)
+            return;
+        if (indexCount >= kIndexFull)
+        {
+            indexValid = false;
+            ++s_lookupStats.indexOverflows;
+            return;
+        }
+        uint32_t i = it->indexTag & (kIndexSlots - 1u);
+        while (textureIndex[i].tag)
+            i = (i + 1u) & (kIndexSlots - 1u);
+        textureIndex[i] = {it->indexTag, it};
+        ++indexCount;
+    }
+
+    void indexRemove(std::list<Texture>::iterator it)
+    {
+        if (!indexValid)
+            return;
+        constexpr uint32_t mask = kIndexSlots - 1u;
+        uint32_t i = it->indexTag & mask;
+        while (textureIndex[i].tag && textureIndex[i].texture != it)
+            i = (i + 1u) & mask;
+        if (!textureIndex[i].tag)
+            return;
+        // Backward shift: a later record of the run moves into the hole
+        // unless its home slot lies after the hole (cyclically, up to it).
+        for (uint32_t j = (i + 1u) & mask; textureIndex[j].tag; j = (j + 1u) & mask)
+        {
+            const uint32_t home = textureIndex[j].tag & mask;
+            const bool stays = i <= j ? (home > i && home <= j) : (home > i || home <= j);
+            if (!stays)
+            {
+                textureIndex[i] = textureIndex[j];
+                i = j;
+            }
+        }
+        textureIndex[i] = IndexSlot{};
+        --indexCount;
+    }
+
+    void rebuildIndex()
+    {
+        textureIndex.fill(IndexSlot{});
+        indexCount = 0;
+        indexValid = true;
+        for (auto it = textures.begin(); it != textures.end(); ++it)
+            indexAdd(it);
+    }
+#endif
+
+    // The first record of `textures` with this key (the old lookup's walk).
+    template <typename Matches>
+    std::list<Texture>::iterator walkTextures(const Matches &matches)
+    {
+        for (auto it = textures.begin(); it != textures.end(); ++it)
+            if (matches(*it))
+                return it;
+        return textures.end();
+    }
+
+    // A record joins the cache (and its index).
+    Texture &addTexture(const Texture &t)
+    {
+        textures.push_back(t);
+#if TS_TEXTURE_INDEX
+        indexAdd(std::prev(textures.end()));
+#endif
+        return textures.back();
+    }
+
     Texture *lookupTexture(const GSDrawState &state, uint32_t w, uint32_t h, uint32_t texa, uint64_t hash,
                            uint64_t versions, const GSCpuBackend::VramRange &range)
     {
+        ++s_lookupStats.textureSlow;
         const GSTex0Reg &tex = state.context.tex0;
         const bool indexed = isIndexed(tex.psm);
         auto matches = [&](const Texture &t) {
@@ -678,6 +1059,37 @@ struct GSNv2aBackend::Impl
                    t.texa == texa && t.clutHash == hash &&
                    (!indexed || (t.cpsm == tex.cpsm && t.csm == tex.csm && t.csa == tex.csa));
         };
+#if TS_TEXTURE_INDEX
+        const uint32_t tag = keyTag(tex.tbp0, tex.tbw, tex.psm, w, h, texa, hash, indexed ? tex.cpsm : 0u,
+                                    indexed ? tex.csm : 0u, indexed ? tex.csa : 0u);
+        auto it = indexValid ? indexFind(tag, matches) : walkTextures(matches);
+#if TS_NV2A_SELFCHECK
+        if (indexValid)
+        {
+            const auto walked = walkTextures(matches);
+            if (walked != it)
+            {
+                ++s_lookupStats.indexDiffs;
+                noteDrawDiff("texture index", tex.tbp0, walked != textures.end() ? walked->tbp0 : UINT32_MAX);
+                it = walked;
+            }
+        }
+#endif
+        if (it != textures.end())
+        {
+            Texture &t = *it;
+            if (t.versions == versions)
+            {
+                t.lastUse = ++textureTick;
+                if (t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame)
+                    if (Texture *pooled = retryPack(it))
+                        return pooled;
+                noteUse(t);
+                return &t;
+            }
+            retireTexture(it); // changed contents: decoded afresh below
+        }
+#else
         for (auto it = textures.begin(); it != textures.end(); ++it)
         {
             Texture &t = *it;
@@ -695,6 +1107,7 @@ struct GSNv2aBackend::Impl
             retireTexture(it); // changed contents: decoded afresh below
             break;
         }
+#endif
         // One-frame textures (and evicted ones not yet freed) are reused
         // until the frame ends rather than decoded again at each use.
         for (Texture &t : retired)
@@ -732,6 +1145,9 @@ struct GSNv2aBackend::Impl
             frameKeys.insert(uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40));
         }
         Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
+#if TS_TEXTURE_INDEX
+        t.indexTag = tag;
+#endif
         cpu.DecodeTexture(state, decoded);
         const bool whole = decoded.size() >= size_t(w) * h;
         if (!whole)
@@ -777,9 +1193,9 @@ struct GSNv2aBackend::Impl
         if (cached)
         {
             textureBytes += t.bytes;
-            textures.push_back(t);
-            noteUse(textures.back());
-            return &textures.back();
+            Texture &added = addTexture(t);
+            noteUse(added);
+            return &added;
         }
         retired.push_back(t);
         retiredBytes += t.bytes;
@@ -939,9 +1355,9 @@ struct GSNv2aBackend::Impl
         ++g_nv2aTextureStats.packHits;
         if (!usePack(t, index))
             return nullptr;
-        textures.push_back(t);
-        noteUse(textures.back());
-        return &textures.back();
+        Texture &added = addTexture(t);
+        noteUse(added);
+        return &added;
     }
 
     // A texture drawn from the runtime path while its pack entry was not in
@@ -957,9 +1373,9 @@ struct GSNv2aBackend::Impl
             return nullptr;
         }
         retireTexture(it);
-        textures.push_back(t);
-        noteUse(textures.back());
-        return &textures.back();
+        Texture &added = addTexture(t);
+        noteUse(added);
+        return &added;
     }
 
     // Render targets and screen copies: GS pages the GPU draws (the
@@ -1279,6 +1695,9 @@ struct GSNv2aBackend::Impl
         uint32_t colorMask = 0, shade = 0;
         uint32_t vertexMode = 0, constSerial = 0; // transform programs (BeginXfRun)
         uint32_t topology = 0;                    // 0 triangle list, 1 one triangle strip (joined)
+#if TS_NV2A_SCISSOR
+        uint32_t clipX = 0, clipY = 0; // the GS scissor as window-clip words (clipFor)
+#endif
         bool operator==(const DrawKey &) const = default;
     };
     DrawKey applied{};
@@ -1286,6 +1705,54 @@ struct GSNv2aBackend::Impl
     DrawKey batchKey{};
     uint32_t batchFirst = 0, batchCount = 0;
     int currentProgram = -1;
+
+#if TS_NV2A_SCISSOR
+    // The GS scissor on the screen (gs_nv2a_clip.h): the screen pixels whose
+    // centre lies in a scissored frame pixel. The words of the last scissor
+    // are kept (until beginFrame, which may change the mapping): the game
+    // changes the scissor a few dozen times a frame (views, portals,
+    // overlays), and the mapping divides.
+    uint64_t clipScissor = UINT64_MAX; // UINT64_MAX: none (the registers hold 11-bit fields)
+    uint32_t clipWordX = 0, clipWordY = 0;
+    uint32_t clipNotes = 0; // clips other than the whole screen (logged, the first few)
+    // What the GPU's window clip holds: pbkit sets all eight rectangles to
+    // the whole screen, and only pushWindowClip changes them.
+    uint32_t gpuClipX = gs_nv2a_clip::kFullClipX, gpuClipY = gs_nv2a_clip::kFullClipY;
+
+    void clipFor(const GSScissorReg &s, uint32_t &x, uint32_t &y)
+    {
+        static_assert(sizeof(GSScissorReg) == sizeof(uint64_t), "scissor layout");
+        uint64_t key;
+        std::memcpy(&key, &s, sizeof(key));
+        if (key != clipScissor)
+        {
+            clipScissor = key;
+            gs_nv2a_clip::windowClip(s.x0, s.x1, s.y0, s.y1, frameFbw * 64u, frameHeight, clipWordX, clipWordY);
+            if ((clipWordX != gs_nv2a_clip::kFullClipX || clipWordY != gs_nv2a_clip::kFullClipY) && ++clipNotes <= 4u)
+                std::cout << "[TS:nv2a] window clip x " << (clipWordX & 0xFFFu) << "-" << (clipWordX >> 16) << " y "
+                          << (clipWordY & 0xFFFu) << "-" << (clipWordY >> 16) << " (scissor " << s.x0 << "-" << s.x1
+                          << ", " << s.y0 << "-" << s.y1 << " of " << frameFbw * 64u << "x" << frameHeight << ")"
+                          << std::endl;
+        }
+        x = clipWordX;
+        y = clipWordY;
+    }
+
+    // All eight rectangles the same (the clip is inclusive: a pixel is drawn
+    // when it is inside any of them).
+    uint32_t *pushWindowClip(uint32_t *p, uint32_t x, uint32_t y)
+    {
+        static_assert(NV097_SET_WINDOW_CLIP_VERTICAL == NV097_SET_WINDOW_CLIP_HORIZONTAL + 32u, "one method");
+        p = pushMethod(p, NV097_SET_WINDOW_CLIP_HORIZONTAL, 16);
+        for (int i = 0; i < 8; ++i)
+            *p++ = x;
+        for (int i = 0; i < 8; ++i)
+            *p++ = y;
+        gpuClipX = x;
+        gpuClipY = y;
+        return p;
+    }
+#endif
 
     void waitIdle()
     {
@@ -1392,12 +1859,57 @@ struct GSNv2aBackend::Impl
     // What the GPU's constant registers hold: only rows that differ are sent
     // (an object changes its matrix rows; lights and viewport rarely change),
     // which keeps ~900 objects a frame from filling the push buffer.
-    float gpuK[kXfConstantRegs - 1][4];
+#if TS_XF_DIRTY_ROWS
+    // The rows of xfK given a new value since they were last sent (all at
+    // first): the rows that differ from the GPU's, known without comparing.
+    static constexpr uint64_t kAllXfRows = (1ull << (kXfConstantRegs - 1u)) - 1u;
+    uint64_t gpuDirty = kAllXfRows;
+#endif
+#if !TS_XF_DIRTY_ROWS || TS_NV2A_SELFCHECK
+    float gpuK[kXfConstantRegs - 1][4]; // (with TS_XF_DIRTY_ROWS: the self-check's copy)
     bool gpuKValid = false;
+#endif
 
     uint32_t *uploadConstants(uint32_t *p)
     {
         constexpr uint32_t rows = kXfConstantRegs - 1u;
+#if TS_XF_DIRTY_ROWS
+        uint64_t dirty = gpuDirty;
+        gpuDirty = 0u;
+#if TS_NV2A_SELFCHECK
+        // The rows left out must hold the GPU's values already.
+        for (uint32_t r = 0; r < rows && gpuKValid; ++r)
+            if (!((dirty >> r) & 1u) && std::memcmp(gpuK[r], xfK[r], 16) != 0)
+            {
+                noteDrawDiff("constant upload", r, xfSerial);
+                dirty |= 1ull << r;
+            }
+#endif
+        for (uint32_t r = 0; (dirty >> r) != 0u;)
+        {
+            if (!((dirty >> r) & 1u))
+            {
+                ++r;
+                continue;
+            }
+            uint32_t end = r + 1u;
+            while (end < rows && ((dirty >> end) & 1u) && end - r < 8u)
+                ++end;
+            p = push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + r);
+            p = pushMethod(p, NV097_SET_TRANSFORM_CONSTANT, (end - r) * 4u);
+            std::memcpy(p, xfK[r], (end - r) * 16u);
+            p += (end - r) * 4u;
+            s_lookupStats.constUploads += end - r;
+#if TS_NV2A_SELFCHECK
+            std::memcpy(gpuK[r], xfK[r], (end - r) * 16u);
+#endif
+            r = end;
+        }
+#if TS_NV2A_SELFCHECK
+        gpuKValid = true;
+#endif
+        return p;
+#else
         uint32_t r = 0;
         while (r < rows)
         {
@@ -1418,6 +1930,7 @@ struct GSNv2aBackend::Impl
         }
         gpuKValid = true;
         return p;
+#endif
     }
 
     // The transform buffer is a ring of segments, each closed by a fence:
@@ -1517,7 +2030,19 @@ struct GSNv2aBackend::Impl
         frameFbp = state.context.frame.fbp;
         frameFbw = state.context.frame.fbw;
         framePsm = state.context.frame.psm;
+#if TS_NV2A_DISPLAY_HEIGHT
+        // The buffer shown at the last presentation (the game draws the same
+        // size into both buffers).
+        frameHeight = gs_nv2a_clip::frameRows(display, frameFbw, framePsm, state.context.scissor.y1);
+        if (frameHeight != gs_nv2a_clip::scissorRows(state.context.scissor.y1) && ++heightNotes <= 4u)
+            std::cout << "[TS:nv2a] frame height " << frameHeight << " from the display (first draw's scissor: "
+                      << gs_nv2a_clip::scissorRows(state.context.scissor.y1) << " rows)" << std::endl;
+#else
         frameHeight = std::clamp<uint32_t>(uint32_t(state.context.scissor.y1) + 1u, 1u, 512u);
+#endif
+#if TS_NV2A_SCISSOR
+        clipScissor = UINT64_MAX; // the mapping may have changed (clipFor)
+#endif
         gpuRows = 0;
         settleFrame();
         pb_reset();
@@ -1538,6 +2063,11 @@ struct GSNv2aBackend::Impl
         p = push1(p, NV097_SET_FOG_ENABLE, 0);
         for (unsigned i = 1; i < 4; ++i)
             p = push1(p, NV097_SET_TEXTURE_CONTROL0 + 64 * i, 0);
+#if TS_NV2A_SCISSOR
+        // The clear covers the whole screen, not the last frame's last view.
+        if (gpuClipX != gs_nv2a_clip::kFullClipX || gpuClipY != gs_nv2a_clip::kFullClipY)
+            p = pushWindowClip(p, gs_nv2a_clip::kFullClipX, gs_nv2a_clip::kFullClipY);
+#endif
         // GS depth tests keep the greater value: start from the nearest-is-0 side.
         p = pushMethod(p, NV097_SET_CLEAR_RECT_HORIZONTAL, 2);
         *p++ = ((kScreenWidth - 1u) << 16);
@@ -1596,6 +2126,11 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.pbEnds = frameEndPbEnds = pb_ts_end_count;
         lastFrameKeys.swap(frameKeys);
         frameKeys.clear();
+#if TS_TEXTURE_INDEX
+        if (!indexValid && textures.size() <= kIndexRefill)
+            rebuildIndex();
+#endif
+        s_lookupStats.clutFills = cpu.ClutFills();
         ++frameNumber;
         g_nv2aTextureStats.frames = frameNumber;
     }
@@ -1731,6 +2266,9 @@ struct GSNv2aBackend::Impl
                       ((fbmsk & bMask) != bMask ? NV097_SET_COLOR_MASK_BLUE_WRITE_ENABLE : 0u) |
                       ((fbmsk & aMask) != aMask ? NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE : 0u);
         k.shade = state.prim.iip ? NV097_SET_SHADE_MODEL_SMOOTH : NV097_SET_SHADE_MODEL_FLAT;
+#if TS_NV2A_SCISSOR
+        clipFor(state.context.scissor, k.clipX, k.clipY);
+#endif
         return k;
     }
 
@@ -1797,6 +2335,12 @@ struct GSNv2aBackend::Impl
         TS_SET(colorMask, NV097_SET_COLOR_MASK)
         TS_SET(shade, NV097_SET_SHADE_MODEL)
 #undef TS_SET
+#if TS_NV2A_SCISSOR
+        // Against what the GPU holds, not `applied` (beginFrame also sets
+        // it): the game's full-screen scissor never pushes it.
+        if (k.clipX != gpuClipX || k.clipY != gpuClipY)
+            p = pushWindowClip(p, k.clipX, k.clipY);
+#endif
         applied = k;
         stateValid = true;
         return p;
@@ -2055,6 +2599,62 @@ struct GSNv2aBackend::Impl
         screenGpuNewer = true;
     }
 
+    // The transform constants k[0..33]: the native pipeline's rows as they
+    // are, its viewport mapped onto this 640x480 screen and depth format,
+    // and fixed values (clamp, depth range).
+    struct XfMapping
+    {
+        float sx, sy, dz, ofx, ofy;
+    };
+    static void buildXfConstants(const GSXfConstants &c, const XfMapping &m, float k[kXfConstantRegs - 1][4])
+    {
+        std::memcpy(k[0], c.mvp, sizeof(c.mvp));
+        std::memcpy(k[12], c.lightDir, sizeof(c.lightDir));
+        std::memcpy(k[24], c.lightColour, sizeof(c.lightColour));
+        const float scale[4] = {c.scale[0] * m.sx, c.scale[1] * m.sy, c.scale[2] * m.dz, 0.0f};
+        const float offset[4] = {(c.offset[0] - m.ofx) * m.sx, (c.offset[1] - m.ofy) * m.sy, c.offset[2] * m.dz, 0.0f};
+        std::memcpy(k[28], scale, 16);
+        std::memcpy(k[29], offset, 16);
+        std::memcpy(k[30], c.model, sizeof(c.model));
+        const float clampLit[4] = {127.0f / 255.0f, 0.0f, 0.5f, 16777215.0f}; // .w: depth range
+        std::memcpy(k[33], clampLit, 16);
+    }
+#if TS_XF_DIRTY_ROWS
+    // Row r of the same (GSXfConstants is 33 rows of four floats, which are
+    // k's rows 0-32: nv2aXfConstantsChanged counts them so).
+    static_assert(offsetof(GSXfConstants, lightDir) == 12u * 16u && offsetof(GSXfConstants, lightColour) == 24u * 16u &&
+                      offsetof(GSXfConstants, scale) == 28u * 16u && offsetof(GSXfConstants, offset) == 29u * 16u &&
+                      offsetof(GSXfConstants, model) == 30u * 16u && offsetof(GSXfConstants, variant) == 33u * 16u,
+                  "GSXfConstants rows");
+    static void xfRow(const GSXfConstants &c, const XfMapping &m, uint32_t r, float row[4])
+    {
+        switch (r)
+        {
+        case 28u:
+            row[0] = c.scale[0] * m.sx;
+            row[1] = c.scale[1] * m.sy;
+            row[2] = c.scale[2] * m.dz;
+            row[3] = 0.0f;
+            break;
+        case 29u:
+            row[0] = (c.offset[0] - m.ofx) * m.sx;
+            row[1] = (c.offset[1] - m.ofy) * m.sy;
+            row[2] = c.offset[2] * m.dz;
+            row[3] = 0.0f;
+            break;
+        case 33u:
+            row[0] = 127.0f / 255.0f;
+            row[1] = 0.0f;
+            row[2] = 0.5f;
+            row[3] = 16777215.0f;
+            break;
+        default:
+            std::memcpy(row, reinterpret_cast<const uint8_t *>(&c) + r * 16u, 16);
+            break;
+        }
+    }
+#endif
+
     // A run of strips of raw vertices for the transform programs: the frame
     // and texture handling of submitScreenVerts, then the constants (with
     // this frame's 640x480 mapping and depth format folded in). The strips
@@ -2080,45 +2680,91 @@ struct GSNv2aBackend::Impl
         DrawKey key = keyFor(state, tex);
         key.vertexMode = 1u + c.variant;
         key.topology = state.prim.iip ? 1u : 0u; // flat shading needs the list's vertex order
+#if TS_NV2A_SCISSOR
+        if (c.check)
+        {
+            // Self-check run: the kept window clip against the run's scissor
+            // mapped afresh.
+            uint32_t x, y;
+            const GSScissorReg &s = state.context.scissor;
+            gs_nv2a_clip::windowClip(s.x0, s.x1, s.y0, s.y1, frameFbw * 64u, frameHeight, x, y);
+            if (x != key.clipX || y != key.clipY)
+            {
+                noteDrawDiff("window clip", (uint64_t(key.clipY) << 32) | key.clipX, (uint64_t(y) << 32) | x);
+                key.clipX = x;
+                key.clipY = y;
+            }
+        }
+#endif
 
         const auto &ctx = state.context;
         // Constants stay while the native pipeline's do (c.serial: it moves
         // only when their VU1 rows were written) and this frame's mapping
         // does: rebuilt only when either changes.
-        const bool built = c.serial != 0u && c.serial == xfBuiltSerial && frameFbw == xfBuiltFbw &&
-                           frameHeight == xfBuiltHeight && ctx.xyoffset.ofx == xfBuiltOfx &&
-                           ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm;
+        const bool mapped = frameFbw == xfBuiltFbw && frameHeight == xfBuiltHeight && ctx.xyoffset.ofx == xfBuiltOfx &&
+                            ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm;
+        const bool built = c.serial != 0u && c.serial == xfBuiltSerial && mapped;
         if (!built || c.check)
         {
+#if TS_XF_DIRTY_ROWS
+            // Only the rows the pipeline named (nv2aXfConstantsChanged) when c
+            // is the serial after the one built last, under the same mapping
+            // (the other rows hold what they held); else every row. Each is
+            // compared with the row it replaces: rows written again with the
+            // same values (the viewport, the lights) change nothing.
+            const uint32_t next = xfBuiltSerial + 1u ? xfBuiltSerial + 1u : 1u;
+            uint64_t rows = kAllXfRows;
+            if (built)
+                rows = 0u; // a check run: the full rebuild below
+            else if (mapped && xfBuiltSerial != 0u && c.serial == next && c.serial == s_xfChangedSerial)
+                rows = s_xfChangedRows & kAllXfRows;
+#endif
             xfBuiltSerial = c.serial;
             xfBuiltFbw = frameFbw;
             xfBuiltHeight = frameHeight;
             xfBuiltOfx = ctx.xyoffset.ofx;
             xfBuiltOfy = ctx.xyoffset.ofy;
             xfBuiltZpsm = ctx.zbuf.psm;
-            const float ofx = float(ctx.xyoffset.ofx >> 4), ofy = float(ctx.xyoffset.ofy >> 4);
-            const float sx = float(kScreenWidth) / float(frameFbw * 64u);
-            const float sy = float(kScreenHeight) / float(frameHeight);
-            const float dz = depthScale(ctx.zbuf.psm);
-            float k[kXfConstantRegs - 1][4];
-            std::memcpy(k[0], c.mvp, sizeof(c.mvp));
-            std::memcpy(k[12], c.lightDir, sizeof(c.lightDir));
-            std::memcpy(k[24], c.lightColour, sizeof(c.lightColour));
-            const float scale[4] = {c.scale[0] * sx, c.scale[1] * sy, c.scale[2] * dz, 0.0f};
-            const float offset[4] = {(c.offset[0] - ofx) * sx, (c.offset[1] - ofy) * sy, c.offset[2] * dz, 0.0f};
-            std::memcpy(k[28], scale, 16);
-            std::memcpy(k[29], offset, 16);
-            std::memcpy(k[30], c.model, sizeof(c.model));
-            const float clampLit[4] = {127.0f / 255.0f, 0.0f, 0.5f, 16777215.0f}; // .w: depth range
-            std::memcpy(k[33], clampLit, 16);
-            if (std::memcmp(k, xfK, sizeof(k)) != 0)
+            const XfMapping map{float(kScreenWidth) / float(frameFbw * 64u), float(kScreenHeight) / float(frameHeight),
+                                depthScale(ctx.zbuf.psm), float(ctx.xyoffset.ofx >> 4), float(ctx.xyoffset.ofy >> 4)};
+#if TS_XF_DIRTY_ROWS
+            bool changed = false;
+            for (uint32_t r = 0; (rows >> r) != 0u; ++r)
             {
-                if (built) // a check run: the rebuild the serial skipped would have changed them
-                    noteDrawDiff("constants", c.serial, xfSerial);
-                if (batchCount)
+                if (!((rows >> r) & 1u))
+                    continue;
+                float row[4];
+                xfRow(c, map, r, row);
+                if (std::memcmp(row, xfK[r], 16) == 0)
+                    continue;
+                if (!changed && batchCount)
                     flushBatch(); // the batch so far uses the old constants
-                std::memcpy(xfK, k, sizeof(k));
+                changed = true;
+                std::memcpy(xfK[r], row, 16);
+                gpuDirty |= 1ull << r;
+                ++s_lookupStats.constRows;
+            }
+            if (changed)
                 ++xfSerial;
+            if (c.check)
+#endif
+            {
+                float k[kXfConstantRegs - 1][4];
+                buildXfConstants(c, map, k);
+                if (std::memcmp(k, xfK, sizeof(k)) != 0)
+                {
+                    if (built || TS_XF_DIRTY_ROWS) // a check run: the rebuild the serial skipped (or the rows rebuilt) left them out
+                        noteDrawDiff("constants", c.serial, xfSerial);
+                    if (batchCount)
+                        flushBatch(); // the batch so far uses the old constants
+#if TS_XF_DIRTY_ROWS
+                    for (uint32_t r = 0; r < kXfConstantRegs - 1u; ++r)
+                        if (std::memcmp(k[r], xfK[r], 16) != 0)
+                            gpuDirty |= 1ull << r;
+#endif
+                    std::memcpy(xfK, k, sizeof(k));
+                    ++xfSerial;
+                }
             }
         }
         key.constSerial = xfSerial;
@@ -2391,6 +3037,18 @@ void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
     m->vram = vram;
     m->vramSize = vramSize;
     m->cpu.Initialize(vram, vramSize);
+#if TS_CLUT_IDENTITY
+    // Boot self-test: the full-load order against the row reads it
+    // replaces, over random local memory (restored); palette identities
+    // only when they agree.
+    if (vram && !m->clutOrderChecked)
+    {
+        m->clutOrderChecked = true;
+        m->clutIdentity = m->cpu.CheckFullClutOrder();
+        std::cout << "[TS:xbox] CLUT load order self-test: "
+                  << (m->clutIdentity ? "ok" : "differs, palette identities off") << std::endl;
+    }
+#endif
 }
 
 void GSNv2aBackend::Reset()
@@ -2451,13 +3109,37 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
 {
     if (!m->clutLoads(tex0))
         return;
+#if TS_CLUT_IDENTITY
+    // (No CPU renderer call: its pending TEXFLUSH waits for the next one
+    // that reads through its page cache, which this load does not.)
+    const bool identity = m->identityLoad(tex0);
+    if (!identity)
+        m->cpuFlushed();
+#else
     m->cpuFlushed();
+#endif
     ++g_nv2aTextureStats.clutLoads;
+    ++s_lookupStats.clutLoads;
     if (m->screenGpuNewer && overlaps(GSCpuBackend::ClutRange(tex0), m->gpuRange()))
     {
         ++g_nv2aTextureStats.wbClut;
         m->writeBackScreen();
     }
+#if TS_CLUT_IDENTITY
+    if (identity)
+    {
+        m->loadFullClut(tex0, texclut);
+        return;
+    }
+    if (m->clutIdentity)
+    {
+        // Not a full load, or its source wraps the end of GS memory.
+        ++s_lookupStats.clutOther;
+        m->cpu.LoadClut(tex0, texclut);
+        m->refreshClutHash();
+        return;
+    }
+#endif
     if (Impl::fullClutLoad(tex0))
     {
         if (m->palettes.empty())
@@ -2468,10 +3150,16 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
         if (e.cbp == cbp && e.cpsm == tex0.cpsm && e.versions == versions)
         {
             ++g_nv2aTextureStats.paletteHits;
+            ++s_lookupStats.clutHits;
             m->cpu.SetLoadedClut(tex0, e.clut, e.hash);
             m->clutHash = e.hash;
             return;
         }
+        // Why it missed: the slot held this palette from other page
+        // versions, held another one (a conflict), or nothing yet.
+        ++(e.cbp == cbp && e.cpsm == tex0.cpsm ? s_lookupStats.clutVersions
+           : e.cbp != UINT32_MAX              ? s_lookupStats.clutConflicts
+                                              : s_lookupStats.clutNew);
         m->cpu.LoadClut(tex0, texclut);
         m->refreshClutHash();
         std::array<uint32_t, 2> mirror;
@@ -2482,6 +3170,7 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
         e.hash = m->clutHash;
         return;
     }
+    ++s_lookupStats.clutOther;
     m->cpu.LoadClut(tex0, texclut);
     m->refreshClutHash();
 }
@@ -2549,6 +3238,11 @@ PresentationFrame GSNv2aBackend::Present(const GSPresentationRequest &request)
         m->displayFbp[1] = m->displayFbp[0];
         m->displayFbp[0] = fbp;
     }
+#if TS_NV2A_DISPLAY_HEIGHT
+    // The next frame's height (beginFrame, gs_nv2a_clip::frameRows).
+    gs_nv2a_clip::displaySetup(request.pmode, request.dispfb1, request.display1, request.dispfb2, request.display2,
+                               m->display);
+#endif
     if (m->frameOpen)
         m->finishFrame();
     else if (m->screenVramNewer)

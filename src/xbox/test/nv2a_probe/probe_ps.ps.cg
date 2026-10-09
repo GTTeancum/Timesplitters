@@ -1,0 +1,6 @@
+// nv2a_probe: the vertex colour unchanged (all four channels), so a pixel
+// read back names the vertex or triangle it came from.
+float4 main(float4 col : COLOR0) : COLOR
+{
+    return col;
+}

@@ -10,6 +10,7 @@
 
 #if defined(PLATFORM_XBOX)
 #include "../../src/xbox/gs_nv2a_backend.h" // status counters
+#include "../../src/xbox/xbox_perf.h"       // frame times, phase brackets
 #include "runtime/ee_scheduler.h"
 #include "ts_native_fp.h"
 #include "ts_native_game.h"
@@ -27,6 +28,7 @@
 #include <filesystem>
 #include <iterator>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -213,9 +215,25 @@ namespace
     // Widescreen: matrixPerspective(m, aspect f12, fovy f13, near f14, far f15)
     // builds every 3D projection (camTick, SetWindow). Scaling the aspect by
     // 4/3 widens the horizontal view; the 640-wide frame is then shown at 16:9.
+    // TS_SPLIT_WIDESCREEN_OFF 1: not with two or more local players (split
+    // screen, REWRITE-PLAN.md M2.3): the views keep the game's own aspect, and
+    // the GS front end leaves their HUDs as drawn (gsSetSplitScreen; its
+    // narrowing anchors to the edges of one full-screen view). The count is
+    // ilinkGetNumLocalPlayers' (gp-0x608C), which gameReset sets before a
+    // match's cameras are built. 0: as before.
+#ifndef TS_SPLIT_WIDESCREEN_OFF
+#define TS_SPLIT_WIDESCREEN_OFF 1
+#endif
     void widescreenMatrixPerspective(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+#if TS_SPLIT_WIDESCREEN_OFF
+        constexpr uint32_t kLocalPlayers = 0x003AE764u;
+        const bool split = READ32(kLocalPlayers) > 1u;
+        gsSetSplitScreen(split);
+        if (hostSettings().widescreen && !split)
+#else
         if (hostSettings().widescreen)
+#endif
             ctx->f[12] *= 4.0f / 3.0f;
         matrixPerspective_0x2b5258(rdram, ctx, runtime);
     }
@@ -814,6 +832,7 @@ namespace
         const uint32_t gp = GPR_U32(ctx, 28);
         WRITE32(kFrameSlots + READ32(gp - kGpDrawSlot) * kFrameSlotBytes + 8u, 2u); // no second draw
         ++g_nv2aTextureStats.gameFrames;
+        xboxPerfGameFrame(); // the frame-time histogram
         const uint32_t next = 1u - READ32(gp - 0x4CDCu);
         WRITE32(gp - 0x4CDCu, next);
         SET_GPR_S32(ctx, 2, static_cast<int32_t>(next));
@@ -835,6 +854,90 @@ namespace
         }
         ctx->pc = GPR_U32(ctx, 31);
     }
+
+#if TS_PERF_DETAIL
+    // Phase brackets for real-hardware runs (src/xbox/xbox_perf.cpp,
+    // [TS:phase]). bossMainLoop (0x200638, once a frame) calls each step of
+    // the frame from one place; gsMain (0x200F20) kicks the frame's display
+    // list with sceDmaSend, which runs the whole draw (DMA walk, VIF, VU1,
+    // GS, renderer) before it returns. Each function's table entry is
+    // wrapped: the bracket opens when it is called from that place and
+    // closes when it returns there. A function that unwinds to the
+    // scheduler inside (a thread switch, a checkpoint) returns later through
+    // the scheduler instead, which resumes the caller at the call's return
+    // address: that address's own table entry (a resume label of the
+    // caller) is wrapped too and closes the bracket. Both wrappers call the
+    // entry they replaced with the same arguments: the game runs as before.
+    struct PerfBracket
+    {
+        uint32_t function; // the bracketed function
+        uint32_t caller;   // the function that calls it
+        uint32_t ret;      // the call's return address in the caller
+        uint32_t phase;
+        PS2Runtime::RecompiledFunction original, resumeOriginal;
+    };
+    PerfBracket g_perfBrackets[] = {
+        {0x21EEB8u, 0x200638u, 0x2006C4u, kPerfGameTick},   // gameTick
+        {0x2262C8u, 0x200638u, 0x2006CCu, kPerfTickBefore}, // lvTickBefore
+        {0x2265A8u, 0x200638u, 0x20074Cu, kPerfTickPlayer}, // lvTickPlayer, once per player
+        {0x2263A0u, 0x200638u, 0x200764u, kPerfTickAfter},  // lvTickAfter
+        {0x2266F8u, 0x200638u, 0x200A00u, kPerfGfx},        // lvGfx, once per viewport
+        {0x2CF4A0u, 0x200F20u, 0x201064u, kPerfKick},       // sceDmaSend (its other callers are not timed)
+    };
+
+    template <size_t I>
+    void perfBracketEntry(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const PerfBracket &b = g_perfBrackets[I];
+        const bool timed = GPR_U32(ctx, 31) == b.ret;
+        if (timed)
+            xboxPerfPhaseOpen(b.phase);
+        b.original(rdram, ctx, runtime);
+        // Back at the call site (a native override may leave pc at its entry).
+        if (timed && (ctx->pc == b.ret || ctx->pc == b.function))
+            xboxPerfPhaseClose(b.phase);
+    }
+
+    template <size_t I>
+    void perfBracketResume(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const PerfBracket &b = g_perfBrackets[I];
+        xboxPerfPhaseClose(b.phase); // nothing when it is not open
+        b.resumeOriginal(rdram, ctx, runtime);
+    }
+
+    // After the natives: whatever each entry holds then is what is wrapped.
+    template <size_t... I>
+    void installPerfBrackets(PS2Runtime &runtime, std::index_sequence<I...>)
+    {
+        const PS2Runtime::RecompiledFunction entries[] = {&perfBracketEntry<I>...};
+        const PS2Runtime::RecompiledFunction resumes[] = {&perfBracketResume<I>...};
+        unsigned installed = 0;
+        for (size_t i = 0; i < sizeof...(I); ++i)
+        {
+            PerfBracket &b = g_perfBrackets[i];
+            bool usable = runtime.hasFunction(b.function) && runtime.hasFunction(b.caller) && runtime.hasFunction(b.ret);
+            if (usable)
+            {
+                b.original = runtime.lookupFunction(b.function);
+                b.resumeOriginal = runtime.lookupFunction(b.ret);
+                // The return address must be a resume label of the caller,
+                // and nothing is wrapped twice.
+                usable = b.resumeOriginal == runtime.lookupFunction(b.caller) && b.original != entries[i] &&
+                         b.resumeOriginal != resumes[i];
+            }
+            if (!usable)
+            {
+                std::fprintf(stderr, "[TS:perf] %06x called from %06x: not timed\n", b.function, b.caller);
+                continue;
+            }
+            runtime.replaceFunction(b.function, entries[i]);
+            runtime.replaceFunction(b.ret, resumes[i]);
+            ++installed;
+        }
+        std::fprintf(stderr, "[TS:perf] phase brackets: %u of %u\n", installed, unsigned(sizeof...(I)));
+    }
+#endif
 #endif
 
     void applyTimeSplittersOverrides(PS2Runtime &runtime)
@@ -848,6 +951,9 @@ namespace
         registerTsNativeGame(runtime); // portals, floor height, slerp, acosf, display-list packets, ...
         registerTsNativeGame2(runtime); // partGfx, calMatrices, animMtxTick, rotateChr, moveTest, ambient light, ...
         registerTsNativeGame3(runtime); // decals, chrPropTick, setAnimation, particles, animUpdate, routes, ...
+#if TS_PERF_DETAIL
+        installPerfBrackets(runtime, std::make_index_sequence<std::size(g_perfBrackets)>{});
+#endif
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);

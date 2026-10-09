@@ -108,3 +108,11 @@ public:
     virtual void SnapshotVram(std::vector<uint8_t> &out) const = 0;
     virtual GSTransferSnapshot GetTransferSnapshot() const = 0;
 };
+
+// Split screen: the game's overrides say whether it shows two or more views
+// (project/game/ts_overrides.cpp, from the number of local players); what
+// assumes one full-screen view - the GS front end's widescreen HUD
+// narrowing - consults it. Kept in runtime/gs/gs_frontend.cpp; false until
+// set.
+void gsSetSplitScreen(bool split);
+bool gsSplitScreen();

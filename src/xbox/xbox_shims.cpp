@@ -65,8 +65,11 @@ extern "C"
 // operator new: nxdk's libc++ is built without exceptions, and its operator
 // new then returns null when malloc fails. Callers (std::vector growth, say)
 // write through that null and the Xbox crashes with no message. These
-// variants stop with the size that could not be allocated instead.
+// variants stop with the size that could not be allocated instead, and
+// list the last big requests and who made them (xbox_perf.cpp): in a match
+// the console has almost no memory left, and one big request is enough.
 #include <new>
+#include "xbox_perf.h"
 void xboxLogWrite(const char *text, unsigned length);
 namespace ps2x
 {
@@ -77,23 +80,40 @@ namespace
 {
     [[noreturn]] void outOfMemory(size_t bytes)
     {
+        // Logging allocates a little: should that fail too, stop at once.
+        static bool reported = false;
+        if (reported)
+            ps2x::fatalError("out of memory");
+        reported = true;
         char line[96];
         const int n = std::snprintf(line, sizeof(line), "[TS:xbox] out of memory: %u bytes requested\n",
                                     static_cast<unsigned>(bytes));
         xboxLogWrite(line, n > 0 ? static_cast<unsigned>(n) : 0u);
+        xboxPerfDumpAllocations();
         ps2x::fatalError("out of memory");
     }
 
-    void *allocate(size_t bytes)
+    // caller: operator new's return address.
+    void *allocate(size_t bytes, const void *caller)
     {
         void *p = std::malloc(bytes ? bytes : 1u);
+        if (bytes >= kPerfBigAllocation)
+            xboxPerfNoteAllocation(bytes, p, caller);
         if (!p)
             outOfMemory(bytes);
         return p;
     }
+
+    void *allocateOrNull(size_t bytes, const void *caller) noexcept
+    {
+        void *p = std::malloc(bytes ? bytes : 1u);
+        if (bytes >= kPerfBigAllocation)
+            xboxPerfNoteAllocation(bytes, p, caller);
+        return p;
+    }
 }
 
-void *operator new(size_t bytes) { return allocate(bytes); }
-void *operator new[](size_t bytes) { return allocate(bytes); }
-void *operator new(size_t bytes, const std::nothrow_t &) noexcept { return std::malloc(bytes ? bytes : 1u); }
-void *operator new[](size_t bytes, const std::nothrow_t &) noexcept { return std::malloc(bytes ? bytes : 1u); }
+void *operator new(size_t bytes) { return allocate(bytes, __builtin_return_address(0)); }
+void *operator new[](size_t bytes) { return allocate(bytes, __builtin_return_address(0)); }
+void *operator new(size_t bytes, const std::nothrow_t &) noexcept { return allocateOrNull(bytes, __builtin_return_address(0)); }
+void *operator new[](size_t bytes, const std::nothrow_t &) noexcept { return allocateOrNull(bytes, __builtin_return_address(0)); }

@@ -24,6 +24,11 @@
 // happens in the interrupt; the table is allocated when the window opens
 // (script read TS_HWPROF_FROM) and written to the log when it closes
 // (TS_HWPROF_TO), then freed.
+//
+// Each histogram sample also notes whether the kernel's idle thread was
+// running and whether the GPU was busy (graphics engine status, command
+// FIFO not empty): the window's totals go in the report's gpu line, and the
+// running counts in the status lines (xbox_perf.cpp [TS:cpu]).
 #if TS_HWPROF
 
 #include "xbox_hwprof.h"
@@ -121,6 +126,15 @@ namespace
     bool g_irqlOk = false;
     size_t g_offUnique = 0, g_offStart = 0;
 
+    // Every histogram sample also counts the idle thread and the GPU
+    // (hwprofSampleCounts; the window's totals go in the report's gpu line).
+    HwprofSampleCounts g_samples;
+    volatile uint32_t g_gpuReady = 0;
+    // NV2A registers (pbkit's VIDEO_BASE 0xFD000000): the graphics engine's
+    // status, and pbkit's FIFO channel 0's DMA PUT and GET (NV_USER,
+    // pbkit_ts.c pb_init / pb_busy).
+    constexpr uint32_t kPgraphStatus = 0xFD400700u, kDmaPut = 0xFD800040u, kDmaGet = 0xFD800044u;
+
     inline uint32_t fsDword(uint32_t offset)
     {
         uint32_t value;
@@ -176,9 +190,22 @@ namespace
         return g_lastSlot = i;
     }
 
+    // GPU busy as pbkit's pb_busy tests it, with the PUT the GPU was given.
+    void sampleGpu()
+    {
+        const uint32_t status = *reinterpret_cast<volatile const uint32_t *>(kPgraphStatus);
+        const uint32_t put = *reinterpret_cast<volatile const uint32_t *>(kDmaPut);
+        const uint32_t get = *reinterpret_cast<volatile const uint32_t *>(kDmaGet);
+        const bool graph = status != 0u, fifo = ((put ^ get) & 0x0FFFFFFFu) != 0u;
+        g_samples.gpuGraph += graph ? 1u : 0u;
+        g_samples.gpuFifo += fifo ? 1u : 0u;
+        g_samples.gpuBusy += (graph || fifo) ? 1u : 0u;
+    }
+
     void record(uint32_t eip, uint32_t source)
     {
-        const uint32_t s = slotFor(fsDword(kPcrCurrentThread));
+        const uint32_t current = fsDword(kPcrCurrentThread);
+        const uint32_t s = slotFor(current);
         Slot &slot = g_slots[s];
         if (source == kSrcRtc)
             ++slot.rtc;
@@ -186,6 +213,10 @@ namespace
             ++slot.pit;
         if (source != g_primary)
             return;
+        ++g_samples.samples;
+        g_samples.idle += (g_idleThread && current == g_idleThread) ? 1u : 0u;
+        if (g_gpuReady)
+            sampleGpu();
         if (g_irqlOk && fsByte(kPcrIrql) >= 2u)
             ++slot.high;
         const uint32_t key = (s << 28) | (eip >> 4);
@@ -435,15 +466,30 @@ namespace
         emit("frame us=%u eewait_us=%u gpuwait_us=%u irql=%s idle_kt=%08x",
              frames ? uint32_t(us / frames) : 0u, frames ? uint32_t(eeWaitUs / frames) : 0u,
              frames ? uint32_t(gpuWaitUs / frames) : 0u, g_irqlOk ? "ok" : "unknown", g_idleThread);
+        // The frame-time histogram, 10 bins a line (at most 15 characters a
+        // bin; one line was cut off at 200 characters, losing the long
+        // frames); hwprof_report.py joins the fh lines.
         {
             char text[200];
             size_t n = 0;
-            text[0] = 0;
+            uint32_t inLine = 0;
             for (uint32_t b = 0; b < kFrameBins; ++b)
-                if (g_frameHist[b] && n + 16 < sizeof(text))
-                    n += size_t(std::snprintf(text + n, sizeof(text) - n, " %u:%u", b * (kFrameBinUs / 1000u), g_frameHist[b]));
-            emit("fh%s", text);
+            {
+                if (!g_frameHist[b])
+                    continue;
+                n += size_t(std::snprintf(text + n, sizeof(text) - n, " %u:%u", b * (kFrameBinUs / 1000u), g_frameHist[b]));
+                if (++inLine == 10u)
+                {
+                    emit("fh%s", text);
+                    n = 0;
+                    inLine = 0;
+                }
+            }
+            if (inLine)
+                emit("fh%s", text);
         }
+        emit("gpu samples=%u idle=%u graph=%u fifo=%u busy=%u ready=%u", g_samples.samples, g_samples.idle, g_samples.gpuGraph,
+             g_samples.gpuFifo, g_samples.gpuBusy, unsigned(g_gpuReady));
         for (uint32_t s = 1; s < g_slotCount; ++s)
         {
             const Slot &slot = g_slots[s];
@@ -572,6 +618,10 @@ void hwprofInit()
         xboxLogWrite(text, unsigned(std::strlen(text)));
     }
 }
+
+void hwprofGpuReady() { g_gpuReady = 1; }
+
+HwprofSampleCounts hwprofSampleCounts() { return g_samples; }
 
 void hwprofFrame(const HwprofCounters &counters)
 {

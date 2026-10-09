@@ -81,7 +81,7 @@ IOP_SRCS := $(addprefix $(IOP)/src/, \
     modules/dbcman.cpp modules/libsd.cpp modules/mcserv.cpp)
 
 GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp $(GAME)/ts_native_math.cpp $(GAME)/ts_native_fp.cpp \
-    $(GAME)/ts_native_game.cpp $(GAME)/ts_native_game2.cpp $(GAME)/ts_native_game3.cpp
+    $(GAME)/ts_native_game.cpp $(GAME)/ts_native_game2.cpp $(GAME)/ts_native_game3.cpp $(GAME)/ts_render_counters.cpp
 XBOX_SRCS := $(wildcard $(XBOX)/*.cpp)
 # register_functions.cpp is replaced by a compact table (see the rule below).
 GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
@@ -237,6 +237,22 @@ $(HWPROF_STAMP): FORCE
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(TS_HWPROF)' ] || echo '$(TS_HWPROF)' > $@
 $(HWPROF_OBJS): $(HWPROF_STAMP)
 $(HWPROF_OBJS): RUNTIME_FLAGS += -DTS_HWPROF=$(TS_HWPROF)
+
+# make TS_RENDER_COUNTERS=2: the render-origin counters ([TS:render] in the
+# log, runtime/ps2_render_counters.h) also count per DMA tag and VIF command
+# ([TS:render2]; an estimated 0.1-0.2 ms a frame); 0 counts nothing, 1
+# (default) the cheap ones. Only the files that count see the switch; a
+# stamp rebuilds them when it changes.
+TS_RENDER_COUNTERS ?= 1
+RENDER_COUNTERS_STAMP := $(OUT)/gen/render_counters.flags
+RENDER_COUNTERS_OBJS := $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
+    $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj $(OBJ)/project/game/vu1_native_ts.obj \
+    $(OBJ)/project/game/ts_native_game2.obj $(OBJ)/project/game/ts_render_counters.obj
+$(RENDER_COUNTERS_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(TS_RENDER_COUNTERS)' ] || echo '$(TS_RENDER_COUNTERS)' > $@
+$(RENDER_COUNTERS_OBJS): $(RENDER_COUNTERS_STAMP)
+$(RENDER_COUNTERS_OBJS): RUNTIME_FLAGS += -DTS_RENDER_COUNTERS=$(TS_RENDER_COUNTERS)
 
 # The object list is long; hand it to the linker in a response file.
 $(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)

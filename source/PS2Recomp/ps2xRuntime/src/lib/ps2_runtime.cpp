@@ -794,6 +794,44 @@ bool PS2Runtime::syncCoreSubsystems()
                                                   m_memory.getVU1Data(), PS2_VU1_DATA_SIZE,
                                                   m_gs, &m_memory, top, itop, 65536);
                                      vu1Stopped(); });
+#if defined(PLATFORM_XBOX) && TS_MSCAL_FAST
+    // The MSCAL callback above without its layers, for VIF1 chains
+    // (PS2Memory::Vu1MscalFast). The Xbox has no VIF1 worker
+    // (startVif1Async), so vu1Fbrst/vu1Stopped's worker case never applies.
+    {
+        PS2Memory::Vu1MscalFast fast;
+        fast.owner = this;
+        fast.gs = &m_gs;
+        fast.vu1 = &m_vu1.state();
+        fast.lookup = [](void *owner, PS2Memory::Vu1MscalFast &f) {
+            PS2Runtime &rt = *static_cast<PS2Runtime *>(owner);
+            f.generation = rt.m_memory.getVU1CodeGeneration();
+            f.native = rt.m_vu1.nativeProgram(rt.m_memory.getVU1Code(), PS2_VU1_CODE_SIZE, &rt.m_memory);
+            R5900Context *cpuContext = rt.m_eeScheduler ? rt.m_eeScheduler->currentContext() : nullptr;
+            cpuContext = cpuContext ? cpuContext : &rt.m_cpuContext;
+            f.fbrst = &cpuContext->vu0_fbrst;
+            f.vpuStat = &cpuContext->vu0_vpu_stat;
+        };
+        fast.interpret = [](void *owner, PS2Memory::Vu1MscalFast &f, uint32_t startPC, uint32_t top, uint32_t itop) {
+            PS2Runtime &rt = *static_cast<PS2Runtime *>(owner);
+            rt.m_vu1.executeInterpreted(rt.m_memory.getVU1Code(), PS2_VU1_CODE_SIZE, rt.m_memory.getVU1Data(),
+                                        PS2_VU1_DATA_SIZE, rt.m_gs, &rt.m_memory, startPC, top, itop, 65536);
+            const uint32_t bits = (rt.m_vu1.state().stoppedByD ? 0x0200u : 0u) | (rt.m_vu1.state().stoppedByT ? 0x0400u : 0u);
+            *f.vpuStat = (*f.vpuStat & ~0x0600u) | bits;
+        };
+#if TS_MSCAL_FAST_CHECK
+        fast.check = [](void *owner, const PS2Memory::Vu1MscalFast &f) {
+            PS2Runtime &rt = *static_cast<PS2Runtime *>(owner);
+            R5900Context *cpuContext = rt.m_eeScheduler ? rt.m_eeScheduler->currentContext() : nullptr;
+            cpuContext = cpuContext ? cpuContext : &rt.m_cpuContext;
+            return f.generation == rt.m_memory.getVU1CodeGeneration() &&
+                   f.native == rt.m_vu1.nativeProgram(rt.m_memory.getVU1Code(), PS2_VU1_CODE_SIZE, &rt.m_memory) &&
+                   f.fbrst == &cpuContext->vu0_fbrst && f.vpuStat == &cpuContext->vu0_vpu_stat;
+        };
+#endif
+        m_memory.setVu1MscalFast(fast);
+    }
+#endif
     m_memory.setVif1AsyncCallbacks(
         [this]() {
             R5900Context *cpuContext = m_eeScheduler ? m_eeScheduler->currentContext() : nullptr;

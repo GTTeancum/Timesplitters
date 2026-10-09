@@ -396,6 +396,52 @@ namespace
         return (index & ~0x18u) | ((index & 0x08u) << 1u) | ((index & 0x10u) >> 1u);
     }
 
+    // Full CLUT loads (GSCpuBackend::ReadFullClut): the word, within the
+    // 1 KB from CBP, that each of the 256 entries comes from. LoadClut
+    // reads a CSM1 CLUT as 16 rows of 16 CT32 pixels (entry e from pixel
+    // x = s & 15, y = s >> 4, s = e with bits 3 and 4 swapped). With a
+    // buffer one page wide, those pixels are blocks 0-3 from CBP (two by
+    // two, as the CT32 block table starts) and their words within a block
+    // follow the CT32 column table (GSMem's ColumnTable32). Checked against
+    // the row reads at boot (CheckFullClutOrder).
+    struct FullClutOrder
+    {
+        uint8_t word[256];
+        constexpr FullClutOrder() : word()
+        {
+            const uint8_t column[8][8] = {
+                {0, 1, 4, 5, 8, 9, 12, 13},         {2, 3, 6, 7, 10, 11, 14, 15},
+                {16, 17, 20, 21, 24, 25, 28, 29},   {18, 19, 22, 23, 26, 27, 30, 31},
+                {32, 33, 36, 37, 40, 41, 44, 45},   {34, 35, 38, 39, 42, 43, 46, 47},
+                {48, 49, 52, 53, 56, 57, 60, 61},   {50, 51, 54, 55, 58, 59, 62, 63},
+            };
+            for (uint32_t e = 0; e < 256u; ++e)
+            {
+                const uint32_t s = (e & ~0x18u) | ((e & 0x08u) << 1u) | ((e & 0x10u) >> 1u);
+                const uint32_t x = s & 15u, y = s >> 4u;
+                word[e] = static_cast<uint8_t>(((y >> 3u) * 2u + (x >> 3u)) * 64u + column[y & 7u][x & 7u]);
+            }
+        }
+    };
+    constexpr FullClutOrder kFullClutOrder;
+
+    bool readFullClut(const uint8_t *vram, uint32_t cbp, uint32_t cpsm, uint16_t *clut)
+    {
+        if (!vram || cbp > GSCpuBackend::kLastContiguousClutCbp)
+            return false;
+        const uint8_t *source = vram + size_t(cbp) * 256u;
+        const uint32_t mask = cpsm == GS_PSM_CT24 ? 0x00FFFFFFu : 0xFFFFFFFFu; // as a CT24 read
+        for (uint32_t e = 0; e < 256u; ++e)
+        {
+            uint32_t raw;
+            std::memcpy(&raw, source + uint32_t(kFullClutOrder.word[e]) * 4u, 4);
+            raw &= mask;
+            clut[e] = static_cast<uint16_t>(raw & 0xFFFFu);
+            clut[e + 256u] = static_cast<uint16_t>(raw >> 16u);
+        }
+        return true;
+    }
+
     bool isFourBitIndexedPsm(uint8_t psm)
     {
         return psm == GS_PSM_T4 || psm == GS_PSM_T4HL || psm == GS_PSM_T4HH;
@@ -651,6 +697,7 @@ void GSCpuBackend::ResetUnlocked()
 {
     ++m_clutGeneration;
     InvalidateAllDecoded();
+    m_clutDeferred = false;
     m_clut.fill(0u);
     m_clutCbp.fill(0u);
     m_texturePageCache.Invalidate();
@@ -667,6 +714,7 @@ void GSCpuBackend::Submit(const GSPrimitiveBatch &batch)
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_vram || batch.vertexCount == 0u)
         return;
+    FillDeferredClutUnlocked();
     const auto start = profileRaster ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point{};
     static const bool reuseTexturePages = std::getenv("TS_DISABLE_TEXTURE_REUSE") == nullptr;
     const bool readOnly = reuseTexturePages && m_texturePageReuseEnabled && TextureReadOnlyDuringDraw(batch.state);
@@ -737,7 +785,75 @@ void GSCpuBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
         return;
     }
 
+    FillDeferredClutUnlocked(); // a load of part of the buffer goes over it
     LoadClutUnlocked(tex0, texclut);
+}
+
+bool GSCpuBackend::FullClutLoad(const GSTex0Reg &tex0)
+{
+    return isEightBitIndexedPsm(tex0.psm) && tex0.csm == 0u &&
+           (tex0.cpsm == GS_PSM_CT32 || tex0.cpsm == GS_PSM_CT24) && (tex0.csa & 0x0Fu) == 0u;
+}
+
+bool GSCpuBackend::ReadFullClut(uint32_t cbp, uint32_t cpsm, uint16_t *clut) const
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    return readFullClut(m_vram, cbp, cpsm, clut);
+}
+
+void GSCpuBackend::FillDeferredClutSlow()
+{
+    m_clutDeferred = false;
+    ++m_clutFills;
+    // The generation and hash DeferClutLoad set describe this content.
+    if (readFullClut(m_vram, m_deferredCbp, m_deferredCpsm, m_clut.data()))
+        return;
+    GSTex0Reg tex0{}; // (not reached: only contiguous sources are deferred)
+    tex0.psm = GS_PSM_T8;
+    tex0.cbp = m_deferredCbp;
+    tex0.cpsm = static_cast<uint8_t>(m_deferredCpsm);
+    LoadClutUnlocked(tex0, GSTexClutReg{});
+}
+
+bool GSCpuBackend::CheckFullClutOrder()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_vram)
+        return true;
+    FillDeferredClutUnlocked();
+    const std::array<uint16_t, 512> clut = m_clut;
+    // Page-aligned and not, across a page's end, the last contiguous one.
+    static const uint32_t kCbps[] = {0u, 4u, 28u, 30u, 1001u, 9002u, kLastContiguousClutCbp};
+    uint8_t saved[1024];
+    uint16_t fast[512];
+    uint32_t seed = 0x2545F491u;
+    bool same = true;
+    m_texturePageCache.Invalidate(); // (other platforms' row reads go through it)
+    for (const uint32_t cbp : kCbps)
+        for (const uint32_t cpsm : {uint32_t(GS_PSM_CT32), uint32_t(GS_PSM_CT24)})
+        {
+            uint8_t *source = m_vram + size_t(cbp) * 256u;
+            std::memcpy(saved, source, sizeof(saved));
+            for (uint32_t i = 0; i < 256u; ++i)
+            {
+                seed = seed * 1664525u + 1013904223u;
+                const uint32_t word = seed ^ (seed >> 15);
+                std::memcpy(source + i * 4u, &word, 4);
+            }
+            GSTex0Reg tex0{};
+            tex0.psm = GS_PSM_T8;
+            tex0.cbp = cbp;
+            tex0.cpsm = static_cast<uint8_t>(cpsm);
+            tex0.cld = 1u;
+            m_clut.fill(0x5A5Au); // an entry the load leaves out shows
+            LoadClutUnlocked(tex0, GSTexClutReg{});
+            same = same && readFullClut(m_vram, cbp, cpsm, fast) && std::memcmp(fast, m_clut.data(), sizeof(fast)) == 0;
+            std::memcpy(source, saved, sizeof(saved));
+            m_texturePageCache.Invalidate();
+        }
+    m_clut = clut; // (its hash is worked out again when asked)
+    ++m_clutGeneration;
+    return same;
 }
 
 void GSCpuBackend::LoadClutUnlocked(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
@@ -878,6 +994,7 @@ uint32_t GSCpuBackend::ReadTextureVramUnlocked(uint32_t psm, uint32_t base, uint
 void GSCpuBackend::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y, uint32_t value)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+    FillDeferredClutUnlocked(); // (its source may be written)
     NoteVramWrite(0, UINT64_MAX);
     WriteVramUnlocked(psm, base, bw, x, y, value);
 }
@@ -1389,28 +1506,37 @@ void GSCpuBackend::NoteVramWrite(uint64_t begin, uint64_t end)
         m_latchedStaleUntilLoads = m_texturePageCache.PageLoads() + 1u;
 }
 
+uint64_t GSCpuBackend::HashClut(const uint16_t *clut)
+{
+#if defined(PLATFORM_XBOX)
+    // 32-bit multiplies (a 64-bit one is a library call on the Pentium
+    // III; the game loads hundreds of CLUTs a frame).
+    uint32_t a = 2166136261u, b = 0x9E3779B9u;
+    for (size_t i = 0; i < 256u; ++i)
+    {
+        uint32_t word;
+        std::memcpy(&word, clut + 2u * i, 4);
+        a = (a ^ word) * 16777619u;
+        b = (b ^ word) * 0x85EBCA6Bu + (b >> 13);
+    }
+    return (uint64_t(a) << 32) | b;
+#else
+    uint64_t hash = 0xcbf29ce484222325ull;
+    for (size_t i = 0; i < 128u; ++i)
+    {
+        uint64_t word;
+        std::memcpy(&word, clut + 4u * i, 8);
+        hash = (hash ^ word) * 0x100000001b3ull + (hash >> 29);
+    }
+    return hash;
+#endif
+}
+
 uint64_t GSCpuBackend::ClutContentHash()
 {
     if (m_clutHashGeneration != m_clutGeneration)
     {
-#if defined(PLATFORM_XBOX)
-        // 32-bit multiplies (a 64-bit one is a library call on the Pentium
-        // III; the game loads hundreds of CLUTs a frame).
-        uint32_t a = 2166136261u, b = 0x9E3779B9u;
-        const auto *words = reinterpret_cast<const uint32_t *>(m_clut.data());
-        for (size_t i = 0; i < m_clut.size() / 2u; ++i)
-        {
-            a = (a ^ words[i]) * 16777619u;
-            b = (b ^ words[i]) * 0x85EBCA6Bu + (b >> 13);
-        }
-        m_clutHash = (uint64_t(a) << 32) | b;
-#else
-        uint64_t hash = 0xcbf29ce484222325ull;
-        const auto *words = reinterpret_cast<const uint64_t *>(m_clut.data());
-        for (size_t i = 0; i < m_clut.size() / 4u; ++i)
-            hash = (hash ^ words[i]) * 0x100000001b3ull + (hash >> 29);
-        m_clutHash = hash;
-#endif
+        m_clutHash = HashClut(m_clut.data());
         m_clutHashGeneration = m_clutGeneration;
     }
     return m_clutHash;
@@ -1569,6 +1695,7 @@ void GSCpuBackend::WriteVramRect(uint32_t psm, uint32_t base, uint32_t bw, uint3
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_vram)
         return;
+    FillDeferredClutUnlocked(); // (its source may be written)
     const auto write = m_writeVramFuncs[psm & 0x3Fu];
     for (uint32_t y = 0; y < height; ++y)
         for (uint32_t x = 0; x < width; ++x)
@@ -1578,6 +1705,7 @@ void GSCpuBackend::WriteVramRect(uint32_t psm, uint32_t base, uint32_t bw, uint3
 void GSCpuBackend::DecodeTexture(const GSDrawState &state, std::vector<uint32_t> &out)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+    FillDeferredClutUnlocked();
     const auto &tex = state.context.tex0;
     const int texW = std::max<int>(1, state.textureWidth);
     const int texH = std::max<int>(1, state.textureHeight);
@@ -2010,6 +2138,7 @@ void GSCpuBackend::DrawLine(const GSPrimitiveBatch &batch)
 void GSCpuBackend::BeginTransfer(const GSTransferCommand &command)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
+    FillDeferredClutUnlocked(); // (its source may be written)
     m_transfer = command;
     m_transferState.x = command.trxpos.dsax;
     m_transferState.y = command.trxpos.dsay;
@@ -2028,6 +2157,7 @@ void GSCpuBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
 {
     NoteVramWrite(0, UINT64_MAX);
     std::lock_guard<std::mutex> lock(m_mutex);
+    FillDeferredClutUnlocked(); // (its source may be written)
     if (!data || sizeBytes == 0u || !m_vram || m_transferState.direction != 0u)
         return;
     if (m_transfer.trxreg.rrw == 0u || m_transfer.trxreg.rrh == 0u || m_transferState.totalPixels == 0u)
@@ -2284,6 +2414,7 @@ bool GSCpuBackend::ClearFramebuffer(const GSContext &context, uint32_t rgba)
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_vram || context.frame.fbw == 0u)
         return false;
+    FillDeferredClutUnlocked(); // (its source may be written)
     {
         GSDrawState state{};
         state.context = context;

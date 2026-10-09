@@ -6967,6 +6967,10 @@ namespace
         uint32_t jt;
         (void)t;
         (void)jt;
+        // Render counters (ps2_render_counters.h): the list each part's
+        // model goes by, counted at L_261c38 (precalc CALL), L_261c74
+        // (Dbuf CALL) and the three REF loops.
+        TS_RENDER_COUNT(++g_renderCounters.partGfx);
         LOAD_GPR(a0, 4); LOAD_GPR(a1, 5); LOAD_GPR(a2, 6); LOAD_GPR(t5, 13); LOAD_GPR(s0, 16); LOAD_GPR(s1, 17); LOAD_GPR(s2, 18); LOAD_GPR(s3, 19); LOAD_GPR(s4, 20); LOAD_GPR(s5, 21); LOAD_GPR(s6, 22); LOAD_GPR(s7, 23); LOAD_GPR(gp, 28); LOAD_GPR(sp, 29); LOAD_GPR(fp, 30); LOAD_GPR(ra, 31); LOAD_F(0); LOAD_F(1); LOAD_F(2); LOAD_F(3); LOAD_F(9); LOAD_F(20); LOAD_F(21); r.fcr31 = ctx->fcr31; r.lo = ctx->lo; r.hi = ctx->hi;
         r.sp = addiu(r.sp, -944);                                // 260ae0 addiu $sp, $sp, -0x3B0
         r.v1 = addiu(0u, 80);                                    // 260ae4 addiu $v1, $zero, 0x50
@@ -7608,7 +7612,9 @@ namespace
         r.t4 = LW(lo32(r.sp) + 0x2c0u);                          // 2611f8 lw $t4, 0x2C0($sp)
         if (t) goto L_261f50;
         r.t5 = sext32(0x380000u);                                // 2611fc lui $t5, 0x38
+        TS_RENDER_COUNT(++g_renderCounters.partRef[0]);
     L_261200:
+        TS_RENDER_COUNT(++g_renderCounters.partRefBatches);
         r.v1 = LW(lo32(r.gp) - 0x6c60u);                         // 261200 lw $v1, -0x6C60($gp)
         r.t1 = addiu(0u, 48);                                    // 261204 addiu $t1, $zero, 0x30
         r.v0 = addiu(0u, 80);                                    // 261208 addiu $v0, $zero, 0x50
@@ -7912,7 +7918,9 @@ namespace
         r.t4 = LW(lo32(r.sp) + 0x2c0u);                          // 261648 lw $t4, 0x2C0($sp)
         if (t) goto L_261f50;
         r.t5 = sext32(0x380000u);                                // 26164c lui $t5, 0x38
+        TS_RENDER_COUNT(++g_renderCounters.partRef[1]);
     L_261650:
+        TS_RENDER_COUNT(++g_renderCounters.partRefBatches);
         r.v1 = LW(lo32(r.gp) - 0x6c60u);                         // 261650 lw $v1, -0x6C60($gp)
         r.t1 = addiu(0u, 48);                                    // 261654 addiu $t1, $zero, 0x30
         r.v0 = addiu(0u, 80);                                    // 261658 addiu $v0, $zero, 0x50
@@ -8312,6 +8320,7 @@ namespace
         r.v0 = addiu(r.v1, 16);                                  // 261c30 addiu $v0, $v1, 0x10
         WRITE32(lo32(r.v1) + 0x4u, lo32(r.t4));                  // 261c34 sw $t4, 0x4($v1)
     L_261c38:
+        TS_RENDER_COUNT(++g_renderCounters.partPrecalc);
         WRITE32(lo32(r.gp) - 0x6c60u, lo32(r.v0));               // 261c38 sw $v0, -0x6C60($gp)
         // 261c3c b . + 4 + (0xC3 << 2)
         WRITE16(lo32(r.v1), static_cast<uint16_t>(0u));          // 261c40 sh $zero, 0x0($v1)
@@ -8331,6 +8340,7 @@ namespace
         r.v1 = LW(lo32(r.v0) + 0xfcu);                           // 261c6c lw $v1, 0xFC($v0)
         r.v1 = addu(r.t4, r.v1);                                 // 261c70 addu $v1, $t4, $v1
     L_261c74:
+        TS_RENDER_COUNT(++g_renderCounters.partDbuf);
         r.a0 = LW(lo32(r.v1));                                   // 261c74 lw $a0, 0x0($v1)
         WRITE8(lo32(r.a1) + 0x3u, static_cast<uint8_t>(r.a2));   // 261c78 sb $a2, 0x3($a1)
         r.v0 = LW(lo32(r.gp) - 0x6c60u);                         // 261c7c lw $v0, -0x6C60($gp)
@@ -8346,7 +8356,9 @@ namespace
         r.t4 = LW(lo32(r.sp) + 0x2c0u);                          // 261c9c lw $t4, 0x2C0($sp)
         if (t) goto L_261f50;
         r.t5 = sext32(0x380000u);                                // 261ca0 lui $t5, 0x38
+        TS_RENDER_COUNT(++g_renderCounters.partRef[2]);
     L_261ca8:
+        TS_RENDER_COUNT(++g_renderCounters.partRefBatches);
         r.v1 = LW(lo32(r.gp) - 0x6c60u);                         // 261ca8 lw $v1, -0x6C60($gp)
         r.t1 = addiu(0u, 48);                                    // 261cac addiu $t1, $zero, 0x30
         r.v0 = addiu(0u, 96);                                    // 261cb0 addiu $v0, $zero, 0x60

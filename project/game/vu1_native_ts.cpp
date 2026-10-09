@@ -36,8 +36,10 @@
 // render-state block processed again as a GIF packet over the applied one
 // (it must change no register and no CLUT), the transform constants copied
 // afresh from VU1 memory, the renderer's full texture lookup and constant
-// rebuild. Differences count in drawdiff= (status block), the first few are
-// logged, and the old path's result is the one used.
+// rebuild, and its window clip (the run's GS scissor, which the run's state
+// carries like every draw's, mapped afresh). Differences count in drawdiff=
+// (status block), the first few are logged, and the old path's result is the
+// one used.
 #ifndef TS_NATIVE_DRAW_SELFCHECK
 #define TS_NATIVE_DRAW_SELFCHECK 0
 #endif
@@ -61,6 +63,23 @@
 #ifndef TS_NATIVE_RING_SELFCHECK_EVERY
 #define TS_NATIVE_RING_SELFCHECK_EVERY 32u
 #endif
+// TS_NATIVE_RUN_LEAN 1 (rewrite plan M1.4): run() without the costs around
+// the program. The draw entries' CPU-path vertex array (3 KB) lives in the
+// CPU path's own frame: in run()'s it made that frame 6.5 KB (3.5 KB
+// without it, under the 4 KB page), and every call, the constant entries'
+// too, paid a stack probe (__chkstk); now only a strip taken on the CPU
+// path does. The cycle count (kcyc native= in the status block) is off
+// unless TS_NATIVE_KCYC, and then kept without a 64-bit division a call.
+// 0: as before (the count always on, the array in run()'s frame).
+#ifndef TS_NATIVE_RUN_LEAN
+#define TS_NATIVE_RUN_LEAN 1
+#endif
+// TS_NATIVE_KCYC 1 (with TS_NATIVE_RUN_LEAN): CPU cycles spent in the
+// program, two rdtsc a call. 0 (default): not counted (kcyc native=0).
+#ifndef TS_NATIVE_KCYC
+#define TS_NATIVE_KCYC 0
+#endif
+#include "runtime/ps2_render_counters.h"
 #include <iostream>
 #else
 #define TS_NATIVE_STAT(expr) ((void)0)
@@ -68,6 +87,19 @@
 #define TS_NATIVE_DRAW_SELFCHECK 0
 #undef TS_NATIVE_RING_SELFCHECK
 #define TS_NATIVE_RING_SELFCHECK 0
+#define TS_NATIVE_RUN_LEAN 0
+#define TS_RENDER_COUNT(expr) ((void)0)
+#endif
+// TS_XF_DIRTY_ROWS 1: after a write to the watched VU1 rows only the rows
+// written are copied into the transform constants, and the renderer is told
+// which (nv2aXfConstantsChanged); 0: every row is copied again, as before.
+#ifndef TS_XF_DIRTY_ROWS
+#define TS_XF_DIRTY_ROWS 1
+#endif
+#if defined(PLATFORM_XBOX)
+#define TS_XF_ROWS_CHANGED(serial, rows) nv2aXfConstantsChanged(serial, rows)
+#else
+#define TS_XF_ROWS_CHANGED(serial, rows) ((void)0)
 #endif
 
 #include <algorithm>
@@ -334,17 +366,51 @@ namespace
         std::memcpy(xc.model, data + 4u * 16u, 48);
     }
 
+#if TS_XF_DIRTY_ROWS
+    // The VU1 row each transform-constant row is copied from (GSXfConstants
+    // as 33 rows of four floats, in loadConstants' order: mvp, lightDir,
+    // lightColour, scale, offset, model).
+    constexpr uint8_t kXfSourceRow[33] = {8,   9,   10,  11,  12,  13,  14,  15,  16,  17,  18,  19,
+                                          110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121,
+                                          106, 107, 108, 109, 20,  21,  4,   5,   6};
+    static_assert(offsetof(GSXfConstants, variant) == sizeof(kXfSourceRow) * 16u, "GSXfConstants rows");
+
+    // The rows of xc whose VU1 rows were written (dirty: g_vu1WatchedRows'
+    // bits) copied again; returns them (bit r: row r).
+    uint64_t loadDirtyConstants(GSXfConstants &xc, const uint8_t *data, uint64_t dirty)
+    {
+        static uint64_t s_rowBit[33];
+        static bool s_bitsKnown = false;
+        if (!s_bitsKnown)
+        {
+            for (uint32_t r = 0; r < 33u; ++r)
+                s_rowBit[r] = g_vu1WatchedRows.rowBit(kXfSourceRow[r]);
+            s_bitsKnown = true;
+        }
+        uint64_t rows = 0;
+        for (uint32_t r = 0; r < 33u; ++r)
+            if (dirty & s_rowBit[r])
+            {
+                std::memcpy(reinterpret_cast<uint8_t *>(&xc) + r * 16u, data + kXfSourceRow[r] * 16u, 16);
+                rows |= 1ull << r;
+            }
+        return rows;
+    }
+#endif
+
     // The GPU transform's constants (raw VU1 rows 4-21 and 106-121), copied
     // out again only after one of those rows was written (g_vu1WatchedRows:
     // the constant entries below, UNPACKs, the translated microprogram, EE
-    // stores). A new serial tells the renderer to rebuild its constant block;
-    // otherwise it keeps the one it has (the serial used to change every run,
-    // and every run rebuilt and compared ~550 bytes).
+    // stores), and then (TS_XF_DIRTY_ROWS) only the rows written. A new
+    // serial tells the renderer to rebuild its constant block, and which
+    // rows changed; otherwise it keeps the one it has (the serial used to
+    // change every run, and every run rebuilt and compared ~550 bytes).
     GSXfConstants &transformConstants(const uint8_t *data, bool check)
     {
         static GSXfConstants s_xc{};
         static uint32_t s_writes = 0, s_serial = 0;
         static bool s_valid = false;
+        bool full = !s_valid;
         if (s_valid && s_writes == g_vu1WatchedRows.writes)
         {
             if (!check)
@@ -355,8 +421,37 @@ namespace
             if (std::memcmp(&fresh, &s_xc, offsetof(GSXfConstants, variant)) == 0)
                 return s_xc;
             noteDrawDiff("transform constants (a VU1 row write was missed)");
+            full = true;
 #endif
         }
+#if TS_XF_DIRTY_ROWS
+        const uint64_t dirty = g_vu1WatchedRows.takeDirty();
+        if (!full)
+        {
+            uint64_t changed = loadDirtyConstants(s_xc, data, dirty);
+#if TS_NATIVE_DRAW_SELFCHECK
+            if (check)
+            {
+                // The rows left out must be the VU1 rows' values still.
+                GSXfConstants fresh{};
+                loadConstants(fresh, data);
+                if (std::memcmp(&fresh, &s_xc, offsetof(GSXfConstants, variant)) != 0)
+                {
+                    noteDrawDiff("transform constants (dirty rows)");
+                    std::memcpy(&s_xc, &fresh, offsetof(GSXfConstants, variant));
+                    changed = ~0ull;
+                }
+            }
+#endif
+            s_writes = g_vu1WatchedRows.writes;
+            if (changed == 0u)
+                return s_xc; // only rows the constants do not use: the same serial
+            s_xc.serial = ++s_serial ? s_serial : ++s_serial;
+            TS_XF_ROWS_CHANGED(s_xc.serial, changed);
+            TS_NATIVE_STAT(++g_nv2aTextureStats.constRebuilds);
+            return s_xc;
+        }
+#endif
         loadConstants(s_xc, data);
         s_xc.serial = ++s_serial ? s_serial : ++s_serial;
         s_writes = g_vu1WatchedRows.writes;
@@ -467,11 +562,17 @@ namespace
             xc->check = check ? 1u : 0u;
         }
 
+#if !TS_NATIVE_RUN_LEAN
         ClipVertex verts[64];
+#endif
 
         // The CPU path for one strip: transform, light and clip here, then
         // to the GS as decoded vertices or as a packet.
         auto cpuStrip = [&](const uint32_t *tag, uint32_t n, uint32_t vi) {
+#if TS_NATIVE_RUN_LEAN
+            ClipVertex verts[64]; // (in this path's frame, not every run's)
+#endif
+            TS_RENDER_COUNT(++g_renderCounters.cpuStrips);
             loadCpuConstants();
             bool allInside = true;
             for (uint32_t v = 0; v < n; ++v)
@@ -624,6 +725,11 @@ namespace
         if (stripCount == 0u)
             return false; // nothing at all: not even the state block
         sendState();
+        // (The strips' arrays lie back to back from top + vertexBase.)
+        TS_RENDER_COUNT(++g_renderCounters.draws);
+        TS_RENDER_COUNT(g_renderCounters.drawStrips += stripCount);
+        TS_RENDER_COUNT(g_renderCounters.drawVertices +=
+                        strips[stripCount - 1u].vi + strips[stripCount - 1u].n - (top + L.vertexBase));
 
 #if TS_NATIVE_RING_SELFCHECK
         static uint32_t s_ringRuns = 0;
@@ -724,13 +830,19 @@ namespace
                 memory->gifArbiter()->drain(); // packets queued behind other paths, in order
             if (ok && gs.beginXfRun(prim, *xc, cursor))
             {
+                TS_RENDER_COUNT(++g_renderCounters.gpuRuns);
+                TS_RENDER_COUNT(g_renderCounters.flatRuns += cursor.direct ? 0u : 1u);
+                TS_RENDER_COUNT(g_renderCounters.mergedRuns += cursor.direct && cursor.join ? 1u : 0u);
                 for (uint32_t k = i; k < j; ++k)
                     gpuStrip(strips[k]);
                 gs.endXfRun(cursor);
             }
             else
+            {
+                TS_RENDER_COUNT(g_renderCounters.declinedRuns += ok ? 1u : 0u);
                 for (uint32_t k = i; k < j; ++k)
                     cpuStrip(strips[k].tag, strips[k].n, strips[k].vi);
+            }
             i = j;
         }
 #if TS_NATIVE_RING_SELFCHECK
@@ -801,7 +913,23 @@ namespace
 
     bool run(uint32_t pc, uint8_t *vuData, uint32_t dataSize, uint32_t top, PS2Memory *memory, GS &gs)
     {
-#if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX) && TS_NATIVE_RUN_LEAN && TS_NATIVE_KCYC
+        // CPU cycles spent here, for the Xbox status block: the same count,
+        // the cycles short of the next thousand carried instead of a 64-bit
+        // total divided each call (a call takes far fewer than 2^32).
+        const auto rdtsc = [] {
+            uint32_t lo, hi;
+            __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+            return (uint64_t(hi) << 32) | lo;
+        };
+        static uint32_t s_carry = 0;
+        const uint64_t start = rdtsc();
+        const bool handled = runInner(pc, vuData, dataSize, top, memory, gs);
+        s_carry += uint32_t(rdtsc() - start);
+        g_nv2aTextureStats.kcycNative += s_carry / 1000u;
+        s_carry %= 1000u;
+        return handled;
+#elif defined(PLATFORM_XBOX) && !TS_NATIVE_RUN_LEAN
         // CPU cycles spent here, for the Xbox status block.
         const auto rdtsc = [] {
             uint32_t lo, hi;

@@ -53,3 +53,11 @@ private:
     bool m_playing = false;
     int32_t m_volumeL = 0x3FFF, m_volumeR = 0x3FFF;
 };
+
+#if defined(PLATFORM_XBOX)
+// Development counters (cumulative CPU cycles) for the audio feeder's status
+// (xbox_raylib.cpp): the time spent in mix(), and the part of it the player
+// spent in its disc reads. The track is streamed from the disc by mix() on
+// the audio thread, which waits for the drive there while other threads run.
+extern unsigned long long g_musicMixCycles, g_musicDiscCycles;
+#endif

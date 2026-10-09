@@ -13,6 +13,7 @@
 #include "runtime/gs/gs_frontend.h"
 #include "xbox_log.h"
 #include "xbox_hwprof.h"
+#include "xbox_perf.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
@@ -72,6 +73,8 @@ namespace
             counters.eeWaitMicroseconds = ps2x::schedulerWaitProbe().waitedMicroseconds.load();
             counters.gpuWaitKcyc = g_nv2aTextureStats.kcycWait;
             hwprofFrame(counters);
+            // Free-memory low-water mark; the frame-time window (xbox_perf.cpp).
+            xboxPerfHostFrame(g_rt->padBackend().scriptActive(), counters.scriptReads);
         }
         static double next = 0.0;
         const double now = GetTime();
@@ -166,11 +169,35 @@ namespace
                       << std::hex << thread.pc << "<" << thread.ra << std::dec;
         out << std::endl;
         xboxLogSetStatus(out.str());
+#if !TS_PERF
         // One short timing line in the log file too: on real hardware there is
         // no debugger reading the status block, the log is copied off the disk.
         std::cout << "[TS:perf] t=" << int(now) << " vsync=" << g_rt->eeScheduler().currentVSyncTick()
                   << " game=" << g_nv2aTextureStats.gameFrames << " idle=" << wait.waitedMicroseconds.load() / 1000
                   << "ms reads=" << g_rt->padBackend().scriptReadCount() << std::endl;
+#else
+        // A few short timing lines in the log file too ([TS:perf] and the
+        // rest, xbox_perf.cpp): on real hardware there is no debugger
+        // reading the status block, the log is copied off the disk.
+        XboxPerfInputs perf;
+        perf.seconds = uint32_t(now);
+        perf.vsync = g_rt->eeScheduler().currentVSyncTick();
+        perf.scriptActive = g_rt->padBackend().scriptActive();
+        perf.scriptReads = uint32_t(g_rt->padBackend().scriptReadCount());
+        perf.rdram = g_rt->memory().getRDRAM();
+#if TS_HWPROF
+        const HwprofSampleCounts samples = hwprofSampleCounts();
+        perf.hwprof = true;
+        perf.rtcSamples = samples.samples;
+        perf.rtcIdle = samples.idle;
+        perf.gpuGraph = samples.gpuGraph;
+        perf.gpuFifo = samples.gpuFifo;
+        perf.gpuBusy = samples.gpuBusy;
+#endif
+        xboxPerfReport(perf);
+#endif
+        renderCountersReport(); // [TS:render] (project/game/ts_render_counters.cpp)
+        std::cout << "[TS:tex] " << nv2aLookupStats() << std::endl;
     }
 
     // std::chrono on nxdk: check the clocks advance like the kernel timer.
@@ -246,14 +273,17 @@ int main()
     checkCpuSpeed();
     checkCalendar();
     hwprofInit();
+    xboxPerfInit();
 
     static PS2Runtime rt; // large; keep it off the stack
     logMemory("runtime constructed");
     // The screen is drawn by the NV2A (gs_nv2a_backend.cpp), installed
     // before the runtime sets up GS memory; without it, the software renderer.
+    // (TS_PERF_BACKEND: inside a timing wrapper, xbox_perf.cpp.)
     if (std::unique_ptr<GSNv2aBackend> gpu = GSNv2aBackend::Create())
     {
-        rt.gs().setRasterBackend(std::move(gpu));
+        rt.gs().setRasterBackend(xboxPerfWrapBackend(std::move(gpu)));
+        hwprofGpuReady();
         std::cout << "[TS:xbox] drawing on the NV2A" << std::endl;
     }
     else
@@ -262,6 +292,7 @@ int main()
     rt.setMissingFunctionPolicy(PS2Runtime::MissingFunctionPolicy::Stop);
     if (!rt.initialize("TimeSplitters"))
         halt("runtime initialisation failed");
+    xboxPerfWrapGif(rt.gifArbiter(), rt.gs()); // TS_PERF_BACKEND: GIF packets timed (else nothing)
     logMemory("runtime initialised");
 
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";

@@ -60,12 +60,14 @@ public:
     void GetClutState(std::array<uint16_t, 512> &clut, std::array<uint32_t, 2> &cbp) const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        const_cast<GSCpuBackend *>(this)->FillDeferredClutUnlocked(); // the same state, filled in
         clut = m_clut;
         cbp = m_clutCbp;
     }
     void SetClutState(const std::array<uint16_t, 512> &clut, const std::array<uint32_t, 2> &cbp)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
+        m_clutDeferred = false;
         m_clut = clut;
         m_clutCbp = cbp;
         ++m_clutGeneration;
@@ -80,11 +82,60 @@ public:
             m_clutCbp[0] = tex0.cbp;
         else if (tex0.cld == 3u || tex0.cld == 5u)
             m_clutCbp[1] = tex0.cbp;
+        m_clutDeferred = false;
         m_clut = clut;
         ++m_clutGeneration;
         m_clutHash = hash;
         m_clutHashGeneration = m_clutGeneration;
     }
+
+    // Full CLUT loads: 8-bit indices, CSM1 and a 32-bit CLUT from CSA 0, so
+    // all 512 halfwords of the buffer are replaced. Their 256 source words
+    // are one contiguous 1 KB of local memory (the four CT32 blocks from
+    // CBP) in a fixed order. ReadFullClut fills clut (512 halfwords) as
+    // LoadClut would, without the row reads; false when the source runs
+    // past the end of local memory (CBP above kLastContiguousClutCbp).
+    static constexpr uint32_t kLastContiguousClutCbp = 16380u;
+    static bool FullClutLoad(const GSTex0Reg &tex0);
+    bool ReadFullClut(uint32_t cbp, uint32_t cpsm, uint16_t *clut) const;
+    // The content hash ClutHash gives for a CLUT buffer (512 halfwords).
+    static uint64_t HashClut(const uint16_t *clut);
+    // A full load (FullClutLoad, CBP within kLastContiguousClutCbp) whose
+    // buffer stays in local memory until something reads it: the CLD
+    // address mirror as SetLoadedClut keeps it and the content hash now;
+    // the buffer is filled (ReadFullClut) only before a draw, a texture
+    // decode, a state read or a load over part of it, and before any write
+    // to local memory (Xbox renderer's palette identities).
+    void DeferClutLoad(const GSTex0Reg &tex0, uint64_t hash)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (tex0.cld == 2u || tex0.cld == 4u)
+            m_clutCbp[0] = tex0.cbp;
+        else if (tex0.cld == 3u || tex0.cld == 5u)
+            m_clutCbp[1] = tex0.cbp;
+        m_clutDeferred = true;
+        m_deferredCbp = tex0.cbp;
+        m_deferredCpsm = tex0.cpsm;
+        ++m_clutGeneration;
+        m_clutHash = hash;
+        m_clutHashGeneration = m_clutGeneration;
+    }
+    // Deferred loads whose buffer was filled in (statistics).
+    uint32_t ClutFills() const { return m_clutFills; }
+    // Development (self-checks): a load done again with the row reads,
+    // whatever the CLD mirror says (it stands); the content hash is worked
+    // out afresh from the buffer.
+    void LoadClutAgain(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        FillDeferredClutUnlocked();
+        LoadClutUnlocked(tex0, texclut);
+    }
+    // Development (boot self-test): ReadFullClut's fixed order against
+    // LoadClut's row reads over random local memory at a few CBPs, both
+    // 32-bit formats. Local memory and the CLUT state are restored. True
+    // when they agree.
+    bool CheckFullClutOrder();
 
     // Byte ranges of GS local memory a primitive may read or write; end is
     // UINT64_MAX when the range is unknown or wraps. Conservative (whole
@@ -140,6 +191,15 @@ private:
     std::array<WriteVramFunc, kPsmHandlerCount> m_writeVramFuncs{};
     std::array<uint16_t, 512> m_clut{};
     std::array<uint32_t, 2> m_clutCbp{};
+    // A deferred full load (DeferClutLoad) not yet in m_clut, and its source.
+    bool m_clutDeferred = false;
+    uint32_t m_deferredCbp = 0, m_deferredCpsm = 0, m_clutFills = 0;
+    void FillDeferredClutUnlocked()
+    {
+        if (m_clutDeferred)
+            FillDeferredClutSlow();
+    }
+    void FillDeferredClutSlow();
     GSMem::TexturePageCache m_texturePageCache;
     bool m_texturePageReuseEnabled = true;
     std::vector<uint32_t> m_spriteTexels;

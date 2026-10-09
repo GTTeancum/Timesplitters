@@ -13,6 +13,7 @@
 // is drawn when it has the texture, else the decode is encoded here.
 #include "runtime/gs/gs_cpu_backend.h"
 
+#include <iosfwd>
 #include <memory>
 
 // Texture cache counters for the status block (xbox_main.cpp).
@@ -83,6 +84,42 @@ struct GSNv2aTextureStats
     uint32_t ringChecked = 0, ringDiffs = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
+
+// Texture, CLUT and constant lookups (cumulative), for the [TS:tex] log line.
+struct GSNv2aLookupStats
+{
+    // Texture lookups; those past the recent table and the last texture
+    // (the cache index, or the list walk while the index is off or full);
+    // index overflows (the walk until the cache shrinks); self-check
+    // (TS_NV2A_SELFCHECK): lookups where the index and the walk disagreed.
+    uint32_t textures = 0, textureSlow = 0, indexOverflows = 0, indexDiffs = 0;
+    // CLUT loads that loaded: full loads answered by the palette table,
+    // missed for want of an entry (new: a free one taken; conflict: another
+    // palette's pushed out), missed because its GS pages changed since, and
+    // the rest (not full loads, or a source at the end of GS memory: the CPU
+    // renderer's own load); deferred buffers the CPU renderer filled in;
+    // self-check: loads whose result differed from the CPU renderer's.
+    uint32_t clutLoads = 0, clutHits = 0, clutNew = 0, clutConflicts = 0, clutVersions = 0, clutOther = 0;
+    uint32_t clutFills = 0, clutDiffs = 0;
+    // With palette identities (TS_CLUT_IDENTITY): what the 128-slot
+    // direct-mapped palette cache they replaced would have done with the
+    // same full loads (hit, new, conflict, page versions changed).
+    uint32_t oldHits = 0, oldNew = 0, oldConflicts = 0, oldVersions = 0;
+    // Transform-constant rows rebuilt with a new value, rows sent to the GPU.
+    uint32_t constRows = 0, constUploads = 0;
+};
+GSNv2aLookupStats nv2aLookupStats();
+
+// The native pipeline's transform constants (project/game/vu1_native_ts.cpp,
+// TS_XF_DIRTY_ROWS): the rows (GSXfConstants as 33 rows of four floats: mvp
+// 0-11, lightDir 12-23, lightColour 24-27, scale 28, offset 29, model 30-32)
+// in which constants serial `serial` may differ from the serial before it
+// (serials skip 0). The renderer rebuilds only those when it built that
+// serial before; a serial it was not told about changes every row.
+void nv2aXfConstantsChanged(uint32_t serial, uint64_t rows);
+// One compact line of them (no allocation): look= slow= ovf= idxdiff= clut=
+// hit= miss new/conf/ver/other= old hit/new/conf/ver= fill= cdiff= krows= kup=
+std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &stats);
 
 class GSNv2aBackend final : public GSRasterBackend
 {

@@ -1654,6 +1654,15 @@ void VU1Interpreter::execute(uint8_t *vuCode, uint32_t codeSize,
                 m_state.stoppedByT = false;
                 return;
             }
+    executeInterpreted(vuCode, codeSize, vuData, dataSize, gs, memory, startPC, top, itop, maxCycles);
+}
+
+void VU1Interpreter::executeInterpreted(uint8_t *vuCode, uint32_t codeSize,
+                                        uint8_t *vuData, uint32_t dataSize,
+                                        GS &gs, PS2Memory *memory,
+                                        uint32_t startPC, uint32_t top, uint32_t itop,
+                                        uint32_t maxCycles)
+{
     // The microprogram itself runs: it may write any VU1 data row.
     if (m_unit == Unit::VU1)
         g_vu1WatchedRows.noteAll();

@@ -5,6 +5,10 @@
 #include <cstdio>
 #include <fstream>
 
+#if defined(PLATFORM_XBOX)
+unsigned long long g_musicMixCycles = 0, g_musicDiscCycles = 0;
+#endif
+
 namespace
 {
     constexpr int32_t kFilter0[5] = {0, 60, 115, 98, 122};
@@ -167,8 +171,10 @@ void Ps2Music::decodeBlock(Channel &c)
     if (pair != g_track.loadedPair && g_track.file)
     {
         std::fill(m_data.begin(), m_data.end(), 0u);
+        const unsigned long long start = __builtin_ia32_rdtsc();
         std::fseek(g_track.file, static_cast<long>(pair * pairBytes), SEEK_SET);
         std::fread(m_data.data(), 1u, m_data.size(), g_track.file);
+        g_musicDiscCycles += __builtin_ia32_rdtsc() - start;
         g_track.loadedPair = pair;
     }
     offset -= pair * pairBytes;
@@ -194,6 +200,13 @@ void Ps2Music::decodeBlock(Channel &c)
 
 void Ps2Music::mix(int16_t *out, unsigned frames)
 {
+#if defined(PLATFORM_XBOX)
+    struct Timer // g_musicMixCycles: all of mix(), the lock wait included
+    {
+        const unsigned long long start = __builtin_ia32_rdtsc();
+        ~Timer() { g_musicMixCycles += __builtin_ia32_rdtsc() - start; }
+    } timer;
+#endif
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_playing || m_data.empty())
         return;

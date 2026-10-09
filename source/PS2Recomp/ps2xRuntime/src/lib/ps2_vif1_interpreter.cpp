@@ -849,7 +849,10 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
 
 #if defined(PLATFORM_XBOX)
 #include <xmmintrin.h> // the row copies and prefetches below (SSE1)
+#include "runtime/ps2_vu1.h" // VU1State (the MSCAL fast path)
+#include "ps2_log.h"
 Vif1StreamStats g_vif1StreamStats;
+RenderCounters g_renderCounters;
 
 namespace
 {
@@ -874,11 +877,10 @@ namespace
     class Vif1PieceReader
     {
     public:
-        Vif1PieceReader(const PS2Memory::Vif1Piece *pieces, size_t count)
-            : m_next(pieces), m_prefetch(pieces), m_last(pieces + count)
+        // bytes: the pieces' total.
+        Vif1PieceReader(const PS2Memory::Vif1Piece *pieces, size_t count, uint32_t bytes)
+            : m_tail(bytes), m_next(pieces), m_prefetch(pieces), m_last(pieces + count)
         {
-            for (size_t i = 0; i < count; ++i)
-                m_tail += pieces[i].second;
             nextPiece();
         }
 
@@ -1313,19 +1315,33 @@ namespace
     constexpr size_t kVif1BlockKeep = 64u * 1024u;
 }
 
+void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
+{
+    uint32_t bytes = 0;
+    for (size_t i = 0; i < count; ++i)
+        bytes += pieces[i].second;
+    processVIF1Pieces(pieces, count, bytes);
+}
+
 // The same commands, side effects and order as processVIF1Data on the pieces
 // joined into one buffer, without joining them: data is read where it lies
 // and a command whose data crosses into the next piece is carried over. A
 // command the chain ends inside is dropped as at the end of a buffer.
-void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
+void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes)
 {
     static_assert(PS2_VU1_DATA_SIZE == 1024u * 16u, "UNPACK writes wrap at 1024 quadwords");
     ++g_vif1StreamStats.chains;
     g_vif1StreamStats.pieces += static_cast<unsigned>(count);
     // Counted here, added to the (64-bit) status counters once per chain.
     uint32_t fastVectors = 0, slowVectors = 0;
+    uint32_t commands = 0; // TS_RENDER_COUNTERS 2
+    (void)commands;
+#if TS_MSCAL_FAST
+    // The EE context is looked up again for each chain (Vu1MscalFast).
+    m_vu1MscalFast.fbrst = nullptr;
+#endif
 
-    Vif1PieceReader in(pieces, count);
+    Vif1PieceReader in(pieces, count, bytes);
     uint8_t split[16]; // a vector or STROW/STCOL data split between pieces
     auto takeBlock = [&](uint32_t bytes) -> const uint8_t *
     {
@@ -1365,6 +1381,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
         const uint8_t opcode = (cmd >> 24) & 0x7F;
         const uint16_t imm = cmd & 0xFFFF;
         const uint8_t num = (cmd >> 16) & 0xFF;
+        TS_RENDER_COUNT2(++commands);
 
         // Track most-recent command for VIFn_CODE emulation.
         vif1_regs.code = cmd;
@@ -1374,6 +1391,12 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
 
         if ((opcode & 0x60u) == 0x60u)
         {
+            // By format and destination (ps2_render_counters.h).
+            TS_RENDER_COUNT2(++g_renderCounters.unpacks[opcode & 0xFu][(imm & 0x8000u) == 0u   ? 3u
+                                                                       : (imm & 0x3FFu) < 24u  ? 0u
+                                                                       : (imm & 0x3FFu) < 216u ? 1u
+                                                                                               : 2u]);
+            TS_RENDER_COUNT2(g_renderCounters.unpackMasked += (opcode >> 4) & 1u);
             const uint32_t vn = (opcode >> 2) & 0x3u;
             const uint32_t vl = opcode & 0x3u;
             const uint32_t components = vn + 1u;
@@ -1560,12 +1583,50 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
 
             if (opcode != VIF_MSCNT)
             {
+                const uint32_t startPC = (uint32_t)imm * 8u;
+                renderCountMscal(startPC);
+#if TS_MSCAL_FAST
+                Vu1MscalFast &fast = m_vu1MscalFast;
+                if (fast.owner)
+                {
+                    if (!fast.fbrst || fast.generation != getVU1CodeGeneration())
+                        fast.lookup(fast.owner, fast);
+                    if (fast.native)
+                    {
+#if TS_MSCAL_FAST_CHECK
+                        ++g_renderCounters.mscalChecked;
+                        if (!fast.check(fast.owner, fast) && ++g_renderCounters.mscalCheckDiffs <= 8u)
+                            RUNTIME_LOG("[VIF:mscalcheck] MSCAL 0x" << std::hex << startPC << std::dec
+                                        << ": the cached program or EE context is not the callback's\n");
+#endif
+                        TS_RENDER_COUNT(++g_renderCounters.mscalFast);
+                        // The callback's steps (ps2_runtime.cpp) and execute()'s
+                        // around a native run (ps2_vu1_core.cpp).
+                        const uint32_t fbrst = *fast.fbrst;
+                        fast.vu1->dBitEnabled = (fbrst & (1u << 10)) != 0u;
+                        fast.vu1->tBitEnabled = (fbrst & (1u << 11)) != 0u;
+                        if (fast.native(startPC, m_vu1Data, PS2_VU1_DATA_SIZE, runTop, this, *fast.gs))
+                        {
+                            fast.vu1->top = runTop;
+                            fast.vu1->itop = runItop;
+                            fast.vu1->stoppedByD = false;
+                            fast.vu1->stoppedByT = false;
+                            *fast.vpuStat &= ~0x0600u; // VPU_STAT: no D/T stop
+                        }
+                        else
+                            fast.interpret(fast.owner, fast, startPC, runTop, runItop);
+                        continue;
+                    }
+                }
+#endif
                 if (m_vu1MscalCallback)
-                    m_vu1MscalCallback((uint32_t)imm * 8u, runTop, runItop);
+                    m_vu1MscalCallback(startPC, runTop, runItop);
             }
-            else if (m_vu1MscntCallback)
+            else
             {
-                m_vu1MscntCallback(runTop, runItop);
+                TS_RENDER_COUNT(++g_renderCounters.mscnt);
+                if (m_vu1MscntCallback)
+                    m_vu1MscntCallback(runTop, runItop);
             }
             continue;
         }
@@ -1636,5 +1697,6 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
     }
     g_vif1StreamStats.fastVectors += fastVectors;
     g_vif1StreamStats.slowVectors += slowVectors;
+    TS_RENDER_COUNT2(g_renderCounters.vifCommands += commands);
 }
 #endif

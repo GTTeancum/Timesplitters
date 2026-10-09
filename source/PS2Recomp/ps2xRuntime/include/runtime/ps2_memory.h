@@ -18,6 +18,7 @@
 #include "ps2_simd.h"
 
 class GS;
+struct VU1State;
 
 // EE I/O register storage. Registers in 0x10000000-0x1000FFFF live in a flat
 // array so different registers can be read and written from different
@@ -318,6 +319,22 @@ struct Vif1StreamStats
     unsigned checked = 0, diffs = 0; // TS_VIF_SELFCHECK (ps2_memory.cpp)
 };
 extern Vif1StreamStats g_vif1StreamStats;
+#include "ps2_render_counters.h"
+
+// TS_MSCAL_FAST 1 (rewrite plan M1.4): a VIF1 chain's MSCAL calls the
+// native VU1 program straight from the decoder (PS2Memory::Vu1MscalFast).
+// 0: every MSCAL goes through the std::function callback (PS2Runtime) as
+// before.
+#ifndef TS_MSCAL_FAST
+#define TS_MSCAL_FAST 1
+#endif
+// TS_MSCAL_FAST_CHECK 1 (development): every fast MSCAL also does the
+// callback's lookups of the native program and the EE context, and counts
+// any difference from the cached ones (mscheck= in the [TS:render] line,
+// the first few logged as [VIF:mscalcheck]; must stay 0).
+#ifndef TS_MSCAL_FAST_CHECK
+#define TS_MSCAL_FAST_CHECK 0
+#endif
 #endif
 
 // PS2 DMA registers
@@ -405,6 +422,34 @@ public:
 
     using Vu1MscalCallback = std::function<void(uint32_t startPC, uint32_t top, uint32_t itop)>;
     void setVu1MscalCallback(Vu1MscalCallback cb) { m_vu1MscalCallback = std::move(cb); }
+#if defined(PLATFORM_XBOX)
+    // The MSCAL fast path (TS_MSCAL_FAST, processVIF1Pieces): the callback's
+    // work for an MSCAL the native VU1 program takes, without the
+    // std::function, execute()'s two program lookups and the two lookups of
+    // the EE thread's context. The native program is looked up again only
+    // when VU1 code changes (generation), the context once per chain (the
+    // EE scheduler changes the running thread or its interrupt context only
+    // in its dispatcher, never inside a chain's decode). PS2Runtime fills it
+    // in; owner null: the callback.
+    struct Vu1MscalFast
+    {
+        void *owner = nullptr;
+        // The native program for VU1 code `generation` (null: none; the callback runs).
+        bool (*native)(uint32_t pc, uint8_t *vuData, uint32_t dataSize, uint32_t top, PS2Memory *memory, GS &gs) = nullptr;
+        uint64_t generation = 0;
+        GS *gs = nullptr;
+        VU1State *vu1 = nullptr; // set as the callback and execute() set it
+        // The running EE thread's FBRST and VPU_STAT (null: look them up).
+        uint32_t *fbrst = nullptr, *vpuStat = nullptr;
+        // Sets native and generation for the current code, fbrst and vpuStat.
+        void (*lookup)(void *owner, Vu1MscalFast &fast) = nullptr;
+        // The native program declined: the rest of execute() and VPU_STAT, as the callback.
+        void (*interpret)(void *owner, Vu1MscalFast &fast, uint32_t startPC, uint32_t top, uint32_t itop) = nullptr;
+        // TS_MSCAL_FAST_CHECK: whether native, fbrst and vpuStat are what the callback would use.
+        bool (*check)(void *owner, const Vu1MscalFast &fast) = nullptr;
+    };
+    void setVu1MscalFast(const Vu1MscalFast &fast) { m_vu1MscalFast = fast; }
+#endif
 
     // Asynchronous VIF1: forward VIF1 DMA (VIF decode, VU1 microprograms,
     // PATH1/PATH2 output to the GS) runs on a worker thread while the EE
@@ -471,6 +516,8 @@ public:
     // as processVIF1Data would decode them joined into one buffer.
     using Vif1Piece = std::pair<const uint8_t *, uint32_t>;
     void processVIF1Pieces(const Vif1Piece *pieces, size_t count);
+    // bytes: the pieces' total (the chain walk adds it up as it records them).
+    void processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes);
 #endif
     void processPendingTransfers();
     std::vector<uint32_t> consumeCompletedDmacCauses();
@@ -591,6 +638,9 @@ public:
         uint32_t srcAddr = 0;
         uint32_t qwc = 0;
         std::vector<uint8_t> chainData;
+#if defined(PLATFORM_XBOX)
+        uint32_t pieceBytes = 0; // a VIF1 chain recorded as pieces: their total (ps2_memory.cpp)
+#endif
     };
     std::vector<PendingTransfer> m_pendingGifTransfers;
     std::vector<PendingTransfer> m_pendingVif0Transfers;
@@ -630,6 +680,9 @@ public:
     bool tryProcessScratchpadDma(uint32_t channelBase, uint32_t chcr);
     void completeDmacChannel(uint32_t channelBase, uint32_t cause);
     void queueCompletedDmacCause(uint32_t cause);
+#if defined(PLATFORM_XBOX)
+    Vu1MscalFast m_vu1MscalFast; // setVu1MscalFast
+#endif
 };
 
 #endif // PS2_MEMORY_H

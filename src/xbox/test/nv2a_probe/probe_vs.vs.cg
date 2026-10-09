@@ -1,0 +1,20 @@
+// nv2a_probe: vertices arrive in screen pixels (x, y), with z inside the
+// depth range and w = 1, so the program only passes them through (like
+// src/xbox/shaders/gs.vs.cg without the texture coordinates).
+struct vIn {
+    float4 pos : POSITION;
+    float4 col : DIFFUSE;
+};
+
+struct vOut {
+    float4 pos : POSITION;
+    float4 col : COLOR0;
+};
+
+vOut main(vIn I)
+{
+    vOut o;
+    o.pos = I.pos;
+    o.col = I.col;
+    return o;
+}

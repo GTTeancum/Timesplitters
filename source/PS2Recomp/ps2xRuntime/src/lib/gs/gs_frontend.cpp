@@ -1909,6 +1909,15 @@ void GS::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_
 // primitives - no depth test or write, flat or pixel-addressed texture,
 // entirely on screen - are narrowed back to their 4:3 width, pinned to the
 // left margin, the right margin or the centre by where they sit.
+// Not on a split screen (gsSplitScreen, runtime/gs/gs_backend.h): widescreen
+// is off then, and the anchors are one full-screen view's edges.
+namespace
+{
+    std::atomic<bool> s_splitScreen{false};
+}
+void gsSetSplitScreen(bool split) { s_splitScreen.store(split, std::memory_order_relaxed); }
+bool gsSplitScreen() { return s_splitScreen.load(std::memory_order_relaxed); }
+
 void GS::adjustWidescreenHud(GSPrimitiveBatch &batch)
 {
     const GSDrawState &state = batch.state;
@@ -1918,7 +1927,8 @@ void GS::adjustWidescreenHud(GSPrimitiveBatch &batch)
     if (state.prim.tme && !state.prim.fst && ztst >= 2u)
         m_lastPerspectiveDraw = m_drawCounter;
     // m_lastPerspectiveDraw stays 0 until the first 3D draw: nothing before it is gameplay.
-    if (!hostSettings().widescreen || m_lastPerspectiveDraw == 0u || m_drawCounter - m_lastPerspectiveDraw > 20000u)
+    if (!hostSettings().widescreen || gsSplitScreen() || m_lastPerspectiveDraw == 0u ||
+        m_drawCounter - m_lastPerspectiveDraw > 20000u)
         return;
     if (ztst != 1u || !ctx.zbuf.zmask || (state.prim.tme && !state.prim.fst) || batch.vertexCount == 0u)
         return;

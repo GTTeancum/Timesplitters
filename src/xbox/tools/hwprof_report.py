@@ -154,7 +154,7 @@ def main():
         print('no numbered [TS:prof] lines found')
         return 1
 
-    begin = frame = None
+    begin = frame = gpu = None
     fh = ''
     threads = {}
     hist = collections.Counter()  # (slot, addr) -> count
@@ -166,8 +166,10 @@ def main():
             begin = dict(kv.split('=', 1) for kv in rest.split() if '=' in kv)
         elif kind == 'frame':
             frame = dict(kv.split('=', 1) for kv in rest.split() if '=' in kv)
-        elif kind == 'fh':
-            fh = rest
+        elif kind == 'fh':  # several lines (10 bins each); older logs have one
+            fh += ' ' + rest
+        elif kind == 'gpu':
+            gpu = dict(kv.split('=', 1) for kv in rest.split() if '=' in kv)
         elif kind == 't':
             w = rest.split()
             info = dict(kv.split('=', 1) for kv in w[1:] if '=' in kv)
@@ -210,7 +212,13 @@ def main():
               % (f_us / 1000, 1e6 / f_us if f_us else 0, int(frame.get('eewait_us', 0)) / 1000,
                  int(frame.get('gpuwait_us', 0)) / 1000))
     if fh.strip():
-        print('   frame times (ms bin:frames):', fh.strip())
+        print('   frame times (ms bin:frames):', ' '.join(fh.split()))
+    if gpu and int(gpu.get('samples', 0)):
+        n = int(gpu['samples'])
+        print('   of all samples: kernel idle %.1f%%; GPU busy %.1f%% (graphics engine %.1f%%, commands queued %.1f%%)%s'
+              % (100.0 * int(gpu.get('idle', 0)) / n, 100.0 * int(gpu.get('busy', 0)) / n,
+                 100.0 * int(gpu.get('graph', 0)) / n, 100.0 * int(gpu.get('fifo', 0)) / n,
+                 '' if gpu.get('ready') == '1' else ' (GPU not sampled: no NV2A renderer)'))
 
     # Thread table.
     srckey = 'rtc' if src == 'rtc' else 'pit'

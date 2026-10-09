@@ -215,6 +215,7 @@ void EeScheduler::run()
     {
 #if defined(PLATFORM_XBOX)
         ++g_eeSchedulerStats.loopIterations;
+        ps2x::g_eeProtocolStats.eeCycle = m_eeCycle;
 #endif
         processPendingEvents();
         if (m_stopRequested.load(std::memory_order_acquire))
@@ -432,8 +433,11 @@ bool EeScheduler::checkpointDueSlow(uint64_t elapsed) noexcept
 {
     // The inline checkpointDue already added the cycles to m_eeCycle; the
     // rest is accountCycles' and checkpointDue's own work, in order.
+    ++ps2x::g_eeProtocolStats.slowCheckpoints;
     accountDeviceCycles(elapsed);
-    return checkpointDecision();
+    const bool due = checkpointDecision();
+    ps2x::g_eeProtocolStats.firedCheckpoints += due ? 1u : 0u;
+    return due;
 }
 #else
 bool EeScheduler::checkpointDue(uint32_t cycles) noexcept
@@ -497,6 +501,7 @@ void EeScheduler::accountDeviceCycles(uint64_t elapsed) noexcept
     elapsed = carry;
     m_deviceBatchStart = m_eeCycle;
 #if defined(PLATFORM_XBOX)
+    ++ps2x::g_eeProtocolStats.deviceBatches;
     refreshFastUntil();
 #endif
 #endif
@@ -1944,6 +1949,13 @@ void EeScheduler::processDueDeadlines()
             if (item.hostDeadline <= now)
                 expiredCycle = std::max(expiredCycle, item.deadlineCycle);
     }
+#if defined(PLATFORM_XBOX)
+    if (m_eeCycle < expiredCycle)
+    {
+        ++ps2x::g_eeProtocolStats.catchUps;
+        ps2x::g_eeProtocolStats.catchUpCycles += expiredCycle - m_eeCycle;
+    }
+#endif
     while (m_eeCycle < expiredCycle)
         accountCycles(static_cast<uint32_t>(std::min<uint64_t>(
             expiredCycle - m_eeCycle, UINT32_MAX)));
@@ -2222,6 +2234,10 @@ void EeScheduler::waitForEvent()
     if (!signaled)
     {
         const uint64_t elapsed = deadlineCycle > m_eeCycle ? deadlineCycle - m_eeCycle : 0u;
+#if defined(PLATFORM_XBOX)
+        ++ps2x::g_eeProtocolStats.catchUps;
+        ps2x::g_eeProtocolStats.catchUpCycles += elapsed;
+#endif
         lock.unlock();
         uint64_t remaining = elapsed;
         while (remaining > 0u)

@@ -232,6 +232,19 @@ namespace ps2_stubs
             return &g_padPorts[port * kPadSlotCount + slot];
         }
 
+        // Whether a controller is behind a (port, slot) handle: one of the pad
+        // backend's lanes (runtime/ps2_pad.h: the pad script's lanes, else the
+        // gamepads present). Without a runtime only port 0 slot 0, as before.
+        bool padLaneConnected(PS2Runtime *runtime, int port, int slot)
+        {
+            if (!runtime)
+            {
+                return port == 0 && slot == 0;
+            }
+            const int lane = PSPadBackend::laneForPort(port, slot);
+            return lane >= 0 && runtime->padBackend().laneConnected(lane);
+        }
+
         void initializePadPortLocked(PadPortState &portState, uint32_t dmaAddr)
         {
             portState.open = true;
@@ -326,7 +339,9 @@ namespace ps2_stubs
                     state.lx = backendData[6];
                     state.ly = backendData[7];
                     usedBackend = true;
-                    if (padScriptMergeLiveEnabled())
+                    // Live input merges into player 1 only (it is the first
+                    // gamepad and the keyboard; players 2-4 have their own).
+                    if (port == 0 && slot == 0 && padScriptMergeLiveEnabled())
                     {
                         applyGamepadState(state);
                         applyKeyboardState(state, portState.analogMode);
@@ -487,18 +502,44 @@ namespace ps2_stubs
     void scePadGetSlotMax(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         (void)rdram;
-        (void)runtime;
-        // Most games use one slot unless multitap is active.
-        setReturnS32(ctx, 1);
+        // One slot per port, four on the port that holds a multitap (more than
+        // two pad lanes: lanes 1-3 are port 1's slots 0-2, runtime/ps2_pad.h).
+        // TimeSplitters asks for each port every 120 joyTicks (joyMtapTick)
+        // and polls only the slots up to the answer; its own sceMtap calls
+        // report no multitap (the RPCs fail), so this alone enables slots 1-3.
+        const int port = static_cast<int>(getRegU32(ctx, 4));
+        const int32_t slots = (runtime && runtime->padBackend().multitapOnPort(port)) ? 4 : 1;
+        static int32_t s_logged[kPadPortCount] = {1, 1};
+        if (port >= 0 && port < static_cast<int>(kPadPortCount) && s_logged[port] != slots)
+        {
+            s_logged[port] = slots;
+            std::cout << "[pad:mtap] port=" << port << " slots=" << slots << '\n';
+        }
+        setReturnS32(ctx, slots);
     }
 
     void scePadGetState(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         (void)rdram;
-        (void)runtime;
+        const int port = static_cast<int>(getRegU32(ctx, 4));
+        const int slot = static_cast<int>(getRegU32(ctx, 5));
         std::lock_guard<std::mutex> lock(g_padStateMutex);
-        PadPortState *portState = lookupPadPortStateLocked(static_cast<int>(getRegU32(ctx, 4)),
-                                                           static_cast<int>(getRegU32(ctx, 5)));
+        PadPortState *portState = lookupPadPortStateLocked(port, slot);
+        if (portState && portState->open)
+        {
+            // Gamepads come and go (a script's lanes stay connected); a pad
+            // plugged in starts DIGITAL with no pressure mode, like a real one.
+            const bool connected = padLaneConnected(runtime, port, slot);
+            if (connected != portState->connected)
+            {
+                if (connected)
+                {
+                    initializePadPortLocked(*portState, portState->dmaAddr);
+                }
+                portState->connected = connected;
+                std::cout << "[pad:connect] port=" << port << " slot=" << slot << " connected=" << connected << '\n';
+            }
+        }
         int32_t state = kPadStateDisconnected;
         if (portState && portState->open && portState->connected)
         {
@@ -640,7 +681,6 @@ namespace ps2_stubs
 
     void scePadPortOpen(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
-        (void)runtime;
         const uint32_t dmaAddr = getRegU32(ctx, 6);
         uint8_t *dmaStr = getMemPtr(rdram, dmaAddr);
         std::lock_guard<std::mutex> lock(g_padStateMutex);
@@ -653,9 +693,10 @@ namespace ps2_stubs
         }
 
         portState->open = true;
-        // No multitap or multi-controller backend exists yet. Extra handles remain
-        // disconnected, never duplicate keyboard/gamepad input or claim a controller.
-        portState->connected = (getRegU32(ctx, 4) == 0u && getRegU32(ctx, 5) == 0u);
+        // A handle is connected only when a pad lane is behind it (port 0 slot 0
+        // always); the others stay disconnected and never duplicate lane 0's input.
+        portState->connected = padLaneConnected(runtime, static_cast<int>(getRegU32(ctx, 4)),
+                                                static_cast<int>(getRegU32(ctx, 5)));
         std::cout << "[pad:open] port=" << getRegU32(ctx, 4)
                   << " slot=" << getRegU32(ctx, 5) << " dma=0x" << std::hex << dmaAddr
                   << std::dec << " connected=" << portState->connected << '\n';

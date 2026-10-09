@@ -1,0 +1,103 @@
+# Two-player splitscreen arcade match for measurement runs
+# (make AUTOPLAY=src/xbox/test/arcade-2p.pad). The same match as
+# arcade-4p.pad with two players: Tomb deathmatch, default options except
+# Score limit None, six bots; then both players move, turn and fire for
+# about 4,000 reads. The match starts about read 1,200, so the busy stretch
+# of the 1P script (reads 1500-2700) lies inside it.
+#
+# Format (ps2_pad.cpp): <reads> <lane 0> | <lane 1>, each lane <buttons>
+# [lx ly rx ry]; lane 0 is player 1 (port 0) and the clock, lane 1 player 2
+# (port 1). wait_u32 and repeat/end as in arcade-4p.pad. In a match the left
+# stick moves, the right stick turns, R1 fires, cross respawns.
+
+lanes 2
+
+# The title offers as many players as there are controllers ready and takes
+# input after its fade-in (see arcade-4p.pad): wait for player 2's
+# controller (port 1 slot 0), then for the title's timer. Pick 2up.
+wait_u32 0x0031CE50 == 99
+wait_u32 0x003AE794 > 0x40133333
+10 none
+2 right
+10 none
+2 cross
+40 none
+
+# Sign On: each player picks New Player... and opens the keyboard.
+2 up | up
+10 none
+2 cross | cross
+30 none
+# Names A and B.
+2 none | right
+10 none
+2 cross | cross
+10 none
+# Cursor to END: up wraps to CAPS ON, left wraps to END.
+2 up | up
+10 none
+2 left | left
+10 none
+# One player at a time (the save dialog blocks the other): END, then
+# DON'T SAVE (down twice) and accept.
+2 cross
+30 none
+2 down
+10 none
+2 down
+10 none
+2 cross
+40 none
+2 none | cross
+30 none
+2 none | down
+10 none
+2 none | down
+10 none
+2 none | cross
+60 none
+
+# Select Game Type: ARCADE (already highlighted).
+2 cross
+60 none
+# Select Level: Tomb, Deathmatch.
+2 cross
+60 none
+# Options: Score limit (down from GO!) held left from 20 points to None,
+# then back up to GO!.
+2 down
+10 none
+300 left
+10 none
+2 up
+10 none
+2 cross
+120 none
+# Characters: both take the first, then player 1 starts the game.
+2 cross | cross
+40 none
+2 cross
+# The level is loaded and running: two local players.
+wait_u32 0x003ae764 == 2
+30 none
+
+# 24 reads per step as in arcade-4p.pad (its first two lanes).
+repeat 21
+6  r1+cross 128 0 192 128 | r1+cross 128 0 128 128
+18 none 128 0 192 128 | none 128 0 128 128
+6  r1+cross 128 0 192 128 | r1+cross 128 0 64 128
+18 none 128 0 192 128 | none 128 0 64 128
+6  r1+cross 128 0 128 128 | r1+cross 128 0 64 128
+18 none 128 0 128 128 | none 128 0 64 128
+6  r1+cross 128 0 64 128 | r1+cross 32 64 128 128
+18 none 128 0 64 128 | none 32 64 128 128
+6  r1+cross 128 0 64 128 | r1+cross 224 64 128 128
+18 none 128 0 64 128 | none 224 64 128 128
+6  r1+cross 32 64 128 128 | r1+cross 128 224 160 128
+18 none 32 64 128 128 | none 128 224 160 128
+6  r1+cross 224 64 128 128 | r1+cross 128 0 192 128
+18 none 224 64 128 128 | none 128 0 192 128
+6  r1+cross 128 224 160 128 | r1+cross 128 0 192 128
+18 none 128 224 160 128 | none 128 0 192 128
+end
+1 none

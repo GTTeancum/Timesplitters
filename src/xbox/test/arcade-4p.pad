@@ -1,0 +1,141 @@
+# Four-player splitscreen arcade match for measurement runs
+# (make AUTOPLAY=src/xbox/test/arcade-4p.pad). Tomb deathmatch like
+# arcade-match.pad, default options except Score limit None, six bots; then
+# all four players move, turn and fire for about 4,000 reads. The match
+# starts about read 1,400, so the busy stretch of the 1P script (reads
+# 1500-2700, TS_HWPROF's window) lies inside it.
+#
+# Format (ps2_pad.cpp):
+#   <reads> <lane 0> | <lane 1> | <lane 2> | <lane 3>
+#     each lane <buttons> [lx ly rx ry]; a lane left out is released.
+#     Lane 0 is player 1 (port 0) and the clock: reads count its reads.
+#     Lanes 1-3 are players 2-4 (a multitap in port 1).
+#   wait_u32 <guest-address> <comparison> <value>
+#   repeat <n> ... end   the frames in between play n times
+# In a match the left stick moves (ly 0 forward, lx strafes), the right
+# stick turns (rx), R1 fires, cross respawns.
+
+lanes 4
+
+# The title's 1up 2up 3up 4up (nplayers_pageTick) offers as many players as
+# the game has controllers ready, and takes input once the page's fade-in
+# timer (float, seconds, at 0x3AE794) passes 2.3 s (frontfxFinished). The
+# game's 8 controllers sit at 0x31C740, 0x180 apart, in port*4+slot order,
+# state 99 at +0x110 when ready: wait for player 4's (port 1 slot 2), then
+# for the timer (2.3f is 0x40133333; positive floats order like their
+# bits). Pick 4up (start would take 1up, as in arcade-match.pad).
+wait_u32 0x0031D150 == 99
+wait_u32 0x003AE794 > 0x40133333
+10 none
+2 right
+10 none
+2 right
+10 none
+2 right
+10 none
+2 cross
+40 none
+
+# Sign On: each player picks New Player... and opens the keyboard.
+2 up | up | up | up
+10 none
+2 cross | cross | cross | cross
+30 none
+# Names A, B, C, D.
+2 none | right | right | right
+10 none
+2 none | none | right | right
+10 none
+2 none | none | none | right
+10 none
+2 cross | cross | cross | cross
+10 none
+# Cursor to END: up wraps to the bottom row (CAPS ON, or SPACE under D),
+# left wraps to END.
+2 up | up | up | up
+10 none
+2 left | left | left | left
+10 none
+2 none | none | none | left
+10 none
+# One player at a time (the save dialog blocks the others): END, then
+# DON'T SAVE (down twice) and accept.
+2 cross
+30 none
+2 down
+10 none
+2 down
+10 none
+2 cross
+40 none
+2 none | cross
+30 none
+2 none | down
+10 none
+2 none | down
+10 none
+2 none | cross
+40 none
+2 none | none | cross
+30 none
+2 none | none | down
+10 none
+2 none | none | down
+10 none
+2 none | none | cross
+40 none
+2 none | none | none | cross
+30 none
+2 none | none | none | down
+10 none
+2 none | none | none | down
+10 none
+2 none | none | none | cross
+60 none
+
+# Select Game Type: ARCADE (STORY is greyed out with four players).
+2 cross
+60 none
+# Select Level: Tomb, Deathmatch.
+2 cross
+60 none
+# Options: Score limit (down from GO!) held left from 20 points to None,
+# then back up to GO!.
+2 down
+10 none
+300 left
+10 none
+2 up
+10 none
+2 cross
+120 none
+# Characters: everyone takes the first, then player 1 starts the game.
+2 cross | cross | cross | cross
+40 none
+2 cross
+# The level is loaded and running: four local players.
+wait_u32 0x003ae764 == 4
+30 none
+
+# 24 reads per step: 6 firing (cross respawns a dead player and does
+# nothing for a live one), 18 not; per lane a different mix of forward +
+# turn right, forward, forward + turn left, strafes and backing up.
+repeat 21
+6  r1+cross 128 0 192 128 | r1+cross 128 0 128 128 | r1+cross 128 0 64 128 | r1+cross 224 64 128 128
+18 none 128 0 192 128 | none 128 0 128 128 | none 128 0 64 128 | none 224 64 128 128
+6  r1+cross 128 0 192 128 | r1+cross 128 0 64 128 | r1+cross 32 64 128 128 | r1+cross 128 224 160 128
+18 none 128 0 192 128 | none 128 0 64 128 | none 32 64 128 128 | none 128 224 160 128
+6  r1+cross 128 0 128 128 | r1+cross 128 0 64 128 | r1+cross 224 64 128 128 | r1+cross 128 0 192 128
+18 none 128 0 128 128 | none 128 0 64 128 | none 224 64 128 128 | none 128 0 192 128
+6  r1+cross 128 0 64 128 | r1+cross 32 64 128 128 | r1+cross 128 224 160 128 | r1+cross 128 0 192 128
+18 none 128 0 64 128 | none 32 64 128 128 | none 128 224 160 128 | none 128 0 192 128
+6  r1+cross 128 0 64 128 | r1+cross 224 64 128 128 | r1+cross 128 0 192 128 | r1+cross 128 0 128 128
+18 none 128 0 64 128 | none 224 64 128 128 | none 128 0 192 128 | none 128 0 128 128
+6  r1+cross 32 64 128 128 | r1+cross 128 224 160 128 | r1+cross 128 0 192 128 | r1+cross 128 0 64 128
+18 none 32 64 128 128 | none 128 224 160 128 | none 128 0 192 128 | none 128 0 64 128
+6  r1+cross 224 64 128 128 | r1+cross 128 0 192 128 | r1+cross 128 0 128 128 | r1+cross 128 0 64 128
+18 none 224 64 128 128 | none 128 0 192 128 | none 128 0 128 128 | none 128 0 64 128
+6  r1+cross 128 224 160 128 | r1+cross 128 0 192 128 | r1+cross 128 0 64 128 | r1+cross 32 64 128 128
+18 none 128 224 160 128 | none 128 0 192 128 | none 128 0 64 128 | none 32 64 128 128
+end
+1 none

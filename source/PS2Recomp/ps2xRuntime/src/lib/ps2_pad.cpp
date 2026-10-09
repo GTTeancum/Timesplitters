@@ -213,10 +213,10 @@ namespace
     }
 
 #if defined(_WIN32)
-    bool readXInputState(uint8_t *data, uint16_t &buttons)
+    bool readXInputState(XInputDword user, uint8_t *data, uint16_t &buttons)
     {
         XINPUT_STATE state{};
-        if (XInputGetState(0, &state) != kXInputErrorSuccess)
+        if (XInputGetState(user, &state) != kXInputErrorSuccess)
         {
             return false;
         }
@@ -272,6 +272,34 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
     size_t lineNumber = 0;
     bool modeKnown = false;
     bool timed = false;
+    int lanes = 1;
+    constexpr size_t kNoRepeat = ~size_t(0);
+    size_t repeatStart = kNoRepeat; // first frame of the open repeat block
+    uint32_t repeatCount = 0;
+
+    // One lane's "<buttons> [lx ly rx ry]".
+    auto parseLane = [](std::istringstream &tokens, ScriptLane &lane, size_t lineNumber)
+    {
+        std::string buttonsText;
+        if (!(tokens >> buttonsText))
+        {
+            PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected buttons token"));
+        }
+        lane.buttons = parseButtonList(buttonsText, lineNumber);
+        std::string value;
+        if (tokens >> value)
+            lane.lx = parseByteValue(value, lineNumber);
+        if (tokens >> value)
+            lane.ly = parseByteValue(value, lineNumber);
+        if (tokens >> value)
+            lane.rx = parseByteValue(value, lineNumber);
+        if (tokens >> value)
+            lane.ry = parseByteValue(value, lineNumber);
+        if (tokens >> value)
+        {
+            PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields"));
+        }
+    };
 
     PS2X_TRY
     {
@@ -282,31 +310,112 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
             {
                 line.resize(comment);
             }
+            // More controllers: "<reads> <lane 0> | <lane 1> | ..." (lane 0
+            // is the clock; a lane left out of a line is released).
+            std::string laneText;
+            const size_t firstBar = line.find('|');
+            bool moreLanes = firstBar != std::string::npos;
+            if (moreLanes)
+            {
+                laneText = line.substr(firstBar + 1);
+                line.resize(firstBar);
+            }
             std::istringstream tokens(line);
             std::string readsText;
-            std::string buttonsText;
             if (!(tokens >> readsText))
             {
+                if (moreLanes)
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected read count before '|'"));
+                }
                 continue;
             }
 
             std::string marker = readsText;
             std::transform(marker.begin(), marker.end(), marker.begin(), [](unsigned char c)
                            { return static_cast<char>(std::tolower(c)); });
+            // "lanes <n>": connect n controllers even before a frame plays them.
+            if (marker == "lanes")
+            {
+                std::string countText;
+                std::string extra;
+                if (!(tokens >> countText) || (tokens >> extra) || moreLanes)
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected lanes <count>"));
+                }
+                const uint32_t count = parseU32Value(countText, lineNumber, "lane count");
+                if (count < 1u || count > static_cast<uint32_t>(kMaxLanes))
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": lane count must be 1.." + std::to_string(kMaxLanes) + " (TS_PAD_LANES)"));
+                }
+                lanes = std::max(lanes, static_cast<int>(count));
+                continue;
+            }
             const bool lineTimed = marker == "at";
             const bool lineWaitU32 = marker == "wait_u32";
+            // "repeat <n>" ... "end": the frames in between play n times
+            // (blocks do not nest).
+            const bool lineRepeat = marker == "repeat";
+            const bool lineEnd = marker == "end";
+            const bool lineControl = lineWaitU32 || lineRepeat || lineEnd;
+            if (lineControl && moreLanes)
+            {
+                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": '|' is only allowed on frame lines"));
+            }
             if (!modeKnown)
             {
                 modeKnown = true;
                 timed = lineTimed;
             }
-            else if (!lineWaitU32 && lineTimed != timed)
+            else if (!lineControl && lineTimed != timed)
             {
                 PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": cannot mix timed and read-count pad script frames"));
             }
-            if (lineWaitU32 && timed)
+            if (lineControl && timed)
             {
-                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": wait_u32 is only supported in read-count pad scripts"));
+                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": " + marker + " is only supported in read-count pad scripts"));
+            }
+
+            if (lineRepeat || lineEnd)
+            {
+                std::string countText;
+                std::string extra;
+                if ((lineRepeat && !(tokens >> countText)) || (tokens >> extra))
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected repeat <count> or end"));
+                }
+                if (lineRepeat)
+                {
+                    if (repeatStart != kNoRepeat)
+                    {
+                        PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": repeat blocks cannot nest"));
+                    }
+                    repeatCount = parseU32Value(countText, lineNumber, "repeat count");
+                    if (repeatCount == 0u || repeatCount > 1000000u)
+                    {
+                        PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected repeat count 1..1000000"));
+                    }
+                    repeatStart = frames.size();
+                    continue;
+                }
+                if (repeatStart == kNoRepeat)
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": end without repeat"));
+                }
+                // A block of waits alone would replay forever without a read.
+                if (std::none_of(frames.begin() + static_cast<std::ptrdiff_t>(repeatStart), frames.end(), [](const ScriptFrame &f)
+                                 { return f.kind == ScriptFrame::Kind::Frame; }))
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": a repeat block needs a frame line"));
+                }
+                ScriptFrame frame{};
+                frame.kind = ScriptFrame::Kind::Repeat;
+                frame.waitAddress = static_cast<uint32_t>(repeatStart);
+                frame.waitValue = repeatCount - 1u;
+                frame.reads = frame.waitValue;
+                frames.push_back(frame);
+                repeatStart = kNoRepeat;
+                continue;
             }
 
             if (lineWaitU32)
@@ -340,10 +449,6 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
                     PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected seconds token"));
                 }
             }
-            if (!(tokens >> buttonsText))
-            {
-                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected buttons token"));
-            }
 
             ScriptFrame frame{};
             if (timed)
@@ -358,21 +463,26 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
             {
                 frame.reads = parseReadCount(readsText, lineNumber);
             }
-            frame.buttons = parseButtonList(buttonsText, lineNumber);
-            std::string value;
-            if (tokens >> value)
-                frame.lx = parseByteValue(value, lineNumber);
-            if (tokens >> value)
-                frame.ly = parseByteValue(value, lineNumber);
-            if (tokens >> value)
-                frame.rx = parseByteValue(value, lineNumber);
-            if (tokens >> value)
-                frame.ry = parseByteValue(value, lineNumber);
-            if (tokens >> value)
+            parseLane(tokens, frame.lanes[0], lineNumber);
+            for (int lane = 1; moreLanes; ++lane)
             {
-                PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields"));
+                if (lane >= kMaxLanes)
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": more than " + std::to_string(kMaxLanes) + " lanes (TS_PAD_LANES)"));
+                }
+                const size_t bar = laneText.find('|');
+                moreLanes = bar != std::string::npos;
+                std::istringstream groupTokens(laneText.substr(0, bar));
+                if (moreLanes)
+                    laneText.erase(0, bar + 1);
+                parseLane(groupTokens, frame.lanes[lane], lineNumber);
+                lanes = std::max(lanes, lane + 1);
             }
             frames.push_back(frame);
+        }
+        if (repeatStart != kNoRepeat)
+        {
+            PS2X_THROW(std::runtime_error("repeat without end"));
         }
     }
     PS2X_CATCH(const std::exception &, e)
@@ -395,6 +505,8 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
         return false;
     }
 
+    // Kept for the whole run: no spare capacity.
+    frames.shrink_to_fit();
     m_script = std::move(frames);
     m_scriptIndex = 0;
     m_scriptFrameRead = 0;
@@ -402,6 +514,8 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
     m_scriptExhausted = false;
     m_scriptTimed = timed;
     m_scriptStartTime = std::chrono::steady_clock::now();
+    m_scriptLanes = static_cast<uint8_t>(lanes);
+    m_scriptLaneFrame = 0;
     if (error)
     {
         error->clear();
@@ -450,6 +564,48 @@ void PSPadBackend::clearScript()
     m_scriptTimeScale = 1.0;
     m_scriptStartTime = {};
     m_scriptU32Reader = {};
+    m_scriptLanes = 1;
+    m_scriptLaneFrame = 0;
+}
+
+int PSPadBackend::laneForPort(int port, int slot)
+{
+    // Lane 0: port 0. Lanes 1-3: port 1, directly or on its multitap.
+    int lane = -1;
+    if (port == 0 && slot == 0)
+        lane = 0;
+    else if (port == 1 && slot >= 0 && slot <= 2)
+        lane = 1 + slot;
+    return lane < kMaxLanes ? lane : -1;
+}
+
+int PSPadBackend::liveLaneCount() const
+{
+    int lanes = 1;
+    for (int lane = 1; lane < kMaxLanes; ++lane)
+    {
+        if (IsGamepadAvailable(lane))
+            lanes = lane + 1;
+    }
+    return lanes;
+}
+
+bool PSPadBackend::laneConnected(int lane) const
+{
+    if (lane == 0)
+        return true;
+    if (lane < 0 || lane >= kMaxLanes)
+        return false;
+    if (!m_script.empty())
+        return lane < m_scriptLanes;
+    return IsGamepadAvailable(lane);
+}
+
+bool PSPadBackend::multitapOnPort(int port) const
+{
+    if (port != 1 || kMaxLanes <= 2)
+        return false;
+    return (m_script.empty() ? liveLaneCount() : int(m_scriptLanes)) > 2;
 }
 
 uint8_t PSPadBackend::analogAxisFromUnit(float value)
@@ -495,18 +651,28 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
     data[4] = data[5] = data[6] = data[7] = kPadStickCenter;
 
     uint16_t btns = 0xFFFFu;
-    auto writeScriptFrame = [data](const ScriptFrame &frame)
+    auto writeScriptLane = [data](const ScriptLane &lane)
     {
-        data[2] = static_cast<uint8_t>(frame.buttons & 0xFFu);
-        data[3] = static_cast<uint8_t>(frame.buttons >> 8);
-        data[4] = frame.rx;
-        data[5] = frame.ry;
-        data[6] = frame.lx;
-        data[7] = frame.ly;
+        data[2] = static_cast<uint8_t>(lane.buttons & 0xFFu);
+        data[3] = static_cast<uint8_t>(lane.buttons >> 8);
+        data[4] = lane.rx;
+        data[5] = lane.ry;
+        data[6] = lane.lx;
+        data[7] = lane.ly;
     };
-    if (!m_script.empty() && port == 0 && slot == 0)
+    // Lane 0 plays the script and moves it on; it notes the frame it played
+    // so the other lanes, read after it in the same game frame, play the
+    // same one (or nothing while lane 0 waits).
+    auto writeScriptFrame = [this, &writeScriptLane](size_t index)
+    {
+        writeScriptLane(m_script[index].lanes[0]);
+        m_scriptLaneFrame = static_cast<uint32_t>(index + 1);
+    };
+    const int lane = laneForPort(port, slot);
+    if (!m_script.empty() && lane == 0)
     {
         ++m_scriptReadCount;
+        m_scriptLaneFrame = 0;
         if (m_scriptTimed)
         {
             const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - m_scriptStartTime).count() / m_scriptTimeScale;
@@ -516,16 +682,34 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
                 {
                     ++m_scriptIndex;
                 }
-                writeScriptFrame(m_script[m_scriptIndex]);
+                writeScriptFrame(m_scriptIndex);
                 m_scriptExhausted = m_scriptIndex + 1 >= m_script.size();
             }
             return true;
         }
 
-        while (m_scriptIndex < m_script.size() && m_script[m_scriptIndex].kind == ScriptFrame::Kind::WaitU32)
+        // Waits and repeat ends take no read of their own.
+        while (m_scriptIndex < m_script.size() && m_script[m_scriptIndex].kind != ScriptFrame::Kind::Frame)
         {
-            const ScriptFrame &wait = m_script[m_scriptIndex];
-            if (!m_scriptU32Reader || !compareU32(m_scriptU32Reader(wait.waitAddress), wait.waitCompare, wait.waitValue))
+            ScriptFrame &control = m_script[m_scriptIndex];
+            if (control.kind == ScriptFrame::Kind::Repeat)
+            {
+                // Back to the block's first frame while passes remain (the
+                // block holds a frame line, so this ends at a read).
+                if (control.reads != 0u)
+                {
+                    --control.reads;
+                    m_scriptIndex = control.waitAddress;
+                }
+                else
+                {
+                    control.reads = control.waitValue;
+                    ++m_scriptIndex;
+                }
+                m_scriptFrameRead = 0;
+                continue;
+            }
+            if (!m_scriptU32Reader || !compareU32(m_scriptU32Reader(control.waitAddress), control.waitCompare, control.waitValue))
             {
                 return true;
             }
@@ -540,7 +724,7 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
         }
 
         const ScriptFrame &frame = m_script[m_scriptIndex];
-        writeScriptFrame(frame);
+        writeScriptFrame(m_scriptIndex);
         if (!m_scriptExhausted && ++m_scriptFrameRead >= frame.reads)
         {
             m_scriptFrameRead = 0;
@@ -555,14 +739,29 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
         }
         return true;
     }
+    if (lane < 0)
+    {
+        // No controller behind this handle (Pad.cpp keeps it disconnected).
+        return true;
+    }
+    if (!m_script.empty())
+    {
+        // Lanes 1-3 play the frame lane 0 played (connected only when the
+        // script has them).
+        if (lane < m_scriptLanes && m_scriptLaneFrame != 0)
+            writeScriptLane(m_script[m_scriptLaneFrame - 1].lanes[lane]);
+        return true;
+    }
 
-    constexpr int kGamepad = 0;
-    const bool useGamepad = IsGamepadAvailable(kGamepad);
+    // Live input: lane 0 is gamepad 0, else the keyboard; lanes 1-3 are
+    // gamepads 1-3.
+    const int gamepad = lane;
+    const bool useGamepad = IsGamepadAvailable(gamepad);
     auto clearBit = [&btns](uint16_t mask)
     { btns &= ~mask; };
 
 #if defined(_WIN32)
-    if (readXInputState(data, btns))
+    if (readXInputState(static_cast<XInputDword>(gamepad), data, btns))
     {
         data[2] = static_cast<uint8_t>(btns & 0xFF);
         data[3] = static_cast<uint8_t>(btns >> 8);
@@ -572,49 +771,49 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
 
     if (useGamepad)
     {
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_LEFT_FACE_UP))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_UP))
             clearBit(PAD_UP);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_LEFT_FACE_DOWN))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_DOWN))
             clearBit(PAD_DOWN);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_LEFT_FACE_LEFT))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_LEFT))
             clearBit(PAD_LEFT);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))
             clearBit(PAD_RIGHT);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_DOWN))
             clearBit(PAD_CROSS);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_RIGHT))
             clearBit(PAD_CIRCLE);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_RIGHT_FACE_LEFT))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_LEFT))
             clearBit(PAD_SQUARE);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_RIGHT_FACE_UP))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_FACE_UP))
             clearBit(PAD_TRIANGLE);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_LEFT_TRIGGER_1))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_TRIGGER_1))
             clearBit(PAD_L1);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_1))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_1))
             clearBit(PAD_R1);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_LEFT_TRIGGER_2))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_TRIGGER_2))
             clearBit(PAD_L2);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_2))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_TRIGGER_2))
             clearBit(PAD_R2);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_MIDDLE_RIGHT))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_MIDDLE_RIGHT))
             clearBit(PAD_START);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_MIDDLE_LEFT))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_MIDDLE_LEFT))
             clearBit(PAD_SELECT);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_LEFT_THUMB))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_LEFT_THUMB))
             clearBit(PAD_L3);
-        if (IsGamepadButtonDown(kGamepad, GAMEPAD_BUTTON_RIGHT_THUMB))
+        if (IsGamepadButtonDown(gamepad, GAMEPAD_BUTTON_RIGHT_THUMB))
             clearBit(PAD_R3);
 
-        float lx = GetGamepadAxisMovement(kGamepad, GAMEPAD_AXIS_LEFT_X);
-        float ly = GetGamepadAxisMovement(kGamepad, GAMEPAD_AXIS_LEFT_Y);
-        float rx = GetGamepadAxisMovement(kGamepad, GAMEPAD_AXIS_RIGHT_X);
-        float ry = GetGamepadAxisMovement(kGamepad, GAMEPAD_AXIS_RIGHT_Y);
+        float lx = GetGamepadAxisMovement(gamepad, GAMEPAD_AXIS_LEFT_X);
+        float ly = GetGamepadAxisMovement(gamepad, GAMEPAD_AXIS_LEFT_Y);
+        float rx = GetGamepadAxisMovement(gamepad, GAMEPAD_AXIS_RIGHT_X);
+        float ry = GetGamepadAxisMovement(gamepad, GAMEPAD_AXIS_RIGHT_Y);
         data[6] = analogAxisFromUnit(lx);
         data[7] = analogAxisFromUnit(ly);
         data[4] = analogAxisFromUnit(rx);
         data[5] = analogAxisFromUnit(ry);
     }
-    else
+    else if (gamepad == 0)
     {
         if (IsKeyDown(KEY_UP) || (!m_keyboardAnalogEnabled && IsKeyDown(KEY_W)))
             clearBit(PAD_UP);

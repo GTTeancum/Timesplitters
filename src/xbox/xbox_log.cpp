@@ -23,6 +23,14 @@ namespace
     constexpr int kOverlayLines = 200;
     constexpr size_t kOverlayColumns = 78;
     std::string g_recent[kOverlayLines];
+}
+// The last kMeasureLines "[TS:" lines in full (xboxLogWrite), read by gdb
+// on xemu (scratchpad perflog.py, addresses from main.map). 15 KB.
+constexpr unsigned kMeasureLines = 32;
+char g_measureLines[kMeasureLines][480];
+unsigned g_measureNext = 0;
+namespace
+{
     int g_recentNext = 0;
     std::string g_status;
 
@@ -101,6 +109,16 @@ void xboxLogWrite(const char *text, unsigned length)
         --shown;
     g_recent[g_recentNext].assign(text, std::min(shown, kOverlayColumns));
     g_recentNext = (g_recentNext + 1) % kOverlayLines;
+    // Measurement lines ([TS:perf], [TS:phase], ...) whole, for a debugger
+    // on xemu: the overlay ring above cuts them, and xemu shows no DbgPrint.
+    if (shown > 4 && std::memcmp(text, "[TS:", 4) == 0)
+    {
+        const size_t n = std::min<size_t>(shown, sizeof(g_measureLines[0]) - 1);
+        char *slot = g_measureLines[g_measureNext % kMeasureLines];
+        std::memcpy(slot, text, n);
+        slot[n] = '\0';
+        ++g_measureNext;
+    }
     if (g_toScreen)
         debugPrint("%.*s", static_cast<int>(length), text);
     if (g_logFile)

@@ -96,7 +96,11 @@ Vu1CompiledEntry VU1Interpreter::lookupCompiledProgram(const uint8_t *vuCode, ui
         const char *value = std::getenv("TS_VU1_INTERPRET");
         return value && *value && *value != '0';
     }();
-    if (disabled || m_unit != Unit::VU1 || !memory || vuCode != memory->getVU1Code() || registry().empty())
+    // The native programs are looked up here too (lookupNativeProgram): a
+    // build without recompiled ones (the Xbox Makefile's TS_VU1_RECOMPILED=0)
+    // must still find them. With recompiled ones registered, as before.
+    if (disabled || m_unit != Unit::VU1 || !memory || vuCode != memory->getVU1Code() ||
+        (registry().empty() && nativeRegistry().empty()))
         return nullptr;
     const uint64_t generation = memory->getVU1CodeGeneration();
     if (!m_compiledLookupValid || m_compiledLookupGeneration != generation)

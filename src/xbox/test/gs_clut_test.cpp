@@ -147,7 +147,48 @@ int main()
             fail("part loaded over a deferred load", cbp, cpsm);
     }
 
-    std::printf("%u full loads, %u fills: %s (%d failures)\n", loads, deferred.ClutFills(), failures ? "FAILED" : "ok",
-                failures);
+    // An 8-bit texture decoded after a deferred load: its palette is the
+    // filled buffer, decoded whole (DecodeTexture) or a band of rows at a
+    // time (DecodeTextureRows: the Xbox renderer's streamed decode, the
+    // decodes' only locked entry, fills the buffer first).
+    uint32_t decodes = 0;
+    for (uint32_t i = 0; i < 600u; ++i)
+    {
+        const uint32_t cbp = random() % (GSCpuBackend::kLastContiguousClutCbp + 1u);
+        const uint32_t cpsm = (i & 1u) ? GS_PSM_CT24 : GS_PSM_CT32;
+        const GSTex0Reg load = fullLoad(cbp, cpsm, 1u, false);
+        reference.TextureFlush();
+        deferred.TextureFlush();
+        reference.LoadClut(load, GSTexClutReg{});
+        deferred.ReadFullClut(cbp, cpsm, fast);
+        deferred.DeferClutLoad(load, GSCpuBackend::HashClut(fast));
+        GSDrawState state{};
+        state.context.tex0 = load;
+        state.context.tex0.tbp0 = random() % 12000u;
+        state.context.tex0.tbw = static_cast<uint8_t>(1u + random() % 4u);
+        state.textureWidth = static_cast<uint16_t>(64u << (random() % 3u));
+        state.textureHeight = static_cast<uint16_t>(16u << (random() % 4u));
+        const uint32_t w = state.textureWidth, h = state.textureHeight;
+        std::vector<uint32_t> want, got;
+        reference.DecodeTexture(state, want);
+        const uint32_t fillsBefore = deferred.ClutFills();
+        if ((i & 2u) != 0u)
+            deferred.DecodeTexture(state, got);
+        else
+        {
+            got.assign(size_t(w) * h, 0u);
+            const uint32_t band = 8u << (random() % 3u);
+            for (uint32_t y = 0; y < h; y += band)
+                deferred.DecodeTextureRows(state, y, std::min(band, h - y), got.data() + size_t(y) * w);
+        }
+        if (got != want)
+            fail((i & 2u) ? "decode after a deferred load" : "rows decoded after a deferred load", cbp, cpsm);
+        if (deferred.ClutFills() != fillsBefore + 1u)
+            fail("deferred buffer not filled once by the decode", cbp, cpsm);
+        ++decodes;
+    }
+
+    std::printf("%u full loads, %u decodes, %u fills: %s (%d failures)\n", loads, decodes, deferred.ClutFills(),
+                failures ? "FAILED" : "ok", failures);
     return failures ? 1 : 0;
 }

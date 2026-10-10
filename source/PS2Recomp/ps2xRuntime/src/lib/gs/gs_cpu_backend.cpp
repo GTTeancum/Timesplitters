@@ -1704,12 +1704,19 @@ void GSCpuBackend::WriteVramRect(uint32_t psm, uint32_t base, uint32_t bw, uint3
 
 void GSCpuBackend::DecodeTexture(const GSDrawState &state, std::vector<uint32_t> &out)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
-    FillDeferredClutUnlocked();
-    const auto &tex = state.context.tex0;
     const int texW = std::max<int>(1, state.textureWidth);
     const int texH = std::max<int>(1, state.textureHeight);
     out.resize(size_t(texW) * texH);
+    DecodeTextureRows(state, 0u, uint32_t(texH), out.data());
+}
+
+// DecodeTexture's work, under the lock (both decodes go through here).
+void GSCpuBackend::DecodeTextureRows(const GSDrawState &state, uint32_t firstRow, uint32_t rowCount, uint32_t *out)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    FillDeferredClutUnlocked(); // a deferred full CLUT load: the palette below reads it
+    const auto &tex = state.context.tex0;
+    const int texW = std::max<int>(1, state.textureWidth);
     // Rows are read in one go, and an indexed texture's CLUT is looked up
     // once per index rather than once per texel.
     enum { Direct, Sixteen, Indexed, Unknown } kind = Unknown;
@@ -1739,9 +1746,9 @@ void GSCpuBackend::DecodeTexture(const GSDrawState &state, std::vector<uint32_t>
         for (int i = entries; i < 256; ++i)
             palette[i] = palette[i & 15];
     }
-    for (int y = 0; y < texH; ++y)
+    for (int y = int(firstRow); y < int(firstRow + rowCount); ++y)
     {
-        uint32_t *row = &out[size_t(y) * texW];
+        uint32_t *row = out + size_t(y - int(firstRow)) * texW;
         if (!m_vram || !GSMem::ReadRow(tex.psm, m_vram, tex.tbp0, tex.tbw, 0u, uint32_t(y), uint32_t(texW), row))
             for (int x = 0; x < texW; ++x)
                 row[x] = ReadVramUnlocked(tex.psm, tex.tbp0, tex.tbw, uint32_t(x), uint32_t(y));

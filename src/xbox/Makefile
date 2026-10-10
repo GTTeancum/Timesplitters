@@ -19,6 +19,13 @@ GENERATED := $(ROOT)/project/generated
 # can observe). Checked bit-exact against the interpreter with
 # timesplitters_vu_replay + vu1_diff.py before each regeneration.
 GENVU     := $(ROOT)/project/generated-vu-xbox
+# make TS_VU1_RECOMPILED=1: link it, as the fallback for the draws the native
+# program (project/game/vu1_native_ts.cpp) declines. Off by default: 0.64 MB
+# of code, and the native program takes every draw (the status block shows
+# vu runs=0 jit=0 through boot, menus and matches); what it declines would
+# run in the interpreter, bit-exact with the recompiled code but slower.
+TS_VU1_RECOMPILED ?= 0
+GENVU_SRCS := $(if $(filter 1,$(TS_VU1_RECOMPILED)),$(wildcard $(GENVU)/*.cpp))
 XBOX      := $(CURDIR)
 
 CXX  := $(XBOX)/tools/nxdk-cxx-hosted
@@ -89,15 +96,17 @@ GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
 # (src/xbox/tools/patch_generated.py: constant calls go through the function
 # table directly, plus a few one-off patches).
 GEN_PATCHED := $(patsubst $(GENERATED)/%.cpp,$(OUT)/gen/%.cpp,$(filter-out $(GENERATED)/register_functions.cpp,$(wildcard $(GENERATED)/*.cpp)))
-GEN_SRCS  := $(GEN_PATCHED) $(wildcard $(GENVU)/*.cpp) $(GEN_TABLE)
+GEN_SRCS  := $(GEN_PATCHED) $(GENVU_SRCS) $(GEN_TABLE)
 
 # Objects mirror the source path under build/xbox/obj.
 objof = $(patsubst $(ROOT)/%.cpp,$(OBJ)/%.obj,$(1))
 GEN_OBJS   := $(call objof,$(GEN_SRCS))
 OTHER_OBJS := $(call objof,$(RUNTIME_SRCS) $(IOP_SRCS) $(GAME_SRCS) $(XBOX_SRCS))
 # The VU1 microprogram is the hottest code of all (most of a match frame): -O2.
-VU_OBJS := $(call objof,$(wildcard $(GENVU)/*.cpp))
+VU_OBJS := $(call objof,$(GENVU_SRCS))
+ifneq ($(VU_OBJS),)
 $(VU_OBJS): GEN_FLAGS := $(COMMON) -O2
+endif
 # The game functions that take most of a busy match frame (sample profiles
 # of the scripted arcade match): -O2, and their constant calls are inlined
 # (PS2X_DIRECT_CALL_INLINE, ps2_direct_call_xbox.h); the other files call
@@ -113,6 +122,22 @@ GEN_FAST_NAMES := partGfx_0x260ae0 obInstLightUpdate_0x25c160 animMtxTick_0x273b
     extractAnimData_0x215280 animUpdate_0x212cf8 moveFindFloorHeight_0x27c578 bgGetRoomsTick_0x256c58 \
     bglightGet_0x25a7d0 setAnim_0x214d68 dlSetBlend_0x2b7ea8 dlSetClip_0x2b8050 dlTextureRectangle_0x2b8c08 \
     dlDrawTriangleStrip_0x2b8a10 camTick_0x27e320 findweapon_0x2c4d70 MoveTestWall_0x27cce0
+# Of those, the originals a native twin replaces (project/game/ts_native_*.cpp:
+# the twin runs, the original only for the boot self-test and the odd deep
+# recursion; the hardware profile finds each idle, 0-3 samples in 82 s) are
+# built -Oz like the rest: 27 KB less code (364 KB against 392). calMatrices'
+# original still runs (0.5% of the CPU) and stays. make
+# TS_DEMOTE_NATIVE_TWINS=0: all -O2.
+NATIVE_TWINS := animMtxTick_0x273bb0 animUpdate_0x212cf8 bgBulletGetClosest_0x25bc88 bgPortalBackFaceTest_0x257860 \
+    bgPortalCalcPos_0x258108 bgPortalCrossed_0x258cf0 bgPortalPlaneClip_0x257f20 bglightGet_0x25a7d0 \
+    calDoubleFillets_0x214a88 chrPropTick_0x26ddc0 decalDraw_0x2a5b20 dlSetBlend_0x2b7ea8 dlSetClip_0x2b8050 \
+    extractAnimData_0x215280 hittestLinePoly_0x209b08 hittestLineTri_0x209818 matrixScaleSet_0x2b4f20 \
+    moveFindFloorHeight_0x27c578 moveTest_0x27d0c0 obInstLightUpdate_0x25c160 obinstCalcAmbientLight_0x25aae0 \
+    partGfx_0x260ae0 particleTick_0x29bc58 quaternionToMatrix_0x2b3f90 rotateChr_0x2bc5d0 spawnfxTick_0x2abea0
+TS_DEMOTE_NATIVE_TWINS ?= 1
+ifeq ($(TS_DEMOTE_NATIVE_TWINS),1)
+GEN_FAST_NAMES := $(filter-out $(NATIVE_TWINS),$(GEN_FAST_NAMES))
+endif
 GEN_FAST_MISSING := $(filter-out $(notdir $(basename $(GEN_PATCHED))),$(GEN_FAST_NAMES))
 $(if $(and $(GEN_FAST_MISSING),$(filter-out clean,$(MAKECMDGOALS))),$(error GEN_FAST_NAMES not in project/generated: $(GEN_FAST_MISSING)))
 GEN_FAST_OBJS := $(foreach n,$(GEN_FAST_NAMES),$(OBJ)/build/xbox/gen/$(n).obj)
@@ -254,11 +279,41 @@ $(RENDER_COUNTERS_STAMP): FORCE
 $(RENDER_COUNTERS_OBJS): $(RENDER_COUNTERS_STAMP)
 $(RENDER_COUNTERS_OBJS): RUNTIME_FLAGS += -DTS_RENDER_COUNTERS=$(TS_RENDER_COUNTERS)
 
+# Thread stacks (REWRITE-PLAN.md M2.5). Every thread created without a size
+# (std::thread, CreateThread(..., 0, ...): the game thread, the audio
+# feeder) and the main thread get the XBE's stack size, 256 KB, committed
+# whole. (The texture pack's loader asks for its own 64 KB.)
+#   make TS_LEAN_STACKS=1  64 KB for those, and the game thread an explicit
+#                          256 KB (ps2_runtime.cpp): 384 KB less (main and
+#                          audio feeder). Off until the stacks' real depths
+#                          are measured:
+#   make TS_STACK_PAINT=1  every thread's deepest stack use, in a [TS:mem]
+#                          line when it grows (src/xbox/xbox_stacks.cpp).
+TS_LEAN_STACKS ?= 0
+TS_STACK_PAINT ?= 0
+XBE_STACK := $(if $(filter 1,$(TS_LEAN_STACKS)),0x10000,0x40000)
+STACK_FLAGS := -DTS_GAME_THREAD_STACK=$(if $(filter 1,$(TS_LEAN_STACKS)),0x40000,0) -DTS_STACK_PAINT=$(TS_STACK_PAINT)
+STACK_STAMP := $(OUT)/gen/stacks.flags
+STACK_OBJS := $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj $(OBJ)/src/xbox/xbox_stacks.obj
+$(STACK_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(STACK_FLAGS)' ] || echo '$(STACK_FLAGS)' > $@
+$(STACK_OBJS): $(STACK_STAMP)
+$(STACK_OBJS): RUNTIME_FLAGS += $(STACK_FLAGS)
+
+# What the link depends on besides the objects: a switch that leaves objects
+# out (TS_VU1_RECOMPILED) or changes the link (the stack) relinks.
+LINK_STAMP := $(OUT)/gen/link.flags
+LINK_FLAGS_TEXT := TS_VU1_RECOMPILED=$(TS_VU1_RECOMPILED) stack=$(XBE_STACK)
+$(LINK_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(LINK_FLAGS_TEXT)' ] || echo '$(LINK_FLAGS_TEXT)' > $@
+
 # The object list is long; hand it to the linker in a response file.
-$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)
+$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ) $(LINK_STAMP)
 	@echo "[ LD      ] $@"
 	@printf '%s\n' $(patsubst $(OUT)/%,%,$(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)) $(NXDK_LIBS) > $(OUT)/link.rsp
-	@cd $(OUT) && $(LINK) -include:_automount_d_drive -stack:0x40000 -errorlimit:0 -map:main.map -out:main.exe @link.rsp
+	@cd $(OUT) && $(LINK) -include:_automount_d_drive -stack:$(XBE_STACK) -errorlimit:0 -map:main.map -out:main.exe @link.rsp
 
 $(OUT)/iso/default.xbe: $(OUT)/main.exe
 	@mkdir -p $(dir $@)

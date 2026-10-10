@@ -121,6 +121,10 @@ void nv2aXfConstantsChanged(uint32_t serial, uint64_t rows);
 // hit= miss new/conf/ver/other= old hit/new/conf/ver= fill= cdiff= krows= kup=
 std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &stats);
 
+// Guest RAM (PS2Memory::getRDRAM), read once a frame for the game's local
+// player count: split screen lowers the texture budget.
+void nv2aSetGuestRam(const uint8_t *rdram);
+
 class GSNv2aBackend final : public GSRasterBackend
 {
 public:

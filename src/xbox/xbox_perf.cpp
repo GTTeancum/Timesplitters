@@ -37,6 +37,7 @@
 #include "runtime/ps2_io_stats.h"
 #include "runtime/ps2_memory.h"
 #include "runtime/ps2_vu1.h"
+#include "emulator/core/iop_memory.h" // ps2x::iop::g_iopRamStats (TS_IOP_SPARSE_RAM)
 
 #include <nxdk/xbe.h>
 #include <windows.h>
@@ -1084,6 +1085,12 @@ void xboxPerfReport(const XboxPerfInputs &in)
                  int(int32_t(contiguous - g_contiguousAtInit) * 4));
         line.add(" tex=%uK pack=%uK big=%u", g_nv2aTextureStats.residentBytes / 1024u, g_nv2aTextureStats.packPoolBytes / 1024u,
                  now.bigCount - was.bigCount);
+#if PS2X_IOP_SPARSE_RAM
+        // Sparse IOP RAM (iop_memory.h): RAM committed so far, and commits
+        // that came 2 s or more after the one before (in a match: none).
+        line.add(" iop=%uK late=%u", unsigned(ps2x::iop::g_iopRamStats.ramPages.load(std::memory_order_relaxed) * 4u),
+                 unsigned(ps2x::iop::g_iopRamStats.lateCommits.load(std::memory_order_relaxed)));
+#endif
         if (in.rdram)
         {
             // memGetFreeLevel: *(gp-0x6594) - *(gp-0x6598); memdbAlloc's

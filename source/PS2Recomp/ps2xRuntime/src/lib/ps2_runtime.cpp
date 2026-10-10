@@ -24,6 +24,21 @@ namespace
 #include "ps2_direct_call_xbox.h"
 static_assert(PS2X_GUEST_DISPATCH_CYCLES == EeScheduler::kGuestDispatchCycles,
               "ps2_direct_call_xbox.h must charge EeScheduler::kGuestDispatchCycles");
+// TS_GAME_THREAD_STACK (bytes; src/xbox/Makefile TS_LEAN_STACKS=1): the game
+// thread is made with this stack, the other threads keeping the XBE's
+// (smaller) default. 0: a std::thread with the default, as before.
+#ifndef TS_GAME_THREAD_STACK
+#define TS_GAME_THREAD_STACK 0
+#endif
+// TS_STACK_PAINT 1 (src/xbox/Makefile): every thread's deepest stack use,
+// logged as it grows (xboxStackReport, from the loop below).
+#ifndef TS_STACK_PAINT
+#define TS_STACK_PAINT 0
+#endif
+// src/xbox/xbox_stacks.cpp
+void *xboxThreadStart(uint32_t stackBytes, void (*entry)(void *), void *arg);
+void xboxThreadJoin(void *thread);
+void xboxStackReport();
 #endif
 #include "ThreadNaming.h"
 #include "Kernel/Stubs/Audio.h"
@@ -2673,6 +2688,13 @@ void PS2Runtime::HandleIntegerOverflow(R5900Context *ctx)
 
 void PS2Runtime::run()
 {
+#if defined(PLATFORM_XBOX)
+    // The runtime object (static in main): 654 KB before the lean switches.
+    std::cout << "[TS:mem] runtime object " << sizeof(PS2Runtime) / 1024u << " KB (lean VU tables "
+              << TS_LEAN_VU_TABLES << ", GS history " << TS_LEAN_GS_HISTORY << ", I/O registers "
+              << TS_LEAN_IO_REGISTERS << "; game thread stack " << TS_GAME_THREAD_STACK / 1024u << " KB, 0: default)"
+              << std::endl;
+#endif
     m_stopRequested.store(false, std::memory_order_relaxed);
     ps2_stubs::resetSifState();
     resetIop();
@@ -2705,7 +2727,7 @@ void PS2Runtime::run()
     std::exception_ptr gameFailure; // published by joining gameThread
 #endif
 
-    std::thread gameThread([&]()
+    auto gameMain = [&]()
                            {
         ThreadNaming::SetCurrentThreadName("GameThread");
         PS2X_TRY
@@ -2728,11 +2750,23 @@ void PS2Runtime::run()
             std::cerr << "Error during program execution: unknown exception" << std::endl;
         }
 #endif
-        gameThreadFinished.store(true, std::memory_order_release); });
+        gameThreadFinished.store(true, std::memory_order_release); };
+#if defined(PLATFORM_XBOX) && TS_GAME_THREAD_STACK
+    void *gameThread = xboxThreadStart(TS_GAME_THREAD_STACK, [](void *main) { (*static_cast<decltype(gameMain) *>(main))(); },
+                                       &gameMain);
+    if (!gameThread)
+    {
+        // No game without it: said, and run() returns (xbox_main halts).
+        std::cerr << "[TS:mem] game thread not started: no " << TS_GAME_THREAD_STACK / 1024u << " KB stack" << std::endl;
+        gameThreadFinished.store(true, std::memory_order_release);
+    }
+#else
+    std::thread gameThread(gameMain);
     // Other threads can be profiled instead (TS_SAMPLE_PROFILE_GS/_GPU/_VIF1).
     if (!std::getenv("TS_SAMPLE_PROFILE_GS") && !std::getenv("TS_SAMPLE_PROFILE_GPU") &&
         !std::getenv("TS_SAMPLE_PROFILE_VIF1"))
         ps2_sample_profiler::start(gameThread);
+#endif
 
     uint64_t tick = 0;
     const bool measureFrames = std::getenv("TS_PROFILE_DISPATCH") != nullptr;
@@ -2742,6 +2776,9 @@ void PS2Runtime::run()
     uint32_t captureWidth = FB_WIDTH, captureHeight = DEFAULT_DISPLAY_HEIGHT;
     while (!isStopRequested() && !gameThreadFinished.load(std::memory_order_acquire))
     {
+#if defined(PLATFORM_XBOX) && TS_STACK_PAINT
+        xboxStackReport(); // every few seconds, when a stack went deeper
+#endif
         if (measureFrames)
         {
             ++ratePresents;
@@ -2957,10 +2994,15 @@ void PS2Runtime::run()
         std::fprintf(stderr, "[TS:rdram] %u of %u 64KiB blocks nonzero\n%s\n", used, PS2_RAM_SIZE / 0x10000u, map.c_str());
     }
     ps2_sample_profiler::stop();
+#if defined(PLATFORM_XBOX) && TS_GAME_THREAD_STACK
+    if (gameThread)
+        xboxThreadJoin(gameThread);
+#else
     if (gameThread.joinable())
     {
         gameThread.join();
     }
+#endif
 
     if (m_debugUiInitialized && m_debugUiShutdownCallback)
     {

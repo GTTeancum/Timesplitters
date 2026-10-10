@@ -5,8 +5,20 @@
 //  - pb_ts_set_depth_format(): a 16-bit depth buffer (0.6 MB instead of 1.2);
 //  - pb_ts_front_buffer(): the buffer on screen;
 //  - pb_ts_end_count: pb_end calls so far (the renderer's status line);
-//  - pb_init's early failures (-2, -3) free the Dma buffers.
+//  - pb_init's early failures (-2, -3) free the Dma buffers;
+//  - TS_PB_UNTILED_COLOUR: untiled frame buffers at the surface pitch.
 // clang-format off
+
+//TS: TS_PB_UNTILED_COLOUR 1: the colour buffers' rows lie at the surface
+//    pitch (1280 bytes for 640 16-bit pixels), not padded to the next tile
+//    pitch (1536), and no tile covers them: 336 KB less for the three
+//    (608 KB each, from 720). The GPU draws, the display and the CPU read
+//    them at the surface pitch either way (a tile only rearranges memory
+//    banks behind the addresses, for every client alike); the GPU may write
+//    them a little slower. 0: tiled, as nxdk does.
+#ifndef TS_PB_UNTILED_COLOUR
+#define TS_PB_UNTILED_COLOUR 1
+#endif
 
 //pbKit core functions
 
@@ -2971,6 +2983,7 @@ int pb_init(void)
     Pitch=(((ColorBpp*HSize)>>3)+0x3F)&0xFFFFFFC0; //64 units aligned
     pb_FrameBuffersPitch=Pitch;
 
+#if !TS_PB_UNTILED_COLOUR //TS: untiled, the rows stay at the surface pitch
     //look for a standard listed pitch value greater or equal to theoretical one
     for(i=0;i<16;i++)
     {
@@ -2980,8 +2993,12 @@ int pb_init(void)
             break;
         }
     }
+#endif
 
     Size=Pitch*VSize;
+#if TS_PB_UNTILED_COLOUR
+    Size=(Size+0x3FFF)&0xFFFFC000; //TS: each buffer still starts 16 KB aligned, as tiled
+#endif
 
     //verify 64 bytes alignment for size of a frame buffer
     if (Size&(64-1)) debugPrint("pb_init: FBSize is not well aligned.\n");
@@ -3025,6 +3042,9 @@ int pb_init(void)
     //fully recover original values. Compression is aborted if the 16 dwords have
     //very different values (will occur at the edges of projected triangles).
 
+#if TS_PB_UNTILED_COLOUR
+    pb_release_tile(0,0); //TS: no tile over the colour buffers (nor one left from before)
+#else
     pb_assign_tile( 0,              //int   tile_index,
             pb_FrameBuffersAddr&0x03FFFFFF, //DWORD tile_addr,
             FBSize,             //DWORD tile_size,
@@ -3033,6 +3053,7 @@ int pb_init(void)
             0,              //DWORD tile_z_offset,
             0               //DWORD tile_flags
             );
+#endif
 
 
     //Depth stencil buffer (tile #1)

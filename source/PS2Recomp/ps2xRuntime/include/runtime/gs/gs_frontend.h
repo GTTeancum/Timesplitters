@@ -12,6 +12,14 @@
 
 #include "runtime/gs/gs_backend.h"
 
+// TS_LEAN_GS_HISTORY 1 (Xbox): GS::m_debugHistory keeps one entry, not 512
+// (112 KB). It records only once unpaused, which only the PC debug panel
+// does (ps2_debug_panel.cpp is not in the Xbox build). Set for every file
+// (the class is in PS2Runtime).
+#ifndef TS_LEAN_GS_HISTORY
+#define TS_LEAN_GS_HISTORY 1
+#endif
+
 struct GSDebugSnapshot
 {
     GSContext ctx[2]{};
@@ -310,7 +318,11 @@ private:
     uint64_t m_nativeImageUploadCount = 0;
     uint64_t m_nativePackedGIFPacketCount = 0;
 
+#if defined(PLATFORM_XBOX) && TS_LEAN_GS_HISTORY
+    static constexpr size_t kDebugHistoryCapacity = 1;
+#else
     static constexpr size_t kDebugHistoryCapacity = 512;
+#endif
     std::array<GSDebugHistoryEntry, kDebugHistoryCapacity> m_debugHistory{};
     size_t m_debugHistoryWrite = 0;
     size_t m_debugHistoryCount = 0;

@@ -105,7 +105,8 @@ namespace
         out << std::endl << "  dma=" << g_rt->memory().dmaStartCount() << " gif=" << g_rt->memory().gifCopyCount()
                   << " vif=" << g_rt->memory().vifWriteCount() << " vif1 chains=" << g_vif1StreamStats.chains
                   << " pieces=" << g_vif1StreamStats.pieces << " split=" << g_vif1StreamStats.splits << " vec fast/slow="
-                  << g_vif1StreamStats.fastVectors << "/" << g_vif1StreamStats.slowVectors << " vifdiff="
+                  << g_vif1StreamStats.fastVectors << "/" << g_vif1StreamStats.slowVectors << " batch ahead/heap="
+                  << g_vif1StreamStats.batchFlushes << "/" << g_vif1StreamStats.batchOverflows << " vifdiff="
                   << g_vif1StreamStats.diffs << "/" << g_vif1StreamStats.checked << std::endl
                   << "  gs=" << g_rt->gs().hostPresentationSequence() << " shown=" << blitWidth << "x"
                   << blitHeight << " lit=" << lit << "% tex=" << g_nv2aTextureStats.fills << "/"
@@ -293,6 +294,7 @@ int main()
     if (!rt.initialize("TimeSplitters"))
         halt("runtime initialisation failed");
     xboxPerfWrapGif(rt.gifArbiter(), rt.gs()); // TS_PERF_BACKEND: GIF packets timed (else nothing)
+    nv2aSetGuestRam(rt.memory().getRDRAM()); // the player count: split screen's texture budget
     logMemory("runtime initialised");
 
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";

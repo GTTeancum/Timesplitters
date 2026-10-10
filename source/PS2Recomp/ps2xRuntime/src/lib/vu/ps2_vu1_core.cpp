@@ -80,6 +80,10 @@ uint8_t VU1Interpreter::vfReadLanes(const InstructionUsage &usage, uint8_t reg)
 VU1Interpreter::VU1Interpreter(Unit unit)
     : m_unit(unit)
 {
+#if TS_LEAN_VU_TABLES_ON
+    if (unit == Unit::VU1)
+        m_xgkick.packet.bytes.reset(new uint8_t[XgkickPipeline::kBufferSize]()); // at start-up
+#endif
     reset();
 }
 
@@ -1583,9 +1587,11 @@ VU1Interpreter::DecodedInstructionPair VU1Interpreter::decodeInstructionPair(con
 void VU1Interpreter::rebuildDecodedCodeCache(const uint8_t *vuCode, uint32_t codeSize,
                                              const PS2Memory *memory, uint64_t generation)
 {
+#if !TS_LEAN_VU_TABLES_ON
     const uint32_t pairCount = std::min<uint32_t>(codeSize / 8u, kMaxDecodedPairs);
     for (uint32_t i = 0; i < pairCount; ++i)
         m_decodedCodeCache[i] = decodeInstructionPair(vuCode, i * 8u);
+#endif
 
     m_cachedVuCode = vuCode;
     m_cachedMemory = memory;
@@ -1616,9 +1622,13 @@ VU1Interpreter::DecodedInstructionPair VU1Interpreter::getDecodedInstructionPair
         rebuildDecodedCodeCache(vuCode, codeSize, memory, generation);
     }
     const uint32_t pairIndex = pc / 8u;
+#if TS_LEAN_VU_TABLES_ON
+    return decodeInstructionPair(vuCode, pairIndex * 8u); // what the cache would hold
+#else
     if (pairIndex >= kMaxDecodedPairs)
         return decodeInstructionPair(vuCode, pc);
     return m_decodedCodeCache[pairIndex];
+#endif
 }
 
 void VU1Interpreter::reportReservedInstruction(bool upper, uint32_t instruction)
@@ -1732,6 +1742,15 @@ void VU1Interpreter::run(uint8_t *vuCode, uint32_t codeSize,
         jit.budgetEnd = budgetEnd;
         programEnded = compiled(jit, m_state.pc);
     }
+#if TS_LEAN_VU_TABLES_ON
+    // Not expected on the Xbox (the native program takes every draw; the
+    // status block's vu runs and interp stay 0). Said the first few times:
+    // without the decode cache every pair is decoded as it runs.
+    static unsigned s_interpreted = 0;
+    if (!programEnded && m_cycle < budgetEnd && s_interpreted < 4u)
+        std::fprintf(stderr, "[TS:mem] VU%u microprogram interpreted from 0x%04X (%u)\n", m_unit == Unit::VU1 ? 1u : 0u,
+                     m_state.pc, ++s_interpreted);
+#endif
     while (!programEnded && m_cycle < budgetEnd && !m_stopRequested)
     {
 #if defined(PLATFORM_XBOX)

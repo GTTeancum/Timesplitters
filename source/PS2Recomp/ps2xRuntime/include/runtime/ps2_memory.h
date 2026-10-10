@@ -26,12 +26,20 @@ struct VU1State;
 // EE thread keeps using timers, INTC and so on). The map-like interface
 // (operator[], count, find/end, clear) mirrors the std::unordered_map it
 // replaces; other addresses fall back to a mutex-guarded map.
+// TS_LEAN_IO_REGISTERS 1 (Xbox): a slot holds the value only. Nothing reads
+// the address it also stored (the map interface's `first`): 64 KB of the
+// flat array. Set for every file (the class is in PS2Runtime).
+#ifndef TS_LEAN_IO_REGISTERS
+#define TS_LEAN_IO_REGISTERS 1
+#endif
 class IoRegisterFile
 {
 public:
     struct Slot
     {
+#if !(defined(PLATFORM_XBOX) && TS_LEAN_IO_REGISTERS)
         uint32_t first = 0;
+#endif
         uint32_t second = 0;
     };
 
@@ -44,7 +52,9 @@ public:
         }
         std::lock_guard<std::mutex> lock(m_otherMutex);
         Slot &slot = m_other[address];
+#if !(defined(PLATFORM_XBOX) && TS_LEAN_IO_REGISTERS)
         slot.first = address;
+#endif
         return slot.second;
     }
     size_t count(uint32_t address) const
@@ -84,7 +94,9 @@ private:
         if (address - kBase >= kSize)
             return nullptr;
         Slot &slot = m_flat[(address - kBase) >> 2];
+#if !(defined(PLATFORM_XBOX) && TS_LEAN_IO_REGISTERS)
         slot.first = address & ~3u;
+#endif
         return &slot;
     }
     uint8_t &present(uint32_t address) { return m_present[(address - kBase) >> 2]; }
@@ -317,6 +329,9 @@ struct Vif1StreamStats
     unsigned chains = 0, pieces = 0, splits = 0;
     unsigned long long fastVectors = 0, slowVectors = 0;
     unsigned checked = 0, diffs = 0; // TS_VIF_SELFCHECK (ps2_memory.cpp)
+    // TS_VIF1_BATCH: full batches decoded ahead of their chain's end, and
+    // chains that outgrew the batch (kept whole on the heap; expected 0).
+    unsigned batchFlushes = 0, batchOverflows = 0;
 };
 extern Vif1StreamStats g_vif1StreamStats;
 #include "ps2_render_counters.h"
@@ -518,6 +533,19 @@ public:
     void processVIF1Pieces(const Vif1Piece *pieces, size_t count);
     // bytes: the pieces' total (the chain walk adds it up as it records them).
     void processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes);
+    // The same for part of a chain, more of it to follow (the walk's batch of
+    // pieces is full): a command not wholly in these pieces is left alone,
+    // and the bytes from its start to the end returned, to be handed in
+    // again ahead of the rest; 0 when there is none. bytes: these pieces'
+    // total (the batch's own, not the chain's).
+    uint32_t processVIF1PiecesAhead(const Vif1Piece *pieces, size_t count, uint32_t bytes);
+    // Both: chainEnd true for the first, false for the second.
+    uint32_t decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes, bool chainEnd);
+    // The walk's batch (TS_VIF1_BATCH, ps2_memory.cpp) is full: decodes it
+    // ahead of the rest of its chain when nothing else is pending (bytes:
+    // the batch's total; carry: processVIF1PiecesAhead's return). False
+    // when it must wait for the chain's end.
+    bool decodeVif1Batch(const Vif1Piece *pieces, size_t count, uint32_t bytes, uint32_t &carry);
 #endif
     void processPendingTransfers();
     std::vector<uint32_t> consumeCompletedDmacCauses();

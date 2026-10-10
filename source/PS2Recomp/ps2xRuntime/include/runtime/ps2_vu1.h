@@ -12,6 +12,23 @@ extern Vu1Stats g_vu1Stats;
 
 #include <array>
 #include <cstdint>
+#include <memory>
+
+// TS_LEAN_VU_TABLES 1 (Xbox): the interpreters' tables shrink. No decoded
+// instruction cache (2 x 128 KB): pairs are decoded as they run, which is
+// what the cache held (decodeInstructionPair depends on the code alone). And
+// only VU1 has an XGKICK buffer (64 KB): startXgkick ignores VU0. On the
+// Xbox every microprogram runs native (vu1_native_ts.cpp; the status block
+// shows vu runs=0 in matches), so neither table is used there. Set for every
+// file (the class is in PS2Runtime).
+#ifndef TS_LEAN_VU_TABLES
+#define TS_LEAN_VU_TABLES 1
+#endif
+#if defined(PLATFORM_XBOX) && TS_LEAN_VU_TABLES
+#define TS_LEAN_VU_TABLES_ON 1
+#else
+#define TS_LEAN_VU_TABLES_ON 0
+#endif
 
 class GS;
 class PS2Memory;
@@ -203,10 +220,23 @@ private:
         bool valid = false;
     };
 
+#if TS_LEAN_VU_TABLES_ON
+    // VU1's buffer, allocated with the interpreter; VU0 has none.
+    struct XgkickBuffer
+    {
+        std::unique_ptr<uint8_t[]> bytes;
+        uint8_t *data() { return bytes.get(); }
+        uint8_t &operator[](uint32_t i) { return bytes[i]; }
+    };
+#endif
     struct XgkickPipeline
     {
         static constexpr uint32_t kBufferSize = 0x10000u;
+#if TS_LEAN_VU_TABLES_ON
+        XgkickBuffer packet;
+#else
         std::array<uint8_t, kBufferSize> packet{};
+#endif
         uint32_t sourceAddress = 0;
         uint32_t totalBytes = 0;
         uint32_t copiedBytes = 0;
@@ -231,7 +261,9 @@ private:
 
     Unit m_unit;
     VU1State m_state;
+#if !TS_LEAN_VU_TABLES_ON
     std::array<DecodedInstructionPair, kMaxDecodedPairs> m_decodedCodeCache{};
+#endif
     const uint8_t *m_cachedVuCode = nullptr;
     const PS2Memory *m_cachedMemory = nullptr;
     uint32_t m_cachedCodeSize = 0;

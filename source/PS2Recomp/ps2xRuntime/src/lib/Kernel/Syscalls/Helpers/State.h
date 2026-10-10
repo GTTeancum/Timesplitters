@@ -194,7 +194,16 @@ struct SifRpcDebugEvent
     int32_t result = 0;
 };
 
+// TS_LEAN_RPC_HISTORY 1 (Xbox): one entry, not 256 (32 KB). Only the PC
+// debug panel reads the history (ps2_debug_panel.cpp, not in the Xbox build).
+#ifndef TS_LEAN_RPC_HISTORY
+#define TS_LEAN_RPC_HISTORY 1
+#endif
+#if defined(PLATFORM_XBOX) && TS_LEAN_RPC_HISTORY
+static constexpr size_t kSifRpcDebugHistoryCount = 1u;
+#else
 static constexpr size_t kSifRpcDebugHistoryCount = 256u;
+#endif
 static constexpr size_t kSifRpcDebugPreviewBytes = 16u;
 static constexpr uint32_t kSifRpcDebugFlagNowait = 1u << 0;
 static constexpr uint32_t kSifRpcDebugFlagHandledByHle = 1u << 1;

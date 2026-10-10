@@ -37,4 +37,29 @@ namespace gs_texture_hash
             h = (h ^ texels[i]) * 0x100000001b3ull;
         return h;
     }
+
+    // hash() over texels handed in pieces, in order (a big texture a band
+    // of rows at a time, src/xbox/gs_nv2a_backend.cpp): the same value as
+    // long as every piece but the last holds an even number of texels.
+    class Hasher
+    {
+    public:
+        Hasher(uint32_t width, uint32_t height) : m_h(0xcbf29ce484222325ull ^ (uint64_t(width) << 32 | height)) {}
+        void add(const uint32_t *texels, size_t count)
+        {
+            size_t i = 0;
+            for (; i + 1 < count; i += 2)
+            {
+                uint64_t pair;
+                std::memcpy(&pair, texels + i, sizeof(pair));
+                m_h = (m_h ^ pair) * 0x100000001b3ull;
+            }
+            if (i < count)
+                m_h = (m_h ^ texels[i]) * 0x100000001b3ull;
+        }
+        uint64_t value() const { return m_h; }
+
+    private:
+        uint64_t m_h;
+    };
 }

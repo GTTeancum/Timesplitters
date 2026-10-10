@@ -137,6 +137,61 @@ namespace
     // the entries it would displace have been idle long enough to go).
     constexpr uint32_t kPackRetryFrames = 30u;
 
+// TS_NV2A_TEXTURE_STREAM 1: a texture is decoded and encoded through fixed
+// buffers allocated with the renderer (80 KB), not two vectors as large as
+// the biggest texture seen so far (decoded RGBA, up to 4 MB, and the encoded
+// copy), which stayed allocated and grew mid-match whenever a bigger texture
+// came (the first 256 x 256 one grew `decoded` from 64 KB to exactly 256 KB).
+// Up to kScratchTexels texels it is decoded once (the second decode is
+// gone); a bigger one is decoded a band of rows at a time: for the pack
+// key (a pack hit stops there), for its format, then to encode it into its
+// GPU memory. Same texels, format and size as before. 0: the vectors, as
+// before.
+// TS_NV2A_TEXTURE_SELFCHECK 1 (development): each texture is also made the
+// old way and the two compared (drawdiff "texenc"; allocates).
+#ifndef TS_NV2A_TEXTURE_STREAM
+#define TS_NV2A_TEXTURE_STREAM 1
+#endif
+#ifndef TS_NV2A_TEXTURE_SELFCHECK
+#define TS_NV2A_TEXTURE_SELFCHECK 0
+#endif
+#if TS_NV2A_TEXTURE_STREAM
+    constexpr uint32_t kScratchTexels = 16384u; // 128 x 128 decoded at once: 64 KB
+    constexpr size_t kStageBytes = 16384u;      // encoded texels on their way to the GPU
+    // The rows of a bigger texture decoded at a time: as many as fit the
+    // scratch, a multiple of 8 (whole 2x2 pairs and whole block rows of the
+    // halved texture). At least 16: textures are at most 1,024 wide.
+    constexpr uint32_t streamRows(uint32_t width) { return (kScratchTexels / width) & ~7u; }
+#endif
+// TS_NV2A_MISS_KEYS_FIXED 1: the miss statistics' key sets are fixed tables
+// (Impl::KeySet), not std::sets allocating as the frame goes. 0: the sets.
+#ifndef TS_NV2A_MISS_KEYS_FIXED
+#define TS_NV2A_MISS_KEYS_FIXED 1
+#endif
+// TS_NV2A_MP_TEXTURE_BUDGET 1: in split screen (2-4 local players) the
+// runtime path's textures take less memory at their peak (the cache plus the
+// dropped and one-frame textures waiting for the GPU): with the pack carrying
+// the world 896 KB against 1.25 MB (1 MB + 768 KB in its trial), without it
+// 1.4 MB against 1.75 MB.
+// - At most kMultiplayerRetiredLimit waits for the GPU (else 768 KB); past
+//   it the GPU is waited for and they are freed, mid-frame.
+// - While the pack carries the world (the runtime path drew under half of
+//   kTextureBudgetWithPack for kMultiplayerQuietFrames frames in a row), the
+//   cache budget is kTextureBudgetWithPack at once, not after the pack's
+//   300-frame trial, and the cache is trimmed to it at the frame's start
+//   (what the last frame did not draw goes; a lowered budget otherwise only
+//   stops growth). A frame over half lifts it at once, before the pack's own
+//   three-quarter restore would.
+// Costs decodes and GPU waits when the runtime path is heavy. Not measured
+// (no split-screen run yet): off. 0: the same for any number of players.
+#ifndef TS_NV2A_MP_TEXTURE_BUDGET
+#define TS_NV2A_MP_TEXTURE_BUDGET 0
+#endif
+    constexpr size_t kMultiplayerRetiredLimit = 384u * 1024u;
+    constexpr uint32_t kMultiplayerQuietFrames = 30u;
+    // The game's local player count (ilinkGetNumLocalPlayers: gp - 0x608C).
+    constexpr uint32_t kLocalPlayersAddress = 0x003AE764u;
+
     uint32_t physical(const void *p) { return uint32_t(reinterpret_cast<uintptr_t>(p)) & 0x03FFFFFFu; }
 
     void *allocGpu(size_t bytes)
@@ -424,6 +479,16 @@ std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &s)
                << " kup=" << s.constUploads;
 }
 
+// Guest RAM, for the local player count (TS_NV2A_MP_TEXTURE_BUDGET).
+namespace
+{
+    const uint8_t *g_nv2aGuestRam = nullptr;
+}
+void nv2aSetGuestRam(const uint8_t *rdram)
+{
+    g_nv2aGuestRam = rdram;
+}
+
 struct GSNv2aBackend::Impl
 {
     GSCpuBackend cpu;
@@ -547,10 +612,103 @@ struct GSNv2aBackend::Impl
         uint32_t indexTag = 0;    // its key's hash (textureIndex)
     };
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
+#if TS_NV2A_MISS_KEYS_FIXED
+    // Address/size keys of this and last frame's misses (statistics:
+    // missEvicted), in two fixed tables rather than sets that allocated a
+    // node per miss and freed them every frame. Past 192 misses in a frame
+    // (fills are a few a frame) a key goes unrecorded.
+    struct KeySet
+    {
+        static constexpr uint32_t kSlots = 256u;
+        std::array<uint64_t, kSlots> keys{}; // 0: empty (a key holds the size, never 0)
+        uint32_t count = 0;
+        static uint32_t slot(uint64_t key) { return uint32_t((key * 0x9E3779B97F4A7C15ull) >> 56); }
+        bool contains(uint64_t key) const
+        {
+            for (uint32_t i = slot(key);; i = (i + 1u) % kSlots)
+            {
+                if (keys[i] == key)
+                    return true;
+                if (keys[i] == 0u)
+                    return false;
+            }
+        }
+        void insert(uint64_t key)
+        {
+            if (count >= kSlots * 3u / 4u)
+                return;
+            uint32_t i = slot(key);
+            for (; keys[i] != 0u; i = (i + 1u) % kSlots)
+                if (keys[i] == key)
+                    return;
+            keys[i] = key;
+            ++count;
+        }
+        void clear()
+        {
+            if (count != 0u)
+                keys.fill(0u);
+            count = 0;
+        }
+    };
+    KeySet missKeys[2];
+    uint32_t missKeysThis = 0; // missKeys[this] is this frame's, the other last frame's
+    KeySet &frameKeys() { return missKeys[missKeysThis]; }
+    const KeySet &lastFrameKeys() const { return missKeys[missKeysThis ^ 1u]; }
+#else
     std::set<uint64_t> frameKeys, lastFrameKeys; // address/size keys drawn this and last frame (statistics)
+#endif
     size_t retiredBytes = 0;
     static constexpr size_t kRetiredLimit = 768u * 1024u; // beyond this, wait and free at once
     size_t textureBudget = kTextureBudget; // lower while the pack carries the world (kTextureBudgetWithPack)
+#if TS_NV2A_MP_TEXTURE_BUDGET
+    // Split screen (the guest's local player count, read once a frame by
+    // updateSplitScreen): the lower limits of TS_NV2A_MP_TEXTURE_BUDGET.
+    bool splitScreen = false;
+    uint32_t localPlayers = 0;
+    size_t retiredLimit() const { return splitScreen ? kMultiplayerRetiredLimit : kRetiredLimit; }
+    size_t effectiveBudget() const
+    {
+        return splitScreen && pack.enabled() && packQuietFrames >= kMultiplayerQuietFrames
+                   ? std::min(textureBudget, kTextureBudgetWithPack)
+                   : textureBudget;
+    }
+    void updateSplitScreen()
+    {
+        uint32_t players = 0;
+        if (const uint8_t *ram = g_nv2aGuestRam)
+            std::memcpy(&players, ram + kLocalPlayersAddress, sizeof(players));
+        if (players == localPlayers)
+            return;
+        localPlayers = players;
+        const bool split = players > 1u && players <= 4u;
+        if (split == splitScreen)
+            return;
+        splitScreen = split;
+        std::cout << "[TS:mem] split-screen textures " << (split ? "on" : "off") << " (" << players
+                  << " players): retired limit " << retiredLimit() / 1024u << " KB" << std::endl;
+    }
+    // Drops what the cache holds over the budget, least recently used
+    // first, of what the last frame did not draw. At the frame's start,
+    // with the last frame done on the GPU: freed at once.
+    void trimCache()
+    {
+        while (textureBytes > effectiveBudget())
+        {
+            auto oldest = textures.end();
+            for (auto it = textures.begin(); it != textures.end(); ++it)
+                if (!it->pooled && it->lastFrame + 1u < frameNumber && (oldest == textures.end() || it->lastUse < oldest->lastUse))
+                    oldest = it;
+            if (oldest == textures.end())
+                break;
+            retireTexture(oldest);
+        }
+        freeRetired();
+    }
+#else
+    static constexpr size_t retiredLimit() { return kRetiredLimit; }
+    size_t effectiveBudget() const { return textureBudget; }
+#endif
     uint32_t packQuietFrames = 0;          // frames in a row the runtime path stayed under half of that
     // A list: draw keys hold pointers into it across insertions and removals.
     // One record a key (a lookup that finds a record retires it before a new
@@ -560,9 +718,18 @@ struct GSNv2aBackend::Impl
     size_t textureBytes = 0;
     uint64_t textureTick = 0;
     uint64_t clutHash = 0;
+#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
     std::vector<uint32_t> decoded;
     std::vector<uint8_t> swizzled;
     std::vector<uint32_t> spreadU, spreadV;
+#endif
+#if TS_NV2A_TEXTURE_STREAM
+    // TS_NV2A_TEXTURE_STREAM: a whole texture of up to kScratchTexels, or a
+    // band of rows of a bigger one (decoded RGBA; halved in place), and the
+    // encoded texels on their way to GPU memory.
+    alignas(16) uint32_t texScratch[kScratchTexels];
+    alignas(16) uint8_t texStage[kStageBytes];
+#endif
 
     void refreshClutHash() { clutHash = cpu.ClutHash(); }
 
@@ -751,7 +918,7 @@ struct GSNv2aBackend::Impl
         textureBytes -= it->bytes;
         retiredBytes += it->bytes;
         retired.splice(retired.end(), textures, it);
-        if (retiredBytes > kRetiredLimit)
+        if (retiredBytes > retiredLimit())
         {
             ++g_nv2aTextureStats.waitRetire;
             waitIdle();
@@ -1134,20 +1301,43 @@ struct GSNv2aBackend::Impl
                     if (t.versions == versions)
                         sameVersion = true;
                 }
+            const uint64_t key = uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40);
             if (sameVersion)
                 ++g_nv2aTextureStats.missClut;
             else if (sameAddress)
                 ++g_nv2aTextureStats.missVersion;
-            else if (lastFrameKeys.count(uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40)))
+#if TS_NV2A_MISS_KEYS_FIXED
+            else if (lastFrameKeys().contains(key))
+#else
+            else if (lastFrameKeys.count(key))
+#endif
                 ++g_nv2aTextureStats.missEvicted;
             else
                 ++g_nv2aTextureStats.missNew;
-            frameKeys.insert(uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40));
+#if TS_NV2A_MISS_KEYS_FIXED
+            frameKeys().insert(key);
+#else
+            frameKeys.insert(key);
+#endif
         }
         Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
 #if TS_TEXTURE_INDEX
         t.indexTag = tag;
 #endif
+#if TS_NV2A_TEXTURE_STREAM
+        // Decoded once when it fits the scratch (TexelPlan), else streamed.
+        const bool packed = pack.enabled() && !renderTarget(range);
+        TexelPlan plan;
+        beginTexels(state, t, packed, plan);
+        // The pack's copy when it has this texture (render targets and
+        // screen copies are never looked up, as on the PC).
+        if (packed)
+            if (Texture *pooled = packTexture(t, plan.key))
+                return pooled;
+        // The CPU renderer's texture flush where the second decode took it.
+        (void)cpuFlushed();
+        planTexels(t, state, plan); // sets format and bytes; the texels are written once allocated
+#else
         cpu.DecodeTexture(state, decoded);
         const bool whole = decoded.size() >= size_t(w) * h;
         if (!whole)
@@ -1158,13 +1348,14 @@ struct GSNv2aBackend::Impl
             if (Texture *pooled = packTexture(t))
                 return pooled;
         encodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
+#endif
         // Room in the cache: textures not used in this or the last frame
         // go first. When a frame's textures exceed the budget the cache
         // keeps what it has (LRU would cycle the whole set every frame)
         // and the newcomer lives in a one-frame slot (the retired list).
         // Pack textures cost the cache nothing and stay.
         bool cached = true;
-        while (textureBytes + t.bytes > textureBudget)
+        while (textureBytes + t.bytes > effectiveBudget())
         {
             auto oldest = textures.end();
             for (auto it = textures.begin(); it != textures.end(); ++it)
@@ -1177,7 +1368,7 @@ struct GSNv2aBackend::Impl
             }
             retireTexture(oldest);
         }
-        if (!cached && retiredBytes + t.bytes > kRetiredLimit)
+        if (!cached && retiredBytes + t.bytes > retiredLimit())
         {
             ++g_nv2aTextureStats.waitRetire;
             waitIdle();
@@ -1186,7 +1377,14 @@ struct GSNv2aBackend::Impl
         t.texels = allocGpu(t.bytes);
         if (!t.texels)
             return nullptr;
+#if TS_NV2A_TEXTURE_STREAM
+        writeTexels(t, state, plan);
+#if TS_NV2A_TEXTURE_SELFCHECK
+        checkTexels(t, state, plan);
+#endif
+#else
         memcpy(t.texels, swizzled.data(), t.bytes);
+#endif
         ++g_nv2aTextureStats.fills;
         ++frameFills;
         g_nv2aTextureStats.fillBytes += uint32_t(t.bytes);
@@ -1263,7 +1461,7 @@ struct GSNv2aBackend::Impl
             textureBudget = kTextureBudget;
         else if (packQuietFrames >= kPackTrialFrames)
             textureBudget = kTextureBudgetWithPack;
-        g_nv2aTextureStats.textureBudgetKB = uint32_t(textureBudget / 1024u);
+        g_nv2aTextureStats.textureBudgetKB = uint32_t(effectiveBudget() / 1024u);
     }
 
     void updatePackStats()
@@ -1341,12 +1539,19 @@ struct GSNv2aBackend::Impl
         return true;
     }
 
-    // A cache miss whose decoded texels (in `decoded`) may be in the pack.
-    // Null when they are not, or not in the pool yet: then t remembers the
-    // entry and the caller encodes the texture as before.
+    // A cache miss whose decoded texels (in `decoded`; with
+    // TS_NV2A_TEXTURE_STREAM their key) may be in the pack. Null when they
+    // are not, or not in the pool yet: then t remembers the entry and the
+    // caller encodes the texture as before.
+#if TS_NV2A_TEXTURE_STREAM
+    Texture *packTexture(Texture &t, uint64_t key)
+    {
+        const int index = pack.find(key);
+#else
     Texture *packTexture(Texture &t)
     {
         const int index = pack.find(gs_texture_hash::hash(decoded.data(), t.width, t.height));
+#endif
         if (index < 0)
         {
             ++g_nv2aTextureStats.packMisses;
@@ -1408,6 +1613,7 @@ struct GSNv2aBackend::Impl
         return false;
     }
 
+#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
     // Encodes the decoded GS texture (`decoded`: CLUT and TEXA applied) into
     // `swizzled`, the layout the NV2A samples with wrapping: DXT1/DXT5 from
     // 8x8 up, else A1R5G5B5 when that loses nothing (16-bit sources,
@@ -1517,6 +1723,250 @@ struct GSNv2aBackend::Impl
             }
         }
     }
+#endif
+
+#if TS_NV2A_TEXTURE_STREAM
+    // The texture being made (TS_NV2A_TEXTURE_STREAM), with encodeTexture's
+    // decisions. Whole: decoded into texScratch at once, halved there; else
+    // decoded streamRows() rows at a time, for the key (keyed), to scan, to
+    // encode.
+    struct TexelPlan
+    {
+        bool whole = false, halve = false, keyed = false;
+        bool unitAlpha = true, highAlpha = true, fits16 = true; // encodeTexture's scan of the stored texels
+        bool dxt = false, dxt5 = false;
+        uint64_t key = 0; // the pack key (gs_texture_hash), when keyed
+    };
+
+    // encodeTexture's 2x2 average: rows 2v and 2v + 1 of src (w wide) into
+    // row v of dst (w / 2 wide), for v < outRows; dst may be src.
+    static void halveRows(const uint32_t *src, uint32_t w, uint32_t outRows, uint32_t *dst)
+    {
+        const uint32_t gw = w / 2u;
+        for (uint32_t v = 0; v < outRows; ++v)
+        {
+            const uint32_t *r0 = src + size_t(2u * v) * w, *r1 = r0 + w;
+            uint32_t *out = dst + size_t(v) * gw;
+            for (uint32_t u = 0; u < gw; ++u)
+            {
+                const uint32_t a = r0[2u * u], b = r0[2u * u + 1u], c = r1[2u * u], d = r1[2u * u + 1u];
+                uint32_t value = 0;
+                for (uint32_t shift = 0; shift < 32u; shift += 8u)
+                    value |= ((((a >> shift) & 0xFFu) + ((b >> shift) & 0xFFu) + ((c >> shift) & 0xFFu) + ((d >> shift) & 0xFFu) + 2u) / 4u) << shift;
+                out[u] = value;
+            }
+        }
+    }
+
+    // encodeTexture's alpha scan, a piece at a time. It stopped once both
+    // alpha flags were false; then fits16 is not used, so scanning on
+    // changes nothing.
+    static void scanAlpha(const uint32_t *texels, size_t count, TexelPlan &plan)
+    {
+        bool unitAlpha = plan.unitAlpha, highAlpha = plan.highAlpha, fits16 = plan.fits16;
+        for (size_t i = 0; i < count && (unitAlpha || highAlpha); ++i)
+        {
+            const uint32_t c = texels[i], a = c >> 24;
+            unitAlpha = unitAlpha && (a == 0u || a == 0x7Fu || a == 0x80u);
+            highAlpha = highAlpha && (a == 0u || a >= 0x80u);
+            if (c & 0x00070707u)
+                fits16 = false;
+        }
+        plan.unitAlpha = unitAlpha;
+        plan.highAlpha = highAlpha;
+        plan.fits16 = fits16;
+    }
+
+    // Decodes the texture (whole when it fits the scratch) and, for the
+    // pack's lookup, its key. A streamed one that is not looked up is
+    // scanned on the way; one that is, only once the pack lacks it (a pack
+    // hit costs one decode and the key, as before).
+    void beginTexels(const GSDrawState &state, const Texture &t, bool keyed, TexelPlan &plan)
+    {
+        const uint32_t w = t.width, h = t.height;
+        // encodeTexture's halving: sprites (HUD, text) keep their texels.
+        plan.halve = state.prim.type != GS_PRIM_SPRITE && (w >= 256u || h >= 256u) && w >= 16u && h >= 16u;
+        plan.whole = size_t(w) * h <= kScratchTexels;
+        plan.keyed = keyed;
+        if (plan.whole)
+        {
+            cpu.DecodeTextureRows(state, 0u, h, texScratch);
+            if (keyed)
+                plan.key = gs_texture_hash::hash(texScratch, w, h);
+            return;
+        }
+        if (!keyed)
+        {
+            scanTexels(state, t, plan);
+            return;
+        }
+        // Over 16,384 texels and neither side over 1,024: both powers of two
+        // from 32, so every band is a multiple of 8 rows: an even number of
+        // texels (the key's pairs) and of rows (the halving's pairs).
+        gs_texture_hash::Hasher hasher(w, h);
+        const uint32_t band = streamRows(w);
+        for (uint32_t y = 0; y < h; y += band)
+        {
+            const uint32_t rows = std::min(band, h - y);
+            cpu.DecodeTextureRows(state, y, rows, texScratch);
+            hasher.add(texScratch, size_t(rows) * w);
+        }
+        plan.key = hasher.value();
+    }
+
+    // A streamed texture's alpha scan of the stored (halved) texels, band
+    // by band.
+    void scanTexels(const GSDrawState &state, const Texture &t, TexelPlan &plan)
+    {
+        const uint32_t w = t.width, h = t.height, band = streamRows(w);
+        for (uint32_t y = 0; y < h; y += band)
+        {
+            const uint32_t rows = std::min(band, h - y);
+            cpu.DecodeTextureRows(state, y, rows, texScratch);
+            if (plan.halve)
+            {
+                halveRows(texScratch, w, rows / 2u, texScratch);
+                scanAlpha(texScratch, size_t(rows / 2u) * (w / 2u), plan);
+            }
+            else
+                scanAlpha(texScratch, size_t(rows) * w, plan);
+        }
+    }
+
+    // encodeTexture's choices for t: stored size, format, bytes, unit alpha.
+    void planTexels(Texture &t, const GSDrawState &state, TexelPlan &plan)
+    {
+        t.gpuWidth = plan.halve ? t.width / 2u : t.width;
+        t.gpuHeight = plan.halve ? t.height / 2u : t.height;
+        const uint32_t width = t.gpuWidth, height = t.gpuHeight;
+        const size_t count = size_t(width) * height;
+        if (plan.whole)
+        {
+            if (plan.halve)
+                halveRows(texScratch, t.width, height, texScratch);
+            scanAlpha(texScratch, count, plan);
+        }
+        else if (plan.keyed)
+            scanTexels(state, t, plan); // the pack lacks it (beginTexels only keyed it)
+        const bool binaryAlpha = plan.unitAlpha || plan.highAlpha;
+        if (width >= 8u && height >= 8u)
+        {
+            t.format = binaryAlpha ? NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5
+                                   : NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8;
+            t.bytes = binaryAlpha ? count / 2u : count;
+            t.unitAlpha = plan.unitAlpha;
+            plan.dxt = true;
+            plan.dxt5 = !binaryAlpha;
+            return;
+        }
+        // Below 8 in a direction: never halved, at most 4 x 1024, so whole.
+        plan.fits16 = plan.fits16 && binaryAlpha;
+        t.unitAlpha = plan.fits16 && plan.unitAlpha;
+        t.format = plan.fits16 ? NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5 : NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8;
+        t.bytes = count * (plan.fits16 ? 2u : 4u);
+    }
+
+    // The encoded texels into t's GPU memory, through texStage: DXT a row
+    // of blocks at a time (a streamed texture decoded again for it, band by
+    // band), the small swizzled formats whole.
+    void writeTexels(Texture &t, const GSDrawState &state, const TexelPlan &plan)
+    {
+        uint8_t *dst = static_cast<uint8_t *>(t.texels);
+        const uint32_t width = t.gpuWidth, height = t.gpuHeight;
+        if (plan.dxt)
+        {
+            size_t staged = 0;
+            const size_t blockRowBytes = size_t(width / 4u) * (plan.dxt5 ? 16u : 8u);
+            // Rows of texels (width apart, a multiple of 4) as block rows.
+            auto encodeRows = [&](const uint32_t *rows, uint32_t count)
+            {
+                for (uint32_t by = 0; by < count; by += 4u)
+                {
+                    if (staged + blockRowBytes > kStageBytes)
+                    {
+                        memcpy(dst, texStage, staged);
+                        dst += staged;
+                        staged = 0;
+                    }
+                    staged += encodeDxtBand(rows + size_t(by) * width, width, plan.dxt5, texStage + staged);
+                }
+            };
+            if (plan.whole)
+                encodeRows(texScratch, height);
+            else
+            {
+                const uint32_t band = streamRows(t.width);
+                for (uint32_t y = 0; y < t.height; y += band)
+                {
+                    const uint32_t rows = std::min(band, t.height - y);
+                    cpu.DecodeTextureRows(state, y, rows, texScratch);
+                    if (plan.halve)
+                        halveRows(texScratch, t.width, rows / 2u, texScratch);
+                    encodeRows(texScratch, plan.halve ? rows / 2u : rows);
+                }
+            }
+            memcpy(dst, texStage, staged);
+            return;
+        }
+        // encodeTexture's swizzle; the spread tables after the texels in
+        // the scratch (at most 4,096 texels and 1,028 entries).
+        const size_t count = size_t(width) * height;
+        const Swizzle sw(width, height);
+        uint32_t *const spreadU = texScratch + count, *const spreadV = spreadU + width;
+        for (uint32_t u = 0; u < width; ++u)
+            spreadU[u] = Swizzle::spread(u, sw.maskU);
+        for (uint32_t v = 0; v < height; ++v)
+            spreadV[v] = Swizzle::spread(v, sw.maskV);
+        if (plan.fits16)
+        {
+            uint16_t *out = reinterpret_cast<uint16_t *>(texStage);
+            for (uint32_t v = 0; v < height; ++v)
+            {
+                const uint32_t *src = texScratch + size_t(v) * width;
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < width; ++u)
+                {
+                    const uint32_t c = src[u]; // R, G, B, A bytes
+                    out[spreadU[u] | rowBits] = uint16_t(((c >> 24) ? 0x8000u : 0u) | ((c & 0xF8u) << 7) |
+                                                         ((c >> 6) & 0x03E0u) | ((c >> 19) & 0x1Fu));
+                }
+            }
+        }
+        else
+        {
+            uint32_t *out = reinterpret_cast<uint32_t *>(texStage);
+            for (uint32_t v = 0; v < height; ++v)
+            {
+                const uint32_t *src = texScratch + size_t(v) * width;
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < width; ++u)
+                {
+                    const uint32_t c = src[u];
+                    out[spreadU[u] | rowBits] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);
+                }
+            }
+        }
+        memcpy(dst, texStage, t.bytes);
+    }
+
+#if TS_NV2A_TEXTURE_SELFCHECK
+    // The texture made again the old way (two decodes into `decoded`,
+    // encodeTexture into `swizzled`) and compared.
+    void checkTexels(const Texture &t, const GSDrawState &state, const TexelPlan &plan)
+    {
+        Texture ref = t;
+        cpu.DecodeTexture(state, decoded);
+        if (plan.keyed && plan.key != gs_texture_hash::hash(decoded.data(), t.width, t.height))
+            noteDrawDiff("texkey", plan.key, gs_texture_hash::hash(decoded.data(), t.width, t.height));
+        encodeTexture(ref, state);
+        if (ref.format != t.format || ref.bytes != t.bytes || ref.unitAlpha != t.unitAlpha ||
+            ref.gpuWidth != t.gpuWidth || ref.gpuHeight != t.gpuHeight)
+            noteDrawDiff("texenc", t.format | (uint64_t(t.bytes) << 32), ref.format | (uint64_t(ref.bytes) << 32));
+        else if (std::memcmp(t.texels, swizzled.data(), t.bytes) != 0)
+            noteDrawDiff("texenc", t.tbp0, t.width | (t.height << 16));
+    }
+#endif
+#endif
 
     // Nearest 5/6-bit levels (truncation darkened the end points by up to
     // 7 of 255).
@@ -1538,9 +1988,20 @@ struct GSNv2aBackend::Impl
     // DXT5: the same colour blocks (every texel coloured) preceded by an
     // 8-byte alpha block (two end points, 3-bit indices into their 8-step
     // interpolation).
+#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
     void encodeDxt(uint32_t w, uint32_t h, bool dxt5, uint8_t *out)
     {
         for (uint32_t by = 0; by < h; by += 4)
+            out += encodeDxtBand(&decoded[size_t(by) * w], w, dxt5, out);
+    }
+#endif
+
+    // One row of blocks: the four texel rows at `rows` (w apart) into
+    // w / 4 blocks at out; returns the bytes written.
+    uint32_t encodeDxtBand(const uint32_t *rows, uint32_t w, bool dxt5, uint8_t *out)
+    {
+        uint8_t *const start = out;
+        {
             for (uint32_t bx = 0; bx < w; bx += 4, out += 8)
             {
                 uint32_t texel[16];
@@ -1550,7 +2011,7 @@ struct GSNv2aBackend::Impl
                 for (uint32_t y = 0; y < 4; ++y)
                     for (uint32_t x = 0; x < 4; ++x)
                     {
-                        const uint32_t c = decoded[size_t(by + y) * w + bx + x];
+                        const uint32_t c = rows[size_t(y) * w + bx + x];
                         texel[y * 4 + x] = c;
                         if (!dxt5 && (c >> 24) == 0u)
                         {
@@ -1678,6 +2139,8 @@ struct GSNv2aBackend::Impl
                 out[2] = uint8_t(c1); out[3] = uint8_t(c1 >> 8);
                 memcpy(out + 4, &bits, 4);
             }
+        }
+        return uint32_t(out - start);
     }
 
     // ------------------------------------------------------------ drawing
@@ -1978,6 +2441,10 @@ struct GSNv2aBackend::Impl
             g_nv2aTextureStats.kcycWait = uint32_t(waitCycles / 1000u);
         }
         freeRetired();
+#if TS_NV2A_MP_TEXTURE_BUDGET
+        if (splitScreen && textureBytes > effectiveBudget())
+            trimCache();
+#endif
     }
 
     void nextXfSegment()
@@ -2116,6 +2583,9 @@ struct GSNv2aBackend::Impl
         frameOpen = false;
         screenGpuNewer = true;
         packFrameEnd();
+#if TS_NV2A_MP_TEXTURE_BUDGET
+        updateSplitScreen();
+#endif
         g_nv2aTextureStats.frameTextures = frameTextures;
         g_nv2aTextureStats.frameTextureBytes = frameTextureBytes;
         g_nv2aTextureStats.frameFills = frameFills;
@@ -2124,8 +2594,13 @@ struct GSNv2aBackend::Impl
         // last frame's end.
         g_nv2aTextureStats.framePbEnds = pb_ts_end_count - frameEndPbEnds;
         g_nv2aTextureStats.pbEnds = frameEndPbEnds = pb_ts_end_count;
+#if TS_NV2A_MISS_KEYS_FIXED
+        missKeysThis ^= 1u; // this frame's keys are last frame's now
+        frameKeys().clear();
+#else
         lastFrameKeys.swap(frameKeys);
         frameKeys.clear();
+#endif
 #if TS_TEXTURE_INDEX
         if (!indexValid && textures.size() <= kIndexRefill)
             rebuildIndex();
@@ -2871,7 +3346,15 @@ struct GSNv2aBackend::Impl
         const bool sixteen = framePsm == GS_PSM_CT16 || framePsm == GS_PSM_CT16S;
         // One row at a time: a whole frame's worth (up to 1.1 MB) is more
         // than the Xbox can be sure to spare.
-        std::vector<uint32_t> values(width);
+#if TS_NV2A_TEXTURE_STREAM
+        // In the texture scratch (no texture is being made here): no
+        // allocation mid-match. FBW is 6 bits: at most 4,032 wide.
+        static_assert(63u * 64u <= kScratchTexels, "a frame row fits the texture scratch");
+        uint32_t *const values = texScratch;
+#else
+        std::vector<uint32_t> buffer(width);
+        uint32_t *const values = buffer.data();
+#endif
         for (uint32_t y = 0; y < rows; ++y)
         {
             const uint8_t *row = fb + size_t(y * kScreenHeight / height) * pitch;
@@ -2894,7 +3377,7 @@ struct GSNv2aBackend::Impl
                 values[x] = sixteen ? (r >> 3) | ((g >> 3) << 5) | ((b >> 3) << 10) | (a >= 0xFFu ? 0x8000u : 0u)
                                     : r | (g << 8) | (b << 16) | ((a / 2u) << 24);
             }
-            cpuFlushed().WriteVramRect(framePsm, frameFbp * 32u, frameFbw, 0, y, width, 1, values.data());
+            cpuFlushed().WriteVramRect(framePsm, frameFbp * 32u, frameFbw, 0, y, width, 1, values);
         }
         cpu.TextureFlush();
         bumpPages(frameRangeExact(framePsm, frameFbp, frameFbw, rows));

@@ -38,7 +38,17 @@ namespace
     // chain; its srcAddr is where its pieces end in s_vif1Segments (they
     // start where the previous chain's end).
     constexpr uint32_t kSegmentedChain = 0xFFFFFFFFu;
+// TS_VIF1_BATCH 1: the walk records the chain into a fixed batch of pieces
+// (Vif1Batch below, 32 KB) instead of a growing list. 0: the list, as before
+// (a busy match's chains average 9,000-15,500 pieces in the status logs; past
+// 16,384 the list doubles to exactly 262,144 bytes, mid-match: the size of
+// the console's fatal "out of memory: 262144 bytes requested").
+#ifndef TS_VIF1_BATCH
+#define TS_VIF1_BATCH 1
+#endif
+#if !TS_VIF1_BATCH
     std::vector<PS2Memory::Vif1Piece> s_vif1Segments;
+#endif
     // TS_VIF_SELFCHECK 1: every VIF1 chain is also decoded by the old window
     // path, both dry, and the two compared (vif1SelfCheck; vifdiff= in the
     // status block). Development only: slow, and 512 KB more memory. On for
@@ -57,6 +67,194 @@ namespace
     // and reports what it consumed).
     constexpr size_t kVif1WindowBytes = 512u * 1024u;
     std::vector<uint8_t> s_vif1Window;
+    // A batch the walk decoded ahead of its chain's end (TS_VIF1_BATCH): the
+    // chain's pieces before it, the bytes it handed back and the byte total
+    // the decoder was given for it (the batch's own).
+    struct Vif1Flush
+    {
+        size_t pieces;
+        uint32_t carry;
+        uint32_t bytes;
+    };
+#endif
+#if TS_VIF1_BATCH
+    // When the batch is full, the walk hands what it holds to the decoder
+    // with more to come (PS2Memory::decodeVif1Batch); the command it ends
+    // inside comes back and moves to the batch's front, ahead of the pieces
+    // the walk goes on to add. Same result as decoding the whole chain after
+    // the walk: the decoder reads guest memory and writes VIF1/VU1/GS state,
+    // the walk reads tags and the DMA registers, and nothing else runs in
+    // between (TS_VIF_SELFCHECK replays the batches the walk decoded against
+    // the whole chain). A chain the batch cannot take that way (something
+    // else pending, or one command over more pieces than the batch holds;
+    // neither expected) is kept whole on the heap, as before, counted and
+    // logged.
+    // The batch keeps its pieces' byte total as they come (the decoder's
+    // reader needs the total of what it is given: a batch decoded ahead is
+    // given the batch's, not the chain's), and the bytes of the chain being
+    // walked that batches decoded ahead: with TS_VIF_TAIL_FROM_WALK the walk's
+    // own total less those is what the chain's end decodes (takeAheadBytes).
+    constexpr size_t kVif1BatchPieces = 4096u;
+    class Vif1Batch
+    {
+    public:
+        using Piece = PS2Memory::Vif1Piece;
+        void setOwner(PS2Memory *owner) { m_owner = owner; }
+        size_t size() const { return m_count; }
+        const Piece &back() const { return m_pieces[m_count - 1u]; }
+        const Piece *data() const { return m_pieces; }
+        void emplace_back(const uint8_t *data, uint32_t bytes)
+        {
+            if (m_count == m_capacity)
+                makeRoom();
+            m_pieces[m_count++] = Piece(data, bytes);
+            m_bytes += bytes;
+#if TS_RENDER_COUNTERS >= 2
+            ++m_added;
+#endif
+        }
+        // The last piece grows: the walk's next piece continues it.
+        void extendBack(uint32_t bytes)
+        {
+            m_pieces[m_count - 1u].second += bytes;
+            m_bytes += bytes;
+        }
+        // The bytes of the chain just walked that batches decoded ahead of
+        // its end (0 when none did); counted again from 0 for the next chain.
+        uint32_t takeAheadBytes()
+        {
+            const uint32_t bytes = m_aheadBytes;
+            m_aheadBytes = 0;
+            return bytes;
+        }
+#if TS_RENDER_COUNTERS >= 2
+        // Pieces added since the last clear (a flush makes size() go down).
+        size_t added() const { return m_added; }
+#endif
+        void clear()
+        {
+            m_count = 0;
+            m_bytes = 0;
+            m_aheadBytes = 0;
+#if TS_RENDER_COUNTERS >= 2
+            m_added = 0;
+#endif
+            if (m_pieces != m_fixed)
+            {
+                std::vector<Piece>().swap(m_overflow);
+                m_pieces = m_fixed;
+                m_capacity = kVif1BatchPieces;
+            }
+#if TS_VIF_SELFCHECK
+            checkPieces.clear();
+            checkFlushes.clear();
+            checkKept = 0;
+#endif
+        }
+
+        // The last `carry` bytes of pieces[0, count) moved to the front;
+        // returns the pieces they take.
+        static size_t keepTail(Piece *pieces, size_t count, uint32_t carry)
+        {
+            if (carry == 0u)
+                return 0u;
+            size_t first = count;
+            uint32_t rest = carry;
+            while (first != 0u && rest > pieces[first - 1u].second)
+                rest -= pieces[--first].second;
+            if (first == 0u)
+                return count; // all of it (cannot happen: something was decoded)
+            --first;
+            const Piece head(pieces[first].first + (pieces[first].second - rest), rest);
+            const size_t kept = count - first;
+            std::memmove(pieces, pieces + first, kept * sizeof(Piece));
+            pieces[0] = head;
+            return kept;
+        }
+
+#if TS_VIF_SELFCHECK
+        // The batches decoded ahead of the chain's end, for vif1SelfCheck:
+        // the chain's pieces up to the last of them (the walk's, unchanged:
+        // a batch is decoded when a piece that does not continue the last
+        // one comes, so its pieces are final) and where each was decoded.
+        // The pieces at the batch's front, checkKept of them, are the last
+        // batch's carry, already in checkPieces.
+        std::vector<Piece> checkPieces;
+        std::vector<Vif1Flush> checkFlushes;
+        size_t checkKept = 0;
+#endif
+
+    private:
+        void makeRoom()
+        {
+            uint32_t carry = 0u;
+            if (m_pieces == m_fixed && m_owner && m_owner->decodeVif1Batch(m_pieces, m_count, m_bytes, carry))
+            {
+                ++g_vif1StreamStats.batchFlushes;
+#if TS_VIF_SELFCHECK
+                if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS)
+                {
+                    checkPieces.insert(checkPieces.end(), m_pieces + checkKept, m_pieces + m_count);
+                    checkFlushes.push_back(Vif1Flush{checkPieces.size(), carry, m_bytes});
+                }
+#endif
+                // Decoded: all but the carry, which stays for the next batch.
+                m_aheadBytes += m_bytes - carry;
+                m_bytes = carry;
+                m_count = keepTail(m_pieces, m_count, carry);
+#if TS_VIF_SELFCHECK
+                checkKept = m_count;
+#endif
+                if (m_count < m_capacity)
+                    return;
+            }
+            if (m_pieces == m_fixed)
+            {
+                // The first few are logged: a heap allocation mid-match.
+                if (++g_vif1StreamStats.batchOverflows <= 4u)
+                    RUNTIME_LOG("[TS:mem] VIF1 chain outgrew its " << kVif1BatchPieces
+                                << "-piece batch: kept whole on the heap (" << g_vif1StreamStats.batchOverflows
+                                << ")\n");
+                m_overflow.assign(m_fixed, m_fixed + m_count);
+            }
+            m_overflow.reserve(m_overflow.size() * 2u);
+            m_pieces = m_overflow.data();
+            m_capacity = m_overflow.capacity();
+            m_overflow.resize(m_capacity); // m_count tracks the used part
+        }
+
+        Piece m_fixed[kVif1BatchPieces];
+        Piece *m_pieces = m_fixed;
+        size_t m_count = 0, m_capacity = kVif1BatchPieces;
+        uint32_t m_bytes = 0;      // the pieces' total
+        uint32_t m_aheadBytes = 0; // the walked chain's bytes decoded ahead
+#if TS_RENDER_COUNTERS >= 2
+        size_t m_added = 0;
+#endif
+        std::vector<Piece> m_overflow;
+        PS2Memory *m_owner = nullptr; // PS2Memory::initialize
+    };
+    Vif1Batch s_vif1Segments;
+#endif
+    // The walk's piece recorder, either way: the last piece grows, and the
+    // pieces added so far (render counters: a new piece or a joined one).
+    inline void extendLastVif1Piece(uint32_t bytes)
+    {
+#if TS_VIF1_BATCH
+        s_vif1Segments.extendBack(bytes);
+#else
+        s_vif1Segments.back().second += bytes;
+#endif
+    }
+#if TS_RENDER_COUNTERS >= 2
+    inline size_t vif1PiecesAdded()
+    {
+#if TS_VIF1_BATCH
+        return s_vif1Segments.added();
+#else
+        return s_vif1Segments.size();
+#endif
+    }
 #endif
 // TS_WALK_SKIP_ZERO_TTE 1 (rewrite plan M1.5): a VIF1 chain's tag upper half
 // that is all zero (two VIF NOPs, sent with CHCR.TTE) is left out of the
@@ -504,6 +702,9 @@ bool PS2Memory::initialize(size_t ramSize)
         // Initialize VIF registers
         memset(&vif0_regs, 0, sizeof(vif0_regs));
         memset(&vif1_regs, 0, sizeof(vif1_regs));
+#if defined(PLATFORM_XBOX) && TS_VIF1_BATCH
+        s_vif1Segments.setOwner(this); // decodes a full batch (decodeVif1Batch)
+#endif
 
         // Initialize DMA registers
         memset(dma_regs, 0, sizeof(dma_regs));
@@ -1636,7 +1837,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                             PS2X_THROW(std::runtime_error("DMA chain exceeds host buffering budget"));
                         if (s_vif1Segments.size() > firstSegment &&
                             s_vif1Segments.back().first + s_vif1Segments.back().second == data)
-                            s_vif1Segments.back().second += bytes;
+                            extendLastVif1Piece(bytes);
                         else
                             s_vif1Segments.emplace_back(data, bytes);
                     };
@@ -1909,9 +2110,9 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #endif
                                 {
 #if TS_RENDER_COUNTERS >= 2
-                                    const size_t pieces = s_vif1Segments.size();
+                                    const size_t pieces = vif1PiecesAdded();
                                     addSegment(tp + 8u, 8u);
-                                    ++(s_vif1Segments.size() != pieces ? g_renderCounters.pieceTteNew : g_renderCounters.pieceTteJoined);
+                                    ++(vif1PiecesAdded() != pieces ? g_renderCounters.pieceTteNew : g_renderCounters.pieceTteJoined);
 #else
                                     addSegment(tp + 8u, 8u);
 #endif
@@ -1921,9 +2122,9 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                             if (hasPayload && dataAddr < PS2_RAM_SIZE && payloadBytes <= PS2_RAM_SIZE - dataAddr)
                             {
 #if TS_RENDER_COUNTERS >= 2
-                                const size_t pieces = s_vif1Segments.size();
+                                const size_t pieces = vif1PiecesAdded();
                                 addSegment(m_rdram + dataAddr, payloadBytes);
-                                ++(s_vif1Segments.size() != pieces ? g_renderCounters.piecePayloadNew : g_renderCounters.piecePayloadJoined);
+                                ++(vif1PiecesAdded() != pieces ? g_renderCounters.piecePayloadNew : g_renderCounters.piecePayloadJoined);
 #else
                                 addSegment(m_rdram + dataAddr, payloadBytes);
 #endif
@@ -1980,12 +2181,20 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         TS_RENDER_COUNT(++g_renderCounters.chains);
                         TS_RENDER_COUNT(g_renderCounters.chainTags += static_cast<uint32_t>(tagsProcessed));
                     }
+#if TS_VIF1_BATCH
+                    // What batches of the chain decoded ahead of its end is out
+                    // of the batch: the end decodes the rest, and its total is
+                    // the walk's less that (TS_VIF_TAIL_FROM_WALK).
+                    const size_t aheadBytes = recordSegments ? s_vif1Segments.takeAheadBytes() : 0u;
+#else
+                    const size_t aheadBytes = 0u;
+#endif
                     if (recordSegments && s_vif1Segments.size() > firstSegment)
                     {
                         PendingTransfer pt;
                         pt.qwc = kSegmentedChain;
                         pt.srcAddr = static_cast<uint32_t>(s_vif1Segments.size());
-                        pt.pieceBytes = static_cast<uint32_t>(segmentBytes);
+                        pt.pieceBytes = static_cast<uint32_t>(segmentBytes - aheadBytes);
                         m_pendingVif1Transfers.push_back(std::move(pt));
 #if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
                         s_vif1FullEnds.push_back(s_vif1FullSegments.size());
@@ -2171,6 +2380,120 @@ namespace
         g_vif1StopOnShort = false;
     }
 
+#if TS_VIF1_BATCH
+    // The pieces' byte total (the decoder's reader is given it).
+    uint32_t vif1PiecesBytes(const PS2Memory::Vif1Piece *pieces, size_t count)
+    {
+        uint32_t bytes = 0;
+        for (size_t i = 0; i < count; ++i)
+            bytes += pieces[i].second;
+        return bytes;
+    }
+
+    // The walk's batching (Vif1Batch) replayed on a whole chain the walk
+    // kept whole (no batch of it was decoded ahead: it fitted, or something
+    // else was pending): each full batch decoded with more to come, the
+    // command it ends inside moved to its front. A batch that makes no
+    // progress takes the rest whole, as Vif1Batch then keeps the chain whole.
+    void processVif1Batched(PS2Memory &memory, const PS2Memory::Vif1Piece *pieces, size_t count)
+    {
+        static PS2Memory::Vif1Piece batch[kVif1BatchPieces];
+        size_t used = 0;
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (used == kVif1BatchPieces)
+            {
+                const uint32_t carry = memory.processVIF1PiecesAhead(batch, used, vif1PiecesBytes(batch, used));
+                used = Vif1Batch::keepTail(batch, used, carry);
+                if (used == kVif1BatchPieces)
+                {
+                    std::vector<PS2Memory::Vif1Piece> rest(batch, batch + used);
+                    rest.insert(rest.end(), pieces + i, pieces + count);
+                    memory.processVIF1Pieces(rest.data(), rest.size());
+                    return;
+                }
+            }
+            batch[used++] = pieces[i];
+        }
+        memory.processVIF1Pieces(batch, used);
+    }
+
+    // The batches the walk did decode ahead (Vif1Batch::checkFlushes)
+    // replayed on the whole chain: each at the same piece, its carry
+    // compared with the one the walk had back, and its pieces' total with
+    // the one the walk gave the decoder for it; the rest's total with the
+    // chain end's (tailBytes: PendingTransfer::pieceBytes). A total that
+    // differs sets bytesDiffer; the replay decodes with the pieces' own (a
+    // total past the pieces would run the reader off their end).
+    void processVif1Replayed(PS2Memory &memory, const PS2Memory::Vif1Piece *pieces, size_t count,
+                             const Vif1Flush *flushes, size_t flushCount, uint32_t tailBytes, bool &carryDiffers,
+                             bool &bytesDiffer)
+    {
+        static std::vector<PS2Memory::Vif1Piece> batch;
+        batch.clear();
+        size_t next = 0;
+        for (size_t i = 0; i <= count; ++i)
+        {
+            if (next < flushCount && flushes[next].pieces == i)
+            {
+                const uint32_t bytes = vif1PiecesBytes(batch.data(), batch.size());
+                bytesDiffer = bytesDiffer || bytes != flushes[next].bytes;
+                const uint32_t carry = memory.processVIF1PiecesAhead(batch.data(), batch.size(), bytes);
+                carryDiffers = carryDiffers || carry != flushes[next].carry;
+                batch.resize(Vif1Batch::keepTail(batch.data(), batch.size(), carry));
+                ++next;
+            }
+            if (i < count)
+                batch.push_back(pieces[i]);
+        }
+        carryDiffers = carryDiffers || next != flushCount;
+        const uint32_t bytes = vif1PiecesBytes(batch.data(), batch.size());
+        bytesDiffer = bytesDiffer || bytes != tailBytes;
+        memory.processVIF1Pieces(batch.data(), batch.size(), bytes);
+    }
+
+    // The VIF1, VU1-memory and PATH3 state a dry decode changes, as
+    // vif1SelfCheck saves and restores it.
+    struct Vif1CheckState
+    {
+        VIFRegisters regs{};
+        std::vector<uint8_t> data, code;
+        uint32_t pendingQwc = 0;
+        bool pendingHl = false, path3Masked = false;
+        std::vector<std::vector<uint8_t>> path3Fifo;
+        uint64_t codeGeneration = 0;
+        void save(const PS2Memory &m)
+        {
+            regs = m.vif1_regs;
+            if (m.m_vu1Data)
+                data.assign(m.m_vu1Data, m.m_vu1Data + PS2_VU1_DATA_SIZE);
+            if (m.m_vu1Code)
+                code.assign(m.m_vu1Code, m.m_vu1Code + PS2_VU1_CODE_SIZE);
+            pendingQwc = m.m_vif1PendingPath2ImageQwc;
+            pendingHl = m.m_vif1PendingPath2DirectHl;
+            path3Masked = m.m_path3Masked;
+            path3Fifo = m.m_path3MaskedFifo;
+            codeGeneration = m.m_vu1CodeGeneration.load(std::memory_order_relaxed);
+        }
+        void load(PS2Memory &m) const
+        {
+            m.vif1_regs = regs;
+            if (m.m_vu1Data)
+                std::memcpy(m.m_vu1Data, data.data(), PS2_VU1_DATA_SIZE);
+            if (m.m_vu1Code)
+                std::memcpy(m.m_vu1Code, code.data(), PS2_VU1_CODE_SIZE);
+            m.m_vif1PendingPath2ImageQwc = pendingQwc;
+            m.m_vif1PendingPath2DirectHl = pendingHl;
+            m.m_path3Masked = path3Masked;
+            m.m_path3MaskedFifo = path3Fifo;
+            m.m_vu1CodeGeneration.store(codeGeneration, std::memory_order_relaxed);
+        }
+    };
+    // A checked chain's state before the walk decoded its first batch
+    // (decodeVif1Batch): where the dry decodes of the whole chain start.
+    Vif1CheckState s_vif1ChainStart;
+#endif
+
     // FNV-1a over 32-bit words (every GIF packet VIF1 sends is whole quadwords).
     uint32_t hashWords(uint32_t hash, const uint8_t *data, size_t bytes)
     {
@@ -2196,10 +2519,32 @@ namespace
     // g_vif1StreamStats.diffs. All state is put back afterwards.
     // The window path is given oldPieces, the chain as recorded without
     // TS_WALK_SKIP_ZERO_TTE (else the same pieces); processVIF1Pieces the
-    // pieces with the walk's byte total, which is checked against them too.
+    // pieces with the walk's byte total for the whole chain (bytes), which is
+    // checked against them too.
+    // TS_VIF1_BATCH: a third time through the walk's batching, compared
+    // with the whole chain's decode: the batches the walk decoded ahead
+    // (flushes; they ran for real already, so the dry decodes start from
+    // the chain's state before them and the state now is put back after),
+    // each with the byte total it was decoded with and the rest with the
+    // chain end's (tailBytes), as live; else where its batches would have
+    // been decoded (processVif1Batched).
     void vif1SelfCheck(PS2Memory &m, const PS2Memory::Vif1Piece *pieces, size_t count, uint32_t bytes,
-                       const PS2Memory::Vif1Piece *oldPieces, size_t oldCount)
+                       const PS2Memory::Vif1Piece *oldPieces, size_t oldCount, const Vif1Flush *flushes = nullptr,
+                       size_t flushCount = 0u, uint32_t tailBytes = 0u)
     {
+#if TS_VIF1_BATCH
+        static Vif1CheckState now;
+        if (flushCount != 0u)
+        {
+            now.save(m);
+            s_vif1ChainStart.load(m);
+        }
+        bool carryDiffers = false, bytesDiffer = false;
+#else
+        (void)flushes;
+        (void)flushCount;
+        (void)tailBytes;
+#endif
         static std::vector<uint8_t> savedData, savedCode;
         const VIFRegisters savedRegs = m.vif1_regs;
         if (m.m_vu1Data)
@@ -2237,7 +2582,12 @@ namespace
         m.m_gifArbiter = nullptr; // GIF output reaches m_gifPacketCallback
 
         constexpr uint32_t kFnvBasis = 2166136261u;
-        std::vector<uint32_t> records[2];
+#if TS_VIF1_BATCH
+        constexpr int kRuns = 3;
+#else
+        constexpr int kRuns = 2;
+#endif
+        std::vector<uint32_t> records[kRuns];
         std::vector<uint32_t> *record = nullptr;
         uint32_t gifHash = kFnvBasis, gifBytes = 0;
         auto dataHash = [&]() { return m.m_vu1Data ? hashWords(kFnvBasis, m.m_vu1Data, PS2_VU1_DATA_SIZE) : 0u; };
@@ -2251,7 +2601,7 @@ namespace
             gifBytes += bytes;
         };
 
-        for (int run = 0; run < 2; ++run)
+        for (int run = 0; run < kRuns; ++run)
         {
             restore();
             record = &records[run];
@@ -2259,6 +2609,12 @@ namespace
             gifBytes = 0;
             if (run == 0)
                 processVif1Window(m, oldPieces, oldCount);
+#if TS_VIF1_BATCH
+            else if (run == 2 && flushCount != 0u)
+                processVif1Replayed(m, pieces, count, flushes, flushCount, tailBytes, carryDiffers, bytesDiffer);
+            else if (run == 2)
+                processVif1Batched(m, pieces, count);
+#endif
             else
                 m.processVIF1Pieces(pieces, count, bytes);
             record->insert(record->end(),
@@ -2269,6 +2625,10 @@ namespace
         }
 
         restore();
+#if TS_VIF1_BATCH
+        if (flushCount != 0u)
+            now.load(m);
+#endif
         m.m_vu1MscalCallback = std::move(mscal);
         m.m_vu1MscntCallback = std::move(mscnt);
         m.m_gifPacketCallback = std::move(gifCallback);
@@ -2287,22 +2647,61 @@ namespace
             RUNTIME_LOG("[VIF:selfcheck] chain " << g_vif1StreamStats.checked << ": walk total " << bytes
                         << " bytes, pieces " << sum << '\n');
         }
-        if (records[0] != records[1])
+        for (int run = 1; run < kRuns; ++run)
         {
+            // Window against in place; in place against batched.
+            const std::vector<uint32_t> &a = records[run - 1], &b = records[run];
+            if (a == b)
+                continue;
             ++g_vif1StreamStats.diffs;
             if (g_vif1StreamStats.diffs <= 8u)
             {
                 size_t at = 0;
-                while (at < records[0].size() && at < records[1].size() && records[0][at] == records[1][at])
+                while (at < a.size() && at < b.size() && a[at] == b[at])
                     ++at;
                 RUNTIME_LOG("[VIF:selfcheck] chain " << g_vif1StreamStats.checked << " (" << count
-                    << " pieces) differs at record word " << at << " of " << records[0].size() << "/"
-                    << records[1].size() << ": window 0x" << std::hex
-                    << (at < records[0].size() ? records[0][at] : 0u) << ", in place 0x"
-                    << (at < records[1].size() ? records[1][at] : 0u) << std::dec << '\n');
+                    << " pieces) differs at record word " << at << " of " << a.size() << "/" << b.size()
+                    << (run == 1 ? ": window 0x" : ": in place 0x") << std::hex << (at < a.size() ? a[at] : 0u)
+                    << (run == 1 ? ", in place 0x" : ", batched 0x") << (at < b.size() ? b[at] : 0u) << std::dec
+                    << '\n');
             }
+            return; // one difference per chain
         }
+#if TS_VIF1_BATCH
+        if ((carryDiffers || bytesDiffer) && ++g_vif1StreamStats.diffs <= 8u)
+            RUNTIME_LOG("[VIF:selfcheck] chain " << g_vif1StreamStats.checked << " (" << count << " pieces, "
+                        << flushCount << " batches decoded ahead): the walk had other "
+                        << (carryDiffers ? "carries back" : "") << (carryDiffers && bytesDiffer ? " and " : "")
+                        << (bytesDiffer ? "byte totals (batch or tail)" : "") << '\n');
+#endif
     }
+}
+#endif
+
+#if defined(PLATFORM_XBOX)
+bool PS2Memory::decodeVif1Batch(const Vif1Piece *pieces, size_t count, uint32_t bytes, uint32_t &carry)
+{
+#if TS_VIF1_BATCH
+    // Only when the batch holds nothing but the chain being walked and no
+    // transfer queued before it would be overtaken.
+    if (!m_pendingGifTransfers.empty() || !m_pendingVif0Transfers.empty() || !m_pendingVif1Transfers.empty() ||
+        m_vif1Busy.load(std::memory_order_acquire))
+        return false;
+#if TS_VIF_SELFCHECK
+    // A chain to be checked: the state before its first batch, which the
+    // dry decodes of the whole chain start from (vif1SelfCheck).
+    if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS && s_vif1Segments.checkFlushes.empty())
+        s_vif1ChainStart.save(*this);
+#endif
+    carry = processVIF1PiecesAhead(pieces, count, bytes);
+    return true;
+#else
+    (void)pieces;
+    (void)count;
+    (void)bytes;
+    (void)carry;
+    return false;
+#endif
 }
 #endif
 
@@ -2476,16 +2875,43 @@ void PS2Memory::processPendingTransfers()
             segmentStart = p.srcAddr;
 #if TS_VIF_SELFCHECK
 #if TS_WALK_SKIP_ZERO_TTE
-            // The old path decodes the chain without the skip.
+            // The old path decodes the chain without the skip (the full list
+            // is the whole chain, batches decoded ahead or not).
             const Vif1Piece *fullPieces = s_vif1FullSegments.data() + fullStart;
             const size_t fullCount = s_vif1FullEnds[fullChain] - fullStart;
             fullStart = s_vif1FullEnds[fullChain++];
-#else
-            const Vif1Piece *fullPieces = pieces;
-            const size_t fullCount = count;
+#endif
+#if TS_VIF1_BATCH
+            // Batches of it the walk decoded ahead (only the first chain
+            // pending can have them): checked as the whole chain, their
+            // pieces and the rest of its own. The walk's total for the whole
+            // chain is what the batches decoded plus the rest's.
+            if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS && pieces == s_vif1Segments.data() &&
+                !s_vif1Segments.checkFlushes.empty())
+            {
+                std::vector<Vif1Piece> &whole = s_vif1Segments.checkPieces;
+                whole.insert(whole.end(), pieces + s_vif1Segments.checkKept, pieces + count);
+                uint32_t wholeBytes = p.pieceBytes;
+                for (const Vif1Flush &flush : s_vif1Segments.checkFlushes)
+                    wholeBytes += flush.bytes - flush.carry;
+#if !TS_WALK_SKIP_ZERO_TTE
+                const Vif1Piece *fullPieces = whole.data();
+                const size_t fullCount = whole.size();
+#endif
+                vif1SelfCheck(*this, whole.data(), whole.size(), wholeBytes, fullPieces, fullCount,
+                              s_vif1Segments.checkFlushes.data(), s_vif1Segments.checkFlushes.size(), p.pieceBytes);
+                s_vif1Segments.checkFlushes.clear();
+            }
+            else
 #endif
             if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS)
+            {
+#if !TS_WALK_SKIP_ZERO_TTE
+                const Vif1Piece *fullPieces = pieces;
+                const size_t fullCount = count;
+#endif
                 vif1SelfCheck(*this, pieces, count, p.pieceBytes, fullPieces, fullCount);
+            }
 #endif
 #if TS_VIF_TAIL_FROM_WALK
             processVIF1Pieces(pieces, count, p.pieceBytes);

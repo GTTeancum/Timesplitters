@@ -1329,8 +1329,26 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
 // command the chain ends inside is dropped as at the end of a buffer.
 void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes)
 {
+    decodeVIF1Pieces(pieces, count, bytes, true);
+}
+
+// Part of a chain, more to come (chainEnd false): such a command is left
+// whole for the next call instead, and the bytes from its VIFcode on are
+// returned (its VIFcode was read: CODE/NUM/INT are set again, to the same
+// values, when it is read anew). Pending IMAGE data still goes in whole
+// quadwords as far as it reaches, as after a DIRECT; the GIF takes it in
+// any split. bytes: these pieces' total (the reader's left() is measured
+// against it, so it must be the batch's, not the whole chain's).
+uint32_t PS2Memory::processVIF1PiecesAhead(const Vif1Piece *pieces, size_t count, uint32_t bytes)
+{
+    return decodeVIF1Pieces(pieces, count, bytes, false);
+}
+
+uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes, bool chainEnd)
+{
     static_assert(PS2_VU1_DATA_SIZE == 1024u * 16u, "UNPACK writes wrap at 1024 quadwords");
-    ++g_vif1StreamStats.chains;
+    if (chainEnd)
+        ++g_vif1StreamStats.chains;
     g_vif1StreamStats.pieces += static_cast<unsigned>(count);
     // Counted here, added to the (64-bit) status counters once per chain.
     uint32_t fastVectors = 0, slowVectors = 0;
@@ -1342,6 +1360,15 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
 #endif
 
     Vif1PieceReader in(pieces, count, bytes);
+    uint32_t carry = 0; // chainEnd false: bytes left for the next call
+    // A command that does not fit: its VIFcode (header bytes, already read) and the rest.
+    auto leave = [&](uint32_t header)
+    {
+        carry = chainEnd ? 0u : in.left() + header;
+        // Its VIFcode is read anew with the rest: counted then (render counters 2).
+        if (!chainEnd && header != 0u)
+            TS_RENDER_COUNT2(--commands);
+    };
     uint8_t split[16]; // a vector or STROW/STCOL data split between pieces
     auto takeBlock = [&](uint32_t bytes) -> const uint8_t *
     {
@@ -1361,7 +1388,10 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
         {
             const uint32_t availableQw = in.left() / 16u;
             if (availableQw == 0u)
+            {
+                leave(0u);
                 break;
+            }
 
             const uint32_t chunkQw = std::min<uint32_t>(m_vif1PendingPath2ImageQwc, availableQw);
             submitGifPacket(GifPathId::Path2, takeBlock(chunkQw * 16u), chunkQw * 16u, true, m_vif1PendingPath2DirectHl);
@@ -1377,7 +1407,10 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
 
         uint32_t cmd;
         if (!in.word(cmd))
+        {
+            leave(0u);
             break;
+        }
         const uint8_t opcode = (cmd >> 24) & 0x7F;
         const uint16_t imm = cmd & 0xFFFF;
         const uint8_t num = (cmd >> 16) & 0xFF;
@@ -1392,11 +1425,14 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
         if ((opcode & 0x60u) == 0x60u)
         {
             // By format and destination (ps2_render_counters.h).
-            TS_RENDER_COUNT2(++g_renderCounters.unpacks[opcode & 0xFu][(imm & 0x8000u) == 0u   ? 3u
-                                                                       : (imm & 0x3FFu) < 24u  ? 0u
-                                                                       : (imm & 0x3FFu) < 216u ? 1u
-                                                                                               : 2u]);
-            TS_RENDER_COUNT2(g_renderCounters.unpackMasked += (opcode >> 4) & 1u);
+#if TS_RENDER_COUNTERS >= 2
+            uint32_t &unpackCount = g_renderCounters.unpacks[opcode & 0xFu][(imm & 0x8000u) == 0u   ? 3u
+                                                                            : (imm & 0x3FFu) < 24u  ? 0u
+                                                                            : (imm & 0x3FFu) < 216u ? 1u
+                                                                                                    : 2u];
+            ++unpackCount;
+            g_renderCounters.unpackMasked += (opcode >> 4) & 1u;
+#endif
             const uint32_t vn = (opcode >> 2) & 0x3u;
             const uint32_t vl = opcode & 0x3u;
             const uint32_t components = vn + 1u;
@@ -1433,7 +1469,17 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
             const uint32_t sourceBytes = sourceVectorCount * bytesPerVector;
             const uint32_t totalBytes = (sourceBytes + 3u) & ~3u;
             if (totalBytes > in.left())
+            {
+                leave(4u);
+#if TS_RENDER_COUNTERS >= 2
+                if (!chainEnd) // counted when it is read anew
+                {
+                    --unpackCount;
+                    g_renderCounters.unpackMasked -= (opcode >> 4) & 1u;
+                }
+#endif
                 break;
+            }
 
             uint32_t vuAddr = (uint32_t)imm & 0x3FFu;
             if ((imm & 0x8000u) != 0u)
@@ -1633,13 +1679,19 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
         else if (opcode == VIF_STMASK)
         {
             if (!in.word(vif1_regs.mask))
+            {
+                leave(4u);
                 break;
+            }
             continue;
         }
         else if (opcode == VIF_STROW || opcode == VIF_STCOL)
         {
             if (in.left() < 16u)
+            {
+                leave(4u);
                 break;
+            }
             std::memcpy(opcode == VIF_STROW ? vif1_regs.row : vif1_regs.col, in.take(16u, split), 16u);
             continue;
         }
@@ -1648,6 +1700,11 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
             const uint32_t destAddr = (uint32_t)imm * 8u;
             const uint32_t instructionCount = (num == 0u) ? 256u : static_cast<uint32_t>(num);
             const uint32_t mpgBytes = instructionCount * 8u;
+            if (!chainEnd && mpgBytes > in.left())
+            {
+                leave(4u);
+                break;
+            }
             uint32_t copied = 0u;
             if (m_vu1Code && destAddr < PS2_VU1_CODE_SIZE)
             {
@@ -1673,6 +1730,11 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
                 qwCount = 65536;
             const uint32_t availableQw = in.left() / 16u;
             const bool truncated = qwCount > availableQw;
+            if (truncated && !chainEnd)
+            {
+                leave(4u);
+                break;
+            }
             if (truncated)
                 qwCount = availableQw;
 
@@ -1698,5 +1760,6 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
     g_vif1StreamStats.fastVectors += fastVectors;
     g_vif1StreamStats.slowVectors += slowVectors;
     TS_RENDER_COUNT2(g_renderCounters.vifCommands += commands);
+    return carry;
 }
 #endif

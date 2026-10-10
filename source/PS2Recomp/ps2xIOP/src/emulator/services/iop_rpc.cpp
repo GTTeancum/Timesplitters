@@ -185,7 +185,7 @@ namespace ps2x::iop::detail
                 extraSize = static_cast<uint32_t>(signedExtraSize);
                 if (extraSource == 0u || extraDestination == 0u ||
                     !m_memory.ownsRamRange(extraSource, extraSize) ||
-                    !m_host.writeGuest(extraDestination, m_memory.ram().data() + IopMemory::physicalAddress(extraSource), extraSize))
+                    !m_host.writeGuest(extraDestination, m_memory.ramRange(extraSource, extraSize), extraSize))
                 {
                     setV0(0u);
                     return true;
@@ -306,7 +306,7 @@ namespace ps2x::iop::detail
             if (physical < IopMemory::RamSize)
             {
                 const uint32_t copySize = std::min<uint32_t>(request.receive.size, IopMemory::RamSize - physical);
-                (void)m_host.writeGuest(request.receive.address, m_memory.ram().data() + physical, copySize);
+                (void)m_host.writeGuest(request.receive.address, m_memory.ramRange(physical, copySize), copySize);
                 if (copySize < request.receive.size)
                     (void)m_host.zeroGuest(request.receive.address + copySize, request.receive.size - copySize);
             }

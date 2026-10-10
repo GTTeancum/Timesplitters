@@ -44,6 +44,10 @@ public:
     // texels) from GS local memory to RGBA8888 with CLUT and TEXA applied,
     // reading memory directly. Used by GPU backends to build textures.
     void DecodeTexture(const GSDrawState &state, std::vector<uint32_t> &out);
+    // Rows [firstRow, firstRow + rowCount) of the same decode into out
+    // (rowCount x textureWidth texels): a big texture a band at a time.
+    // DecodeTexture is this for every row.
+    void DecodeTextureRows(const GSDrawState &state, uint32_t firstRow, uint32_t rowCount, uint32_t *out);
     // Writes a rectangle of pixel values (row-major, width * height) into GS
     // local memory in the given format, taking the lock once.
     void WriteVramRect(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x0, uint32_t y0,

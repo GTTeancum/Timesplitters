@@ -1,5 +1,16 @@
 # TimeSplitters Xbox port: rewrite plan
 
+**Execution order (decided 2026-10-09).** The milestones below run as four pushes. Within a push, independent items run as parallel tracks, each checked against the old path and reviewed, then integrated and measured together.
+
+| Push | Milestones | Content |
+|---|---|---|
+| A | M0, M1, M2 | Measurement, data-path quick wins, splitscreen enablement and memory headroom |
+| B | M3, M4, M7 | CPU side: EE runtime diet, native materials and voice-major mixer, game-logic natives |
+| C | M5, M6, M8 | The drawing rewrite: native draw records for all three partGfx origins, then the NV2A fetching vertices in place (M8 only if the console probe passes T1-T7) |
+| D | M9 | Splitscreen tuning, after measured 4-player numbers |
+
+B and C start together once A is merged. M10 stays optional.
+
 Baseline: master 537a2bc, profiled at f3ef00f. Effort scale: S < 2 weeks, M = weeks, L = 1-3 months, XL = more than one quarter.
 
 ---

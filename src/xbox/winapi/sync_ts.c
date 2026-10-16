@@ -23,6 +23,17 @@
 #include <winerror.h>
 #include <xboxkrnl/xboxkrnl.h>
 
+// The lock census of the measurement build (make TS_MEASURE_PUSHBC=1;
+// runtime/ps2_measure.h, counted in src/xbox/xbox_measure.cpp): every
+// critical section entered and SRW lock taken, by return address and lock
+// object, with contention. Nothing otherwise.
+#if defined(TS_MEASURE_PUSHBC) && TS_MEASURE_PUSHBC
+void xboxMeasureLock(const void *ret, const void *object, int kind, int contended);
+#define TS_LOCK_CENSUS(object, kind, contended) xboxMeasureLock(__builtin_return_address(0), (object), (kind), (contended))
+#else
+#define TS_LOCK_CENSUS(object, kind, contended) ((void)0)
+#endif
+
 VOID InitializeCriticalSection (LPCRITICAL_SECTION lpCriticalSection)
 {
     RtlInitializeCriticalSection(lpCriticalSection);
@@ -44,6 +55,9 @@ VOID DeleteCriticalSection (LPCRITICAL_SECTION lpCriticalSection)
 
 VOID EnterCriticalSection (LPCRITICAL_SECTION lpCriticalSection)
 {
+    // Contended: held by another thread on entry (a glance, not a lock).
+    TS_LOCK_CENSUS(lpCriticalSection, 0,
+                   lpCriticalSection->LockCount >= 0 && lpCriticalSection->OwningThread != (PVOID)KeGetCurrentThread());
     RtlEnterCriticalSection(lpCriticalSection);
 }
 
@@ -74,18 +88,36 @@ static void ReleaseLockMask (uintptr_t *lock, uintptr_t mask)
 
 void AcquireSRWLockExclusive (PSRWLOCK SRWLock)
 {
+#if defined(TS_MEASURE_PUSHBC) && TS_MEASURE_PUSHBC
+    int spins = 0;
+#endif
     // Grab the global lock (second-highest bit)
     while (!TryAcquireLockMask(&SRWLock->Ptr, SRW_GLOBAL_LOCK_MASK)) {
+#if defined(TS_MEASURE_PUSHBC) && TS_MEASURE_PUSHBC
+        ++spins;
+#endif
         SwitchToThread();
     }
+#if defined(TS_MEASURE_PUSHBC) && TS_MEASURE_PUSHBC
+    TS_LOCK_CENSUS(SRWLock, 1, spins);
+#endif
 }
 
 void AcquireSRWLockShared (PSRWLOCK SRWLock)
 {
+#if defined(TS_MEASURE_PUSHBC) && TS_MEASURE_PUSHBC
+    int spins = 0;
+#endif
     // Grab the reader lock
     while (!TryAcquireLockMask(&SRWLock->Ptr, SRW_READER_LOCK_MASK)) {
+#if defined(TS_MEASURE_PUSHBC) && TS_MEASURE_PUSHBC
+        ++spins;
+#endif
         SwitchToThread();
     }
+#if defined(TS_MEASURE_PUSHBC) && TS_MEASURE_PUSHBC
+    TS_LOCK_CENSUS(SRWLock, 1, spins);
+#endif
 
     // Increase reader count by one
     uintptr_t prev_val = __atomic_fetch_add(&SRWLock->Ptr, 1, __ATOMIC_ACQ_REL);

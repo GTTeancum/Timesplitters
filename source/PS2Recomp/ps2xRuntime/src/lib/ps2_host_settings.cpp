@@ -87,6 +87,15 @@ namespace
                 settings.textureReplace = parseBool(value);
             else if (key == "render_scale")
                 settings.renderScale = std::clamp(std::atoi(value.c_str()), 1, 4);
+            else if (key.rfind("knob.", 0) == 0 && key.size() > 5u)
+            {
+                // Passed through to the knob registry (project/game/ts_knobs.h)
+                // as a name and an unsigned value (decimal or 0x hex).
+                char *end = nullptr;
+                const unsigned long parsed = std::strtoul(value.c_str(), &end, 0);
+                if (end && end != value.c_str())
+                    settings.knobs.emplace_back(key.substr(5), static_cast<uint32_t>(parsed));
+            }
         }
     }
 }

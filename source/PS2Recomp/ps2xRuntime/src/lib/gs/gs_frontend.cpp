@@ -2,6 +2,7 @@
 #include "runtime/ps2_host_settings.h"
 #include "runtime/gs/gs_cpu_backend.h"
 #include "ps2_log.h"
+#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: beginXfRun's time, the kick histogram, textured primitives
 #include "runtime/ps2_memory.h"
 #include <chrono>
 #include <atomic>
@@ -188,7 +189,7 @@ void GS::init(uint8_t *vram, uint32_t vramSize, GSRegisters *privRegs)
 
 void GS::reset()
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     std::memset(m_ctx, 0, sizeof(m_ctx));
     m_gifStreams = {};
     m_lastStateBlock = 0; // the backend's CLUT is reset below
@@ -292,7 +293,7 @@ const uint8_t *GS::lockDisplaySnapshot(uint32_t &outSize)
 
 GSDebugSnapshot GS::getDebugSnapshot() const
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
 
     GSDebugSnapshot snapshot{};
     snapshot.ctx[0] = m_ctx[0];
@@ -332,7 +333,7 @@ GSDebugSnapshot GS::getDebugSnapshot() const
 
 std::vector<GSDebugHistoryEntry> GS::getDebugHistory() const
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
 
     std::vector<GSDebugHistoryEntry> out;
     out.reserve(m_debugHistoryCount);
@@ -346,7 +347,7 @@ std::vector<GSDebugHistoryEntry> GS::getDebugHistory() const
 
 void GS::clearDebugHistory()
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     m_debugHistoryWrite = 0;
     m_debugHistoryCount = 0;
     m_debugNextSeq = 1;
@@ -356,13 +357,13 @@ void GS::clearDebugHistory()
 
 bool GS::isDebugHistoryPaused() const
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     return m_debugHistoryPaused;
 }
 
 void GS::setDebugHistoryPaused(bool paused)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     m_debugHistoryPaused = paused;
 }
 
@@ -542,7 +543,7 @@ void GS::recordPresentDebugEventUnlocked(uint32_t displayFbp, uint32_t sourceFbp
 
 bool GS::getPreferredDisplaySource(GSFrameReg &outSource, uint32_t &outDestFbp) const
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     if (!m_hasPreferredDisplaySource)
     {
         outSource = {};
@@ -593,10 +594,10 @@ GSPresentationRequest GS::buildPresentationRequestUnlocked() const
 
 void GS::latchHostPresentationFrame()
 {
-    std::lock_guard<std::recursive_mutex> publicationLock(m_stateMutex);
+    std::lock_guard publicationLock(m_stateMutex);
     GSPresentationRequest request{};
     {
-        std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+        std::lock_guard lock(m_stateMutex);
         if (!m_backend || !m_privRegs)
         {
             std::lock_guard<std::mutex> presentationLock(m_presentationMutex);
@@ -661,7 +662,7 @@ void GS::publishHostPresentationFrame(PresentationFrame &&frame, bool recordDebu
     // the state mutex (the EE thread may hold it while draining the backend).
     if (hasFrame && recordDebugEvent)
     {
-        std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+        std::lock_guard lock(m_stateMutex);
         recordPresentDebugEventUnlocked(displayFbp, sourceFbp, width, height, usedPreferred);
     }
 }
@@ -751,7 +752,39 @@ bool GS::copyLatchedHostPresentationFrame(std::vector<uint8_t> &outPixels,
 
 void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId path)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
+#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+    // The kick histogram (runtime/ps2_measure.h): a PATH1 packet (an
+    // XGKICK) by the primitives it drew and what it wrote, counted when the
+    // outermost one ends.
+    struct MeasureKick
+    {
+        bool path1, outer;
+        uint32_t prims0;
+        explicit MeasureKick(GifPathId p)
+            : path1(p == GifPathId::Path1), outer(path1 && g_measure.gifDepth == 0u), prims0(g_measure.prims)
+        {
+            if (path1)
+                ++g_measure.gifDepth;
+            if (outer)
+                g_measure.vtxWrites = g_measure.xyz3Writes = g_measure.imageSeen = 0u;
+        }
+        ~MeasureKick()
+        {
+            if (!path1)
+                return;
+            --g_measure.gifDepth;
+            if (!outer)
+                return;
+            const uint32_t prims = g_measure.prims - prims0;
+            ++g_measure.kicks;
+            ++g_measure.kickPrims[prims == 0u ? 0u : prims == 1u ? 1u : prims < 4u ? 2u : prims < 16u ? 3u : 4u];
+            ++g_measure.kickKinds[g_measure.imageSeen ? 2u : g_measure.vtxWrites == 0u ? 0u : 1u];
+            if (g_measure.xyz3Writes)
+                ++g_measure.kickKinds[3];
+        }
+    } measureKick(path);
+#endif
     const auto index = static_cast<unsigned>(path);
     if (!data || sizeBytes == 0 || !m_backend || index < 1 || index > 3)
         return;
@@ -799,6 +832,7 @@ void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId pat
                 writeRegisterUnlocked(GS_REG_PRIM, (lo >> 47) & 0x7ffu);
             stream.remaining = nloop * (stream.format >= 2 ? 16u : stream.nreg);
             if (stream.format >= 2) stream.image.clear();
+            TS_MEASURE(g_measure.imageSeen |= stream.format >= 2 ? 1u : 0u);
         } else {
             const uint8_t reg = (stream.registers >> (4u * stream.regIndex)) & 15u;
             if (stream.format == GIF_FMT_PACKED) {
@@ -817,7 +851,7 @@ void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId pat
 
 bool GS::processNativePackedGIFPacket(const uint8_t *data, uint32_t sizeBytes)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     if (!data || sizeBytes < 16u || !m_backend)
         return false;
 
@@ -862,7 +896,7 @@ void GS::uploadImageNative(uint64_t bitbltbuf,
                            const uint8_t *data,
                            uint32_t sizeBytes)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     uploadImageNativeUnlocked(bitbltbuf, trxpos, trxreg, trxdir, data, sizeBytes);
 }
 
@@ -1140,7 +1174,7 @@ void GS::writeRegisterPacked(uint8_t regDesc, uint64_t lo, uint64_t hi)
 
 void GS::writeRegister(uint8_t regAddr, uint64_t value)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     writeRegisterUnlocked(regAddr, value);
 }
 
@@ -1278,6 +1312,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         vtx.t = m_curT;
         vtx.u = m_curU;
         vtx.v = m_curV;
+        TS_MEASURE(regAddr == GS_REG_XYZF2 ? ++g_measure.vtxWrites : ++g_measure.xyz3Writes);
         vertexKick(regAddr == GS_REG_XYZF2);
         break;
     }
@@ -1298,6 +1333,7 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         vtx.u = m_curU;
         vtx.v = m_curV;
         vtx.fog = m_curFog;
+        TS_MEASURE(regAddr == GS_REG_XYZ2 ? ++g_measure.vtxWrites : ++g_measure.xyz3Writes);
         vertexKick(regAddr == GS_REG_XYZ2);
         break;
     }
@@ -1662,6 +1698,8 @@ void GS::vertexKick(bool drawing)
 
     if (drawing && m_backend)
     {
+        TS_MEASURE(++g_measure.prims); // a primitive off the native strip / transform paths
+        TS_MEASURE(g_measure.primsTextured += m_prim.tme ? 1u : 0u);
         GSPrimitiveBatch batch = buildDrawBatch(needed);
         adjustWidescreenHud(batch);
         updatePreferredDisplaySourceForDraw(batch);
@@ -1698,7 +1736,7 @@ void GS::vertexKick(bool drawing)
 
 void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t count)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
     if (m_backend && count >= 3u)
     {
@@ -1718,10 +1756,15 @@ void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t c
 
 bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, GSXfCursor &cursor)
 {
+#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+    MeasureTimer measureXf(g_measure.gsBeginXfCycles, g_measure.gsBeginXf); // the renderer's BeginXfRun included
+#endif
     // The lock is held until endXfRun (the mutex is recursive; the caller's
     // thread writes the strips in between), as one submit held it before.
     m_stateMutex.lock();
     writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
+    cursor.inPlace = nullptr; // in-place strips are per run (gs_xf_inplace.h)
+    cursor.inPlaceTaken = 0u;
     if (m_backend)
     {
         const GSPrimitiveBatch batch = buildDrawBatch(0);
@@ -1739,6 +1782,161 @@ void GS::endXfRun(GSXfCursor &cursor)
 {
     m_backend->EndXfRun(cursor);
     m_stateMutex.unlock();
+}
+
+// ---- Push B/C front-end API (gs_frontend.h; B-GS replaces these bodies).
+GSDrawState GS::drawState() const
+{
+    return buildDrawBatch(0).state;
+}
+
+void GS::submitPrimitives(uint32_t primRegister, const GSVertex *vertices, uint32_t count)
+{
+    std::lock_guard lock(m_stateMutex);
+    writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
+    if (m_backend && count != 0u)
+    {
+        const GSPrimitiveBatch batch = buildDrawBatch(0);
+        if (m_backend->SubmitPrimitives(batch.state, primRegister & 0x7FFu, vertices, count))
+        {
+            m_vtxCount = 0;
+            return;
+        }
+    }
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        m_vtxQueue[m_vtxCount % kMaxVerts] = vertices[i];
+        vertexKick(true);
+    }
+}
+
+bool GS::decodePackedVertex(uint8_t regDesc, uint64_t lo, uint64_t hi, GSVertex &out) const
+{
+    switch (regDesc)
+    {
+    case 0x04: // XYZF2
+    case 0x0C: // XYZF3
+        out.x = static_cast<float>(lo & 0xFFFFu) / 16.0f;
+        out.y = static_cast<float>((lo >> 32) & 0xFFFFu) / 16.0f;
+        out.z = static_cast<float>((hi >> 4) & 0xFFFFFFu);
+        out.fog = static_cast<uint8_t>((hi >> 36) & 0xFFu);
+        break;
+    case 0x05: // XYZ2
+    case 0x0D: // XYZ3
+        out.x = static_cast<float>(lo & 0xFFFFu) / 16.0f;
+        out.y = static_cast<float>((lo >> 32) & 0xFFFFu) / 16.0f;
+        out.z = static_cast<float>(hi & 0xFFFFFFFFu);
+        out.fog = m_curFog;
+        break;
+    default:
+        return false;
+    }
+    out.r = m_curR;
+    out.g = m_curG;
+    out.b = m_curB;
+    out.a = m_curA;
+    out.q = m_curQ;
+    out.s = m_curS;
+    out.t = m_curT;
+    out.u = m_curU;
+    out.v = m_curV;
+    return (regDesc == 0x04 || regDesc == 0x05) && ((hi >> 47) & 1u) == 0u;
+}
+
+void GS::processPath1Bulk(const uint8_t *data, uint32_t sizeBytes)
+{
+    processGIFPacket(data, sizeBytes, GifPathId::Path1);
+}
+
+void GS::saveCheckState(CheckState &out) const
+{
+    std::lock_guard lock(m_stateMutex);
+    out.gifStreams = m_gifStreams;
+    out.textureStateWrites = m_textureStateWrites;
+    out.lastStateBlock = m_lastStateBlock;
+    out.lastStateBlockWrites = m_lastStateBlockWrites;
+    out.ctx[0] = m_ctx[0];
+    out.ctx[1] = m_ctx[1];
+    out.prim = m_prim;
+    out.primRegister = m_primRegister;
+    out.prmodeRegister = m_prmodeRegister;
+    out.curR = m_curR;
+    out.curG = m_curG;
+    out.curB = m_curB;
+    out.curA = m_curA;
+    out.curQ = m_curQ;
+    out.curS = m_curS;
+    out.curT = m_curT;
+    out.curU = m_curU;
+    out.curV = m_curV;
+    out.curFog = m_curFog;
+    out.fogR = m_fogR;
+    out.fogG = m_fogG;
+    out.fogB = m_fogB;
+    out.prmodecont = m_prmodecont;
+    out.pabe = m_pabe;
+    out.scanmsk = m_scanmsk;
+    out.dimx = m_dimx;
+    out.dthe = m_dthe;
+    out.colclamp = m_colclamp;
+    out.texa = m_texa;
+    out.texclut = m_texclut;
+    for (int i = 0; i < kMaxVerts; ++i)
+        out.vtxQueue[i] = m_vtxQueue[i];
+    out.vtxCount = m_vtxCount;
+    out.vtxIndex = m_vtxIndex;
+    out.drawCounter = m_drawCounter;
+    out.lastPerspectiveDraw = m_lastPerspectiveDraw;
+}
+
+void GS::restoreCheckState(const CheckState &state)
+{
+    std::lock_guard lock(m_stateMutex);
+    m_gifStreams = state.gifStreams;
+    m_textureStateWrites = state.textureStateWrites;
+    m_lastStateBlock = state.lastStateBlock;
+    m_lastStateBlockWrites = state.lastStateBlockWrites;
+    m_ctx[0] = state.ctx[0];
+    m_ctx[1] = state.ctx[1];
+    m_prim = state.prim;
+    m_primRegister = state.primRegister;
+    m_prmodeRegister = state.prmodeRegister;
+    m_curR = state.curR;
+    m_curG = state.curG;
+    m_curB = state.curB;
+    m_curA = state.curA;
+    m_curQ = state.curQ;
+    m_curS = state.curS;
+    m_curT = state.curT;
+    m_curU = state.curU;
+    m_curV = state.curV;
+    m_curFog = state.curFog;
+    m_fogR = state.fogR;
+    m_fogG = state.fogG;
+    m_fogB = state.fogB;
+    m_prmodecont = state.prmodecont;
+    m_pabe = state.pabe;
+    m_scanmsk = state.scanmsk;
+    m_dimx = state.dimx;
+    m_dthe = state.dthe;
+    m_colclamp = state.colclamp;
+    m_texa = state.texa;
+    m_texclut = state.texclut;
+    for (int i = 0; i < kMaxVerts; ++i)
+        m_vtxQueue[i] = state.vtxQueue[i];
+    m_vtxCount = state.vtxCount;
+    m_vtxIndex = state.vtxIndex;
+    m_drawCounter = state.drawCounter;
+    m_lastPerspectiveDraw = state.lastPerspectiveDraw;
+}
+
+std::unique_ptr<GSRasterBackend> GS::swapBackendForCheck(std::unique_ptr<GSRasterBackend> backend)
+{
+    std::lock_guard lock(m_stateMutex);
+    std::lock_guard<std::mutex> backendLock(m_backendLifetimeMutex);
+    std::unique_ptr<GSRasterBackend> old = std::move(m_backend);
+    m_backend = std::move(backend);
+    return old;
 }
 
 bool GS::decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out)
@@ -1786,7 +1984,7 @@ bool GS::decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &o
 
 GS::StateBlockResult GS::applyStateBlock(const StateBlock &block)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     const GifStreamState &path1 = m_gifStreams[0];
     if (!m_backend || block.count == 0u || path1.remaining || path1.padding || path1.unitBytes)
         return StateBlockResult::NotApplied;
@@ -1810,7 +2008,7 @@ GS::StateBlockResult GS::applyStateBlock(const StateBlock &block)
 
 bool GS::checkStateBlock(const uint8_t *data, uint32_t sizeBytes)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     if (!m_backend)
         return true;
     const GSContext ctx0 = m_ctx[0], ctx1 = m_ctx[1];
@@ -1844,19 +2042,19 @@ void GS::processImageData(const uint8_t *data, uint32_t sizeBytes)
 
 bool GS::clearFramebufferContext(uint32_t contextIndex, uint32_t rgba)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     return m_backend && m_backend->ClearFramebuffer(m_ctx[(contextIndex != 0u) ? 1 : 0], rgba);
 }
 
 bool GS::clearActiveFramebuffer(uint32_t rgba)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     return m_backend && m_backend->ClearFramebuffer(activeContext(), rgba);
 }
 
 uint32_t GS::consumeLocalToHostBytes(uint8_t *dst, uint32_t maxBytes)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     return m_backend ? m_backend->ConsumeLocalToHostBytes(dst, maxBytes) : 0u;
 }
 
@@ -1865,7 +2063,7 @@ void GS::setRasterBackend(std::unique_ptr<GSRasterBackend> backend)
     if (!backend)
         backend = std::make_unique<GSCpuBackend>();
 
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     std::lock_guard<std::mutex> backendLock(m_backendLifetimeMutex);
     if (m_backend)
     {
@@ -1892,13 +2090,13 @@ void GS::setRasterBackend(std::unique_ptr<GSRasterBackend> backend)
 
 uint32_t GS::ReadVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y) const
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     return m_backend ? m_backend->ReadVram(psm, base, bw, x, y) : 0u;
 }
 
 void GS::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y, uint32_t value)
 {
-    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+    std::lock_guard lock(m_stateMutex);
     if (m_backend)
         m_backend->WriteVram(psm, base, bw, x, y, value);
 }

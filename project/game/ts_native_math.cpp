@@ -29,6 +29,34 @@
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
 #include "runtime/ee_scheduler.h"
+#include "runtime/ee_checkpoint_clock.h"
+// TS_NATIVE_CALL_SLOTS 1 (B-CODEGEN, src/xbox/PUSH-BC-PLAN.md M3.2, switched
+// on through src/xbox/mk/b_codegen.mk): lightCall goes through the compact
+// function table's slots (PS2X_GUEST_CALL, ps2_native_call_xbox.h) instead
+// of dispatchGuestBranch. 0 (default): as before.
+#ifndef TS_NATIVE_CALL_SLOTS
+#define TS_NATIVE_CALL_SLOTS 0
+#endif
+#if TS_NATIVE_CALL_SLOTS
+#include "ps2_native_call_xbox.h"
+#endif
+// TS_NATIVE_TRANSCRIBED_{ANIM,LIGHT,COLLISION,PORTAL} 0 (B-LOGIC, src/xbox/
+// PUSH-BC-PLAN.md section 3.6 item 6, through src/xbox/mk/b_logic.mk): drops
+// this file's transcriptions of that module (their bodies, table entries and
+// self-test setups) once the idiomatic module replaces them; the translated
+// originals stay the fallback. 1 (default): everything built, as before.
+#ifndef TS_NATIVE_TRANSCRIBED_ANIM
+#define TS_NATIVE_TRANSCRIBED_ANIM 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_LIGHT
+#define TS_NATIVE_TRANSCRIBED_LIGHT 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_COLLISION
+#define TS_NATIVE_TRANSCRIBED_COLLISION 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_PORTAL
+#define TS_NATIVE_TRANSCRIBED_PORTAL 1
+#endif
 
 #include <chrono>
 #include <cstddef>
@@ -1156,11 +1184,17 @@ namespace
     TS_ALWAYS_INLINE bool lightCall(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t target,
                                     uint32_t source, uint32_t next)
     {
+#if TS_NATIVE_CALL_SLOTS
+        return PS2X_GUEST_CALL(rdram, ctx, runtime, target, source, next);
+#else
         SET_GPR_U32(ctx, 31, next);
         return runtime->dispatchGuestBranch(rdram, ctx, target, source, next, PS2Runtime::GuestBranchKind::DirectCall,
                                             "JAL");
+#endif
     }
 
+    // (divS, conditionBit, cvtSW and lightCall above serve every transcription here.)
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     void nativeObInstLightUpdate(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         const uint32_t gp = GPR_U32(ctx, 28);
@@ -2391,6 +2425,8 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     // ---- bglightGet (0x25a7d0)
     //
     // bglightGet(inst, position, &first, &second): the two nearest lights of
@@ -2733,6 +2769,8 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- hittestLineTri (0x209818)
     //
     // hittestLineTri(p, dir, v0, v1, v2, hit, normal): where the ray from p
@@ -2958,6 +2996,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- quaternionToMatrix (0x2b3f90)
     //
     // quaternionToMatrix(m, q): the rotation matrix of a quaternion, scaled
@@ -3042,6 +3081,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- bgPortalBackFaceTest (0x257860)
     //
     // bgPortalBackFaceTest(room, position, portal): 1 when the position is
@@ -3095,6 +3135,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- The boot-time differential test
     //
     // Each case: a random context and random guest scratch memory; the
@@ -3310,6 +3351,7 @@ namespace
         std::memcpy(rdram + kLibVersion, &version, sizeof(version));
     }
 
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     // ---- The lighting tests' inputs
 
     // The level's lights and bglightGet's globals: a light table of
@@ -3403,7 +3445,9 @@ namespace
         SET_GPR_U64(ctx, 4, high | object);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
     // hittestLineTri(p, dir, v0, v1, v2, hit, normal): the two results are wanted or not.
+#if TS_NATIVE_TRANSCRIBED_COLLISION
     void setupHittest(TestRng &rng, R5900Context &c, uint8_t *rdram)
     {
         R5900Context *ctx = &c;
@@ -3416,8 +3460,10 @@ namespace
                 SET_GPR_U64(ctx, reg, 0u);
         }
     }
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
 
     // bgPortalBackFaceTest(room, position, portal): the portal's room is this one half the time.
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     void setupPortal(TestRng &rng, R5900Context &c, uint8_t *rdram)
     {
         R5900Context *ctx = &c;
@@ -3426,6 +3472,7 @@ namespace
         if ((rng.next() & 1u) != 0u)
             SET_GPR_U64(ctx, 4, sext32(readTestWord(rdram, GPR_U32(ctx, 6))));
     }
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
 
     // Stands in for bgBulletGetClosest and obinstCalcAmbientLight in the
     // lighting test (they read the level's bullets and geometry). It is a
@@ -3506,15 +3553,23 @@ namespace
         {"sinf", 0x2D7398u, &sinf_0x2d7398, &nativeSinf, &setupAngle, true},
         {"cosf", 0x2D71C8u, &cosf_0x2d71c8, &nativeCosf, &setupAngle, true},
         {"sqrtf", 0x2D8398u, &sqrtf_0x2d8398, &nativeSqrtf, &setupSqrt, true},
+#if TS_NATIVE_TRANSCRIBED_COLLISION
         {"hittestLineTri", 0x209818u, &hittestLineTri_0x209818, &nativeHittestLineTri, &setupHittest, true},
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
         {"quaternionToMatrix", 0x2B3F90u, &quaternionToMatrix_0x2b3f90, &nativeQuaternionToMatrix, &setupTwoOperands,
          true},
+#if TS_NATIVE_TRANSCRIBED_PORTAL
         {"bgPortalBackFaceTest", 0x257860u, &bgPortalBackFaceTest_0x257860, &nativeBgPortalBackFaceTest, &setupPortal,
          true},
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
+#if TS_NATIVE_TRANSCRIBED_LIGHT
         {"bglightGet", 0x25A7D0u, &bglightGet_0x25a7d0, &nativeBglightGet, &setupBglightGet, true, false, kLightStatic,
          kLightStaticBytes},
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_LIGHT
         {"obInstLightUpdate", 0x25C160u, &obInstLightUpdate_0x25c160, &nativeObInstLightUpdate, &setupLightUpdate, true,
          true, kLightStatic, kLightStaticBytes},
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
     };
     constexpr uint32_t kNativeMathCount = sizeof(kNativeMath) / sizeof(kNativeMath[0]);
 
@@ -3664,33 +3719,9 @@ namespace
 
     // The originals' loops and calls run scheduler checkpoints. Before the
     // game starts none may come due or charge cycles (that would run the
-    // IOP and the EE timers): the fast path's bound is lifted for the test
-    // and the clock put back afterwards. The base class is protected; a
-    // C-style cast is the one conversion that may name it.
-    class ClockHold
-    {
-    public:
-        explicit ClockHold(PS2Runtime &runtime)
-            : m_clock((EeCheckpointClock &)runtime.eeScheduler()), m_cycle(m_clock.m_eeCycle),
-              m_fastUntil(m_clock.m_fastUntil),
-              m_pending(m_clock.m_checkpointPending.exchange(false, std::memory_order_acq_rel))
-        {
-            m_clock.m_fastUntil = UINT64_MAX;
-        }
-
-        ~ClockHold()
-        {
-            m_clock.m_eeCycle = m_cycle;
-            m_clock.m_fastUntil = m_fastUntil;
-            if (m_pending)
-                m_clock.m_checkpointPending.store(true, std::memory_order_release);
-        }
-
-    private:
-        EeCheckpointClock &m_clock;
-        uint64_t m_cycle, m_fastUntil;
-        bool m_pending;
-    };
+    // IOP and the EE timers): the clock is frozen for the test
+    // (runtime/ee_checkpoint_clock.h, the one copy for every self-test).
+    using ClockHold = EeClockFreeze;
 
     struct TestOutcome
     {

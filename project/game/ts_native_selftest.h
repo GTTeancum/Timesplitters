@@ -14,6 +14,7 @@
 #if defined(PLATFORM_XBOX)
 #include "ps2_runtime.h"
 #include "ps2_runtime_macros.h"
+#include "runtime/ee_checkpoint_clock.h"
 #include "runtime/ee_scheduler.h"
 
 #include <atomic>
@@ -284,33 +285,9 @@ namespace ts_native_test
 
     // The originals' loops and calls run scheduler checkpoints. Before the
     // game starts none may come due or charge cycles (that would run the
-    // IOP and the EE timers): the fast path's bound is lifted for the test
-    // and the clock put back afterwards. The base class is protected; a
-    // C-style cast is the one conversion that may name it.
-    class ClockHold
-    {
-    public:
-        explicit ClockHold(PS2Runtime &runtime)
-            : m_clock((EeCheckpointClock &)runtime.eeScheduler()), m_cycle(m_clock.m_eeCycle),
-              m_fastUntil(m_clock.m_fastUntil),
-              m_pending(m_clock.m_checkpointPending.exchange(false, std::memory_order_acq_rel))
-        {
-            m_clock.m_fastUntil = UINT64_MAX;
-        }
-
-        ~ClockHold()
-        {
-            m_clock.m_eeCycle = m_cycle;
-            m_clock.m_fastUntil = m_fastUntil;
-            if (m_pending)
-                m_clock.m_checkpointPending.store(true, std::memory_order_release);
-        }
-
-    private:
-        EeCheckpointClock &m_clock;
-        uint64_t m_cycle, m_fastUntil;
-        bool m_pending;
-    };
+    // IOP and the EE timers): the clock is frozen for the test
+    // (runtime/ee_checkpoint_clock.h, the one copy for every self-test).
+    using ClockHold = EeClockFreeze;
 
     struct SavedRegion
     {

@@ -35,6 +35,33 @@
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
 #include "runtime/ee_scheduler.h"
+// TS_NATIVE_CALL_SLOTS 1 (B-CODEGEN, src/xbox/PUSH-BC-PLAN.md M3.2, switched
+// on through src/xbox/mk/b_codegen.mk): guestCall goes through the compact
+// function table's slots (PS2X_GUEST_CALL, ps2_native_call_xbox.h) instead
+// of dispatchGuestBranch. 0 (default): as before.
+#ifndef TS_NATIVE_CALL_SLOTS
+#define TS_NATIVE_CALL_SLOTS 0
+#endif
+#if TS_NATIVE_CALL_SLOTS
+#include "ps2_native_call_xbox.h"
+#endif
+// TS_NATIVE_TRANSCRIBED_{ANIM,LIGHT,COLLISION,PORTAL} 0 (B-LOGIC, src/xbox/
+// PUSH-BC-PLAN.md section 3.6 item 6, through src/xbox/mk/b_logic.mk): drops
+// this file's transcriptions of that module (their bodies, table entries and
+// self-test setups) once the idiomatic module replaces them; the translated
+// originals stay the fallback. 1 (default): everything built, as before.
+#ifndef TS_NATIVE_TRANSCRIBED_ANIM
+#define TS_NATIVE_TRANSCRIBED_ANIM 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_LIGHT
+#define TS_NATIVE_TRANSCRIBED_LIGHT 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_COLLISION
+#define TS_NATIVE_TRANSCRIBED_COLLISION 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_PORTAL
+#define TS_NATIVE_TRANSCRIBED_PORTAL 1
+#endif
 #include "ts_native_math.h"
 #include "ts_native_selftest.h"
 
@@ -142,9 +169,13 @@ namespace
     // native function returns at once.
     TS_INL bool guestCall(G_ARGS, uint32_t target, uint32_t source, uint32_t next)
     {
+#if TS_NATIVE_CALL_SLOTS
+        return PS2X_GUEST_CALL(rdram, ctx, runtime, target, source, next);
+#else
         SET_GPR_U32(ctx, 31, next);
         return runtime->dispatchGuestBranch(rdram, ctx, target, source, next, PS2Runtime::GuestBranchKind::DirectCall,
                                             "JAL");
+#endif
     }
 
     // A loop back-edge's scheduler checkpoint: pc is the loop head, where
@@ -197,6 +228,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#if TS_NATIVE_TRANSCRIBED_ANIM
     // ---- extractAnimData (0x215280)
     //
     // extractAnimData(obj, anim, channel, frame, out, scale): the seven
@@ -370,6 +402,8 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_ANIM
+#if TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- hittestLinePoly (0x209b08)
     //
     // hittestLinePoly(p, dir, vertices, indices, count, normal, hit,
@@ -639,6 +673,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- dlSetClip (0x2b8050), dlSetBlend (0x2b7ea8)
     //
     // Display-list builders: memdbAlloc(size) (a call) takes a block from
@@ -954,6 +989,7 @@ namespace
         ctx->pc = lo32(r.ra);
     }
 
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- bgPortalPlaneClip (0x257f20)
     //
     // bgPortalPlaneClip(in, out, axis, outcodeBit, a, b): clips a portal
@@ -1167,6 +1203,8 @@ namespace
         ctx->pc = lo32(r.ra);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
+#if TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- moveFindFloorHeight (0x27c578)
     //
     // moveFindFloorHeight(polygons, mask, position, &found): the highest
@@ -1452,6 +1490,7 @@ namespace
         ctx->pc = lo32(r.ra);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- quaternionSlerp (0x2b4080)
     //
     // quaternionSlerp(q0, q1, out, t): the spherical interpolation. t = 0
@@ -2122,6 +2161,7 @@ namespace
         ctx->pc = lo32(ra);
     }
 
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- bgPortalCrossed (0x258cf0)
     //
     // bgPortalCrossed(from, to, room, previousRoom, strict): the room the
@@ -2480,6 +2520,7 @@ namespace
         ctx->pc = lo32(r.ra);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- calDoubleFillets (0x214a88)
     //
     // calDoubleFillets(skeleton, bone, t): walks the bone tree (0x50-byte
@@ -3008,15 +3049,25 @@ namespace
 
     const NativeEntry kNativeGame[] = {
         {"matrixScaleSet", 0x2B4F20u, &matrixScaleSet_0x2b4f20, &nativeMatrixScaleSet, &setupMatrixScale, true, nullptr, 0u},
+#if TS_NATIVE_TRANSCRIBED_ANIM
         {"extractAnimData", 0x215280u, &extractAnimData_0x215280, &nativeExtractAnimData, &setupExtractAnim, true, nullptr, 0u},
+#endif // TS_NATIVE_TRANSCRIBED_ANIM
+#if TS_NATIVE_TRANSCRIBED_COLLISION
         {"hittestLinePoly", 0x209B08u, &hittestLinePoly_0x209b08, &nativeHittestLinePoly, &setupLinePoly, true, nullptr, 0u},
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
         {"dlSetClip", 0x2B8050u, &dlSetClip_0x2b8050, &nativeDlSetClip, &setupDlSetClip, false, kDlExtra, 3u},
         {"dlSetBlend", 0x2B7EA8u, &dlSetBlend_0x2b7ea8, &nativeDlSetBlend, &setupDlSetBlend, false, kBlendExtra, 4u},
+#if TS_NATIVE_TRANSCRIBED_PORTAL
         {"bgPortalPlaneClip", 0x257F20u, &bgPortalPlaneClip_0x257f20, &nativeBgPortalPlaneClip, &setupPlaneClip, true, kClipExtra, 1u},
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
+#if TS_NATIVE_TRANSCRIBED_COLLISION
         {"moveFindFloorHeight", 0x27C578u, &moveFindFloorHeight_0x27c578, &nativeMoveFindFloorHeight, &setupFloorHeight, true, nullptr, 0u},
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
         {"__ieee754_acosf", 0x2D9818u, &ps2___ieee754_acosf_0x2d9818, &nativeIeee754Acosf, &setupAcosf, true, nullptr, 0u},
         {"quaternionSlerp", 0x2B4080u, &quaternionSlerp_0x2b4080, &nativeQuaternionSlerp, &setupSlerp, true, nullptr, 0u},
+#if TS_NATIVE_TRANSCRIBED_PORTAL
         {"bgPortalCrossed", 0x258CF0u, &bgPortalCrossed_0x258cf0, &nativeBgPortalCrossed, &setupPortalCrossed, true, nullptr, 0u},
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
         {"calDoubleFillets", 0x214A88u, &calDoubleFillets_0x214a88, &nativeCalDoubleFillets, &setupFillets, true, nullptr, 0u},
     };
     constexpr uint32_t kNativeGameCount = sizeof(kNativeGame) / sizeof(kNativeGame[0]);

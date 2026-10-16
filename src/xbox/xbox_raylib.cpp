@@ -8,6 +8,7 @@
 //   - gamepads and the audio stream go through nxdk's SDL2;
 //   - keyboard queries report nothing pressed.
 #include "raylib.h"
+#include "runtime/ps2_det.h"
 #include "runtime/ps2_music.h"
 #include "xbox_log.h"
 
@@ -184,7 +185,9 @@ namespace
                 const uint64_t start = __builtin_ia32_rdtsc();
                 {
                     std::lock_guard<std::mutex> guard(g_audio.lock);
-                    if (g_audio.playing && g_audio.callback)
+                    // TS_DET (runtime/ps2_det.h): the det harness mixes the
+                    // pcm stream itself; the feeder plays silence.
+                    if (g_audio.playing && g_audio.callback && !xboxDetSilentAudio())
                         g_audio.callback(mixInto, kAudioFrames);
                     else
                         std::memset(mixInto, 0, kAudioFrames * 4u);

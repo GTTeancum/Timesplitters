@@ -31,6 +31,28 @@ if(PS2X_VU_GAME_REFERENCE)
 endif()
 target_include_directories(timesplitters PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../generated")
 target_compile_features(timesplitters PRIVATE cxx_std_20)
+
+# Push B/C (src/xbox/PUSH-BC-PLAN.md W0-I; frozen afterwards): the Xbox
+# natives, the game-side registries (hooks, knobs, list tokens, records,
+# pacing) and the idiomatic modules under project/game/native, built into
+# the PC game for the host-side tests and B-LOGIC's whole-run differential.
+# Covers every project/game/ts_*.cpp (ts_overrides.cpp is in the game
+# already) and project/game/native/*.cpp, present or still to come
+# (ts_inplace.cpp, ts_record_*.cpp, ...): a track's new file of either name
+# joins the PC build without touching this file. A file of another name (a
+# tool with its own main, like frame_bench.cpp or tick_replay.cpp) is its
+# own target through an integrator amendment, or stays Xbox-only.
+# Off (default): the PC game is what it was.
+option(TS_NATIVE_HOST "Build the Xbox natives and their harness into the PC game" OFF)
+if(TS_NATIVE_HOST)
+    file(GLOB TS_NATIVE_HOST_SRCS CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/ts_*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/native/*.cpp")
+    list(REMOVE_ITEM TS_NATIVE_HOST_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/ts_overrides.cpp")
+    target_sources(timesplitters PRIVATE ${TS_NATIVE_HOST_SRCS})
+    target_compile_definitions(timesplitters PRIVATE TS_NATIVE_HOST=1)
+    target_include_directories(timesplitters PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/native")
+endif()
 if(MSVC)
     set_target_properties(timesplitters PROPERTIES UNITY_BUILD OFF)
     # /d2OptimizeHugeFunctions: MSVC otherwise silently skips optimizing the

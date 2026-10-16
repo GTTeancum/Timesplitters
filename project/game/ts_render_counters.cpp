@@ -1,6 +1,7 @@
 // Render-origin counters (rewrite plan M0.3; runtime/ps2_render_counters.h):
 // the game functions that write the data partGfx's display lists point at,
-// counted through their function-table entries, and the [TS:render] line.
+// counted through the game-function hook registry (ts_game_hooks.h), and
+// the [TS:render] line.
 //
 // One line every status interval (the Xbox status hook, every 3 s), each
 // count the change since the line before:
@@ -34,6 +35,7 @@
 #if defined(PLATFORM_XBOX)
 #include "game_overrides.h"
 #include "ps2_runtime.h"
+#include "ts_game_hooks.h"
 #include "../../src/xbox/gs_nv2a_backend.h" // game frames
 #include "../../src/xbox/xbox_log.h"
 
@@ -49,46 +51,39 @@ namespace
     //   obPrecalcDbufGfxData (0x25fc90): an instance's double-buffered chains
     //   obInstLight (0x2a7ab0): builds them at the instance's first relight
     //   vtxlistcolour (0x2a7a50): rewrites their colours (roomlightTick)
-    // Each one's table entry counts the call, then runs what the entry held
-    // before (the original, or an override applied ahead of this one). A
-    // resume inside the function goes through the entry of its resume
-    // address, not this one: a call is counted once.
+    // Each one's hook registry entry (ts_game_hooks.cpp wraps the table
+    // entry) counts the call before the function runs. A resume inside the
+    // function goes through the entry of its resume address, not the
+    // wrapper: a call is counted once.
     struct Writer
     {
-        uint32_t address;
+        TsGameFn fn;
         uint32_t RenderCounters::*counter;
     };
     constexpr Writer kWriters[4] = {
-        {0x2A7A50u, &RenderCounters::vtxlistcolour},
-        {0x2A7AB0u, &RenderCounters::obInstLight},
-        {0x25FC90u, &RenderCounters::obPrecalcDbufGfxData},
-        {0x25F408u, &RenderCounters::partPrecalcDmaData},
+        {TsGameFn::vtxlistcolour, &RenderCounters::vtxlistcolour},
+        {TsGameFn::obInstLight, &RenderCounters::obInstLight},
+        {TsGameFn::obPrecalcDbufGfxData, &RenderCounters::obPrecalcDbufGfxData},
+        {TsGameFn::partPrecalcDmaData, &RenderCounters::partPrecalcDmaData},
     };
-    PS2Runtime::RecompiledFunction s_writers[4];
 
     template <int Index>
-    void counted(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    void counted(void *, uint8_t *, R5900Context *, PS2Runtime *)
     {
         ++(g_renderCounters.*kWriters[Index].counter);
-        s_writers[Index](rdram, ctx, runtime);
     }
-    constexpr PS2Runtime::RecompiledFunction kCounted[4] = {&counted<0>, &counted<1>, &counted<2>, &counted<3>};
+    constexpr TsGameHookFn kCounted[4] = {&counted<0>, &counted<1>, &counted<2>, &counted<3>};
 
     void registerRenderCounters(PS2Runtime &runtime)
     {
-#if TS_RENDER_COUNTERS >= 1
-        for (int i = 0; i < 4; ++i)
-        {
-            if (!runtime.hasFunction(kWriters[i].address))
-                continue;
-            const PS2Runtime::RecompiledFunction current = runtime.lookupFunction(kWriters[i].address);
-            if (current == kCounted[i])
-                continue; // applied before (the game loaded again)
-            s_writers[i] = current;
-            runtime.replaceFunction(kWriters[i].address, kCounted[i]);
-        }
-#else
         (void)runtime;
+#if TS_RENDER_COUNTERS >= 1
+        static bool registered = false; // the registry keeps the callbacks across game loads
+        if (registered)
+            return;
+        registered = true;
+        for (int i = 0; i < 4; ++i)
+            tsGameHookOn(kWriters[i].fn, TsHookPhase::Before, kCounted[i]);
 #endif
     }
 
@@ -193,9 +188,9 @@ void renderCountersReport()
 #endif
 }
 
-// Its own game override, applied with the others when the game loads, so
-// the counting entries need no line elsewhere. (The link puts
-// ts_overrides.cpp's first; in the other order an override of one of these
-// functions there would replace its counting entry: no count, same game.)
+// Its own game override, applied with the others when the game loads: the
+// counting callbacks join the hook registry, whose wrappers ts_overrides.cpp
+// installs after the natives (any order between the two is fine: the
+// registry is consulted when a hooked function runs).
 PS2_REGISTER_GAME_OVERRIDE("TimeSplitters render counters", "SLUS_200.90", 0u, 0u, registerRenderCounters)
 #endif

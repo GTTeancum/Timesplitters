@@ -9,6 +9,20 @@
 
 #if defined(PLATFORM_XBOX)
 
+// The write journal's twin for the special addresses (the scratchpad, which
+// the slow stores below route through runtime->StoreN): PS2X_WRITE_JOURNAL
+// (ps2_runtime.h) notes the guest address and size; 0 (default) nothing.
+#if PS2X_WRITE_JOURNAL
+#define PS2_XBOX_JOURNAL_SPECIAL(addr, size)      \
+    do                                            \
+    {                                             \
+        if (ps2IsScratchpadAddress(addr))         \
+            ps2xJournalTouch((addr), (size));     \
+    } while (0)
+#else
+#define PS2_XBOX_JOURNAL_SPECIAL(addr, size) ((void)0)
+#endif
+
 PS2_XBOX_GUEST_SLOW uint16_t Ps2XboxFastRead16Slow(uint32_t addr, const uint8_t *rdram) { return Ps2FastRead16(rdram, addr); }
 PS2_XBOX_GUEST_SLOW uint32_t Ps2XboxFastRead32Slow(uint32_t addr, const uint8_t *rdram) { return Ps2FastRead32(rdram, addr); }
 PS2_XBOX_GUEST_SLOW uint64_t Ps2XboxFastRead64Slow(uint32_t addr, const uint8_t *rdram) { return Ps2FastRead64(rdram, addr); }
@@ -60,6 +74,7 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite8Slow(uint32_t addr, uint8_t *rdram, R5900C
 {
     if (PS2Runtime::isSpecialAddress(addr))
     {
+        PS2_XBOX_JOURNAL_SPECIAL(addr, 1u);
         runtime->Store8(rdram, ctx, addr, value);
         return;
     }
@@ -71,6 +86,7 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite16Slow(uint32_t addr, uint8_t *rdram, R5900
 {
     if (PS2Runtime::isSpecialAddress(addr))
     {
+        PS2_XBOX_JOURNAL_SPECIAL(addr, 2u);
         runtime->Store16(rdram, ctx, addr, value);
         return;
     }
@@ -82,6 +98,7 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite32Slow(uint32_t addr, uint8_t *rdram, R5900
 {
     if (PS2Runtime::isSpecialAddress(addr))
     {
+        PS2_XBOX_JOURNAL_SPECIAL(addr, 4u);
         runtime->Store32(rdram, ctx, addr, value);
         return;
     }
@@ -93,6 +110,7 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite64Slow(uint32_t addr, uint8_t *rdram, R5900
 {
     if (PS2Runtime::isSpecialAddress(addr))
     {
+        PS2_XBOX_JOURNAL_SPECIAL(addr, 8u);
         runtime->Store64(rdram, ctx, addr, value);
         return;
     }
@@ -106,6 +124,7 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite128Slow(uint32_t addr, uint8_t *rdram, R590
     std::memcpy(&bits, value, sizeof(bits));
     if (PS2Runtime::isSpecialAddress(addr))
     {
+        PS2_XBOX_JOURNAL_SPECIAL(addr, 16u);
         runtime->Store128(rdram, ctx, addr, bits);
         return;
     }

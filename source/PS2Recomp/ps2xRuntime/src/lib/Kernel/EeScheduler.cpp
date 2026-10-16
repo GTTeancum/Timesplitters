@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 #if defined(PLATFORM_XBOX)
+#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: dispatches by pc
 #include <profileapi.h> // the counter behind steady_clock (src/xbox/xbox_chrono.cpp)
 
 EeSchedulerStats g_eeSchedulerStats;
@@ -332,6 +333,12 @@ void EeScheduler::run()
             continue;
         }
         PS2Runtime::RecompiledFunction function = m_runtime.lookupFunction(context.pc);
+#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+        // Dispatches by pc (runtime/ps2_measure.h): the natives' translated
+        // resumes are the pcs inside their functions.
+        ++g_measure.dispatches;
+        measureCount(g_measure.dispatch, context.pc, g_measure.dispatchOther);
+#endif
 
         if (checkpointDue(kGuestDispatchCycles))
         {

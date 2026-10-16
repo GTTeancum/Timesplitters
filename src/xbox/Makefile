@@ -28,13 +28,34 @@ TS_VU1_RECOMPILED ?= 0
 GENVU_SRCS := $(if $(filter 1,$(TS_VU1_RECOMPILED)),$(wildcard $(GENVU)/*.cpp))
 XBOX      := $(CURDIR)
 
+# ---- Push B/C track fragments (src/xbox/PUSH-BC-PLAN.md W0-I). This
+# Makefile is frozen: each track adds what it needs through its own
+# src/xbox/mk/<track>.mk, which may append to
+#   EXTRA_GAME_SRCS       project/game sources (built like GAME_SRCS)
+#   EXTRA_RUNTIME_SRCS    runtime sources (built like RUNTIME_SRCS)
+#   EXTRA_XBOX_OBJS_FAST  objects (under $(OBJ)) built -O2 like FAST_OBJS
+#   EXTRA_DEFINES         -D switches for every file, generated code included
+#   PATCH_FLAGS           options for patch_generated.py (every generated file)
+#   HOST_TESTS            host tests (src/xbox/test/host_tests.mk)
+# and may define stamps of its own for switches only some files see (the
+# TS_HWPROF block below is the pattern). EXTRA_DEFINES and PATCH_FLAGS are in
+# the generated-code and patch stamps; the source and object lists in the
+# link stamp.
+EXTRA_GAME_SRCS :=
+EXTRA_RUNTIME_SRCS :=
+EXTRA_XBOX_OBJS_FAST :=
+EXTRA_DEFINES :=
+PATCH_FLAGS :=
+HOST_TESTS :=
+include $(wildcard $(XBOX)/mk/*.mk)
+
 CXX  := $(XBOX)/tools/nxdk-cxx-hosted
 CC   := nxdk-cc
 LINK := nxdk-link
 CXBE := $(NXDK_DIR)/tools/cxbe/cxbe.exe
 XISO := $(NXDK_DIR)/tools/extract-xiso/build/extract-xiso.exe
 
-DEFINES := -DPLATFORM_XBOX=1 -DPS2X_SCALAR_SIMD=1 -DPS2X_NO_EXCEPTIONS=1 -DPS2X_HAS_FFMPEG=0 -DPS2X_ENABLE_IOP_RPC_TRACE=0 -DPS2X_DEVICE_CYCLE_BATCH=2048 -DPS2X_VU1_SSE1=1
+DEFINES := -DPLATFORM_XBOX=1 -DPS2X_SCALAR_SIMD=1 -DPS2X_NO_EXCEPTIONS=1 -DPS2X_HAS_FFMPEG=0 -DPS2X_ENABLE_IOP_RPC_TRACE=0 -DPS2X_DEVICE_CYCLE_BATCH=2048 -DPS2X_VU1_SSE1=1 $(EXTRA_DEFINES)
 INCLUDES := -include $(XBOX)/compat/xbox_prelude.h -I$(XBOX)/compat -I$(XBOX)/raylib \
             -I$(RUNTIME)/include -I$(RUNTIME)/src/lib -I$(RUNTIME)/src/lib/Kernel -I$(IOP)/include -I$(IOP)/src -I$(GENERATED)
 # Newer clang needs this for nxdk's libc++ 10 headers.
@@ -75,7 +96,8 @@ RUNTIME_SRCS := \
     $(RUNTIME)/src/lib/vu/ps2_vu1_lower.cpp \
     $(RUNTIME)/src/lib/vu/ps2_vu1_jit.cpp \
     $(RUNTIME)/src/lib/games_database.cpp \
-    $(shell find $(RUNTIME)/src/lib/Kernel -name '*.cpp')
+    $(shell find $(RUNTIME)/src/lib/Kernel -name '*.cpp') \
+    $(EXTRA_RUNTIME_SRCS)
 
 IOP_SRCS := $(addprefix $(IOP)/src/, \
     ps2_path.cpp iop_module_manager.cpp iop_subsystem.cpp \
@@ -88,7 +110,8 @@ IOP_SRCS := $(addprefix $(IOP)/src/, \
     modules/dbcman.cpp modules/libsd.cpp modules/mcserv.cpp)
 
 GAME_SRCS := $(GAME)/ts_overrides.cpp $(GAME)/vu1_native_ts.cpp $(GAME)/ts_native_math.cpp $(GAME)/ts_native_fp.cpp \
-    $(GAME)/ts_native_game.cpp $(GAME)/ts_native_game2.cpp $(GAME)/ts_native_game3.cpp $(GAME)/ts_render_counters.cpp
+    $(GAME)/ts_native_game.cpp $(GAME)/ts_native_game2.cpp $(GAME)/ts_native_game3.cpp $(GAME)/ts_render_counters.cpp \
+    $(GAME)/ts_game_hooks.cpp $(GAME)/ts_knobs.cpp $(EXTRA_GAME_SRCS)
 XBOX_SRCS := $(wildcard $(XBOX)/*.cpp)
 # register_functions.cpp is replaced by a compact table (see the rule below).
 GEN_TABLE := $(OUT)/gen/register_functions_xbox.cpp
@@ -107,33 +130,13 @@ VU_OBJS := $(call objof,$(GENVU_SRCS))
 ifneq ($(VU_OBJS),)
 $(VU_OBJS): GEN_FLAGS := $(COMMON) -O2
 endif
-# The game functions that take most of a busy match frame (sample profiles
-# of the scripted arcade match): -O2, and their constant calls are inlined
+# The game functions that take most of a busy match frame (GEN_FAST_NAMES,
+# src/xbox/gen_fast_names.mk): -O2, and their constant calls are inlined
 # (PS2X_DIRECT_CALL_INLINE, ps2_direct_call_xbox.h); the other files call
-# the same code out of line, which keeps them as small as before.
+# the same code out of line, which keeps them as small as before. The same
+# file lists the originals a native twin replaces (NATIVE_TWINS).
 GEN_FAST_FLAGS := $(COMMON) -O2 -DPS2X_DIRECT_CALL_INLINE=1
-GEN_FAST_NAMES := partGfx_0x260ae0 obInstLightUpdate_0x25c160 animMtxTick_0x273bb0 moveTest_0x27d0c0 \
-    calMatrices_0x212e08 obInstGfx_0x262a60 bgGfx_0x256830 enemyTick_0x2bb470 chrPropTick_0x26ddc0 \
-    hittestLineTri_0x209818 hittestLinePoly_0x209b08 bgPortalCrossed_0x258cf0 bgPortalCalcPos_0x258108 \
-    bgPortalPlaneClip_0x257f20 bgPortalBackFaceTest_0x257860 decalDraw_0x2a5b20 decalTick_0x2a4bd8 \
-    gunTick_0x2946c0 rotateChr_0x2bc5d0 obInstLineTest_0x263768 calDoubleFillets_0x214a88 \
-    bgBulletGetClosest_0x25bc88 matrixScaleSet_0x2b4f20 obinstCalcAmbientLight_0x25aae0 \
-    pickupPropTick_0x26a330 spawnfxTick_0x2abea0 particleTick_0x29bc58 quaternionToMatrix_0x2b3f90 \
-    extractAnimData_0x215280 animUpdate_0x212cf8 moveFindFloorHeight_0x27c578 bgGetRoomsTick_0x256c58 \
-    bglightGet_0x25a7d0 setAnim_0x214d68 dlSetBlend_0x2b7ea8 dlSetClip_0x2b8050 dlTextureRectangle_0x2b8c08 \
-    dlDrawTriangleStrip_0x2b8a10 camTick_0x27e320 findweapon_0x2c4d70 MoveTestWall_0x27cce0
-# Of those, the originals a native twin replaces (project/game/ts_native_*.cpp:
-# the twin runs, the original only for the boot self-test and the odd deep
-# recursion; the hardware profile finds each idle, 0-3 samples in 82 s) are
-# built -Oz like the rest: 27 KB less code (364 KB against 392). calMatrices'
-# original still runs (0.5% of the CPU) and stays. make
-# TS_DEMOTE_NATIVE_TWINS=0: all -O2.
-NATIVE_TWINS := animMtxTick_0x273bb0 animUpdate_0x212cf8 bgBulletGetClosest_0x25bc88 bgPortalBackFaceTest_0x257860 \
-    bgPortalCalcPos_0x258108 bgPortalCrossed_0x258cf0 bgPortalPlaneClip_0x257f20 bglightGet_0x25a7d0 \
-    calDoubleFillets_0x214a88 chrPropTick_0x26ddc0 decalDraw_0x2a5b20 dlSetBlend_0x2b7ea8 dlSetClip_0x2b8050 \
-    extractAnimData_0x215280 hittestLinePoly_0x209b08 hittestLineTri_0x209818 matrixScaleSet_0x2b4f20 \
-    moveFindFloorHeight_0x27c578 moveTest_0x27d0c0 obInstLightUpdate_0x25c160 obinstCalcAmbientLight_0x25aae0 \
-    partGfx_0x260ae0 particleTick_0x29bc58 quaternionToMatrix_0x2b3f90 rotateChr_0x2bc5d0 spawnfxTick_0x2abea0
+include $(XBOX)/gen_fast_names.mk
 TS_DEMOTE_NATIVE_TWINS ?= 1
 ifeq ($(TS_DEMOTE_NATIVE_TWINS),1)
 GEN_FAST_NAMES := $(filter-out $(NATIVE_TWINS),$(GEN_FAST_NAMES))
@@ -149,11 +152,17 @@ $(GEN_FAST_OBJS): GEN_FLAGS := $(GEN_FAST_FLAGS)
 GEN_FLAGS_STAMP := $(OUT)/gen/gen_flags.stamp
 GEN_FLAGS_TEXT  := $(GEN_FLAGS) / $(GEN_FAST_FLAGS): $(GEN_FAST_NAMES)
 $(shell mkdir -p $(OUT)/gen && { [ "$$(cat $(GEN_FLAGS_STAMP) 2>/dev/null)" = "$(GEN_FLAGS_TEXT)" ] || printf '%s\n' "$(GEN_FLAGS_TEXT)" > $(GEN_FLAGS_STAMP); })
+# The patcher's options (PATCH_FLAGS, from the track fragments) have a stamp
+# of their own that every patched copy depends on, so a change re-patches
+# (and recompiles) the generated code. Empty by default: written once.
+PATCH_STAMP := $(OUT)/gen/patch.flags
+$(shell mkdir -p $(OUT)/gen && { { [ -f $(PATCH_STAMP) ] && [ "$$(cat $(PATCH_STAMP))" = "$(PATCH_FLAGS)" ]; } || printf '%s\n' "$(PATCH_FLAGS)" > $(PATCH_STAMP); })
 .DEFAULT_GOAL := all # dependency rules above this line must not become the default
 $(GEN_OBJS): $(GEN_FLAGS_STAMP)
 
-# The software renderer and the Xbox presenter are the hottest code: -O2.
-FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj \
+# The software renderer and the Xbox presenter are the hottest code: -O2
+# (a track adds its own through EXTRA_XBOX_OBJS_FAST).
+FAST_OBJS = $(filter $(EXTRA_XBOX_OBJS_FAST) $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj \
                      $(OBJ)/project/game/ts_native_math.obj $(OBJ)/project/game/ts_native_fp.obj \
                      $(OBJ)/project/game/ts_native_game.obj $(OBJ)/project/game/ts_native_game2.obj \
                      $(OBJ)/project/game/ts_native_game3.obj \
@@ -192,20 +201,23 @@ $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function
 	@python $(XBOX)/tools/compact_function_table.py $< $@
 
 # The patcher reads the call targets' slots from the compact table, so a
-# regenerated table re-patches (and recompiles) every game function.
-$(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(GEN_TABLE) $(XBOX)/tools/patch_generated.py $(XBOX)/tools/direct_calls.py
+# regenerated table re-patches (and recompiles) every game function; so do
+# the patcher's options (PATCH_STAMP).
+$(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(GEN_TABLE) $(XBOX)/tools/patch_generated.py $(XBOX)/tools/direct_calls.py $(PATCH_STAMP)
 	@mkdir -p $(dir $@)
 	@echo "[ PATCH   ] $(notdir $@)"
-	@python $(XBOX)/tools/patch_generated.py $< $(GEN_TABLE) $@
+	@python $(XBOX)/tools/patch_generated.py $(PATCH_FLAGS) $< $(GEN_TABLE) $@
 
 # Fixed copies of nxdk C sources, built in place of the library's
 # (pbkit: double-buffered; winapi/sync: condition-variable timeouts).
+# PBKIT_CFLAGS: per-object switches (the measurement build's, below).
 PBKIT_OBJ := $(OBJ)/src/xbox/pbkit/pbkit_ts.obj $(OBJ)/src/xbox/winapi/sync_ts.obj
+PBKIT_CFLAGS :=
 
 $(PBKIT_OBJ): $(OBJ)/src/xbox/%.obj: $(XBOX)/%.c
 	@mkdir -p $(dir $@)
 	@echo "[ CC      ] src/xbox/$*.c"
-	@nxdk-cc -O2 -I$(NXDK_DIR)/lib/pbkit -I$(NXDK_DIR)/lib/winapi -Wno-everything -c -o $@ $<
+	@nxdk-cc -O2 $(PBKIT_CFLAGS) -I$(NXDK_DIR)/lib/pbkit -I$(NXDK_DIR)/lib/winapi -Wno-everything -c -o $@ $<
 
 # NV2A shaders (src/xbox/shaders): Cg -> vp20/fp20 assembly -> pushbuffer .inl.
 CGC    := $(NXDK_DIR)/tools/cg/win/cgc.exe
@@ -279,6 +291,34 @@ $(RENDER_COUNTERS_STAMP): FORCE
 $(RENDER_COUNTERS_OBJS): $(RENDER_COUNTERS_STAMP)
 $(RENDER_COUNTERS_OBJS): RUNTIME_FLAGS += -DTS_RENDER_COUNTERS=$(TS_RENDER_COUNTERS)
 
+# make TS_MEASURE_PUSHBC=1: the Push B/C measurement counters (PUSH-BC-PLAN.md
+# W0-M; runtime/ps2_measure.h, src/xbox/xbox_measure.cpp: the [TS:m-*] lines
+# for the first console session), with the renderer timing ([TS:kick],
+# TS_PERF_BACKEND) and the tick sub-brackets ([TS:sub], TS_PERF_SUBBRACKETS)
+# unless those are given on their own. Off by default: 0 counts nothing and
+# the objects are as without it. Only the files that count see the switch; a
+# stamp rebuilds them when it changes. The lock census is in sync_ts.c,
+# built by the C rule below: PBKIT_CFLAGS carries its switch.
+TS_MEASURE_PUSHBC ?= 0
+TS_PERF_BACKEND ?= $(TS_MEASURE_PUSHBC)
+TS_PERF_SUBBRACKETS ?= $(TS_MEASURE_PUSHBC)
+MEASURE_FLAGS := -DTS_MEASURE_PUSHBC=$(TS_MEASURE_PUSHBC) -DTS_PERF_BACKEND=$(TS_PERF_BACKEND) -DTS_PERF_SUBBRACKETS=$(TS_PERF_SUBBRACKETS)
+MEASURE_STAMP := $(OUT)/gen/measure.flags
+MEASURE_OBJS := $(OBJ)/src/xbox/xbox_measure.obj $(OBJ)/src/xbox/xbox_perf.obj $(OBJ)/src/xbox/xbox_main.obj \
+    $(OBJ)/src/xbox/xbox_shims.obj $(OBJ)/src/xbox/xbox_string.obj $(OBJ)/src/xbox/gs_nv2a_backend.obj \
+    $(OBJ)/project/game/ts_overrides.obj $(OBJ)/project/game/ts_pacing.obj $(OBJ)/project/game/vu1_native_ts.obj \
+    $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
+    $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj \
+    $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/gs_frontend.obj \
+    $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/Kernel/EeScheduler.obj
+$(MEASURE_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(MEASURE_FLAGS)' ] || echo '$(MEASURE_FLAGS)' > $@
+$(MEASURE_OBJS): $(MEASURE_STAMP)
+$(MEASURE_OBJS): RUNTIME_FLAGS += $(MEASURE_FLAGS)
+$(OBJ)/src/xbox/winapi/sync_ts.obj: $(MEASURE_STAMP)
+$(OBJ)/src/xbox/winapi/sync_ts.obj: PBKIT_CFLAGS += -DTS_MEASURE_PUSHBC=$(TS_MEASURE_PUSHBC)
+
 # Thread stacks (REWRITE-PLAN.md M2.5). Every thread created without a size
 # (std::thread, CreateThread(..., 0, ...): the game thread, the audio
 # feeder) and the main thread get the XBE's stack size, 256 KB, committed
@@ -304,7 +344,7 @@ $(STACK_OBJS): RUNTIME_FLAGS += $(STACK_FLAGS)
 # What the link depends on besides the objects: a switch that leaves objects
 # out (TS_VU1_RECOMPILED) or changes the link (the stack) relinks.
 LINK_STAMP := $(OUT)/gen/link.flags
-LINK_FLAGS_TEXT := TS_VU1_RECOMPILED=$(TS_VU1_RECOMPILED) stack=$(XBE_STACK)
+LINK_FLAGS_TEXT := TS_VU1_RECOMPILED=$(TS_VU1_RECOMPILED) stack=$(XBE_STACK) extra=$(EXTRA_GAME_SRCS) $(EXTRA_RUNTIME_SRCS) $(EXTRA_XBOX_OBJS_FAST)
 $(LINK_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(LINK_FLAGS_TEXT)' ] || echo '$(LINK_FLAGS_TEXT)' > $@
@@ -388,6 +428,11 @@ clean:
 
 vuflags:
 	@echo $(CXX) $(GEN_FLAGS) -O2
-.PHONY: all runtime generated textures clean FORCE vuflags
+
+# make host-tests: the host-side tests of src/xbox/test (host_tests.mk; a
+# track lists its own through HOST_TESTS in its .mk).
+include $(XBOX)/test/host_tests.mk
+
+.PHONY: all runtime generated textures clean FORCE vuflags host-tests
 FORCE:
 -include $(GEN_OBJS:.obj=.d) $(OTHER_OBJS:.obj=.d)

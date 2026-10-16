@@ -141,6 +141,15 @@ public:
     void GrowXfCursor(GSXfCursor &cursor, uint32_t count) override;
     void EmitXfStrip(const GSXfVertex *vertices, uint32_t count) override;
     void EndXfRun(GSXfCursor &cursor) override;
+    // The Push B/C draw paths (gs_backend.h): each forwards to an Impl member
+    // in the fragment that owns it (gs_nv2a_screen.inl: submitPrimitives,
+    // C-EMIT; gs_nv2a_xf.inl: xfInPlace, C-XF; gs_nv2a_state.inl:
+    // beginNativeRun, B-GS), which answers the old path until its track
+    // lands it; DrawPaths ORs the fragments' kGSDrawPath* bits.
+    uint32_t DrawPaths() const override;
+    bool SubmitPrimitives(const GSDrawState &state, uint32_t prim, const GSVertex *vertices, uint32_t count) override;
+    void XfInPlace(GSXfCursor &cursor, const GSXfInPlaceStrip *strips, uint32_t count) override;
+    GSNativeRunResult BeginNativeRun(const GSNativeRun &run, GSXfCursor &cursor) override;
     void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) override;
     uint64_t DebugClutState() override;
 

@@ -1,6 +1,9 @@
 #pragma once
+#include "xbox_log.h"
+#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <memory>
 // Timing, CPU and memory telemetry for real-hardware runs (xbox_perf.cpp).
 // Always on: every few seconds the status hook (xbox_main.cpp) writes
@@ -11,12 +14,35 @@
 //   [TS:ee]    EE scheduler waits per call site, protocol counts, guest calls
 //   [TS:cpu]   P6 performance counters, kernel idle, MXCSR / x87 flags
 //   [TS:mem]   free memory and its low-water mark, the heap, the game's heaps
+//   [TS:m-*]   make TS_MEASURE_PUSHBC=1 only: the Push B/C measurement
+//              counters (runtime/ps2_measure.h, xbox_measure.cpp)
 // all per game frame over the interval unless marked otherwise. Nothing here
 // allocates after start-up; the totals are fixed storage.
 
 class GSRasterBackend;
 class GifArbiter;
 class GS;
+class PS2Runtime;
+
+// The draw paths of Push B/C (src/xbox/PUSH-BC-PLAN.md), each a compile-time
+// switch its track turns on through src/xbox/mk/<track>.mk once its gates
+// pass; 0 (default) is the old path. xboxInstallBackend logs which are on
+// and checks that the backend implements what a switched-on path needs.
+#ifndef TS_NATIVE_EMIT_TIER0 // Tier 0: kickPacket's GIF bulk path (C-EMIT; backend SubmitPrimitives)
+#define TS_NATIVE_EMIT_TIER0 0
+#endif
+#ifndef TS_NATIVE_INPLACE // M8: in-place vertex fetch (C-XF; backend XfInPlace)
+#define TS_NATIVE_INPLACE 0
+#endif
+#ifndef TS_GS_NATIVE_RUN // B-GS phase 2: native runs with bound materials (backend BeginNativeRun)
+#define TS_GS_NATIVE_RUN 0
+#endif
+// Sub-brackets inside the tick phases (section 3.6 item 10; animMtxTick,
+// playerTick, bgPortalTick, camTick), reported per player in [TS:sub].
+// 0: only the phase brackets, as before.
+#ifndef TS_PERF_SUBBRACKETS
+#define TS_PERF_SUBBRACKETS 0
+#endif
 
 // All of it: about 12 KB of code and 3 KB of counters. 0: none of it is
 // built, and the status hook writes its old one-line [TS:perf] instead.
@@ -78,8 +104,74 @@ enum XboxPerfPhase : uint32_t
     kPerfTickAfter,  // lvTickAfter
     kPerfGfx,        // lvGfx, once per viewport
     kPerfKick,       // gsMain's sceDmaSend of the frame's display list (walk, VIF, VU1, GS, renderer)
+#if TS_PERF_SUBBRACKETS
+    // Inside the phases above (their time stays in the phase; these show
+    // the share): per player for the three called from lvTickPlayer.
+    kPerfSubAnimMtx,    // animMtxTick, from lvTickAfter (several call sites)
+    kPerfSubPlayerTick, // playerTick, from lvTickPlayer
+    kPerfSubPortalTick, // bgPortalTick, from lvTickPlayer
+    kPerfSubCamTick,    // camTick: no bracket (lvTickPlayer's tail jump is a direct host call, ts_overrides.cpp); reads 0
+#endif
     kPerfPhaseCount
 };
+constexpr uint32_t kPerfMainPhases = kPerfKick + 1u; // the phases that add up to the frame
+
+// A status line built in place (no allocation in a match; the debug channel
+// takes lines of up to about 500 characters), written to the log.
+struct XboxReportLine
+{
+    char text[400];
+    int n = 0;
+    explicit XboxReportLine(const char *tag) { add("%s", tag); }
+    void add(const char *format, ...)
+    {
+        if (n >= int(sizeof(text)) - 2)
+            return;
+        va_list args;
+        va_start(args, format);
+        const int m = std::vsnprintf(text + n, sizeof(text) - size_t(n) - 1, format, args);
+        va_end(args);
+        if (m > 0)
+            n += m < int(sizeof(text)) - n - 2 ? m : int(sizeof(text)) - n - 2;
+    }
+    // Microseconds as milliseconds with two decimals (pdclib's printf
+    // has no %f).
+    void ms(const char *name, uint64_t us)
+    {
+        add(" %s=%u.%02u", name, unsigned(us / 1000u), unsigned(us % 1000u / 10u));
+    }
+    // A count per frame with one decimal.
+    void perFrame(const char *name, uint64_t count, uint32_t frames)
+    {
+        const uint64_t tenths = count * 10u / (frames ? frames : 1u);
+        add(" %s=%u.%u", name, unsigned(tenths / 10u), unsigned(tenths % 10u));
+    }
+    void write()
+    {
+        text[n++] = '\n';
+        xboxLogWrite(text, unsigned(n));
+    }
+};
+
+// The report-line registry (src/xbox/PUSH-BC-PLAN.md section 6, I-10): a
+// module's own status line, written with the others at every report (every
+// 3 s) on the status hook's thread. fn adds its fields to a line that starts
+// with tag; the registry writes it. At most kPerfReportLines, fixed storage;
+// false when full. Keep the module's counters plain and cumulative, as here:
+// fn is not called from the thread that counts.
+constexpr uint32_t kPerfReportLines = 16u;
+bool xboxRegisterReportLine(const char *tag, void (*fn)(XboxReportLine &line));
+
+// The renderer's installation (section 3.4 item 8): wraps the backend for
+// timing (TS_PERF_BACKEND) and for the det draw stream (TS_DET, runtime/
+// ps2_det.h), sets single-owner GS locking (TS_GS_LOCK_ELIDE), hands it to
+// the GS, and logs which draw paths are on, refusing a path whose backend
+// lacks it. Every backend goes in through here (xbox_main.cpp).
+void xboxInstallBackend(GS &gs, std::unique_ptr<GSRasterBackend> backend);
+
+// Frame pacing (project/game/ts_pacing.cpp; B-SCHED): registered with the
+// game's other natives by ts_overrides.cpp.
+void registerTsPacing(PS2Runtime &runtime);
 
 struct XboxPerfInputs
 {
@@ -126,6 +218,12 @@ std::unique_ptr<GSRasterBackend> xboxPerfWrapBackend(std::unique_ptr<GSRasterBac
 // TS_PERF_BACKEND: the GIF arbiter's packets timed on their way into the GS
 // (else nothing). After PS2Runtime::initialize, which sets the arbiter up.
 void xboxPerfWrapGif(GifArbiter &arbiter, GS &gs);
+#if TS_PERF_BACKEND
+// TS_PERF_BACKEND: cycles inside the draw kick so far (cumulative) of the
+// GS front end on GIF packets (gif) or of the renderer's calls (else), as
+// [TS:kick] splits them (the measurement build's [TS:m-kick] adds them).
+uint64_t xboxPerfKickCycles(bool gif);
+#endif
 #else
 inline void xboxPerfInit() {}
 inline void xboxPerfGameFrame() {}
@@ -141,4 +239,5 @@ inline Backend xboxPerfWrapBackend(Backend backend)
     return backend;
 }
 inline void xboxPerfWrapGif(GifArbiter &, GS &) {}
+inline bool xboxRegisterReportLine(const char *, void (*)(XboxReportLine &)) { return false; }
 #endif

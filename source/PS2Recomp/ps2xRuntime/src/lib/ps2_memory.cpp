@@ -1,4 +1,5 @@
 #include "runtime/ps2_memory.h"
+#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: the walk's time, the pieces' origins, CALLed chains, D1_CHCR
 #include "runtime/ps2_vu1_watch.h"
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
@@ -112,6 +113,13 @@ namespace
 #if TS_RENDER_COUNTERS >= 2
             ++m_added;
 #endif
+#if TS_MEASURE_PUSHBC
+            // The piece's origin (main list / CALLed chain, as the walk set
+            // pieceOriginNow at its tag) for the decoder's time split.
+            g_measure.pieceBase = m_pieces;
+            if (m_count - 1u < sizeof(g_measure.pieceOrigin))
+                g_measure.pieceOrigin[m_count - 1u] = g_measure.pieceOriginNow;
+#endif
         }
         // The last piece grows: the walk's next piece continues it.
         void extendBack(uint32_t bytes)
@@ -201,7 +209,15 @@ namespace
                 // Decoded: all but the carry, which stays for the next batch.
                 m_aheadBytes += m_bytes - carry;
                 m_bytes = carry;
+#if TS_MEASURE_PUSHBC
+                const size_t decodedCount = m_count;
+#endif
                 m_count = keepTail(m_pieces, m_count, carry);
+#if TS_MEASURE_PUSHBC
+                // The pieces kept moved to the front: their origins with them.
+                if (decodedCount <= sizeof(g_measure.pieceOrigin))
+                    std::memmove(g_measure.pieceOrigin, g_measure.pieceOrigin + (decodedCount - m_count), m_count);
+#endif
 #if TS_VIF_SELFCHECK
                 checkKept = m_count;
 #endif
@@ -432,79 +448,7 @@ namespace
         } while (!csr.compare_exchange_weak(expected, desired));
     }
 
-    constexpr std::array<uint32_t, 4> kEeTimerBases = {
-        0x10000000u,
-        0x10000800u,
-        0x10001000u,
-        0x10001800u,
-    };
-    constexpr uint32_t kEeTimerCountOffset = 0x00u;
-    constexpr uint32_t kEeTimerModeOffset = 0x10u;
-    constexpr uint32_t kEeTimerCompareOffset = 0x20u;
-    constexpr uint32_t kEeTimerHoldOffset = 0x30u;
-    constexpr uint32_t kEeTimerModeClksMask = 0x3u;
-    constexpr uint32_t kEeTimerModeConfigMask = 0x3FFu;
-    constexpr uint32_t kEeTimerModeStatusMask = 0xC00u;
-    constexpr uint32_t kEeTimerModeZret = 1u << 6;
-    constexpr uint32_t kEeTimerModeCue = 1u << 7;
-    constexpr uint32_t kEeTimerModeCmpe = 1u << 8;
-    constexpr uint32_t kEeTimerModeOvfe = 1u << 9;
-    constexpr uint32_t kEeTimerModeEquf = 1u << 10;
-    constexpr uint32_t kEeTimerModeOvff = 1u << 11;
-    constexpr uint64_t kEeClockHz = 294912000ull;
-    constexpr std::array<uint64_t, 4> kEeTimerClockHz = {
-        147456000ull,
-        9216000ull,
-        576000ull,
-        15734ull,
-    };
-
-    inline bool decodeEeTimerRegister(uint32_t address, size_t &timerIndex, uint32_t &offset)
-    {
-        for (size_t index = 0; index < kEeTimerBases.size(); ++index)
-        {
-            const uint32_t candidateOffset = address - kEeTimerBases[index];
-            if (candidateOffset == kEeTimerCountOffset ||
-                candidateOffset == kEeTimerModeOffset ||
-                candidateOffset == kEeTimerCompareOffset ||
-                (index < 2u && candidateOffset == kEeTimerHoldOffset))
-            {
-                timerIndex = index;
-                offset = candidateOffset;
-                return true;
-            }
-        }
-        return false;
-    }
-
-    constexpr uint64_t ticksUntilMatch(uint32_t count, uint32_t target)
-    {
-        const uint32_t distance = (target - count) & 0xFFFFu;
-        return distance == 0u ? 0x10000ull : static_cast<uint64_t>(distance);
-    }
-
-#if defined(PLATFORM_XBOX)
-    static_assert((kEeClockHz >> 1) == kEeTimerClockHz[0] && (kEeClockHz >> 5) == kEeTimerClockHz[1] &&
-                      (kEeClockHz >> 9) == kEeTimerClockHz[2] && (kEeClockHz & 511u) == 0u,
-                  "timer modes 0-2 must be the EE clock / 2, / 32 and / 512");
-
-    // The ticks and remainder of (eeCycles * clockHz + remainder) / kEeClockHz
-    // for clockHz = kEeClockHz >> kShift, without the 64-bit divisions (a
-    // library call each on the Xbox). With remainder = m * clockHz + t
-    // (t < clockHz) that is ((eeCycles + m) >> kShift) ticks, leaving
-    // ((eeCycles + m) & mask) * clockHz + t: bit-identical to the general form.
-    template <uint32_t kShift>
-    uint64_t busClockTimerTicks(uint64_t eeCycles, uint64_t &clockRemainder)
-    {
-        constexpr uint32_t kMask = (1u << kShift) - 1u;
-        constexpr uint32_t kClockHz = static_cast<uint32_t>(kEeClockHz >> kShift);
-        // Always below kEeClockHz (< 2^32): only ever 0 or a value % kEeClockHz.
-        const uint32_t remainder = static_cast<uint32_t>(clockRemainder);
-        const uint32_t carried = (static_cast<uint32_t>(eeCycles) & kMask) + remainder / kClockHz;
-        clockRemainder = (carried & kMask) * kClockHz + remainder % kClockHz;
-        return (eeCycles >> kShift) + (carried >> kShift);
-    }
-#endif
+    // (The EE timers: ps2_memory_timers.cpp.)
 
     struct DmaTagView
     {
@@ -558,80 +502,26 @@ PS2Memory::PS2Memory()
     ps2SetScratchpadHostPtr(nullptr);
 }
 
-PS2Memory::~PS2Memory()
+// (The destructor: ps2_memory_alloc.cpp, with the guest memory allocation.)
+
+namespace
 {
-    stopVif1Worker();
-    if (m_rdram)
-    {
-        delete[] m_rdram;
-        m_rdram = nullptr;
-    }
+    Vif1RecordHooks s_vif1RecordHooks{};
+}
 
-    if (m_scratchpad)
-    {
-        ps2SetScratchpadHostPtr(nullptr);
-        delete[] m_scratchpad;
-        m_scratchpad = nullptr;
-    }
+void PS2Memory::setVif1RecordHooks(const Vif1RecordHooks &hooks)
+{
+    s_vif1RecordHooks = hooks;
+}
 
-    if (m_gsVRAM)
-    {
-        delete[] m_gsVRAM;
-        m_gsVRAM = nullptr;
-    }
-
-    if (m_vu1Code)
-    {
-        delete[] m_vu1Code;
-        m_vu1Code = nullptr;
-    }
-    if (m_vu1Data)
-    {
-        delete[] m_vu1Data;
-        m_vu1Data = nullptr;
-    }
-    if (m_vu0Code)
-    {
-        delete[] m_vu0Code;
-        m_vu0Code = nullptr;
-    }
-    if (m_vu0Data)
-    {
-        delete[] m_vu0Data;
-        m_vu0Data = nullptr;
-    }
-
-    if (iop_ram)
-    {
-        delete[] iop_ram;
-        iop_ram = nullptr;
-    }
+const Vif1RecordHooks &PS2Memory::vif1RecordHooks()
+{
+    return s_vif1RecordHooks;
 }
 
 bool PS2Memory::initialize(size_t ramSize)
 {
-    auto cleanup = [this]()
-    {
-        delete[] m_rdram;
-        delete[] m_scratchpad;
-        delete[] iop_ram;
-        delete[] m_gsVRAM;
-        delete[] m_vu0Code;
-        delete[] m_vu0Data;
-        delete[] m_vu1Code;
-        delete[] m_vu1Data;
-        m_rdram = nullptr;
-        m_scratchpad = nullptr;
-        ps2SetScratchpadHostPtr(nullptr);
-        iop_ram = nullptr;
-        m_gsVRAM = nullptr;
-        m_vu0Code = nullptr;
-        m_vu0Data = nullptr;
-        m_vu1Code = nullptr;
-        m_vu1Data = nullptr;
-    };
-
-    cleanup();
+    freeGuestMemory();
     m_seenGifCopy = false;
     m_dmaStartCount.store(0, std::memory_order_relaxed);
     m_gifCopyCount.store(0, std::memory_order_relaxed);
@@ -651,17 +541,13 @@ bool PS2Memory::initialize(size_t ramSize)
     m_vif1PendingPath2DirectHl = false;
     resetEeTimers();
 
+    // The guest memories (RDRAM, scratchpad, GS VRAM, VU0/VU1 code and
+    // data), zeroed: ps2_memory_alloc.cpp.
+    if (!allocateGuestMemory(ramSize))
+        return false;
+
     PS2X_TRY
     {
-        // Allocate main RAM
-        m_rdram = new uint8_t[ramSize];
-        std::memset(m_rdram, 0, ramSize);
-
-        // Allocate scratchpad
-        m_scratchpad = new uint8_t[PS2_SCRATCHPAD_SIZE];
-        std::memset(m_scratchpad, 0, PS2_SCRATCHPAD_SIZE);
-        ps2SetScratchpadHostPtr(m_scratchpad);
-
         // Initialize EE TLB entries (R5900 has 48 entries).
         m_tlbEntries.assign(48, TLBEntry{0, 0, 0, false});
 
@@ -682,19 +568,6 @@ bool PS2Memory::initialize(size_t ramSize)
         gs_regs.dispfb2 = gs_regs.dispfb1;
         gs_regs.display2 = gs_regs.display1;
 
-        // Allocate GS VRAM (4MB)
-        m_gsVRAM = new uint8_t[PS2_GS_VRAM_SIZE];
-        std::memset(m_gsVRAM, 0, PS2_GS_VRAM_SIZE);
-
-        m_vu0Code = new uint8_t[PS2_VU0_CODE_SIZE];
-        m_vu0Data = new uint8_t[PS2_VU0_DATA_SIZE];
-        std::memset(m_vu0Code, 0, PS2_VU0_CODE_SIZE);
-        std::memset(m_vu0Data, 0, PS2_VU0_DATA_SIZE);
-
-        m_vu1Code = new uint8_t[PS2_VU1_CODE_SIZE];
-        m_vu1Data = new uint8_t[PS2_VU1_DATA_SIZE];
-        std::memset(m_vu1Code, 0, PS2_VU1_CODE_SIZE);
-        std::memset(m_vu1Data, 0, PS2_VU1_DATA_SIZE);
         g_vu1WatchedRows.noteAll();
         markVU0CodeModified();
         markVU1CodeModified();
@@ -714,160 +587,12 @@ bool PS2Memory::initialize(size_t ramSize)
     PS2X_CATCH(const std::exception &, e)
     {
         std::cerr << "Error initializing PS2 memory: " << e.what() << std::endl;
-        cleanup();
+        freeGuestMemory();
         return false;
     }
 }
 
-void PS2Memory::resetEeTimers() noexcept
-{
-    m_eeTimers = {};
-}
-
-uint32_t PS2Memory::advanceEeTimers(uint64_t eeCycles) noexcept
-{
-    if (eeCycles == 0u)
-    {
-        return 0u;
-    }
-
-    constexpr uint32_t kGifStat = 0x10003020u;
-    constexpr uint32_t kGifFqcMask = 0x1F000000u;
-    auto gifStatIt = m_ioRegisters.find(kGifStat);
-    if (gifStatIt != m_ioRegisters.end())
-        gifStatIt->second &= ~kGifFqcMask;
-
-    uint32_t interruptMask = 0u;
-    for (size_t index = 0; index < m_eeTimers.size(); ++index)
-    {
-        EeTimer &timer = m_eeTimers[index];
-        if ((timer.mode & kEeTimerModeCue) == 0u)
-        {
-            continue;
-        }
-
-#if defined(PLATFORM_XBOX)
-        uint64_t ticks = 0u;
-        switch (timer.mode & kEeTimerModeClksMask)
-        {
-        case 0u:
-            ticks = busClockTimerTicks<1>(eeCycles, timer.clockRemainder);
-            break;
-        case 1u:
-            ticks = busClockTimerTicks<5>(eeCycles, timer.clockRemainder);
-            break;
-        case 2u:
-            ticks = busClockTimerTicks<9>(eeCycles, timer.clockRemainder);
-            break;
-        default:
-        {
-            // HBLANK is not a power-of-two fraction of the EE clock.
-            const uint64_t clockHz = kEeTimerClockHz[3];
-            const uint64_t wholeSeconds = eeCycles / kEeClockHz;
-            const uint64_t remainingCycles = eeCycles % kEeClockHz;
-            const uint64_t scaled = remainingCycles * clockHz + timer.clockRemainder;
-            ticks = wholeSeconds * clockHz + scaled / kEeClockHz;
-            timer.clockRemainder = scaled % kEeClockHz;
-            break;
-        }
-        }
-#else
-        const uint64_t clockHz = kEeTimerClockHz[timer.mode & kEeTimerModeClksMask];
-        const uint64_t wholeSeconds = eeCycles / kEeClockHz;
-        const uint64_t remainingCycles = eeCycles % kEeClockHz;
-        const uint64_t scaled = remainingCycles * clockHz + timer.clockRemainder;
-        const uint64_t ticks = wholeSeconds * clockHz + scaled / kEeClockHz;
-        timer.clockRemainder = scaled % kEeClockHz;
-#endif
-        if (ticks == 0u)
-        {
-            continue;
-        }
-
-        const uint32_t oldCount = timer.count & 0xFFFFu;
-        const uint32_t compare = timer.compare & 0xFFFFu;
-        const uint64_t compareDistance = ticksUntilMatch(oldCount, compare);
-        const uint64_t overflowDistance = 0x10000ull - oldCount;
-        const bool zeroReturn = (timer.mode & kEeTimerModeZret) != 0u;
-        const bool compareReached = ticks >= compareDistance;
-        bool overflowReached = false;
-
-        if (zeroReturn)
-        {
-            overflowReached = ticks >= overflowDistance && overflowDistance <= compareDistance;
-            if (compareReached)
-            {
-                const uint64_t remaining = ticks - compareDistance;
-                timer.count = compare == 0u
-                                  ? static_cast<uint32_t>(remaining & 0xFFFFu)
-                                  : static_cast<uint32_t>(remaining % compare);
-            }
-            else
-            {
-                timer.count = static_cast<uint32_t>((oldCount + ticks) & 0xFFFFu);
-            }
-        }
-        else
-        {
-            overflowReached = ticks >= overflowDistance;
-            timer.count = static_cast<uint32_t>((oldCount + ticks) & 0xFFFFu);
-        }
-
-        if (compareReached && (timer.mode & kEeTimerModeCmpe) != 0u && (timer.mode & kEeTimerModeEquf) == 0u)
-        {
-            timer.mode |= kEeTimerModeEquf;
-            interruptMask |= 1u << index;
-        }
-        if (overflowReached && (timer.mode & kEeTimerModeOvfe) != 0u && (timer.mode & kEeTimerModeOvff) == 0u)
-        {
-            timer.mode |= kEeTimerModeOvff;
-            interruptMask |= 1u << index;
-        }
-    }
-    return interruptMask;
-}
-
-uint64_t PS2Memory::cyclesUntilNextEeTimerInterrupt() const noexcept
-{
-    uint64_t nearest = std::numeric_limits<uint64_t>::max();
-    for (const EeTimer &timer : m_eeTimers)
-    {
-        if ((timer.mode & kEeTimerModeCue) == 0u)
-        {
-            continue;
-        }
-
-        const uint32_t count = timer.count & 0xFFFFu;
-        const uint32_t compare = timer.compare & 0xFFFFu;
-        const uint64_t compareDistance = ticksUntilMatch(count, compare);
-        const uint64_t overflowDistance = 0x10000ull - count;
-        uint64_t eventTicks = std::numeric_limits<uint64_t>::max();
-
-        if ((timer.mode & kEeTimerModeCmpe) != 0u &&
-            (timer.mode & kEeTimerModeEquf) == 0u)
-        {
-            eventTicks = compareDistance;
-        }
-        const bool overflowCanOccur = (timer.mode & kEeTimerModeZret) == 0u ||
-                                      overflowDistance <= compareDistance;
-        if (overflowCanOccur &&
-            (timer.mode & kEeTimerModeOvfe) != 0u &&
-            (timer.mode & kEeTimerModeOvff) == 0u)
-        {
-            eventTicks = std::min(eventTicks, overflowDistance);
-        }
-        if (eventTicks == std::numeric_limits<uint64_t>::max())
-        {
-            continue;
-        }
-
-        const uint64_t clockHz = kEeTimerClockHz[timer.mode & kEeTimerModeClksMask];
-        const uint64_t numerator = eventTicks * kEeClockHz - timer.clockRemainder;
-        const uint64_t cycles = (numerator + clockHz - 1u) / clockHz;
-        nearest = std::min(nearest, std::max<uint64_t>(1u, cycles));
-    }
-    return nearest;
-}
+// (resetEeTimers, advanceEeTimers, cyclesUntilNextEeTimerInterrupt: ps2_memory_timers.cpp.)
 
 bool PS2Memory::isScratchpad(uint32_t address) const
 {
@@ -1492,39 +1217,9 @@ void PS2Memory::write128(uint32_t address, __m128i value)
 bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 {
     syncVif1ForAddress(address);
-    size_t timerIndex = 0u;
-    uint32_t timerOffset = 0u;
-    if (decodeEeTimerRegister(address, timerIndex, timerOffset))
-    {
-        EeTimer &timer = m_eeTimers[timerIndex];
-        switch (timerOffset)
-        {
-        case kEeTimerCountOffset:
-            timer.count = value & 0xFFFFu;
-            timer.clockRemainder = 0u;
-            break;
-        case kEeTimerModeOffset:
-        {
-            const uint32_t previousMode = timer.mode;
-            const uint32_t status = (previousMode & kEeTimerModeStatusMask) & ~(value & kEeTimerModeStatusMask);
-            timer.mode = (value & kEeTimerModeConfigMask) | status;
-            if (((previousMode ^ timer.mode) & (kEeTimerModeClksMask | kEeTimerModeCue)) != 0u)
-            {
-                timer.clockRemainder = 0u;
-            }
-            break;
-        }
-        case kEeTimerCompareOffset:
-            timer.compare = value & 0xFFFFu;
-            break;
-        case kEeTimerHoldOffset:
-            timer.hold = value & 0xFFFFu;
-            break;
-        default:
-            return false;
-        }
-        return true;
-    }
+    bool timerResult = false;
+    if (writeEeTimerRegister(address, value, timerResult)) // ps2_memory_timers.cpp
+        return timerResult;
 
     if (isGsPrivReg(address))
     {
@@ -1930,6 +1625,14 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 
                     uint32_t chainTags = 0;
                     (void)chainTags;
+#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+                    // The walk's own time: the tag loop less the batches
+                    // decoded inside it (runtime/ps2_measure.h).
+                    if (recordSegments)
+                        xboxMeasureChcr(chcr);
+                    const uint64_t measureWalk0 = measureTsc();
+                    const uint64_t measureDecode0 = g_measure.decodeCycles[0] + g_measure.decodeCycles[1];
+#endif
                     for (;;)
                     {
                         if (asp > 2u)
@@ -1994,6 +1697,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #if defined(PLATFORM_XBOX) && TS_RENDER_COUNTERS >= 2
                         const uint32_t inCall = asp != 0u ? 1u : 0u; // a CALLed chain's tag (render counters)
 #endif
+                        TS_MEASURE(g_measure.pieceOriginNow = asp != 0u ? 1u : 0u); // this tag's pieces: a CALLed chain's
 
                         uint32_t dataAddr = 0;
                         bool hasPayload = (tagQwc > 0);
@@ -2036,6 +1740,7 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                                 else
                                     PS2X_THROW(std::runtime_error("DMA CALL exceeds two-entry return stack"));
                             }
+                            TS_MEASURE(xboxMeasureChainCall(addr)); // the chains CALLed a frame, all and distinct
                             tagAddr = addr;
                             break;
                         case 6:
@@ -2154,6 +1859,15 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     chcr = (chcr & ~(0x3u << 4)) | ((asp & 0x3u) << 4);
                     chcr = (chcr & 0x0000FFFFu) | (lastTagUpper << 16);
                     m_ioRegisters[channelBase + 0x00] = chcr;
+#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+                    if (recordSegments)
+                    {
+                        const uint64_t decoded = g_measure.decodeCycles[0] + g_measure.decodeCycles[1] - measureDecode0;
+                        const uint64_t span = measureTsc() - measureWalk0;
+                        g_measure.walkCycles += span > decoded ? span - decoded : 0u;
+                        ++g_measure.walks;
+                    }
+#endif
 
 #if defined(PLATFORM_XBOX)
 #if TS_WALK_SKIP_ZERO_TTE
@@ -3689,25 +3403,9 @@ int PS2Memory::pollDmaRegisters()
 uint32_t PS2Memory::readIORegister(uint32_t address)
 {
     syncVif1ForAddress(address);
-    size_t timerIndex = 0u;
-    uint32_t timerOffset = 0u;
-    if (decodeEeTimerRegister(address, timerIndex, timerOffset))
-    {
-        const EeTimer &timer = m_eeTimers[timerIndex];
-        switch (timerOffset)
-        {
-        case kEeTimerCountOffset:
-            return timer.count & 0xFFFFu;
-        case kEeTimerModeOffset:
-            return timer.mode & (kEeTimerModeConfigMask | kEeTimerModeStatusMask);
-        case kEeTimerCompareOffset:
-            return timer.compare & 0xFFFFu;
-        case kEeTimerHoldOffset:
-            return timer.hold & 0xFFFFu;
-        default:
-            return 0u;
-        }
-    }
+    uint32_t timerValue = 0u;
+    if (readEeTimerRegister(address, timerValue)) // ps2_memory_timers.cpp
+        return timerValue;
 
     if (isGsPrivReg(address))
     {

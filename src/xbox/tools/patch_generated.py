@@ -1,6 +1,6 @@
 """Writes the Xbox build's copy of a generated game function.
 
-usage: patch_generated.py <generated .cpp> <register_functions_xbox.cpp> <output .cpp>
+usage: patch_generated.py [-option ...] <generated .cpp> <register_functions_xbox.cpp> <output .cpp>
 
 Two kinds of change: the constant calls go through the function table
 directly (direct_calls.py, every file), and a few files get one-off patches
@@ -25,7 +25,16 @@ PATCHES = {
     ],
 }
 
-source, table, output = sys.argv[1], sys.argv[2], sys.argv[3]
+# Options (PATCH_FLAGS from the Makefile's track fragments, src/xbox/mk/*.mk;
+# each starts with '-') come before the three paths. None are defined yet:
+# B-CODEGEN's patcher items each take one, and a patched copy made with
+# options records them in a header line, which the corpus test checks
+# against the stamp.
+flags = [arg for arg in sys.argv[1:] if arg.startswith("-")]
+paths = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
+if len(paths) != 3:
+    raise SystemExit(__doc__)
+source, table, output = paths
 name = os.path.basename(source)
 lines = open(source).read().split("\n")
 for anchor, old, new, why in PATCHES.get(name, []):
@@ -40,6 +49,8 @@ left = text.count('GuestBranchKind::DirectCall, "JAL"')
 if left != kept:
     raise SystemExit("patch_generated: %d DirectCall sites left in %s, %d expected" % (left, name, kept))
 header = "// Patched copy made by src/xbox/tools/patch_generated.py; do not edit.\n"
+if flags:
+    header += "// flags: %s\n" % " ".join(flags)
 if converted or kept:
     header += "// %d constant calls go through the function table directly (PS2X_CALL_SLOT)" % converted
     header += (", %d targets without a generated function keep dispatchGuestBranch.\n" % kept) if kept else ".\n"

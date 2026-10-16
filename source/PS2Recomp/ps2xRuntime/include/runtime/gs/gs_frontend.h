@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "runtime/gs/gs_backend.h"
+#include "runtime/ps2_host_lock.h"
 
 // TS_LEAN_GS_HISTORY 1 (Xbox): GS::m_debugHistory keeps one entry, not 512
 // (112 KB). It records only once unpaused, which only the PC debug panel
@@ -162,6 +163,45 @@ public:
     // again as a PATH1 packet; true when that changed no drawing state and no
     // CLUT (the block's effect was already in place).
     bool checkStateBlock(const uint8_t *data, uint32_t sizeBytes);
+
+    // ---- Push B/C front-end API (src/xbox/PUSH-BC-PLAN.md section 6, I-5;
+    // owned by B-GS). Week 0: each exists with the old path's behaviour so
+    // that its consumers (C-EMIT, C-XF) build against it; B-GS replaces the
+    // bodies (the cached drawState with its serial, the material table, the
+    // GIF bulk path, submitPrimitives' end state).
+    // The state a draw would use now (what buildDrawBatch gives a draw).
+    GSDrawState drawState() const;
+    // Decoded primitives of one PRIM, as a PACKED packet with PRE set would
+    // kick them (the backend's SubmitPrimitives first, else one by one).
+    void submitPrimitives(uint32_t primRegister, const GSVertex *vertices, uint32_t count);
+    // A PACKED vertex register (XYZF2 0x04, XYZ2 0x05, XYZF3 0x0C, XYZ3
+    // 0x0D) decoded with the current colour, ST/UV and fog into out, as
+    // writeRegisterPacked queues it; true when the register kicks (XYZF2 /
+    // XYZ2 without ADC). Other registers: false, out untouched.
+    bool decodePackedVertex(uint8_t regDesc, uint64_t lo, uint64_t hi, GSVertex &out) const;
+    // Tier 0's front half (section 3.2 item 1): a PATH1 packet from the
+    // native VU1 program's kick. Week 0: processGIFPacket on PATH1.
+    void processPath1Bulk(const uint8_t *data, uint32_t sizeBytes);
+    // The drawing state a self-check saves before it runs a packet through a
+    // recording backend and restores after (TS_NATIVE_EMIT_SELFCHECK).
+    struct CheckState;
+    void saveCheckState(CheckState &out) const;
+    void restoreCheckState(const CheckState &state);
+    // Swaps the raster backend for a check and hands the old one back
+    // (no flush, sync or memory hand-over: the check restores it at once).
+    std::unique_ptr<GSRasterBackend> swapBackendForCheck(std::unique_ptr<GSRasterBackend> backend);
+    // A primitive the native path recognised and drew nothing for (the
+    // texture-kick strip): statistics only.
+    void notePrimNoDraw(uint32_t prim) { (void)prim; }
+    // Inside an open xf run: in-place strips to the backend (M8).
+    void xfInPlace(GSXfCursor &cursor, const GSXfInPlaceStrip *strips, uint32_t count)
+    {
+        m_backend->XfInPlace(cursor, strips, count);
+    }
+    // Single-owner GS locking (B-PLATFORM, TS_GS_LOCK_ELIDE): set by the
+    // Xbox start-up through xboxInstallBackend.
+    static void setSingleOwner(bool on) { ps2x::OwnedRecursiveMutex::setSingleOwner(on); }
+
     enum class HostPresentationMode { VSync, Signal, Finish };
     void setHostPresentationMode(HostPresentationMode mode) { m_hostPresentationMode.store(mode); }
     HostPresentationMode hostPresentationMode() const { return m_hostPresentationMode.load(); }
@@ -266,7 +306,7 @@ private:
     uint8_t *m_localMemoryStorage = nullptr;
     uint32_t m_localMemorySize = 0u;
     struct GSRegisters *m_privRegs = nullptr;
-    mutable std::recursive_mutex m_stateMutex;
+    mutable ps2x::OwnedRecursiveMutex m_stateMutex;
     mutable std::mutex m_backendLifetimeMutex;
     mutable std::mutex m_presentationMutex;
 
@@ -332,6 +372,28 @@ private:
     bool m_debugHistoryPaused = true;
 
     std::unique_ptr<GSRasterBackend> m_backend;
+};
+
+// The drawing state saveCheckState copies (everything a PATH1 packet of
+// drawing registers and vertices can change, and the state-block repeat
+// bookkeeping); not the display, transfer or debug state.
+struct GS::CheckState
+{
+    std::array<GifStreamState, 3> gifStreams{};
+    uint32_t textureStateWrites = 0, lastStateBlock = 0, lastStateBlockWrites = 0;
+    GSContext ctx[2];
+    GSPrimReg prim{}, primRegister{}, prmodeRegister{};
+    uint8_t curR = 0x80, curG = 0x80, curB = 0x80, curA = 0x80;
+    float curQ = 1.0f, curS = 0.0f, curT = 0.0f;
+    uint16_t curU = 0, curV = 0;
+    uint8_t curFog = 0, fogR = 0, fogG = 0, fogB = 0;
+    bool prmodecont = true, pabe = false;
+    uint64_t scanmsk = 0, dimx = 0, dthe = 0, colclamp = 0;
+    GSTexaReg texa{0u, false, 0u};
+    GSTexClutReg texclut{0u, 0u, 0u};
+    GSVertex vtxQueue[kMaxVerts];
+    int vtxCount = 0, vtxIndex = 0;
+    uint64_t drawCounter = 0, lastPerspectiveDraw = 0;
 };
 
 #endif

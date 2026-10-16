@@ -261,6 +261,19 @@ inline uint8_t ps2PathWatchExtractByteFromWrite(uint32_t writeAddr, uint32_t wat
     return static_cast<uint8_t>((valueHi >> ((byteIndex - 8u) * 8u)) & 0xFFu);
 }
 
+// PS2X_WRITE_JOURNAL 1 (B-LOGIC's lockstep harness, src/xbox/PUSH-BC-PLAN.md
+// section 3.6 item 1; switched on through its track's .mk): every guest
+// store made through the runtime's slow paths (ps2TraceGuestWrite below and
+// its scratchpad twin in ps2_guest_memory_xbox.cpp) and every idiomatic
+// native's store helper calls ps2xJournalTouch(addr, size), which
+// project/game/native/ts_lockstep.cpp defines. 0 (default): compiled out.
+#ifndef PS2X_WRITE_JOURNAL
+#define PS2X_WRITE_JOURNAL 0
+#endif
+#if PS2X_WRITE_JOURNAL
+void ps2xJournalTouch(uint32_t guestAddr, uint32_t size);
+#endif
+
 inline void ps2TraceGuestWrite(uint8_t *rdram,
                                uint32_t guestAddr,
                                uint32_t size,
@@ -270,13 +283,16 @@ inline void ps2TraceGuestWrite(uint8_t *rdram,
                                const R5900Context *ctx)
 {
     (void)rdram;
-    (void)guestAddr;
-    (void)size;
     (void)valueLo;
     (void)valueHi;
     (void)op;
     (void)ctx;
-    // TODO we dont need this anymore so on next release it will be deleted
+#if PS2X_WRITE_JOURNAL
+    ps2xJournalTouch(guestAddr, size);
+#else
+    (void)guestAddr;
+    (void)size;
+#endif
 }
 
 inline void ps2TraceGuestRangeWrite(uint8_t *rdram,

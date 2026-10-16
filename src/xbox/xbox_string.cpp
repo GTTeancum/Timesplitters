@@ -9,8 +9,25 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: memcpy / memcmp by size and alignment
+
 namespace
 {
+#if TS_MEASURE_PUSHBC
+    // The size x alignment histogram of the measurement build (the
+    // buckets of MeasureCounters::memcpyHist): a few instructions a call.
+    inline void histogram(uint32_t (&hist)[10][3], const void *a, const void *b, size_t n)
+    {
+        const uint32_t size = n < 16u ? 0u : n < 32u ? 1u : n < 64u ? 2u : n < 128u ? 3u : n < 256u ? 4u : n < 512u ? 5u
+                            : n < 1024u ? 6u : n < 4096u ? 7u : n < 65536u ? 8u : 9u;
+        const uintptr_t bits = reinterpret_cast<uintptr_t>(a) | reinterpret_cast<uintptr_t>(b);
+        ++hist[size][(bits & 15u) == 0u ? 0u : (bits & 3u) == 0u ? 1u : 2u];
+    }
+#define TS_STRING_HISTOGRAM(hist, a, b, n) histogram(g_measure.hist, (a), (b), (n))
+#else
+#define TS_STRING_HISTOGRAM(hist, a, b, n) ((void)0)
+#endif
+
     inline void copyForward(unsigned char *dest, const unsigned char *src, size_t n)
     {
         size_t words = n >> 2, bytes = n & 3;
@@ -35,12 +52,14 @@ extern "C"
 {
     void *memcpy(void *__restrict dest, const void *__restrict src, size_t n)
     {
+        TS_STRING_HISTOGRAM(memcpyHist, dest, src, n);
         copyForward(static_cast<unsigned char *>(dest), static_cast<const unsigned char *>(src), n);
         return dest;
     }
 
     void *memmove(void *dest, const void *src, size_t n)
     {
+        TS_STRING_HISTOGRAM(memcpyHist, dest, src, n);
         unsigned char *d = static_cast<unsigned char *>(dest);
         const unsigned char *s = static_cast<const unsigned char *>(src);
         if (d <= s || d >= s + n)
@@ -54,6 +73,7 @@ extern "C"
     // renderer's draw-key checks made it 6% of a frame).
     int memcmp(const void *a, const void *b, size_t n)
     {
+        TS_STRING_HISTOGRAM(memcmpHist, a, b, n);
         const unsigned char *x = static_cast<const unsigned char *>(a);
         const unsigned char *y = static_cast<const unsigned char *>(b);
         while (n >= 4)

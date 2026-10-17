@@ -2,7 +2,9 @@
 #include "runtime/ps2_host_settings.h"
 #include "runtime/gs/gs_cpu_backend.h"
 #include "ps2_log.h"
+#if defined(PLATFORM_XBOX)
 #include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: beginXfRun's time, the kick histogram, textured primitives
+#endif
 #include "runtime/ps2_memory.h"
 #include <chrono>
 #include <atomic>
@@ -13,6 +15,7 @@
 #include <iostream>
 #include <sstream>
 
+#if defined(PLATFORM_XBOX)
 // ---- B-GS switches (src/xbox/PUSH-BC-PLAN.md sections 3.5 and 5.4). Each
 // is #ifndef so that a .mk define (src/xbox/mk/b_gs.mk) or a compiler -D
 // flips it; 0 is the old path.
@@ -61,10 +64,12 @@
 #define TS_GS_BULK_SELFCHECK_PACKETS 2000000
 #endif
 
+#endif
 namespace
 {
     static constexpr uint32_t kHostFrameWidth = 640u;
 
+#if defined(PLATFORM_XBOX)
     // The front end's statistics (GS::stats(); one GS per runtime).
     GS::Stats s_gsStats;
 
@@ -163,6 +168,7 @@ namespace
         f.word(v.fog);
     }
 
+#endif
     GSPrimReg decodePrimRegister(uint64_t value)
     {
         GSPrimReg prim{};
@@ -243,11 +249,59 @@ namespace
                                     { return true; });
     }
 
+#if defined(PLATFORM_XBOX)
     // The state-block register classes (runtime/gs/gs_material.h).
     using gs_material::isStateRegister;
     using gs_material::isClutRegister;
     using gs_material::isTextureRegister;
     using gs_material::alwaysLoadsClut;
+#else
+    // Registers a native state block may write (GS::decodeStateBlock):
+    // drawing state whose write does nothing beyond storing the value, a CLUT
+    // load (TEX0, TEX2) or a texture-cache flush.
+    bool isStateRegister(uint8_t reg)
+    {
+        switch (reg)
+        {
+        case GS_REG_TEX0_1: case GS_REG_TEX0_2: case GS_REG_CLAMP_1: case GS_REG_CLAMP_2:
+        case GS_REG_TEX1_1: case GS_REG_TEX1_2: case GS_REG_TEX2_1: case GS_REG_TEX2_2:
+        case GS_REG_XYOFFSET_1: case GS_REG_XYOFFSET_2: case GS_REG_TEXCLUT: case GS_REG_SCANMSK:
+        case GS_REG_MIPTBP1_1: case GS_REG_MIPTBP1_2: case GS_REG_MIPTBP2_1: case GS_REG_MIPTBP2_2:
+        case GS_REG_TEXA: case GS_REG_FOGCOL: case GS_REG_TEXFLUSH:
+        case GS_REG_SCISSOR_1: case GS_REG_SCISSOR_2: case GS_REG_ALPHA_1: case GS_REG_ALPHA_2:
+        case GS_REG_DIMX: case GS_REG_DTHE: case GS_REG_COLCLAMP: case GS_REG_TEST_1: case GS_REG_TEST_2:
+        case GS_REG_PABE: case GS_REG_FBA_1: case GS_REG_FBA_2: case GS_REG_FRAME_1: case GS_REG_FRAME_2:
+        case GS_REG_ZBUF_1: case GS_REG_ZBUF_2:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool isClutRegister(uint8_t reg)
+    {
+        return reg == GS_REG_TEX0_1 || reg == GS_REG_TEX0_2 || reg == GS_REG_TEX2_1 || reg == GS_REG_TEX2_2;
+    }
+
+    // The registers GS::m_textureStateWrites counts.
+    bool isTextureRegister(uint8_t reg)
+    {
+        return isClutRegister(reg) || reg == GS_REG_TEX1_1 || reg == GS_REG_TEX1_2 || reg == GS_REG_CLAMP_1 ||
+               reg == GS_REG_CLAMP_2 || reg == GS_REG_MIPTBP1_1 || reg == GS_REG_MIPTBP1_2 ||
+               reg == GS_REG_MIPTBP2_1 || reg == GS_REG_MIPTBP2_2;
+    }
+
+    // A TEX0/TEX2 value whose write loads the CLUT whatever was loaded before
+    // (an indexed format with CLD 1-3); CLD 4 and 5 load only when CBP
+    // differs from the address the last load recorded.
+    bool alwaysLoadsClut(uint64_t value)
+    {
+        const uint32_t psm = static_cast<uint32_t>((value >> 20) & 0x3Fu), cld = static_cast<uint32_t>((value >> 61) & 7u);
+        const bool indexed = psm == GS_PSM_T8 || psm == GS_PSM_T4 || psm == GS_PSM_T8H || psm == GS_PSM_T4HL ||
+                             psm == GS_PSM_T4HH;
+        return indexed && cld >= 1u && cld <= 3u;
+    }
+#endif
 
     bool sameTex0(const GSTex0Reg &a, const GSTex0Reg &b)
     {
@@ -265,6 +319,7 @@ namespace
                a.miptbp2 == b.miptbp2 && a.clamp == b.clamp && a.alpha == b.alpha && a.test == b.test && a.fba == b.fba;
     }
 
+#if defined(PLATFORM_XBOX)
     bool samePrim(const GSPrimReg &a, const GSPrimReg &b)
     {
         return a.type == b.type && a.iip == b.iip && a.tme == b.tme && a.fge == b.fge && a.abe == b.abe &&
@@ -324,6 +379,7 @@ namespace
         return true;
     }
 
+#endif
     std::atomic<uint32_t> s_debugGifPacketCount{0};
     std::atomic<uint32_t> s_debugGsRegisterCount{0};
     std::atomic<uint32_t> s_debugGsPackedVertexCount{0};
@@ -354,11 +410,17 @@ void GS::init(uint8_t *vram, uint32_t vramSize, GSRegisters *privRegs)
 
 void GS::reset()
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     std::memset(m_ctx, 0, sizeof(m_ctx));
     m_gifStreams = {};
     m_lastStateBlock = 0; // the backend's CLUT is reset below
+#if defined(PLATFORM_XBOX)
     m_rawValid[0] = m_rawValid[1] = 0u; // the state serial moves below (bumpStateSerial)
+#endif
     m_hostPresentationSequence.fetch_add(1, std::memory_order_release);
     m_prim = {};
     m_primRegister = {};
@@ -422,7 +484,9 @@ void GS::reset()
         m_ctx[i].scissor = {0, 639, 0, 447};
         m_ctx[i].xyoffset = {0, 0};
     }
+#if defined(PLATFORM_XBOX)
     bumpStateSerial();
+#endif
 }
 
 GSContext &GS::activeContext()
@@ -460,7 +524,11 @@ const uint8_t *GS::lockDisplaySnapshot(uint32_t &outSize)
 
 GSDebugSnapshot GS::getDebugSnapshot() const
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
 
     GSDebugSnapshot snapshot{};
     snapshot.ctx[0] = m_ctx[0];
@@ -500,7 +568,11 @@ GSDebugSnapshot GS::getDebugSnapshot() const
 
 std::vector<GSDebugHistoryEntry> GS::getDebugHistory() const
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
 
     std::vector<GSDebugHistoryEntry> out;
     out.reserve(m_debugHistoryCount);
@@ -514,7 +586,11 @@ std::vector<GSDebugHistoryEntry> GS::getDebugHistory() const
 
 void GS::clearDebugHistory()
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     m_debugHistoryWrite = 0;
     m_debugHistoryCount = 0;
     m_debugNextSeq = 1;
@@ -524,13 +600,21 @@ void GS::clearDebugHistory()
 
 bool GS::isDebugHistoryPaused() const
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     return m_debugHistoryPaused;
 }
 
 void GS::setDebugHistoryPaused(bool paused)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     m_debugHistoryPaused = paused;
 }
 
@@ -710,7 +794,11 @@ void GS::recordPresentDebugEventUnlocked(uint32_t displayFbp, uint32_t sourceFbp
 
 bool GS::getPreferredDisplaySource(GSFrameReg &outSource, uint32_t &outDestFbp) const
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     if (!m_hasPreferredDisplaySource)
     {
         outSource = {};
@@ -761,10 +849,18 @@ GSPresentationRequest GS::buildPresentationRequestUnlocked() const
 
 void GS::latchHostPresentationFrame()
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard publicationLock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> publicationLock(m_stateMutex);
+#endif
     GSPresentationRequest request{};
     {
+#if defined(PLATFORM_XBOX)
         std::lock_guard lock(m_stateMutex);
+#else
+        std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
         if (!m_backend || !m_privRegs)
         {
             std::lock_guard<std::mutex> presentationLock(m_presentationMutex);
@@ -829,7 +925,11 @@ void GS::publishHostPresentationFrame(PresentationFrame &&frame, bool recordDebu
     // the state mutex (the EE thread may hold it while draining the backend).
     if (hasFrame && recordDebugEvent)
     {
+#if defined(PLATFORM_XBOX)
         std::lock_guard lock(m_stateMutex);
+#else
+        std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
         recordPresentDebugEventUnlocked(displayFbp, sourceFbp, width, height, usedPreferred);
     }
 }
@@ -917,6 +1017,7 @@ bool GS::copyLatchedHostPresentationFrame(std::vector<uint8_t> &outPixels,
     return true;
 }
 
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
 namespace
 {
@@ -953,8 +1054,10 @@ namespace
 }
 #endif
 
+#endif
 void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId path)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
     MeasureKick measureKick(path);
@@ -971,11 +1074,18 @@ void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId pat
 
 void GS::processGIFStreamUnlocked(const uint8_t *data, uint32_t sizeBytes, GifPathId path, bool nativeImage)
 {
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     const auto index = static_cast<unsigned>(path);
     if (!data || sizeBytes == 0 || !m_backend || index < 1 || index > 3)
         return;
     auto &stream = m_gifStreams[index - 1];
+#if defined(PLATFORM_XBOX)
     if (nativeImage && !stream.remaining && !stream.padding && !stream.unitBytes &&
+#else
+    if (!stream.remaining && !stream.padding && !stream.unitBytes &&
+#endif
         tryProcessNativeImageUploadPacket(data, sizeBytes))
         return;
     uint32_t offset = 0;
@@ -1018,7 +1128,9 @@ void GS::processGIFStreamUnlocked(const uint8_t *data, uint32_t sizeBytes, GifPa
                 writeRegisterUnlocked(GS_REG_PRIM, (lo >> 47) & 0x7ffu);
             stream.remaining = nloop * (stream.format >= 2 ? 16u : stream.nreg);
             if (stream.format >= 2) stream.image.clear();
+#if defined(PLATFORM_XBOX)
             TS_MEASURE(g_measure.imageSeen |= stream.format >= 2 ? 1u : 0u);
+#endif
         } else {
             const uint8_t reg = (stream.registers >> (4u * stream.regIndex)) & 15u;
             if (stream.format == GIF_FMT_PACKED) {
@@ -1037,7 +1149,11 @@ void GS::processGIFStreamUnlocked(const uint8_t *data, uint32_t sizeBytes, GifPa
 
 bool GS::processNativePackedGIFPacket(const uint8_t *data, uint32_t sizeBytes)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     if (!data || sizeBytes < 16u || !m_backend)
         return false;
 
@@ -1082,7 +1198,11 @@ void GS::uploadImageNative(uint64_t bitbltbuf,
                            const uint8_t *data,
                            uint32_t sizeBytes)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     uploadImageNativeUnlocked(bitbltbuf, trxpos, trxreg, trxdir, data, sizeBytes);
 }
 
@@ -1360,7 +1480,11 @@ void GS::writeRegisterPacked(uint8_t regDesc, uint64_t lo, uint64_t hi)
 
 void GS::writeRegister(uint8_t regAddr, uint64_t value)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     writeRegisterUnlocked(regAddr, value);
 }
 
@@ -1436,9 +1560,11 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         }
     });
 
+#if defined(PLATFORM_XBOX)
     if (kDrawStateRegisters.bits[regAddr])
         noteStateWrite(regAddr, value);
 
+#endif
     switch (regAddr)
     {
     case GS_REG_PRIM:
@@ -1501,7 +1627,9 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         vtx.t = m_curT;
         vtx.u = m_curU;
         vtx.v = m_curV;
+#if defined(PLATFORM_XBOX)
         TS_MEASURE(regAddr == GS_REG_XYZF2 ? ++g_measure.vtxWrites : ++g_measure.xyz3Writes);
+#endif
         vertexKick(regAddr == GS_REG_XYZF2);
         break;
     }
@@ -1522,7 +1650,9 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
         vtx.u = m_curU;
         vtx.v = m_curV;
         vtx.fog = m_curFog;
+#if defined(PLATFORM_XBOX)
         TS_MEASURE(regAddr == GS_REG_XYZ2 ? ++g_measure.vtxWrites : ++g_measure.xyz3Writes);
+#endif
         vertexKick(regAddr == GS_REG_XYZ2);
         break;
     }
@@ -1887,8 +2017,10 @@ void GS::vertexKick(bool drawing)
 
     if (drawing && m_backend)
     {
+#if defined(PLATFORM_XBOX)
         TS_MEASURE(++g_measure.prims); // a primitive off the native strip / transform paths
         TS_MEASURE(g_measure.primsTextured += m_prim.tme ? 1u : 0u);
+#endif
         GSPrimitiveBatch batch = buildDrawBatch(needed);
         adjustWidescreenHud(batch);
         updatePreferredDisplaySourceForDraw(batch);
@@ -1925,12 +2057,21 @@ void GS::vertexKick(bool drawing)
 
 void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t count)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
     if (m_backend && count >= 3u)
     {
+#if defined(PLATFORM_XBOX)
         // The state by reference (the cached one: no copy per strip).
         if (m_backend->SubmitStrip(drawStateUnlocked(), vertices, count))
+#else
+        const GSPrimitiveBatch batch = buildDrawBatch(0);
+        if (m_backend->SubmitStrip(batch.state, vertices, count))
+#endif
         {
             m_vtxCount = 0;
             return;
@@ -1945,19 +2086,28 @@ void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t c
 
 bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, GSXfCursor &cursor)
 {
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
     MeasureTimer measureXf(g_measure.gsBeginXfCycles, g_measure.gsBeginXf); // the renderer's BeginXfRun included
+#endif
 #endif
     // The lock is held until endXfRun (the mutex is recursive; the caller's
     // thread writes the strips in between), as one submit held it before.
     m_stateMutex.lock();
     writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
+#if defined(PLATFORM_XBOX)
     cursor.inPlace = nullptr; // in-place strips are per run (gs_xf_inplace.h)
     cursor.inPlaceTaken = 0u;
+#endif
     if (m_backend)
     {
+#if defined(PLATFORM_XBOX)
         // The state by reference (the cached one: no copy per run).
         if (m_backend->BeginXfRun(drawStateUnlocked(), constants, cursor))
+#else
+        const GSPrimitiveBatch batch = buildDrawBatch(0);
+        if (m_backend->BeginXfRun(batch.state, constants, cursor))
+#endif
         {
             m_vtxCount = 0; // as a PACKED packet with PRE set leaves the vertex queue
             return true;
@@ -1973,10 +2123,15 @@ void GS::endXfRun(GSXfCursor &cursor)
     m_stateMutex.unlock();
 }
 
+#if defined(PLATFORM_XBOX)
 // ---- Push B/C front-end API (gs_frontend.h; src/xbox/PUSH-BC-PLAN.md
 // sections 3.2, 3.5 and 5.4).
 const GS::Stats &GS::stats()
+#else
+bool GS::decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out)
+#endif
 {
+#if defined(PLATFORM_XBOX)
     return s_gsStats;
 }
 
@@ -2109,7 +2264,11 @@ bool GS::displayCopyState(const GSDrawState &state)
 bool GS::displayCopySprite(const GSDrawState &state, const GSVertex &v0, const GSVertex &v1)
 {
     if (!displayCopyState(state))
+#else
+    if (!data || sizeBytes < 32u || (sizeBytes & 15u) != 0u)
+#endif
         return false;
+#if defined(PLATFORM_XBOX)
     const GSContext &ctx = state.context;
     int x0 = static_cast<int>(v0.x) - (ctx.xyoffset.ofx >> 4);
     int y0 = static_cast<int>(v0.y) - (ctx.xyoffset.ofy >> 4);
@@ -2501,18 +2660,57 @@ bool GS::bulkVertexTag(uint64_t lo, uint64_t hi, const uint8_t *payload, uint32_
 
 void GS::bulkStateTag(const uint8_t *data, uint32_t tagBytes)
 {
+#endif
     const uint64_t lo = loadLE64(data), hi = loadLE64(data + 8u);
     const uint32_t nloop = static_cast<uint32_t>(lo & 0x7FFFu);
+#if defined(PLATFORM_XBOX)
     uint32_t nreg = static_cast<uint32_t>((lo >> 60) & 15u);
     if (nreg == 0u)
         nreg = 16u;
     GSStateBlock block;
     bool textureOnly = false;
     if (!gs_material::decodeStateBlock(data, tagBytes, block, &textureOnly))
+#else
+    const uint32_t nreg = ((lo >> 60u) & 0xFu) ? static_cast<uint32_t>((lo >> 60u) & 0xFu) : 16u;
+    if (((lo >> 58u) & 3u) != GIF_FMT_PACKED || ((lo >> 46u) & 1u) != 0u || nloop == 0u)
+        return false;
+    for (uint32_t i = 0; i < nreg; ++i)
+        if (((hi >> (i * 4u)) & 0xFu) != 0xEu)
+            return false;
+    const uint32_t writes = nloop * nreg;
+    if (writes > StateBlock::kMaxWrites || 16u + writes * 16u != sizeBytes)
+        return false;
+    out.count = writes;
+    out.nloop = nloop;
+    out.nreg = nreg;
+    out.flushes = false;
+    out.idempotent = true;
+    uint32_t clutWrites = 0;
+    bool textureOnly = true;
+    for (uint32_t i = 0; i < writes; ++i)
+#endif
     {
+#if defined(PLATFORM_XBOX)
         bulkRegisterTag(lo, hi, data + 16u, nloop, nreg);
         return;
+#else
+        const uint8_t *qword = data + 16u + i * 16u;
+        const uint8_t reg = qword[8]; // A+D: the address is the high half's low byte
+        if (!isStateRegister(reg))
+            return false;
+        out.regs[i] = reg;
+        out.values[i] = loadLE64(qword);
+        if (reg == GS_REG_TEXFLUSH)
+            out.flushes = true;
+        else if (!isTextureRegister(reg))
+            textureOnly = false;
+        // Written again, a CLD 1-3 load loads again, and a second CLUT write
+        // loads over the first one's CBP.
+        if (isClutRegister(reg) && (++clutWrites > 1u || alwaysLoadsClut(out.values[i])))
+            out.idempotent = false;
+#endif
     }
+#if defined(PLATFORM_XBOX)
     block.serial = 0u; // an environment block never repeats
 #if TS_GS_MATERIAL_TABLE
     // A texture block is a material: found again by content, its id the
@@ -2874,14 +3072,23 @@ std::unique_ptr<GSRasterBackend> GS::swapBackendForCheck(std::unique_ptr<GSRaste
 bool GS::decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out)
 {
     return gs_material::decodeStateBlock(data, sizeBytes, out);
+#else
+    out.repeatable = out.idempotent && textureOnly;
+    return true;
+#endif
 }
 
 GS::StateBlockResult GS::applyStateBlock(const StateBlock &block)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     const GifStreamState &path1 = m_gifStreams[0];
     if (!m_backend || block.count == 0u || path1.remaining || path1.padding || path1.unitBytes)
         return StateBlockResult::NotApplied;
+#if defined(PLATFORM_XBOX)
     return applyStateBlockUnlocked(block, true);
 }
 
@@ -2889,17 +3096,29 @@ GS::StateBlockResult GS::applyStateBlock(const StateBlock &block)
 // debugger's tag event is this block's (the bulk path records the packet's).
 GS::StateBlockResult GS::applyStateBlockUnlocked(const StateBlock &block, bool recordTag)
 {
+#endif
     // Each PACKED register write starts from the tag's Q (1.0).
     m_curQ = 1.0f;
+#if defined(PLATFORM_XBOX)
     StateBlockResult result = StateBlockResult::Applied;
+#endif
     if (block.repeatable && block.serial != 0u && block.serial == m_lastStateBlock &&
+#if defined(PLATFORM_XBOX)
         m_textureStateWrites == m_lastStateBlockWrites && m_debugHistoryPaused && !m_bulkChecking)
+#else
+        m_textureStateWrites == m_lastStateBlockWrites && m_debugHistoryPaused)
+#endif
     {
         if (block.flushes)
             m_backend->TextureFlush();
+#if defined(PLATFORM_XBOX)
         result = StateBlockResult::Repeated;
         ++s_gsStats.blockRepeats;
+#else
+        return StateBlockResult::Repeated;
+#endif
     }
+#if defined(PLATFORM_XBOX)
     else
     {
         if (recordTag && !m_debugHistoryPaused)
@@ -2951,16 +3170,29 @@ GS::StateBlockResult GS::applyMaterial(uint32_t materialId)
     const StateBlockResult result = applyStateBlockUnlocked(material->block, true);
     ++(result == StateBlockResult::Repeated ? s_gsStats.materialRepeated : s_gsStats.materialApplied);
     return result;
+#else
+    if (!m_debugHistoryPaused)
+        recordGifTagDebugEventUnlocked(16u + block.count * 16u, block.nloop, GIF_FMT_PACKED, block.nreg);
+    for (uint32_t i = 0; i < block.count; ++i)
+        writeRegisterUnlocked(block.regs[i], block.values[i]);
+    m_lastStateBlock = block.serial;
+    m_lastStateBlockWrites = m_textureStateWrites;
+    return StateBlockResult::Applied;
+#endif
 }
 
 bool GS::checkStateBlock(const uint8_t *data, uint32_t sizeBytes)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
     return checkStateBlockUnlocked(data, sizeBytes);
 }
 
 bool GS::checkStateBlockUnlocked(const uint8_t *data, uint32_t sizeBytes)
 {
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     if (!m_backend)
         return true;
     const GSContext ctx0 = m_ctx[0], ctx1 = m_ctx[1];
@@ -2972,7 +3204,11 @@ bool GS::checkStateBlockUnlocked(const uint8_t *data, uint32_t sizeBytes)
     const float q = m_curQ;
     const uint64_t clut = m_backend->DebugClutState();
     const uint32_t textureWrites = m_textureStateWrites;
+#if defined(PLATFORM_XBOX)
     processGIFStreamUnlocked(data, sizeBytes, GifPathId::Path1, true);
+#else
+    processGIFPacket(data, sizeBytes, GifPathId::Path1);
+#endif
     const bool same = sameContext(ctx0, m_ctx[0]) && sameContext(ctx1, m_ctx[1]) && texa.ta0 == m_texa.ta0 &&
                       texa.aem == m_texa.aem && texa.ta1 == m_texa.ta1 && texclut.cbw == m_texclut.cbw &&
                       texclut.cou == m_texclut.cou && texclut.cov == m_texclut.cov && scanmsk == m_scanmsk &&
@@ -2994,19 +3230,31 @@ void GS::processImageData(const uint8_t *data, uint32_t sizeBytes)
 
 bool GS::clearFramebufferContext(uint32_t contextIndex, uint32_t rgba)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     return m_backend && m_backend->ClearFramebuffer(m_ctx[(contextIndex != 0u) ? 1 : 0], rgba);
 }
 
 bool GS::clearActiveFramebuffer(uint32_t rgba)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     return m_backend && m_backend->ClearFramebuffer(activeContext(), rgba);
 }
 
 uint32_t GS::consumeLocalToHostBytes(uint8_t *dst, uint32_t maxBytes)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     return m_backend ? m_backend->ConsumeLocalToHostBytes(dst, maxBytes) : 0u;
 }
 
@@ -3015,7 +3263,11 @@ void GS::setRasterBackend(std::unique_ptr<GSRasterBackend> backend)
     if (!backend)
         backend = std::make_unique<GSCpuBackend>();
 
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     std::lock_guard<std::mutex> backendLock(m_backendLifetimeMutex);
     if (m_backend)
     {
@@ -3038,18 +3290,28 @@ void GS::setRasterBackend(std::unique_ptr<GSRasterBackend> backend)
     m_backend = std::move(backend);
     m_backend->Initialize(m_localMemoryStorage, m_localMemorySize);
     m_lastStateBlock = 0; // a new CLUT
+#if defined(PLATFORM_XBOX)
     bumpStateSerial();    // what a backend keeps by serial is the old one's
+#endif
 }
 
 uint32_t GS::ReadVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y) const
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     return m_backend ? m_backend->ReadVram(psm, base, bw, x, y) : 0u;
 }
 
 void GS::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y, uint32_t value)
 {
+#if defined(PLATFORM_XBOX)
     std::lock_guard lock(m_stateMutex);
+#else
+    std::lock_guard<std::recursive_mutex> lock(m_stateMutex);
+#endif
     if (m_backend)
         m_backend->WriteVram(psm, base, bw, x, y, value);
 }
@@ -3132,7 +3394,28 @@ GSPrimitiveBatch GS::buildDrawBatch(int vertexCount) const
     batch.vertexCount = static_cast<uint8_t>(std::min(vertexCount, 3));
     for (int i = 0; i < batch.vertexCount; ++i)
         batch.vertices[static_cast<size_t>(i)] = m_vtxQueue[i];
+#if defined(PLATFORM_XBOX)
     batch.state = drawStateUnlocked();
+#else
+    batch.state.context = m_ctx[m_prim.ctxt ? 1 : 0];
+    batch.state.prim = m_prim;
+    batch.state.texa = m_texa;
+    batch.state.texclut = m_texclut;
+    batch.state.pabe = m_pabe;
+    batch.state.scanmsk = m_scanmsk;
+    batch.state.dimx = m_dimx;
+    batch.state.dthe = m_dthe;
+    batch.state.colclamp = m_colclamp;
+    batch.state.fogR = m_fogR;
+    batch.state.fogG = m_fogG;
+    batch.state.fogB = m_fogB;
+    batch.state.textureWidth = static_cast<uint16_t>(1u << std::min<uint32_t>(batch.state.context.tex0.tw, 10u));
+    batch.state.textureHeight = static_cast<uint16_t>(1u << std::min<uint32_t>(batch.state.context.tex0.th, 10u));
+    const uint64_t tex1 = batch.state.context.tex1;
+    const uint8_t mmag = static_cast<uint8_t>((tex1 >> 5u) & 0x1u);
+    const uint8_t mmin = static_cast<uint8_t>((tex1 >> 6u) & 0x7u);
+    batch.state.linearFilter = mmag != 0u || mmin == 1u || (mmin & 0x4u) != 0u;
+#endif
     return batch;
 }
 
@@ -3144,7 +3427,28 @@ void GS::updatePreferredDisplaySourceForDraw(const GSPrimitiveBatch &batch)
         m_hasPreferredDisplaySource = false;
     if (state.prim.type != GS_PRIM_SPRITE || batch.vertexCount < 2u)
         return;
+#if defined(PLATFORM_XBOX)
     if (displayCopySprite(state, batch.vertices[0], batch.vertices[1]))
+#else
+
+    const GSVertex &v0 = batch.vertices[0];
+    const GSVertex &v1 = batch.vertices[1];
+    int x0 = static_cast<int>(v0.x) - (ctx.xyoffset.ofx >> 4);
+    int y0 = static_cast<int>(v0.y) - (ctx.xyoffset.ofy >> 4);
+    int x1 = static_cast<int>(v1.x) - (ctx.xyoffset.ofx >> 4);
+    int y1 = static_cast<int>(v1.y) - (ctx.xyoffset.ofy >> 4);
+    if (x0 > x1) std::swap(x0, x1);
+    if (y0 > y1) std::swap(y0, y1);
+    const int xEnd = x0 + std::max(1, x1 - x0) - 1;
+    const int yEnd = y0 + std::max(1, y1 - y0) - 1;
+    const uint8_t alphaMode = static_cast<uint8_t>(ctx.alpha & 0xFFu);
+    const uint8_t alphaFix = static_cast<uint8_t>((ctx.alpha >> 32u) & 0xFFu);
+    const bool displayCopy = state.prim.tme && state.prim.abe && state.prim.fst && state.prim.ctxt &&
+                             ctx.frame.fbp != ctx.tex0.tbp0 && alphaMode == 0x64u &&
+                             (alphaFix == 0x60u || alphaFix == 0x80u) &&
+                             x0 <= 0 && y0 <= 0 && xEnd >= 639 && yEnd >= 447;
+    if (displayCopy)
+#endif
     {
         m_preferredDisplaySourceFrame = {ctx.tex0.tbp0, ctx.tex0.tbw, ctx.tex0.psm, 0u};
         m_preferredDisplayDestFbp = ctx.frame.fbp;

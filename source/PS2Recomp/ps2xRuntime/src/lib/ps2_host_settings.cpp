@@ -62,6 +62,7 @@ namespace
             std::string key = trim(line.substr(0, equals));
             const std::string value = trim(line.substr(equals + 1));
             std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
+#if defined(PLATFORM_XBOX)
 #if defined(TS_DET) && TS_DET
             // Deterministic mode (runtime/ps2_det.h; src/xbox/PUSH-BC-PLAN.md
             // M0.8): every host setting at its default, so two runs compare
@@ -69,6 +70,7 @@ namespace
             // are how the switch under test is set.
             if (key.rfind("knob.", 0) != 0)
                 continue;
+#endif
 #endif
             if (key == "resolution")
             {
@@ -95,6 +97,7 @@ namespace
                 settings.textureReplace = parseBool(value);
             else if (key == "render_scale")
                 settings.renderScale = std::clamp(std::atoi(value.c_str()), 1, 4);
+#if defined(PLATFORM_XBOX)
             else if (key.rfind("knob.", 0) == 0 && key.size() > 5u)
             {
                 // Passed through to the knob registry (project/game/ts_knobs.h)
@@ -104,6 +107,7 @@ namespace
                 if (end && end != value.c_str())
                     settings.knobs.emplace_back(key.substr(5), static_cast<uint32_t>(parsed));
             }
+#endif
         }
     }
 }

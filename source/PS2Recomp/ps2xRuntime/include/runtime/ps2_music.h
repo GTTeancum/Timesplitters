@@ -43,11 +43,13 @@ private:
 
     void decodeBlock(Channel &channel);
     void rewind();
+#if defined(PLATFORM_XBOX)
     uint64_t blockOffset(unsigned channel, uint32_t block, uint64_t trackSize, bool &wrapped) const;
     // The streamed track (ps2_music.cpp, TS_MUSIC_STREAMED): a block's bytes
     // from the range holding it, and the next range asked of the loader.
     const uint8_t *streamedBlock(unsigned channel, uint64_t offset);
     void prefetchBlock(unsigned channel, uint32_t block);
+#endif
 
     mutable std::mutex m_mutex;
     std::vector<uint8_t> m_data;
@@ -61,6 +63,7 @@ private:
 
 #if defined(PLATFORM_XBOX)
 // Development counters (cumulative CPU cycles) for the audio feeder's status
+#if defined(PLATFORM_XBOX)
 // (xbox_raylib.cpp): the time spent in mix(), the part of it the player spent
 // in its own disc reads, and the loader thread's reads (the track read ahead
 // of the mix, on its own thread).
@@ -69,4 +72,10 @@ extern unsigned long long g_musicMixCycles, g_musicDiscCycles, g_musicLoaderCycl
 // thread; TS_MUSIC_SELFCHECK: blocks checked against the file, and those
 // that differed (musicdiff=).
 extern unsigned g_musicSyncReads, g_musicLoaderReads, g_musicChecks, g_musicDiffs;
+#else
+// (xbox_raylib.cpp): the time spent in mix(), and the part of it the player
+// spent in its disc reads. The track is streamed from the disc by mix() on
+// the audio thread, which waits for the drive there while other threads run.
+extern unsigned long long g_musicMixCycles, g_musicDiscCycles;
+#endif
 #endif

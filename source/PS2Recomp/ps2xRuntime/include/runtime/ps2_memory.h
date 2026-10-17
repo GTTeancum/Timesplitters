@@ -16,11 +16,14 @@
 
 #include "gs/ps2_gif_arbiter.h"
 #include "ps2_simd.h"
+#if defined(PLATFORM_XBOX)
 #include "ps2_vif1_records.h"
+#endif
 
 class GS;
 struct VU1State;
 
+#if defined(PLATFORM_XBOX)
 // ---- Guest memory allocation (src/xbox/PUSH-BC-PLAN.md section 6, I-13;
 // B-PLATFORM may edit this block). The guest memories PS2Memory owns (RDRAM,
 // scratchpad, GS VRAM, VU0/VU1 code and data) come from ps2xHostAllocGuest
@@ -43,6 +46,7 @@ uint8_t *ps2xPlatformAllocRdram(size_t bytes);          // weak; null: no placem
 bool ps2xPlatformFreeRdram(uint8_t *memory, size_t bytes); // weak; false: not placed, the ordinary path
 // ---- end of the guest memory allocation block
 
+#endif
 // EE I/O register storage. Registers in 0x10000000-0x1000FFFF live in a flat
 // array so different registers can be read and written from different
 // threads (the async VIF1 worker touches only VIF/GIF/DMA registers while the
@@ -451,6 +455,7 @@ public:
     uint32_t advanceEeTimers(uint64_t eeCycles) noexcept;
     [[nodiscard]] uint64_t cyclesUntilNextEeTimerInterrupt() const noexcept;
     void resetEeTimers() noexcept;
+#if defined(PLATFORM_XBOX)
     // The timer registers' halves of readIORegister / writeIORegister: true
     // when the address is a timer register (value / result filled).
     bool readEeTimerRegister(uint32_t address, uint32_t &value) const noexcept;
@@ -462,6 +467,7 @@ public:
     // PS2Runtime's layout, which every compiled game file uses, stays).
     void setVif1RecordHooks(const Vif1RecordHooks &hooks);
     static const Vif1RecordHooks &vif1RecordHooks();
+#endif
 
     using GifPacketCallback = std::function<void(const uint8_t *, uint32_t)>;
     void setGifPacketCallback(GifPacketCallback cb) { m_gifPacketCallback = std::move(cb); }
@@ -500,6 +506,7 @@ public:
         bool (*check)(void *owner, const Vu1MscalFast &fast) = nullptr;
     };
     void setVu1MscalFast(const Vu1MscalFast &fast) { m_vu1MscalFast = fast; }
+#if defined(PLATFORM_XBOX)
 
     // ---- VIF1 decoder helpers (src/xbox/PUSH-BC-PLAN.md W0-C; C-VIF). The
     // bodies of decodeVIF1Pieces' UNPACK, MSCAL and STxx branches and of its
@@ -564,6 +571,7 @@ public:
     // replaced packet ended with.
     void noteNativeMscal(uint32_t startPC, uint32_t count, uint32_t finalCode);
     // ---- end of the VIF1 decoder helpers
+#endif
 #endif
 
     // Asynchronous VIF1: forward VIF1 DMA (VIF decode, VU1 microprograms,
@@ -806,12 +814,14 @@ public:
     };
 
     std::array<EeTimer, 4> m_eeTimers{};
+#if defined(PLATFORM_XBOX)
     // ---- end of the EE timer state
     // ---- Guest memory allocation (ps2_memory_alloc.cpp; B-PLATFORM may
     // edit): the allocation and free halves of initialize / the destructor.
     bool allocateGuestMemory(size_t ramSize);
     void freeGuestMemory();
     // ---- end of the guest memory allocation members
+#endif
     bool tryProcessScratchpadDma(uint32_t channelBase, uint32_t chcr);
     void completeDmacChannel(uint32_t channelBase, uint32_t cause);
     void queueCompletedDmacCause(uint32_t cause);

@@ -247,10 +247,12 @@ struct GSDrawState
     uint16_t textureWidth = 1;
     uint16_t textureHeight = 1;
     bool linearFilter = false;
+#if defined(PLATFORM_XBOX)
     // B-GS (src/xbox/PUSH-BC-PLAN.md M4.1): the GS state serial this was
     // built from, bumped by every drawing-state register write; two states
     // with the same nonzero serial are the same. 0: not tracked (today).
     uint32_t serial = 0;
+#endif
 };
 
 struct GSPrimitiveBatch

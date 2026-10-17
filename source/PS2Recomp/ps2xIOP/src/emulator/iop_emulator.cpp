@@ -1,6 +1,8 @@
 #include "iop_emulator.h"
 #include "ps2x/exceptions.h"
+#if defined(PLATFORM_XBOX)
 #include "ps2x/iop_idle_stats.h" // the idle fast path's switches and counters (TS_IOP_IDLE)
+#endif
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -147,8 +149,10 @@ namespace ps2x::iop::detail
             servicingDmaInterrupts = false;
             servicingGuestCallbacks = false;
             callDepth = 0u;
+#if defined(PLATFORM_XBOX)
             noteInput();
             idleUntil = 0u;
+#endif
             secrMcCommandHandler = {};
             secrMcDevIdHandler = {};
             checkKelfPathCallback = {};
@@ -569,6 +573,7 @@ namespace ps2x::iop::detail
 
         void runCycles(uint64_t cycles) noexcept
         {
+#if defined(PLATFORM_XBOX)
 #if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
             // The idle fast path (ps2x/iop_idle_stats.h): the last batch
             // ended with every thread waiting, nothing reached the IOP since,
@@ -597,14 +602,18 @@ namespace ps2x::iop::detail
             }
 #endif
 #endif
+#endif
             PS2X_TRY
             {
                 const uint64_t target = totalCycles + cycles;
+#if defined(PLATFORM_XBOX)
                 bool endedIdle = false;
                 uint64_t eventWake = UINT64_MAX;
+#endif
                 while (totalCycles < target)
                 {
                     // SPU2 interrupt (IRQA reached): INTC line 9.
+#if defined(PLATFORM_XBOX)
 #if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
                     const bool spuIrq = spuTaken || (!servicingSpuInterrupt && host.spu2TakeIrq());
                     spuTaken = false;
@@ -612,9 +621,14 @@ namespace ps2x::iop::detail
 #else
                     if (!servicingSpuInterrupt && host.spu2TakeIrq())
 #endif
+#else
+                    if (!servicingSpuInterrupt && host.spu2TakeIrq())
+#endif
                     {
+#if defined(PLATFORM_XBOX)
 #if TS_IOP_IDLE_CHECK
                         spuFired = true;
+#endif
 #endif
                         servicingSpuInterrupt = true;
                         (void)intrman.dispatchInterrupt(9, *this);
@@ -627,6 +641,7 @@ namespace ps2x::iop::detail
                     IopThread *next = kernel.beginNextReady(totalCycles, &delayedWake);
                     if (!next)
                     {
+#if defined(PLATFORM_XBOX)
 #if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
                         // The earliest timed event, not cut at the target
                         // (the same minimum the line below takes).
@@ -647,15 +662,27 @@ namespace ps2x::iop::detail
                         nextWake = timrman.nextEventCycle(nextWake);
                         totalCycles = std::max(totalCycles + 1u, std::min(target, nextWake));
 #endif
+#else
+                        uint64_t nextWake = std::min(target, delayedWake);
+                        for (const auto &[irq, completionCycle] : pendingDmaInterrupts)
+                            nextWake = std::min(nextWake, completionCycle);
+                        if (!pendingGuestCallbacks.empty())
+                            nextWake = std::min(nextWake, pendingGuestCallbacks.begin()->first);
+                        nextWake = timrman.nextEventCycle(nextWake);
+                        totalCycles = std::max(totalCycles + 1u, std::min(target, nextWake));
+#endif
                         continue;
                     }
+#if defined(PLATFORM_XBOX)
                     endedIdle = false;
+#endif
                     const uint64_t before = totalCycles;
                     runCpu(next->cpu, static_cast<uint32_t>(std::min<uint64_t>(kDefaultSlice, target - totalCycles)));
                     kernel.endTimeslice(*next, kThreadReturnSentinel);
                     if (totalCycles == before)
                         ++totalCycles;
                 }
+#if defined(PLATFORM_XBOX)
 #if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
                 if (endedIdle && totalCycles == target && eventWake > totalCycles)
                 {
@@ -680,6 +707,7 @@ namespace ps2x::iop::detail
                 }
 #endif
 #endif
+#endif
             }
             PS2X_CATCH_ALL
             {
@@ -687,6 +715,7 @@ namespace ps2x::iop::detail
             }
         }
 
+#if defined(PLATFORM_XBOX)
         // Something reached the IOP from outside (an RPC, a SIF transfer, a
         // memory write, a module load, a reset): the idle fast path's
         // decision is stale.
@@ -695,6 +724,7 @@ namespace ps2x::iop::detail
             ++inputEpoch;
         }
 
+#endif
         ModuleLoadResult loadImage(std::string path, std::span<const uint8_t> image, const void *arguments, uint32_t argumentSize)
         {
             ModuleLoadResult result{true, -1, -1};
@@ -815,11 +845,13 @@ namespace ps2x::iop::detail
         bool servicingDmaInterrupts = false;
         bool servicingGuestCallbacks = false;
         uint32_t callDepth = 0u;
+#if defined(PLATFORM_XBOX)
         // The idle fast path (TS_IOP_IDLE): the input epoch, the epoch and
         // clock bound recorded when a batch ended idle, the bound to renew.
         uint32_t inputEpoch = 0u, idleEpoch = UINT32_MAX;
         uint64_t idleUntil = 0u, idleWake = 0u;
         bool spuFired = false; // TS_IOP_IDLE_CHECK
+#endif
         GuestCallback secrMcCommandHandler;
         GuestCallback secrMcDevIdHandler;
         GuestCallback checkKelfPathCallback;
@@ -839,19 +871,25 @@ namespace ps2x::iop::detail
 
     ModuleLoadResult IopEmulator::loadModule(std::string_view path, const void *arguments, uint32_t argumentSize)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return m_impl->loadModule(path, arguments, argumentSize);
     }
 
     ModuleLoadResult IopEmulator::loadModuleBuffer(uint32_t guestAddress, const void *arguments, uint32_t argumentSize)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return m_impl->loadModuleBuffer(guestAddress, arguments, argumentSize);
     }
 
     bool IopEmulator::stopModule(int32_t moduleId, int32_t *result)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return m_impl->stopModule(moduleId, result);
     }
 
@@ -866,7 +904,9 @@ namespace ps2x::iop::detail
 
     RpcResult IopEmulator::handleRpc(const RpcRequest &request)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return m_impl->rpc.handleRpc(request, *m_impl);
     }
 
@@ -877,19 +917,25 @@ namespace ps2x::iop::detail
 
     void IopEmulator::onSifTransfer(const SifTransfer &transfer)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         m_impl->rpc.onSifTransfer(transfer);
     }
 
     uint32_t IopEmulator::allocateMemory(uint32_t size, uint32_t alignment)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return m_impl->memory.allocate(size, alignment);
     }
 
     bool IopEmulator::freeMemory(uint32_t address)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return m_impl->memory.freeAllocation(address);
     }
 
@@ -901,14 +947,18 @@ namespace ps2x::iop::detail
 
     bool IopEmulator::writeMemory(uint32_t address, const void *source, size_t size)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return isMemoryRange(address, size) &&
                m_impl->memory.writeRam(address, source, size);
     }
 
     bool IopEmulator::zeroMemory(uint32_t address, size_t size)
     {
+#if defined(PLATFORM_XBOX)
         m_impl->noteInput();
+#endif
         return isMemoryRange(address, size) &&
                m_impl->memory.zeroRam(address, size);
     }

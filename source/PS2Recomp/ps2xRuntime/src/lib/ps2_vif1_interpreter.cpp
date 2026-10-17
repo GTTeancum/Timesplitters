@@ -1,7 +1,9 @@
 // Based on Blackline Interactive implementation
 #include "runtime/ps2_memory.h"
 #include "runtime/ps2_vu1_watch.h"
+#if defined(PLATFORM_XBOX)
 #include "runtime/ps2_vif1_tokens.h" // TS_NATIVE_RECORDS, TS_VU1_DEBT_SITES: the spine's tokens and debt sites
+#endif
 #include <algorithm>
 #include <cstring>
 
@@ -315,6 +317,7 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
     g_vif1LastConsumed = 0;
     if (sizeBytes == 0u)
         return;
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS && TS_VU1_DEBT_SITES
     // D2: a stream the debt map knows nothing of reads and writes VU1
     // memory as it likes: every owed row is settled first (not in a dry
@@ -325,6 +328,7 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
         if (hooks.debtBeforeProgram)
             hooks.debtBeforeProgram(hooks.owner, UINT32_MAX, 0u);
     }
+#endif
 #endif
 
     uint32_t pos = 0;
@@ -861,8 +865,10 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
 
 #if defined(PLATFORM_XBOX)
 #include <xmmintrin.h> // the row copies and prefetches below (SSE1)
+#if defined(PLATFORM_XBOX)
 #include "runtime/ps2_measure.h"     // TS_MEASURE_PUSHBC: the decode's time by piece origin, the UNPACKs' time
 #include "runtime/ps2_vif1_reader.h" // the readers of the decoder helpers (Vif1PieceReader, Vif1SpanReader)
+#endif
 #include "runtime/ps2_vu1.h" // VU1State (the MSCAL fast path)
 #include "ps2_log.h"
 Vif1StreamStats g_vif1StreamStats;
@@ -870,10 +876,148 @@ RenderCounters g_renderCounters;
 
 namespace
 {
+#if defined(PLATFORM_XBOX)
     // The piece reader asks for the pieces ahead itself (ps2_vif1_reader.h);
     // a long run of vectors keeps the lines ahead of it coming.
+#else
+    // The Pentium III has no hardware prefetch and ~150 ns to memory, with
+    // four misses in flight. A chain's pieces are scattered (a tag's two
+    // VIFcodes here, its payload elsewhere), so each one read cold costs
+    // more than its decoding. The piece list is known in full: the decoder
+    // asks for the pieces ahead itself.
+    inline void prefetchLine(const uint8_t *p)
+    {
+        _mm_prefetch(reinterpret_cast<const char *>(p), _MM_HINT_T0);
+    }
+    constexpr uint32_t kCacheLine = 32u;
+    constexpr size_t kPrefetchPieces = 2;     // pieces ahead of the one being read
+#endif
     constexpr uint32_t kPrefetchRunBytes = 128u; // ahead within a run of vectors
 
+#if !defined(PLATFORM_XBOX)
+    // The VIF1 stream of a DMA chain, read where it lies: the pieces of guest
+    // memory the chain walk recorded, in order. The piece being read is
+    // [m_cur, m_end); the pieces after it hold m_tail bytes. A VIFcode or an
+    // UNPACK's data wholly inside the piece (nearly all of them) costs a
+    // pointer compare; what runs from one piece into the next is gathered.
+    class Vif1PieceReader
+    {
+    public:
+        // bytes: the pieces' total.
+        Vif1PieceReader(const PS2Memory::Vif1Piece *pieces, size_t count, uint32_t bytes)
+            : m_tail(bytes), m_next(pieces), m_prefetch(pieces), m_last(pieces + count)
+        {
+            nextPiece();
+        }
+
+        uint32_t left() const { return static_cast<uint32_t>(m_end - m_cur) + m_tail; } // unread bytes, all pieces
+
+        // Bytes readable in place; moves on to the next piece when this one is used up.
+        uint32_t avail()
+        {
+            if (m_cur == m_end)
+                nextPiece();
+            return static_cast<uint32_t>(m_end - m_cur);
+        }
+        const uint8_t *here() const { return m_cur; }
+        void advance(uint32_t n) { m_cur += n; } // n <= avail()
+
+        // The next VIFcode; false at the chain's end. Inlined into the
+        // command loop, the piece boundary (wordNext) a call: folded in,
+        // it made this too big to inline and every command paid a call.
+        __attribute__((always_inline)) bool word(uint32_t &value)
+        {
+            if (static_cast<size_t>(m_end - m_cur) >= 4u)
+            {
+                std::memcpy(&value, m_cur, sizeof(value));
+                m_cur += 4u;
+                return true;
+            }
+            return wordNext(value);
+        }
+        void read(void *destination, uint32_t n) // n <= left()
+        {
+            uint8_t *out = static_cast<uint8_t *>(destination);
+            while (n != 0u)
+            {
+                const uint32_t chunk = std::min(n, avail());
+                std::memcpy(out, m_cur, chunk);
+                out += chunk;
+                m_cur += chunk;
+                n -= chunk;
+            }
+        }
+        void skip(uint32_t n) // n <= left()
+        {
+            while (n != 0u)
+            {
+                const uint32_t chunk = std::min(n, avail());
+                m_cur += chunk;
+                n -= chunk;
+            }
+        }
+        // n bytes (n <= left()) in one place: where they lie, or gathered into buffer.
+        const uint8_t *take(uint32_t n, uint8_t *buffer)
+        {
+            if (avail() >= n)
+            {
+                const uint8_t *data = m_cur;
+                m_cur += n;
+                return data;
+            }
+            ++g_vif1StreamStats.splits;
+            read(buffer, n);
+            return buffer;
+        }
+
+    private:
+        // The piece is used up: on to the next one that holds anything, and
+        // the first lines of the pieces behind it are asked for.
+        void nextPiece()
+        {
+            while (m_cur == m_end && m_next != m_last)
+            {
+                m_cur = m_next->first;
+                m_end = m_cur + m_next->second;
+                m_tail -= m_next->second;
+                ++m_next;
+            }
+            // Two pieces, two lines each: as many as the four fill buffers hold.
+            if (m_prefetch < m_next)
+                m_prefetch = m_next;
+            const PS2Memory::Vif1Piece *until = m_next + std::min<size_t>(kPrefetchPieces, m_last - m_next);
+            for (; m_prefetch < until; ++m_prefetch)
+            {
+                prefetchLine(m_prefetch->first);
+                if (m_prefetch->second > kCacheLine)
+                    prefetchLine(m_prefetch->first + kCacheLine);
+            }
+        }
+        // A VIFcode at a piece boundary: the next piece holds it whole (a
+        // tag's two VIFcodes are one piece) or, rarely, it is split.
+        __attribute__((noinline)) bool wordNext(uint32_t &value)
+        {
+            if (m_cur == m_end)
+                nextPiece();
+            if (static_cast<size_t>(m_end - m_cur) >= 4u)
+            {
+                std::memcpy(&value, m_cur, sizeof(value));
+                m_cur += 4u;
+                return true;
+            }
+            if (left() < 4u)
+                return false;
+            uint8_t buffer[4];
+            std::memcpy(&value, take(4u, buffer), sizeof(value));
+            return true;
+        }
+
+        const uint8_t *m_cur = nullptr, *m_end = nullptr;
+        uint32_t m_tail = 0;
+        const PS2Memory::Vif1Piece *m_next, *m_prefetch, *m_last;
+    };
+
+#endif
     // Where the next UNPACK write goes: processVIF1Data's per-write
     // (vuAddr + (i / WL) * CL + i % WL) for CL >= WL, vuAddr + i for CL < WL,
     // kept as a running position.
@@ -913,7 +1057,11 @@ namespace
                 constexpr uint32_t kAhead = kPrefetchRunBytes / kBytes;
                 for (; n > kAhead; --n, ++dest, src += kBytes)
                 {
+#if defined(PLATFORM_XBOX)
                     vif1PrefetchLine(src + kPrefetchRunBytes);
+#else
+                    prefetchLine(src + kPrefetchRunBytes);
+#endif
                     write(vu + (dest & 0x3FFu) * 16u, src);
                 }
             }
@@ -1198,6 +1346,7 @@ namespace
     constexpr size_t kVif1BlockKeep = 64u * 1024u;
 }
 
+#if defined(PLATFORM_XBOX)
 // ---- The decoder helpers (ps2_memory.h; src/xbox/PUSH-BC-PLAN.md W0-C):
 // decodeVIF1Pieces' branch bodies, one each, called from its loop below and
 // from a records engine replaying a chain's commands (ps2_vif1_records.h).
@@ -1555,6 +1704,7 @@ void PS2Memory::noteNativeMscal(uint32_t startPC, uint32_t count, uint32_t final
         vif1_regs.stat |= (1u << 11); // INT
 }
 
+#endif
 void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
 {
     uint32_t bytes = 0;
@@ -1570,6 +1720,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
 void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes)
 {
     decodeVIF1Pieces(pieces, count, bytes, true);
+#if defined(PLATFORM_XBOX)
 #if TS_NATIVE_RECORDS && TS_VU1_DEBT_SITES
     // D2: the list's end: every owed row settled, so VU1 memory is exact at
     // every frame boundary (not in a dry decode, whose state is put back).
@@ -1579,6 +1730,7 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_
         if (hooks.listEnd)
             hooks.listEnd(hooks.owner);
     }
+#endif
 #endif
 }
 
@@ -1594,6 +1746,7 @@ uint32_t PS2Memory::processVIF1PiecesAhead(const Vif1Piece *pieces, size_t count
     return decodeVIF1Pieces(pieces, count, bytes, false);
 }
 
+#if defined(PLATFORM_XBOX)
 #if TS_NATIVE_RECORDS
 namespace
 {
@@ -1666,6 +1819,7 @@ namespace
 }
 #endif
 
+#endif
 uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes, bool chainEnd)
 {
     static_assert(PS2_VU1_DATA_SIZE == 1024u * 16u, "UNPACK writes wrap at 1024 quadwords");
@@ -1673,7 +1827,11 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
         ++g_vif1StreamStats.chains;
     g_vif1StreamStats.pieces += static_cast<unsigned>(count);
     // Counted here, added to the (64-bit) status counters once per chain.
+#if defined(PLATFORM_XBOX)
     Vif1UnpackCounts counts;
+#else
+    uint32_t fastVectors = 0, slowVectors = 0;
+#endif
     uint32_t commands = 0; // TS_RENDER_COUNTERS 2
     (void)commands;
 #if TS_MSCAL_FAST
@@ -1682,6 +1840,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
 #endif
 
     Vif1PieceReader in(pieces, count, bytes);
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
     // The decode's time by the origin of the piece being read (a CALLed
     // chain's or the main list's, as the walk marked the batch's pieces;
@@ -1696,17 +1855,24 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
         return p >= measureBase && index < sizeof(g_measure.pieceOrigin) ? g_measure.pieceOrigin[index] : 0u;
     };
 #endif
+#endif
     uint32_t carry = 0; // chainEnd false: bytes left for the next call
+#if defined(PLATFORM_XBOX)
 #if TS_NATIVE_RECORDS
     // Where the command being decoded started (vif1Carry).
     uint32_t cmdLeft = 0, cmdExpansions = 0;
     bool cmdInExpansion = false;
 #endif
+#endif
     // A command that does not fit: its VIFcode (header bytes, already read) and the rest.
     auto leave = [&](uint32_t header)
     {
+#if defined(PLATFORM_XBOX)
 #if TS_NATIVE_RECORDS
         carry = chainEnd ? 0u : vif1Carry(in, header, cmdLeft, cmdExpansions, cmdInExpansion);
+#else
+        carry = chainEnd ? 0u : in.left() + header;
+#endif
 #else
         carry = chainEnd ? 0u : in.left() + header;
 #endif
@@ -1714,6 +1880,9 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
         if (!chainEnd && header != 0u)
             TS_RENDER_COUNT2(--commands);
     };
+#if !defined(PLATFORM_XBOX)
+    uint8_t split[16]; // a vector or STROW/STCOL data split between pieces
+#endif
     auto takeBlock = [&](uint32_t bytes) -> const uint8_t *
     {
         if (in.avail() < bytes && s_vif1Block.size() < bytes)
@@ -1749,6 +1918,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             continue;
         }
 
+#if defined(PLATFORM_XBOX)
 #if TS_NATIVE_RECORDS
         // A command boundary: a token piece next is run here (D1).
         if (const Vif1TokenEntry *entry = in.tokenAhead())
@@ -1760,6 +1930,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
         cmdExpansions = in.expansions();
         cmdInExpansion = in.expanding();
 #endif
+#endif
         uint32_t cmd;
         if (!in.word(cmd))
         {
@@ -1770,6 +1941,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
         const uint16_t imm = cmd & 0xFFFF;
         const uint8_t num = (cmd >> 16) & 0xFF;
         TS_RENDER_COUNT2(++commands);
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
         if (in.piece() != measurePiece)
         {
@@ -1785,6 +1957,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             }
         }
 #endif
+#endif
 
         // Track most-recent command for VIFn_CODE emulation.
         vif1_regs.code = cmd;
@@ -1794,6 +1967,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
 
         if ((opcode & 0x60u) == 0x60u)
         {
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
             const uint64_t unpack0 = measureTsc();
             const bool unpacked = vif1Unpack(cmd, in, counts, chainEnd);
@@ -1803,19 +1977,203 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
 #else
             if (!vif1Unpack(cmd, in, counts, chainEnd))
 #endif
+#else
+            // By format and destination (ps2_render_counters.h).
+#if TS_RENDER_COUNTERS >= 2
+            uint32_t &unpackCount = g_renderCounters.unpacks[opcode & 0xFu][(imm & 0x8000u) == 0u   ? 3u
+                                                                            : (imm & 0x3FFu) < 24u  ? 0u
+                                                                            : (imm & 0x3FFu) < 216u ? 1u
+                                                                                                    : 2u];
+            ++unpackCount;
+            g_renderCounters.unpackMasked += (opcode >> 4) & 1u;
+#endif
+            const uint32_t vn = (opcode >> 2) & 0x3u;
+            const uint32_t vl = opcode & 0x3u;
+            const uint32_t components = vn + 1u;
+            uint32_t bitsPerComponent = 32u;
+            if (vl == 1u)
+                bitsPerComponent = 16u;
+            else if (vl == 2u)
+                bitsPerComponent = 8u;
+            else if (vl == 3u)
+                bitsPerComponent = (vn == 3u) ? 4u : 16u;
+            const uint32_t bitsPerVector = (vl == 3u && vn == 3u) ? 16u : (components * bitsPerComponent);
+            const uint32_t bytesPerVector = (bitsPerVector + 7u) / 8u;
+            // UNPACK semantics: NUM is 8-bit and NUM==0 means 256 vectors (writes).
+            const uint32_t writeVectorCount = (num == 0u) ? 256u : static_cast<uint32_t>(num);
+
+            // STCYCL controls write cycles for UNPACK.
+            uint32_t cl = vif1_regs.cycle & 0xFFu;
+            uint32_t wl = (vif1_regs.cycle >> 8) & 0xFFu;
+            if (cl == 0u)
+                cl = 1u;
+            if (wl == 0u)
+                wl = 1u;
+
+            uint32_t sourceVectorCount = writeVectorCount;
+            if (cl < wl)
+            {
+                const uint32_t fullBlocks = writeVectorCount / wl;
+                uint32_t remainder = writeVectorCount % wl;
+                if (remainder > cl)
+                    remainder = cl;
+                sourceVectorCount = fullBlocks * cl + remainder;
+            }
+
+            const uint32_t sourceBytes = sourceVectorCount * bytesPerVector;
+            const uint32_t totalBytes = (sourceBytes + 3u) & ~3u;
+            if (totalBytes > in.left())
+#endif
             {
                 leave(4u);
+#if !defined(PLATFORM_XBOX)
+#if TS_RENDER_COUNTERS >= 2
+                if (!chainEnd) // counted when it is read anew
+                {
+                    --unpackCount;
+                    g_renderCounters.unpackMasked -= (opcode >> 4) & 1u;
+                }
+#endif
+#endif
                 break;
             }
+#if !defined(PLATFORM_XBOX)
+
+            uint32_t vuAddr = (uint32_t)imm & 0x3FFu;
+            if ((imm & 0x8000u) != 0u)
+                vuAddr = (vuAddr + (vif1_regs.tops & 0x3FFu)) & 0x3FFu;
+
+            if (!m_vu1Data)
+            {
+                in.skip(totalBytes);
+                continue;
+            }
+
+            // (The span needs a division; nothing to note without watched rows.)
+            if (g_vu1WatchedRows.ranges != 0u)
+                g_vu1WatchedRows.note(vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl));
+            UnpackCursor cursor{vuAddr, 0u, cl, wl};
+            const bool maskEnable = (opcode & 0x10u) != 0u;
+            const bool zeroExtend = (imm & 0x4000u) != 0u;
+            if (!maskEnable && (vif1_regs.mode & 3u) == 0u && cl == wl && (opcode & 0xFu) == 0xCu &&
+                in.avail() >= sourceBytes)
+            {
+                // V4-32 into consecutive rows, the data wholly in this piece:
+                // the game's vertex arrays, nearly every UNPACK. The rows are
+                // copied here (unpackFast's V4-32 run, without its call, its
+                // format switch and the piece loop around it).
+                const uint8_t *src = in.here();
+                in.advance(sourceBytes);
+                uint32_t dest = vuAddr;
+                uint32_t n = sourceVectorCount;
+                for (; n > kPrefetchRunBytes / 16u; --n, ++dest, src += 16)
+                {
+                    prefetchLine(src + kPrefetchRunBytes);
+                    copyQword(m_vu1Data + (dest & 0x3FFu) * 16u, src);
+                }
+                for (; n != 0u; --n, ++dest, src += 16)
+                    copyQword(m_vu1Data + (dest & 0x3FFu) * 16u, src);
+                fastVectors += sourceVectorCount;
+            }
+            else if (!maskEnable && (vif1_regs.mode & 3u) == 0u && cl >= wl && (vl != 3u || vn == 3u))
+            {
+                // Every write reads one vector: whole runs straight from the
+                // piece (nearly always the whole UNPACK: a tag's payload), a
+                // vector split between pieces on its own.
+                const uint32_t format = opcode & 0xFu;
+                for (uint32_t n = sourceVectorCount; n != 0u;)
+                {
+                    const uint32_t avail = in.avail();
+                    uint32_t vectors = n;
+                    const uint8_t *src = in.here();
+                    if (avail >= n * bytesPerVector)
+                    {
+                        in.advance(n * bytesPerVector);
+                    }
+                    else if ((vectors = avail / bytesPerVector) != 0u)
+                    {
+                        in.advance(vectors * bytesPerVector);
+                    }
+                    else
+                    {
+                        vectors = 1u;
+                        src = in.take(bytesPerVector, split);
+                    }
+                    if (zeroExtend)
+                        unpackFast<true>(m_vu1Data, src, vectors, cursor, format);
+                    else
+                        unpackFast<false>(m_vu1Data, src, vectors, cursor, format);
+                    n -= vectors;
+                }
+                fastVectors += sourceVectorCount;
+            }
+            else
+            {
+                const UnpackFormat format{vn, vl, components, bytesPerVector, maskEnable, zeroExtend};
+                for (uint32_t write = 0; write < writeVectorCount; ++write)
+                {
+                    const bool sourceAvailable = (cl >= wl) || (cursor.cyclePos < cl);
+                    const uint8_t *src = sourceAvailable ? in.take(bytesPerVector, split) : nullptr;
+                    unpackGeneral(vif1_regs, m_vu1Data + (cursor.dest & 0x3FFu) * 16u, src, cursor.cyclePos, format);
+                    cursor.step();
+                }
+                slowVectors += writeVectorCount;
+            }
+            in.skip(totalBytes - sourceBytes); // padding to a word
+#endif
             continue;
         }
         else if (opcode == VIF_NOP)
         {
             continue;
         }
+#if defined(PLATFORM_XBOX)
         else if (opcode <= VIF_MARK) // STCYCL, OFFSET, BASE, ITOP, STMOD, MSKPATH3, MARK
+#else
+        else if (opcode == VIF_STCYCL)
+#endif
         {
+#if defined(PLATFORM_XBOX)
             vif1Immediate(cmd);
+#else
+            vif1_regs.cycle = imm;
+            continue;
+        }
+        else if (opcode == VIF_OFFSET)
+        {
+            vif1_regs.ofst = imm & 0x3FFu;
+            vif1_regs.tops = vif1_regs.base & 0x3FFu;
+            vif1_regs.stat &= ~(1u << 7); // clear DBF
+            continue;
+        }
+        else if (opcode == VIF_BASE)
+        {
+            vif1_regs.base = imm & 0x3FFu;
+            continue;
+        }
+        else if (opcode == VIF_ITOP)
+        {
+            vif1_regs.itops = imm & 0x3FFu;
+            continue;
+        }
+        else if (opcode == VIF_STMOD)
+        {
+            vif1_regs.mode = imm & 3u;
+            continue;
+        }
+        else if (opcode == VIF_MSKPATH3)
+        {
+            const bool wasMasked = m_path3Masked;
+            m_path3Masked = (imm & 0x8000u) != 0u;
+            if (wasMasked && !m_path3Masked)
+                flushMaskedPath3Packets();
+            continue;
+        }
+        else if (opcode == VIF_MARK)
+        {
+            vif1_regs.mark = imm;
+            vif1_regs.stat |= (1u << 6); // MRK
+#endif
             continue;
         }
         else if (opcode == VIF_FLUSHE || opcode == VIF_FLUSH || opcode == VIF_FLUSHA)
@@ -1824,6 +2182,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
         }
         else if (opcode == VIF_MSCAL || opcode == VIF_MSCALF || opcode == VIF_MSCNT)
         {
+#if defined(PLATFORM_XBOX)
 #if TS_NATIVE_RECORDS && TS_VU1_DEBT_SITES
             // D2: a program no record runs reads its window of VU1 memory
             // (MSCNT: an unknown pc, everything settled).
@@ -1836,23 +2195,108 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             }
 #endif
             vif1Mscal(cmd);
+#else
+            const uint32_t runTop = vif1_regs.tops & 0x3FFu;
+            const uint32_t runItop = vif1_regs.itops & 0x3FFu;
+            vif1_regs.top = runTop;
+            vif1_regs.itop = runItop;
+
+            const bool dbf = (vif1_regs.stat & (1u << 7)) != 0u;
+            if (dbf)
+                vif1_regs.tops = vif1_regs.base & 0x3FFu;
+            else
+                vif1_regs.tops = (vif1_regs.base + vif1_regs.ofst) & 0x3FFu;
+            vif1_regs.stat ^= (1u << 7); // toggle DBF
+
+            if (opcode != VIF_MSCNT)
+            {
+                const uint32_t startPC = (uint32_t)imm * 8u;
+                renderCountMscal(startPC);
+#if TS_MSCAL_FAST
+                Vu1MscalFast &fast = m_vu1MscalFast;
+                if (fast.owner)
+                {
+                    if (!fast.fbrst || fast.generation != getVU1CodeGeneration())
+                        fast.lookup(fast.owner, fast);
+                    if (fast.native)
+                    {
+#if TS_MSCAL_FAST_CHECK
+                        ++g_renderCounters.mscalChecked;
+                        if (!fast.check(fast.owner, fast) && ++g_renderCounters.mscalCheckDiffs <= 8u)
+                            RUNTIME_LOG("[VIF:mscalcheck] MSCAL 0x" << std::hex << startPC << std::dec
+                                        << ": the cached program or EE context is not the callback's\n");
+#endif
+                        TS_RENDER_COUNT(++g_renderCounters.mscalFast);
+                        // The callback's steps (ps2_runtime.cpp) and execute()'s
+                        // around a native run (ps2_vu1_core.cpp).
+                        const uint32_t fbrst = *fast.fbrst;
+                        fast.vu1->dBitEnabled = (fbrst & (1u << 10)) != 0u;
+                        fast.vu1->tBitEnabled = (fbrst & (1u << 11)) != 0u;
+                        if (fast.native(startPC, m_vu1Data, PS2_VU1_DATA_SIZE, runTop, this, *fast.gs))
+                        {
+                            fast.vu1->top = runTop;
+                            fast.vu1->itop = runItop;
+                            fast.vu1->stoppedByD = false;
+                            fast.vu1->stoppedByT = false;
+                            *fast.vpuStat &= ~0x0600u; // VPU_STAT: no D/T stop
+                        }
+                        else
+                            fast.interpret(fast.owner, fast, startPC, runTop, runItop);
+                        continue;
+                    }
+                }
+#endif
+                if (m_vu1MscalCallback)
+                    m_vu1MscalCallback(startPC, runTop, runItop);
+            }
+            else
+            {
+                TS_RENDER_COUNT(++g_renderCounters.mscnt);
+                if (m_vu1MscntCallback)
+                    m_vu1MscntCallback(runTop, runItop);
+            }
+#endif
             continue;
         }
+#if defined(PLATFORM_XBOX)
         else if (opcode == VIF_STMASK || opcode == VIF_STROW || opcode == VIF_STCOL)
+#else
+        else if (opcode == VIF_STMASK)
+#endif
         {
+#if defined(PLATFORM_XBOX)
             if (!vif1Stxx(cmd, in))
+#else
+            if (!in.word(vif1_regs.mask))
+#endif
             {
                 leave(4u);
                 break;
             }
             continue;
         }
+#if !defined(PLATFORM_XBOX)
+        else if (opcode == VIF_STROW || opcode == VIF_STCOL)
+        {
+            if (in.left() < 16u)
+            {
+                leave(4u);
+                break;
+            }
+            std::memcpy(opcode == VIF_STROW ? vif1_regs.row : vif1_regs.col, in.take(16u, split), 16u);
+            continue;
+        }
+#endif
         else if (opcode == VIF_MPG)
         {
             const uint32_t destAddr = (uint32_t)imm * 8u;
             const uint32_t instructionCount = (num == 0u) ? 256u : static_cast<uint32_t>(num);
             const uint32_t mpgBytes = instructionCount * 8u;
+#if defined(PLATFORM_XBOX)
             if (!chainEnd && !in.has(mpgBytes))
+#else
+            if (!chainEnd && mpgBytes > in.left())
+#endif
             {
                 leave(4u);
                 break;
@@ -1863,14 +2307,22 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
                 uint32_t copyBytes = mpgBytes;
                 if (destAddr + copyBytes > PS2_VU1_CODE_SIZE)
                     copyBytes = PS2_VU1_CODE_SIZE - destAddr;
+#if defined(PLATFORM_XBOX)
                 if (in.has(copyBytes))
+#else
+                if (copyBytes <= in.left())
+#endif
                 {
                     in.read(m_vu1Code + destAddr, copyBytes);
                     copied = copyBytes;
                     markVU1CodeModified();
                 }
             }
+#if defined(PLATFORM_XBOX)
             if (!in.has(mpgBytes - copied))
+#else
+            if (mpgBytes - copied > in.left())
+#endif
                 break;
             in.skip(mpgBytes - copied);
             continue;
@@ -1880,9 +2332,13 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             uint32_t qwCount = imm;
             if (qwCount == 0)
                 qwCount = 65536;
+#if defined(PLATFORM_XBOX)
             uint32_t availableQw = in.left() / 16u;
             if (qwCount > availableQw)
                 availableQw = in.leftExpanded() / 16u; // (a chain token ahead at its expanded size)
+#else
+            const uint32_t availableQw = in.left() / 16u;
+#endif
             const bool truncated = qwCount > availableQw;
             if (truncated && !chainEnd)
             {
@@ -1911,12 +2367,19 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             continue;
         }
     }
+#if defined(PLATFORM_XBOX)
     g_vif1StreamStats.fastVectors += counts.fast;
     g_vif1StreamStats.slowVectors += counts.slow;
+#else
+    g_vif1StreamStats.fastVectors += fastVectors;
+    g_vif1StreamStats.slowVectors += slowVectors;
+#endif
     TS_RENDER_COUNT2(g_renderCounters.vifCommands += commands);
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
     g_measure.decodeCycles[measureOrigin] += measureTsc() - measureT0;
     ++g_measure.decodes;
+#endif
 #endif
     return carry;
 }

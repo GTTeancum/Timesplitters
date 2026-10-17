@@ -11,8 +11,10 @@
 #include <vector>
 
 #include "runtime/gs/gs_backend.h"
+#if defined(PLATFORM_XBOX)
 #include "runtime/gs/gs_material.h"
 #include "runtime/ps2_host_lock.h"
+#endif
 
 // TS_LEAN_GS_HISTORY 1 (Xbox): GS::m_debugHistory keeps one entry, not 512
 // (112 KB). It records only once unpaused, which only the PC debug panel
@@ -137,9 +139,24 @@ public:
     // register A+D, writing drawing-state registers only (no vertex, PRIM,
     // transfer, SIGNAL/FINISH/LABEL or privileged ones). The pipeline decodes
     // a block once and applies it without the GIF stream.
+#if defined(PLATFORM_XBOX)
     // (GSStateBlock, runtime/gs/gs_material.h: serial is the material id,
     // equal ids, equal writes; 0: none.)
     using StateBlock = GSStateBlock;
+#else
+    struct StateBlock
+    {
+        static constexpr uint32_t kMaxWrites = 8u;
+        uint32_t serial = 0;       // the owner's: equal serials, equal writes (0: none)
+        uint32_t count = 0;        // A+D writes, in packet order
+        uint32_t nloop = 0, nreg = 0;
+        bool repeatable = false;   // see applyStateBlock
+        bool idempotent = false;   // applying it twice is applying it once (but for TEXFLUSH)
+        bool flushes = false;      // writes TEXFLUSH
+        uint8_t regs[kMaxWrites] = {};
+        uint64_t values[kMaxWrites] = {};
+    };
+#endif
     static bool decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out);
     // Applies a decoded block as processGIFPacket would apply its packet on
     // PATH1: the same register writes, in order. Repeated: the block is the
@@ -155,6 +172,7 @@ public:
     // again as a PATH1 packet; true when that changed no drawing state and no
     // CLUT (the block's effect was already in place).
     bool checkStateBlock(const uint8_t *data, uint32_t sizeBytes);
+#if defined(PLATFORM_XBOX)
     // Materials (M4.1 phase 1; gs_material.h): applies the table's entry
     // with this id as applyStateBlock applies its block, with the
     // commit-on-bind rule: the bound id is kept by value, and a block bound
@@ -250,6 +268,7 @@ public:
     // Xbox start-up through xboxInstallBackend.
     static void setSingleOwner(bool on) { ps2x::OwnedRecursiveMutex::setSingleOwner(on); }
 
+#endif
     enum class HostPresentationMode { VSync, Signal, Finish };
     void setHostPresentationMode(HostPresentationMode mode) { m_hostPresentationMode.store(mode); }
     HostPresentationMode hostPresentationMode() const { return m_hostPresentationMode.load(); }
@@ -318,10 +337,13 @@ private:
 
     void processImageData(const uint8_t *data, uint32_t sizeBytes);
     bool tryProcessNativeImageUploadPacket(const uint8_t *data, uint32_t sizeBytes);
+#if defined(PLATFORM_XBOX)
     // processGIFPacket's stream, under the lock (nativeImage: the whole-
     // packet image upload shortcut may be taken; only at a packet's start).
     void processGIFStreamUnlocked(const uint8_t *data, uint32_t sizeBytes, GifPathId path, bool nativeImage);
+#endif
     GSPrimitiveBatch buildDrawBatch(int vertexCount) const;
+#if defined(PLATFORM_XBOX)
     void buildDrawState(GSDrawState &out) const;
     const GSDrawState &drawStateUnlocked() const; // drawState under the lock
     // A drawing-state register written (writeRegisterUnlocked): the serial
@@ -330,7 +352,9 @@ private:
     void bumpStateSerial();
     // submitPrimitives under the lock (PRIM written first).
     void submitPrimitivesUnlocked(uint32_t primRegister, const GSVertex *vertices, uint32_t count);
+#endif
     void adjustWidescreenHud(GSPrimitiveBatch &batch);
+#if defined(PLATFORM_XBOX)
     // Widescreen HUD narrowing, as pure tests (the GIF bulk path declines a
     // tag the old path would narrow): whether narrowing is on at all now,
     // and whether a draw of this state is an overlay candidate (its vertices
@@ -370,6 +394,7 @@ private:
     void bulkRegisterTag(uint64_t lo, uint64_t hi, const uint8_t *payload, uint32_t nloop, uint32_t nreg);
     void bulkPath1Unlocked(const uint8_t *data, uint32_t sizeBytes);
     void bulkSelfCheck(const uint8_t *data, uint32_t sizeBytes);
+#endif
     uint64_t m_drawCounter = 0, m_lastPerspectiveDraw = 0;
     // Current row of HUD glyphs, moved as one piece so text is not split.
     uint64_t m_hudRunDraw = 0;
@@ -399,6 +424,7 @@ private:
     // (applyStateBlock's repeats).
     uint32_t m_textureStateWrites = 0;
     uint32_t m_lastStateBlock = 0, m_lastStateBlockWrites = 0;
+#if defined(PLATFORM_XBOX)
     // The state serial (stateSerial) and the shadow of the drawing-state
     // registers' raw values it is compared against (m_rawValid: the shadow
     // holds every register written since it was cleared); the cached
@@ -412,12 +438,17 @@ private:
     mutable uint32_t m_drawStateCacheSerial = 0;
     bool m_bulkChecking = false; // TS_GS_BULK_SELFCHECK: inside a check (no nested check)
     bool m_outerCheck = false;   // setOuterCheck: no sampled check of the front end's own
+#endif
     std::atomic<HostPresentationMode> m_hostPresentationMode{HostPresentationMode::VSync};
     std::atomic<uint64_t> m_hostPresentationSequence{0};
     uint8_t *m_localMemoryStorage = nullptr;
     uint32_t m_localMemorySize = 0u;
     struct GSRegisters *m_privRegs = nullptr;
+#if defined(PLATFORM_XBOX)
     mutable ps2x::OwnedRecursiveMutex m_stateMutex;
+#else
+    mutable std::recursive_mutex m_stateMutex;
+#endif
     mutable std::mutex m_backendLifetimeMutex;
     mutable std::mutex m_presentationMutex;
 
@@ -485,6 +516,7 @@ private:
     std::unique_ptr<GSRasterBackend> m_backend;
 };
 
+#if defined(PLATFORM_XBOX)
 // The drawing state saveCheckState copies (everything a PATH1 packet of
 // drawing registers and vertices can change, and the state-block repeat
 // bookkeeping); not the display, transfer or debug state.
@@ -507,4 +539,5 @@ struct GS::CheckState
     uint64_t drawCounter = 0, lastPerspectiveDraw = 0;
 };
 
+#endif
 #endif

@@ -70,6 +70,7 @@ struct RenderCounters
     uint32_t flatRuns = 0;         // ... flat shaded: laid out as triangle lists
     uint32_t mergedRuns = 0;       // ... joined to the batch a run before left open
     uint32_t declinedRuns = 0;     // ... refused by the renderer (CPU path instead)
+#if defined(PLATFORM_XBOX)
     // The VIF/DMA spine's tokens and splices (src/xbox/PUSH-BC-PLAN.md D1;
     // runtime/ps2_vif1_tokens.h), counted whatever TS_RENDER_COUNTERS says
     // (a few per CALL; the check counters must stay 0).
@@ -96,6 +97,7 @@ struct RenderCounters
     uint32_t recAudits = 0, recStale = 0; // fingerprint audits / of them stale (rebuilt)
     uint32_t recR1 = 0, recT0 = 0; // chain tokens run by replay / by expansion
     uint32_t recChecked = 0, recDiff = 0; // TS_NATIVE_RECORD_SELFCHECK: R1 against T0 / differing (must stay 0)
+#endif
 };
 extern RenderCounters g_renderCounters; // ps2_vif1_interpreter.cpp
 

@@ -1,6 +1,8 @@
 #include "runtime/ee_scheduler.h"
+#if defined(PLATFORM_XBOX)
 #include "runtime/ee_checkpoint_clock.h" // EeTimePolicy (pinned time), the no-yield entry points
 #include "runtime/ps2_det.h"             // detTrace: the det harness's sched stream (no-ops unless TS_DET)
+#endif
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_io_stats.h"
 
@@ -16,14 +18,19 @@
 #include <stdexcept>
 
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
 #include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: dispatches by pc
+#endif
 #include <profileapi.h> // the counter behind steady_clock (src/xbox/xbox_chrono.cpp)
 
 EeSchedulerStats g_eeSchedulerStats;
+#if defined(PLATFORM_XBOX)
 #if PS2X_EE_COUNTDOWN
 int32_t g_ps2xEeBudget = 0; // the checkpoint countdown (ps2_runtime.h)
 #endif
 #endif
+#endif
+#if defined(PLATFORM_XBOX)
 
 // The time policy and the VBlankStart source (runtime/ee_checkpoint_clock.h).
 EeTimePolicy g_ps2xEeTimePolicy = EeTimePolicy::Host;
@@ -50,6 +57,7 @@ enum : uint32_t
     kDetTraceTransfer = 6,    // transferToDispatcher: thread id, cycle
     kDetTraceSyscall = 7,     // handleSyscall (ps2_runtime.cpp): number, pc
 };
+#endif
 
 namespace
 {
@@ -156,14 +164,18 @@ EeScheduler::EeScheduler(PS2Runtime &runtime)
 #if defined(PLATFORM_XBOX)
     m_runtime.m_eeCheckpointClock = this; // for the inline PS2Runtime::eeCheckpointDue
 #endif
+#if defined(PLATFORM_XBOX)
     s_scheduler = this;
+#endif
 }
 
 EeScheduler::~EeScheduler()
 {
     requestStop();
+#if defined(PLATFORM_XBOX)
     if (s_scheduler == this)
         s_scheduler = nullptr;
+#endif
 }
 
 void EeScheduler::reset(uint8_t *rdram, const R5900Context &mainContext)
@@ -197,8 +209,13 @@ void EeScheduler::reset(uint8_t *rdram, const R5900Context &mainContext)
     m_pendingEeTimerInterrupts = 0u;
 #if defined(PS2X_DEVICE_CYCLE_BATCH)
     // Keeps the device-batch carry across a reset, as the static it replaced did.
+#if defined(PLATFORM_XBOX)
     m_deviceBatchStart -= eeCycle();
+#else
+    m_deviceBatchStart -= m_eeCycle;
 #endif
+#endif
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX)
     setCycle(0u);
     m_noYieldDepth = 0u;
@@ -206,12 +223,17 @@ void EeScheduler::reset(uint8_t *rdram, const R5900Context &mainContext)
 #else
     m_eeCycle = 0u;
 #endif
+#else
+    m_eeCycle = 0u;
+#endif
     m_sliceEndCycle = kDefaultTimeSliceCycles;
     m_stopRequested.store(false, std::memory_order_release);
     m_checkpointPending.store(false, std::memory_order_release);
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     m_fastUntil = 0u; // every checkpoint down the full path until the first refresh
     reloadBudget();
+#endif
 #endif
     m_debugPublishCountdown = 0u;
     {
@@ -244,7 +266,11 @@ void EeScheduler::reset(uint8_t *rdram, const R5900Context &mainContext)
     main.status = EeThreadStatus::Ready;
     m_threads.emplace(main.id, std::move(main));
     m_readyQueues[0].push_back(kMainThreadId);
+#if defined(PLATFORM_XBOX)
     scheduleEvent(eeCycle() + kVBlankPeriodCycles,
+#else
+    scheduleEvent(m_eeCycle + kVBlankPeriodCycles,
+#endif
                   std::chrono::steady_clock::now() + kVBlankPeriod,
                   EeEvent{EeEventType::VBlankStart, 0, 0});
     publishSnapshot();
@@ -260,7 +286,11 @@ void EeScheduler::run()
     {
 #if defined(PLATFORM_XBOX)
         ++g_eeSchedulerStats.loopIterations;
+#if defined(PLATFORM_XBOX)
         ps2x::g_eeProtocolStats.eeCycle = eeCycle();
+#else
+        ps2x::g_eeProtocolStats.eeCycle = m_eeCycle;
+#endif
 #endif
         processPendingEvents();
         if (m_stopRequested.load(std::memory_order_acquire))
@@ -377,11 +407,13 @@ void EeScheduler::run()
             continue;
         }
         PS2Runtime::RecompiledFunction function = m_runtime.lookupFunction(context.pc);
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
         // Dispatches by pc (runtime/ps2_measure.h): the natives' translated
         // resumes are the pcs inside their functions.
         ++g_measure.dispatches;
         measureCount(g_measure.dispatch, context.pc, g_measure.dispatchOther);
+#endif
 #endif
 
         if (checkpointDue(kGuestDispatchCycles))
@@ -449,8 +481,6 @@ void EeScheduler::transferToDispatcher()
     if (m_noYieldDepth != 0u)
         ps2x::fatalError("EE thread switch inside a no-yield region (ps2xNoYieldEnter without Leave, or a blocking call inside one)");
     detTrace(kDetTraceTransfer, static_cast<uint64_t>(static_cast<int64_t>(m_currentThreadId)), eeCycle());
-#else
-    detTrace(kDetTraceTransfer, static_cast<uint64_t>(static_cast<int64_t>(m_currentThreadId)), m_eeCycle);
 #endif
 #if defined(PS2X_NO_EXCEPTIONS)
     if (!m_transferTarget)
@@ -465,10 +495,14 @@ void EeScheduler::requestStop()
 {
     m_stopRequested.store(true, std::memory_order_release);
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     if (m_executorThread == std::this_thread::get_id())
         setPendingLocal();
     else
         setPendingRemote();
+#else
+    m_checkpointPending.store(true, std::memory_order_release);
+#endif
 #else
     m_checkpointPending.store(true, std::memory_order_release);
 #endif
@@ -487,6 +521,7 @@ void EeScheduler::postEvent(EeEvent event)
         std::lock_guard lock(m_eventMutex);
         m_events.push_back(event);
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
         if (m_executorThread == std::this_thread::get_id())
             setPendingLocal();
         else
@@ -497,6 +532,9 @@ void EeScheduler::postEvent(EeEvent event)
 #else
         m_checkpointPending.store(true, std::memory_order_release);
 #endif
+#else
+        m_checkpointPending.store(true, std::memory_order_release);
+#endif
     }
     m_eventCv.notify_one();
 }
@@ -504,6 +542,7 @@ void EeScheduler::postEvent(EeEvent event)
 #if defined(PLATFORM_XBOX)
 bool EeScheduler::checkpointDueSlow(uint64_t elapsed) noexcept
 {
+#if defined(PLATFORM_XBOX)
     // The inline checkpointDue already charged the cycles (to the budget,
     // or to m_eeCycle without the countdown); the rest is accountCycles'
     // and checkpointDue's own work, in order.
@@ -524,8 +563,13 @@ bool EeScheduler::checkpointDueSlow(uint64_t elapsed) noexcept
         reloadBudget();
         return false;
     }
+#else
+    // The inline checkpointDue already added the cycles to m_eeCycle; the
+    // rest is accountCycles' and checkpointDue's own work, in order.
+#endif
     ++ps2x::g_eeProtocolStats.slowCheckpoints;
     accountDeviceCycles(elapsed);
+#if defined(PLATFORM_XBOX)
     if (m_noYieldDepth != 0u)
     {
         // Inside a region nothing is "due": the decision is still made (it
@@ -546,7 +590,9 @@ bool EeScheduler::checkpointDueSlow(uint64_t elapsed) noexcept
 #endif
         return false;
     }
+#endif
     const bool due = checkpointDecision();
+#if defined(PLATFORM_XBOX)
     if (due)
     {
         ps2x::g_eeProtocolStats.firedCheckpoints += 1u;
@@ -554,6 +600,9 @@ bool EeScheduler::checkpointDueSlow(uint64_t elapsed) noexcept
     }
     else
         reloadBudget();
+#else
+    ps2x::g_eeProtocolStats.firedCheckpoints += due ? 1u : 0u;
+#endif
     return due;
 }
 #else
@@ -574,14 +623,26 @@ bool EeScheduler::checkpointDecision() noexcept
     }
 
     const uint64_t nextEventCycle = m_nextDeadlineCycle.load(std::memory_order_acquire);
+#if defined(PLATFORM_XBOX)
     const uint64_t cycle = eeCycle();
     if (nextEventCycle != 0u && cycle >= nextEventCycle)
+#else
+    if (nextEventCycle != 0u && m_eeCycle >= nextEventCycle)
+#endif
     {
+#if defined(PLATFORM_XBOX)
         setPending();
+#else
+        m_checkpointPending.store(true, std::memory_order_release);
+#endif
         return true;
     }
 
+#if defined(PLATFORM_XBOX)
     if (cycle < m_sliceEndCycle)
+#else
+    if (m_eeCycle < m_sliceEndCycle)
+#endif
     {
         return false;
     }
@@ -602,6 +663,7 @@ void EeScheduler::accountCycles(uint32_t cycles) noexcept
 {
     const uint64_t elapsed = std::max<uint64_t>(1u, cycles);
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     syncCycle();
     m_eeCycle += elapsed;
 #if TS_EE_COUNTDOWN_CHECK
@@ -613,13 +675,19 @@ void EeScheduler::accountCycles(uint32_t cycles) noexcept
     m_eeCycle += elapsed;
     accountDeviceCycles(elapsed);
 #endif
+#else
+    m_eeCycle += elapsed;
+    accountDeviceCycles(elapsed);
+#endif
 }
 
 // Hands cycles already added to m_eeCycle to the EE timers and the IOP.
 void EeScheduler::accountDeviceCycles(uint64_t elapsed) noexcept
 {
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     syncCycle();
+#endif
 #endif
 #if defined(PS2X_DEVICE_CYCLE_BATCH)
     // Slow hosts: loops report a few dozen cycles at every back-edge, and
@@ -640,7 +708,11 @@ void EeScheduler::accountDeviceCycles(uint64_t elapsed) noexcept
     m_runtime.advanceIopEeCycles(elapsed);
     if (m_pendingEeTimerInterrupts != 0u)
     {
+#if defined(PLATFORM_XBOX)
         setPending();
+#else
+        m_checkpointPending.store(true, std::memory_order_release);
+#endif
     }
 }
 
@@ -1050,6 +1122,7 @@ void EeScheduler::transferIfRequested(bool interruptSafe)
         return;
     }
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     if (m_noYieldDepth != 0u)
     {
         // Deferred to the region's Leave (the request stands).
@@ -1057,6 +1130,7 @@ void EeScheduler::transferIfRequested(bool interruptSafe)
         ++ps2x::g_eeProtocolStats.noYieldDeferred;
         return;
     }
+#endif
 #endif
     if (m_currentThreadId != 0)
     {
@@ -1328,7 +1402,11 @@ int EeScheduler::setAlarm(uint16_t ticks,
     }
     m_alarms.emplace(id, EeAlarm{id, ticks, handler, argument, gp, sp});
     const uint64_t tickCount = ticks == 0u ? 1u : static_cast<uint64_t>(ticks);
+#if defined(PLATFORM_XBOX)
     scheduleEvent(eeCycle() + tickCount * kAlarmTickCycles,
+#else
+    scheduleEvent(m_eeCycle + tickCount * kAlarmTickCycles,
+#endif
                   std::chrono::steady_clock::now() + std::chrono::microseconds(tickCount * kAlarmTickMicroseconds),
                   EeEvent{EeEventType::Alarm, static_cast<uint32_t>(id), 0});
     return id;
@@ -1355,9 +1433,15 @@ void EeScheduler::queueInvocation(GuestInvocation invocation)
 {
     assertExecutor();
     invocation.sequence = ++m_invocationSequence;
+#if defined(PLATFORM_XBOX)
     detTrace(kDetTraceInvocation, static_cast<uint32_t>(invocation.kind), invocation.context.pc);
+#endif
     m_pendingInvocations.push_back(std::move(invocation));
+#if defined(PLATFORM_XBOX)
     setPending();
+#else
+    m_checkpointPending.store(true, std::memory_order_release);
+#endif
 }
 
 [[noreturn]] void EeScheduler::invokeCurrent(GuestInvocation invocation)
@@ -1509,7 +1593,9 @@ int EeScheduler::setIrqCauseEnabled(bool dmac, uint32_t cause, bool enabled)
 void EeScheduler::dispatchIrq(bool dmac, uint32_t cause)
 {
     assertExecutor();
+#if defined(PLATFORM_XBOX)
     detTrace(kDetTraceIrq, dmac ? 1u : 0u, cause);
+#endif
     const uint32_t mask = dmac ? m_enabledDmacMask : m_enabledIntcMask;
     if (cause < 32u && (mask & (1u << cause)) == 0u)
     {
@@ -1750,22 +1836,30 @@ void EeScheduler::bindMainContextForSyscall(R5900Context &ctx, uint8_t *rdram)
 
 EeKernelSnapshot EeScheduler::snapshot() const
 {
+#if defined(PLATFORM_XBOX)
     m_snapshotWanted.store(true, std::memory_order_release); // TS_SNAPSHOT_ON_DEMAND: arms the next publish
+#endif
     std::lock_guard lock(m_snapshotMutex);
     return m_snapshot;
 }
 
 void EeScheduler::publishSnapshot()
 {
+#if defined(PLATFORM_XBOX)
 #if defined(PLATFORM_XBOX) && TS_SNAPSHOT_ON_DEMAND
     // Only when a reader asked since the last one (the status block, every
     // few seconds): the copy below allocates and walks every thread.
     if (!m_snapshotWanted.exchange(false, std::memory_order_acq_rel))
         return;
 #endif
+#endif
     EeKernelSnapshot next{};
     next.sequence = ++m_snapshotSequence;
+#if defined(PLATFORM_XBOX)
     next.eeCycle = eeCycle();
+#else
+    next.eeCycle = m_eeCycle;
+#endif
     next.sliceEndCycle = m_sliceEndCycle;
     next.nextEventCycle = m_nextDeadlineCycle.load(std::memory_order_acquire);
     next.runningThreadId = m_currentThreadId;
@@ -1914,7 +2008,9 @@ void EeScheduler::makeRunning(GuestThread &item)
     assert(item.status == EeThreadStatus::Ready);
     item.status = EeThreadStatus::Running;
     m_currentThreadId = item.id;
+#if defined(PLATFORM_XBOX)
     detTrace(kDetTraceRunning, static_cast<uint64_t>(static_cast<int64_t>(item.id)), eeCycle());
+#endif
     renewTimeSlice();
 }
 
@@ -1965,8 +2061,10 @@ void EeScheduler::blockCurrent(EeWaitState wait)
     GuestThread *self = currentThread();
     assert(self != nullptr);
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     if (m_noYieldDepth != 0u)
         ps2x::fatalError("EE thread blocked inside a no-yield region (a WaitSema / RPC / sleep inside ps2xNoYieldEnter..Leave)");
+#endif
 #endif
     self->wait = std::move(wait);
     self->status = self->suspendCount == 0 ? EeThreadStatus::Waiting : EeThreadStatus::WaitingSuspended;
@@ -2000,7 +2098,11 @@ void EeScheduler::requestPreemptionIfHigher(const GuestThread &readyThread, bool
     m_rescheduleRequested = true;
     if (interruptSafe || m_insideInterrupt)
     {
+#if defined(PLATFORM_XBOX)
         setPending();
+#else
+        m_checkpointPending.store(true, std::memory_order_release);
+#endif
     }
 }
 
@@ -2078,11 +2180,17 @@ void EeScheduler::processPendingEvents()
     {
         std::lock_guard lock(m_eventMutex);
         const uint64_t nextEventCycle = m_nextDeadlineCycle.load(std::memory_order_acquire);
+#if defined(PLATFORM_XBOX)
         const bool cycleEventDue = nextEventCycle != 0u && eeCycle() >= nextEventCycle;
+#else
+        const bool cycleEventDue = nextEventCycle != 0u && m_eeCycle >= nextEventCycle;
+#endif
         const bool pendingWork = !m_events.empty() || cycleEventDue || m_stopRequested.load(std::memory_order_acquire);
         m_checkpointPending.store(pendingWork, std::memory_order_release);
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
         reloadBudget(); // 0 while pending, else the room to m_fastUntil
+#endif
 #endif
     }
     applyPendingPreemption();
@@ -2097,16 +2205,22 @@ void EeScheduler::processDueDeadlines()
     }
 #endif
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     // Pinned time (det mode): a deadline is due by EE cycle alone; no host
     // clock is read, no catch-up charged, no pacing wait made.
     const bool pinnedTime = pinned();
 #else
     constexpr bool pinnedTime = false;
 #endif
+#endif
     // AOT safe-point cycle counts are approximate. Do not withhold an
     // already-expired wall-clock event while waiting for those counts.
+#if defined(PLATFORM_XBOX)
     uint64_t expiredCycle = eeCycle();
     if (!pinnedTime)
+#else
+    uint64_t expiredCycle = m_eeCycle;
+#endif
     {
         std::lock_guard lock(m_eventMutex);
         const auto now = std::chrono::steady_clock::now();
@@ -2115,45 +2229,92 @@ void EeScheduler::processDueDeadlines()
                 expiredCycle = std::max(expiredCycle, item.deadlineCycle);
     }
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     if (eeCycle() < expiredCycle)
+#else
+    if (m_eeCycle < expiredCycle)
+#endif
     {
         ++ps2x::g_eeProtocolStats.catchUps;
+#if defined(PLATFORM_XBOX)
         ps2x::g_eeProtocolStats.catchUpCycles += expiredCycle - eeCycle();
+#else
+        ps2x::g_eeProtocolStats.catchUpCycles += expiredCycle - m_eeCycle;
+#endif
     }
 #endif
+#if defined(PLATFORM_XBOX)
     while (eeCycle() < expiredCycle)
+#else
+    while (m_eeCycle < expiredCycle)
+#endif
         accountCycles(static_cast<uint32_t>(std::min<uint64_t>(
+#if defined(PLATFORM_XBOX)
             expiredCycle - eeCycle(), UINT32_MAX)));
+#else
+            expiredCycle - m_eeCycle, UINT32_MAX)));
+#endif
     for (;;)
     {
         std::vector<ScheduledEvent> due;
         std::chrono::steady_clock::time_point pacingDeadline{};
         {
             std::unique_lock lock(m_eventMutex);
+#if defined(PLATFORM_XBOX)
             const uint64_t cycle = eeCycle();
             bool anyDueByCycle = false;
+#else
+            const auto now = std::chrono::steady_clock::now();
+#endif
             for (const ScheduledEvent &item : m_deadlines)
             {
+#if defined(PLATFORM_XBOX)
                 if (item.deadlineCycle <= cycle)
+#else
+                if (item.deadlineCycle <= m_eeCycle &&
+                    (pacingDeadline == std::chrono::steady_clock::time_point{} ||
+                     item.hostDeadline < pacingDeadline))
+#endif
                 {
+#if defined(PLATFORM_XBOX)
                     anyDueByCycle = true;
                     if (pacingDeadline == std::chrono::steady_clock::time_point{} ||
                         item.hostDeadline < pacingDeadline)
                         pacingDeadline = item.hostDeadline;
+#else
+                    pacingDeadline = item.hostDeadline;
+#endif
                 }
             }
 
+#if defined(PLATFORM_XBOX)
             if (!anyDueByCycle)
+#else
+            if (pacingDeadline == std::chrono::steady_clock::time_point{})
+#endif
             {
                 updateNextDeadline();
                 return;
             }
 
+#if defined(PLATFORM_XBOX)
             if (!pinnedTime)
+#else
+            if (now < pacingDeadline)
+#endif
             {
+#if defined(PLATFORM_XBOX)
                 const auto now = std::chrono::steady_clock::now();
                 if (now < pacingDeadline)
+#else
+                const ps2x::SchedulerWaitScope waitScope(1, pacingDeadline);
+                m_eventCv.wait_until(lock, pacingDeadline, [this]()
+                                     { return !m_events.empty() ||
+                                              m_stopRequested.load(std::memory_order_acquire); });
+                if (!m_events.empty() || m_stopRequested.load(std::memory_order_acquire))
+#endif
                 {
+#if defined(PLATFORM_XBOX)
                     const ps2x::SchedulerWaitScope waitScope(1, pacingDeadline);
                     m_eventCv.wait_until(lock, pacingDeadline, [this]()
                                          { return !m_events.empty() ||
@@ -2163,14 +2324,27 @@ void EeScheduler::processDueDeadlines()
                         updateNextDeadline();
                         return;
                     }
+#else
+                    updateNextDeadline();
+                    return;
+#endif
                 }
             }
 
+#if defined(PLATFORM_XBOX)
             const auto pacedNow = pinnedTime ? std::chrono::steady_clock::time_point::max()
                                              : std::chrono::steady_clock::now();
+#else
+            const auto pacedNow = std::chrono::steady_clock::now();
+#endif
             auto firstFuture = std::partition(m_deadlines.begin(), m_deadlines.end(),
+#if defined(PLATFORM_XBOX)
                                               [cycle, pacedNow](const ScheduledEvent &item)
                                               { return item.deadlineCycle <= cycle &&
+#else
+                                              [this, pacedNow](const ScheduledEvent &item)
+                                              { return item.deadlineCycle <= m_eeCycle &&
+#endif
                                                        item.hostDeadline <= pacedNow; });
             due.insert(due.end(),
                        std::make_move_iterator(m_deadlines.begin()),
@@ -2218,7 +2392,9 @@ void EeScheduler::processDueDeadlines()
 
 void EeScheduler::processEvent(const EeEvent &event)
 {
+#if defined(PLATFORM_XBOX)
     detTrace(kDetTraceEvent, static_cast<uint32_t>(event.type) | (static_cast<uint64_t>(event.id) << 8), event.value);
+#endif
     switch (event.type)
     {
     case EeEventType::Stop:
@@ -2259,8 +2435,10 @@ void EeScheduler::processEvent(const EeEvent &event)
             queueInvocation(std::move(invocation));
         }
         dispatchIrq(false, 2u);
+#if defined(PLATFORM_XBOX)
         if (m_vblankHook)
             m_vblankHook(m_vblankHookUser, m_vsyncTick);
+#endif
         break;
     case EeEventType::ExternalWake:
         completeExternalWait(event.id, event.value, KE_OK);
@@ -2390,6 +2568,7 @@ void EeScheduler::waitForEvent()
         hostDeadline = next->hostDeadline;
     }
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
     if (pinned())
     {
         // Det mode: no host wait. The idle time is the EE cycles to the
@@ -2410,12 +2589,17 @@ void EeScheduler::waitForEvent()
         return;
     }
 #endif
+#endif
     if (hasTimerDeadline)
     {
         const auto timerHostDeadline = std::chrono::steady_clock::now() + eeCyclesToHostDuration(timerCycles);
         if (timerHostDeadline < hostDeadline)
         {
+#if defined(PLATFORM_XBOX)
             deadlineCycle = eeCycle() + timerCycles;
+#else
+            deadlineCycle = m_eeCycle + timerCycles;
+#endif
             hostDeadline = timerHostDeadline;
         }
     }
@@ -2429,8 +2613,12 @@ void EeScheduler::waitForEvent()
     }
     if (!signaled)
     {
+#if defined(PLATFORM_XBOX)
         const uint64_t cycle = eeCycle();
         const uint64_t elapsed = deadlineCycle > cycle ? deadlineCycle - cycle : 0u;
+#else
+        const uint64_t elapsed = deadlineCycle > m_eeCycle ? deadlineCycle - m_eeCycle : 0u;
+#endif
 #if defined(PLATFORM_XBOX)
         ++ps2x::g_eeProtocolStats.catchUps;
         ps2x::g_eeProtocolStats.catchUpCycles += elapsed;
@@ -2443,7 +2631,11 @@ void EeScheduler::waitForEvent()
             accountCycles(step);
             remaining -= step;
         }
+#if defined(PLATFORM_XBOX)
         setPending();
+#else
+        m_checkpointPending.store(true, std::memory_order_release);
+#endif
     }
 }
 
@@ -2498,9 +2690,12 @@ void EeScheduler::refreshFastUntil() noexcept
     const uint64_t nextDeadline = m_nextDeadlineCycle.load(std::memory_order_relaxed);
     if (nextDeadline != 0u)
         until = std::min(until, nextDeadline);
+#if defined(PLATFORM_XBOX)
     if (m_freezeDepth != 0u)
         until = UINT64_MAX; // EeClockFreeze: lifted until the hold ends
+#endif
     m_fastUntil = until;
+#if defined(PLATFORM_XBOX)
     syncCycle();
     reloadBudget();
 }
@@ -2549,6 +2744,7 @@ void ps2xNoYieldLeave(uint16_t tag)
 {
     if (s_scheduler)
         s_scheduler->noYieldLeave(tag);
+#endif
 }
 
 // After every change to m_deadlines (updateNextDeadline): the host-time
@@ -2571,12 +2767,20 @@ void EeScheduler::refreshDeadlineCache()
 
 // False only when processDueDeadlines would find no entry due, by EE cycle
 // or by host time, and so only re-derive the same next deadline.
+#if defined(PLATFORM_XBOX)
 bool EeScheduler::deadlineMayBeDue() noexcept
+#else
+bool EeScheduler::deadlineMayBeDue() const noexcept
+#endif
 {
     const uint64_t nextDeadline = m_nextDeadlineCycle.load(std::memory_order_relaxed);
+#if defined(PLATFORM_XBOX)
     if (nextDeadline != 0u && eeCycle() >= nextDeadline)
         return true;
     return !pinned() && hostCounter() >= m_hostDeadlineTicks;
+#else
+    return (nextDeadline != 0u && m_eeCycle >= nextDeadline) || hostCounter() >= m_hostDeadlineTicks;
+#endif
 }
 #endif
 
@@ -2595,7 +2799,11 @@ bool EeScheduler::hasReadyAtOrAbovePriority(int priority) const
 
 void EeScheduler::renewTimeSlice()
 {
+#if defined(PLATFORM_XBOX)
     m_sliceEndCycle = eeCycle() + kDefaultTimeSliceCycles;
+#else
+    m_sliceEndCycle = m_eeCycle + kDefaultTimeSliceCycles;
+#endif
     m_timeSliceExpired = false;
 #if defined(PLATFORM_XBOX)
     refreshFastUntil();

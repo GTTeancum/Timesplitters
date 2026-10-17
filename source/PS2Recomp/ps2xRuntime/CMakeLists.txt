@@ -395,8 +395,6 @@ add_library(ps2_runtime STATIC
     src/lib/gs/gs_texture_replacement.cpp
     src/lib/ps2_iop_host.cpp
     src/lib/ps2_memory.cpp
-    src/lib/ps2_memory_timers.cpp
-    src/lib/ps2_memory_alloc.cpp
     src/lib/ps2_pad.cpp
     src/lib/ps2_rom_device.cpp
     src/lib/ps2_vfs.cpp

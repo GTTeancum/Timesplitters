@@ -1,10 +1,12 @@
 #pragma once
 
 #include <atomic>
+#if defined(PLATFORM_XBOX)
 #include <cstdint>
 #include <string>
 #include <utility>
 #include <vector>
+#endif
 
 // Player-facing display settings, read once from timesplitters.ini in the
 // working directory (TS_SETTINGS=<path> picks another file). Keys:
@@ -32,9 +34,11 @@ struct HostSettings
     // Bumped when the window size or fullscreen changed; the window thread
     // applies the new values.
     std::atomic<unsigned> windowChanges{0};
+#if defined(PLATFORM_XBOX)
     // knob.<name> = <value> lines, in file order (the name without the
     // "knob." prefix, lower-case); the knob registry reads them at start-up.
     std::vector<std::pair<std::string, uint32_t>> knobs;
+#endif
 };
 
 HostSettings &hostSettings();

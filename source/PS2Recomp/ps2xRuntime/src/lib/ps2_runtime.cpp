@@ -1,7 +1,9 @@
 #include "ps2_runtime.h"
 #include "runtime/ps2_io_stats.h"
+#if defined(PLATFORM_XBOX)
 #include "runtime/ps2_host_time.h" // the guest's view of the host clock (pinned in det mode)
 #include "runtime/ps2_det.h"       // detTrace (no-ops unless TS_DET)
+#endif
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_host_settings.h"
@@ -1725,6 +1727,7 @@ bool __attribute__((fastcall)) ps2xDirectCall(uint8_t *rdram, R5900Context *ctx,
     PS2X_CALL_ENTRY(*entry, target, resume, return false);
     return true;
 }
+#if defined(PLATFORM_XBOX)
 
 // The post-call cases other than "back at resume" (PS2X_CALL_RETURN_SLOW,
 // ps2_direct_call_xbox.h): the three tests the inline form used to make.
@@ -1741,7 +1744,9 @@ bool __attribute__((fastcall)) ps2xCallReturnSlow(R5900Context *ctx, PS2Runtime 
     return false;
 }
 #endif
+#endif
 
+#if defined(PLATFORM_XBOX)
 // ---- The host clock as the guest sees it (runtime/ps2_host_time.h).
 namespace
 {
@@ -1806,6 +1811,7 @@ void ps2xHostTimeNoteRealRead()
     ++s_hostTimeRealReads;
 }
 
+#endif
 void PS2Runtime::SignalException(R5900Context *ctx, PS2Exception exception)
 {
     if (exception == EXCEPTION_INTEGER_OVERFLOW)
@@ -1866,7 +1872,9 @@ void PS2Runtime::handleSyscall(uint8_t *rdram, R5900Context *ctx, uint32_t encod
 
     ps2x::guestCallProbe().lastSyscall.store(syscallId, std::memory_order_relaxed);
     ps2x::guestCallProbe().syscalls.fetch_add(1, std::memory_order_relaxed);
+#if defined(PLATFORM_XBOX)
     detTrace(7u /* kDetTraceSyscall, EeScheduler.cpp */, syscallId, ctx->pc);
+#endif
     if (ps2_syscalls::dispatchNumericSyscall(syscallId, rdram, ctx, this))
     {
         return;

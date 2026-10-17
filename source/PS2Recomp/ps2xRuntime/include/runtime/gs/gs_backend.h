@@ -1,7 +1,9 @@
 #pragma once
 
 #include "runtime/gs/gs_types.h"
+#if defined(PLATFORM_XBOX)
 #include "runtime/gs/gs_xf_inplace.h"
+#endif
 
 #include <cstdint>
 #include <functional>
@@ -48,6 +50,7 @@ struct GSXfCursor
     bool join = false;   // a strip goes before: the next one starts with (last, first)
     uint32_t strips = 0, vertices = 0; // counted by the caller (status block)
     GSXfVertex last{};
+#if defined(PLATFORM_XBOX)
     // In-place fetch (XfInPlace, src/xbox/PUSH-BC-PLAN.md M8): the run's
     // prepared in-place strips (null: none) and how many of them the backend
     // took. GS::beginXfRun clears both every time; the runner sets inPlace
@@ -80,6 +83,7 @@ enum GSBackendDrawPath : uint32_t
     kGSDrawPathSubmitPrimitives = 1u, // SubmitPrimitives (Tier 0 bulk, C-EMIT)
     kGSDrawPathXfInPlace = 2u,        // XfInPlace (M8, C-XF)
     kGSDrawPathNativeRun = 4u,        // BeginNativeRun (B-GS phase 2)
+#endif
 };
 
 class GSRasterBackend
@@ -87,10 +91,12 @@ class GSRasterBackend
 public:
     virtual ~GSRasterBackend() = default;
 
+#if defined(PLATFORM_XBOX)
     // Which of the paths above this backend implements (0: none). The
     // defaults of those virtuals are the old path either way.
     virtual uint32_t DrawPaths() const { return 0u; }
 
+#endif
     virtual void Initialize(uint8_t *vram, uint32_t vramSize) = 0;
     virtual void Reset() = 0;
 
@@ -98,6 +104,7 @@ public:
     // A whole triangle strip in one call (the Xbox renderer); false when
     // the backend wants it as individual primitives.
     virtual bool SubmitStrip(const GSDrawState &, const GSVertex *, uint32_t) { return false; }
+#if defined(PLATFORM_XBOX)
     // Decoded primitives of one PRIM (prim: the PRIM register value) in one
     // call, from the GIF bulk path (src/xbox/PUSH-BC-PLAN.md section 3.2,
     // Tier 0): a triangle strip's or fan's vertices in order, sprites as
@@ -105,6 +112,7 @@ public:
     // render-to-texture, widescreen): the front end kicks them one by one as
     // before.
     virtual bool SubmitPrimitives(const GSDrawState &, uint32_t /*prim*/, const GSVertex *, uint32_t /*count*/) { return false; }
+#endif
     // A run of triangle strips of raw vertices for the backend's own
     // transform (the Xbox renderer's vertex programs), written by the caller
     // straight into the backend's vertex memory, so a vertex decoded from
@@ -127,6 +135,7 @@ public:
     virtual void GrowXfCursor(GSXfCursor &, uint32_t /*count*/) {}
     virtual void EmitXfStrip(const GSXfVertex *, uint32_t /*count*/) {}
     virtual void EndXfRun(GSXfCursor &) {}
+#if defined(PLATFORM_XBOX)
     // Inside an open run: strips the GPU fetches from guest RAM in place
     // (M8, C-XF) instead of records written into the ring. The default does
     // nothing: the caller then writes the records as before (it checks
@@ -135,6 +144,7 @@ public:
     // A native run with a bound material (B-GS phase 2). Unsupported (the
     // default): the caller uses BeginXfRun.
     virtual GSNativeRunResult BeginNativeRun(const GSNativeRun &, GSXfCursor &) { return GSNativeRunResult::Unsupported; }
+#endif
     virtual void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) = 0;
     // Development: the CLUT buffer and its CLD address mirror as one value,
     // for self-checks that compare backend state (0: not tracked).

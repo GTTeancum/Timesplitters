@@ -276,6 +276,7 @@ struct EeSchedulerStats
     unsigned loopIterations = 0, unwinds = 0;
 };
 extern EeSchedulerStats g_eeSchedulerStats;
+#if defined(PLATFORM_XBOX)
 
 // TS_SNAPSHOT_ON_DEMAND 1 (src/xbox/PUSH-BC-PLAN.md M3.3, B-SCHED): the
 // kernel snapshot (publishSnapshot: every thread copied into vectors) is
@@ -286,6 +287,8 @@ extern EeSchedulerStats g_eeSchedulerStats;
 #define TS_SNAPSHOT_ON_DEMAND 1
 #endif
 #endif
+#endif
+#if defined(PLATFORM_XBOX)
 
 // A VBlankStart observer (the det harness's cheap per-vblank hashes; B-SCHED
 // M0.8): called on the executor thread after the vblank's own work.
@@ -294,6 +297,7 @@ using EeVblankStartHook = void (*)(void *user, uint64_t vsyncTick);
 class EeScheduler;
 // The one EE scheduler (constructed with the runtime), or null before it.
 EeScheduler *ps2xEeSchedulerInstance() noexcept;
+#endif
 
 class EeScheduler
 #if defined(PLATFORM_XBOX)
@@ -413,6 +417,7 @@ public:
     [[nodiscard]] EeKernelSnapshot snapshot() const;
     void publishSnapshot();
 
+#if defined(PLATFORM_XBOX)
     // ---- B-SCHED hooks (src/xbox/PUSH-BC-PLAN.md section 5.1)
     // The current EE cycle (the countdown's lag folded in). Executor only.
     [[nodiscard]] uint64_t cycleNow() noexcept
@@ -454,6 +459,7 @@ public:
 #endif
 #endif
 
+#endif
 private:
     [[noreturn]] void transferToDispatcher();
 
@@ -502,6 +508,7 @@ private:
     void assertExecutor() const;
     [[nodiscard]] bool checkpointDecision() noexcept;
     void accountDeviceCycles(uint64_t elapsed) noexcept;
+#if defined(PLATFORM_XBOX)
     // m_eeCycle, read: on the Xbox the countdown's lag is folded in first
     // (EeCheckpointClock::syncCycle); every reader goes through here.
     [[nodiscard]] uint64_t eeCycle() noexcept
@@ -520,13 +527,18 @@ private:
         m_checkpointPending.store(true, std::memory_order_release);
 #endif
     }
+#endif
 #if defined(PLATFORM_XBOX)
     void refreshFastUntil() noexcept;
     void refreshDeadlineCache();
+#if defined(PLATFORM_XBOX)
     [[nodiscard]] bool deadlineMayBeDue() noexcept;
     // Det mode (EeTimePolicy::Pinned, runtime/ee_checkpoint_clock.h): no
     // host time anywhere; deadlines fall due by EE cycle alone.
     [[nodiscard]] static bool pinned() noexcept;
+#else
+    [[nodiscard]] bool deadlineMayBeDue() const noexcept;
+#endif
 #endif
     [[nodiscard]] int allocateThreadId();
     GuestThread &acquireInvocationThread();
@@ -626,7 +638,9 @@ private:
     mutable std::mutex m_snapshotMutex;
     EeKernelSnapshot m_snapshot;
     uint64_t m_snapshotSequence = 0;
+#if defined(PLATFORM_XBOX)
     mutable std::atomic<bool> m_snapshotWanted{true}; // TS_SNAPSHOT_ON_DEMAND: a reader asked since the last publish
     EeVblankStartHook m_vblankHook = nullptr;
     void *m_vblankHookUser = nullptr;
+#endif
 };

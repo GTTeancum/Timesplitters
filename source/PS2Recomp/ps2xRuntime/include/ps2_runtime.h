@@ -40,6 +40,7 @@ class EeScheduler;
 struct EeEvent;
 
 #if defined(PLATFORM_XBOX)
+#if defined(PLATFORM_XBOX)
 // PS2X_EE_COUNTDOWN 1 (src/xbox/PUSH-BC-PLAN.md M3.1; B-SCHED): the
 // checkpoint fast path is a 32-bit countdown, `subl $n, g_ps2xEeBudget; jle
 // slow`, instead of the 64-bit add, the 64-bit compare against m_fastUntil
@@ -73,6 +74,7 @@ struct EeEvent;
 extern int32_t g_ps2xEeBudget; // EeScheduler.cpp; the executor thread's alone
 #endif
 
+#endif
 // The EE scheduler state a checkpoint reads in the common case. EeScheduler
 // derives from it (the members are its own), so generated code can charge
 // cycles and see that nothing is due without the scheduler header or a call.
@@ -86,6 +88,7 @@ struct EeCheckpointClock
     // down the full path.
     uint64_t m_fastUntil = 0;
     std::atomic<bool> m_checkpointPending{false};
+#if defined(PLATFORM_XBOX)
     // g_ps2xEeBudget as of the last syncCycle / reloadBudget.
     int32_t m_budgetLoaded = 0;
     // EeClockFreeze scopes open (runtime/ee_checkpoint_clock.h): while any
@@ -100,6 +103,7 @@ struct EeCheckpointClock
 #if TS_EE_COUNTDOWN_CHECK
     uint64_t m_shadowCycle = 0; // the 64-bit add, kept for the comparison
 #endif
+#endif
 
     // Charges the cycles. True when the full checkpoint would do nothing
     // more and answer "not due". Other host threads only ever set the
@@ -111,6 +115,7 @@ struct EeCheckpointClock
     // runs guest code).
     __attribute__((always_inline)) bool chargeCyclesFast(uint64_t elapsed) noexcept
     {
+#if defined(PLATFORM_XBOX)
 #if PS2X_EE_COUNTDOWN
 #if TS_EE_COUNTDOWN_CHECK
         m_shadowCycle += elapsed;
@@ -195,6 +200,10 @@ struct EeCheckpointClock
     void setPendingRemote() noexcept
     {
         m_checkpointPending.store(true, std::memory_order_release);
+#else
+        m_eeCycle += elapsed;
+        return m_eeCycle < m_fastUntil && !m_checkpointPending.load(std::memory_order_acquire);
+#endif
     }
 };
 #endif
@@ -393,6 +402,7 @@ inline uint8_t ps2PathWatchExtractByteFromWrite(uint32_t writeAddr, uint32_t wat
     return static_cast<uint8_t>((valueHi >> ((byteIndex - 8u) * 8u)) & 0xFFu);
 }
 
+#if defined(PLATFORM_XBOX)
 // PS2X_WRITE_JOURNAL 1 (B-LOGIC's lockstep harness, src/xbox/PUSH-BC-PLAN.md
 // section 3.6 item 1; switched on through its track's .mk): every guest
 // store made through the runtime's slow paths (ps2TraceGuestWrite below and
@@ -406,6 +416,7 @@ inline uint8_t ps2PathWatchExtractByteFromWrite(uint32_t writeAddr, uint32_t wat
 void ps2xJournalTouch(uint32_t guestAddr, uint32_t size);
 #endif
 
+#endif
 inline void ps2TraceGuestWrite(uint8_t *rdram,
                                uint32_t guestAddr,
                                uint32_t size,
@@ -415,15 +426,23 @@ inline void ps2TraceGuestWrite(uint8_t *rdram,
                                const R5900Context *ctx)
 {
     (void)rdram;
+#if !defined(PLATFORM_XBOX)
+    (void)guestAddr;
+    (void)size;
+#endif
     (void)valueLo;
     (void)valueHi;
     (void)op;
     (void)ctx;
+#if defined(PLATFORM_XBOX)
 #if PS2X_WRITE_JOURNAL
     ps2xJournalTouch(guestAddr, size);
 #else
     (void)guestAddr;
     (void)size;
+#endif
+#else
+    // TODO we dont need this anymore so on next release it will be deleted
 #endif
 }
 

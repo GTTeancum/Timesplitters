@@ -7,6 +7,7 @@
 #include <cstring>
 #include <cstdio>
 
+#if defined(PLATFORM_XBOX)
 // TS_SPU2_VOICE_MAJOR 1 (src/xbox/PUSH-BC-PLAN.md section 3.5 item 8, M4.3):
 // mix() runs voice by voice over chunks of frames (mixVoiceMajor), bit-exact
 // with the frame-major mix; 0: frame by frame (mixFrameMajor), as before.
@@ -16,9 +17,12 @@
 // (TS_SPU2_SELFCHECK: runtime/ps2_spu2.h.)
 
 
+#endif
 #if defined(PLATFORM_XBOX)
 unsigned long long g_spu2VoiceSamples = 0;
+#if defined(PLATFORM_XBOX)
 unsigned g_spu2Checks = 0, g_spu2Diffs = 0;
+#endif
 #endif
 
 namespace
@@ -248,9 +252,16 @@ int16_t Spu2::tickVoice(Core &core, unsigned index, Voice &v)
     return out;
 }
 
+#if defined(PLATFORM_XBOX)
 // The reference mix: every frame, every playing voice of core 0 then core 1.
 void Spu2::mixFrameMajor(int16_t *out, unsigned frames)
+#else
+void Spu2::mix(int16_t *out, unsigned frames)
+#endif
 {
+#if !defined(PLATFORM_XBOX)
+    std::lock_guard<std::mutex> lock(m_mutex);
+#endif
 #if defined(PLATFORM_XBOX)
     unsigned voiceSamples = 0;
 #endif
@@ -295,6 +306,7 @@ void Spu2::mixFrameMajor(int16_t *out, unsigned frames)
 #endif
 }
 
+#if defined(PLATFORM_XBOX)
 // The voice-major mix: each playing voice runs through a chunk of frames on
 // its own (its envelope, pitch counter and block decode stay in registers
 // and cache), adding into the core's dry sums; then the cores' master
@@ -474,6 +486,7 @@ void Spu2::mix(int16_t *out, unsigned frames)
 #endif
 }
 
+#endif
 void Spu2::setParam(uint32_t entry, uint32_t value)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -652,13 +665,27 @@ void Spu2::checkIrq(uint32_t byteAddress, uint32_t bytes)
         if (irq - byteAddress < bytes)
         {
             m_irqInfo |= static_cast<uint16_t>(4u << c);
+#if defined(PLATFORM_XBOX)
             m_irqPending.store(true, std::memory_order_release);
+#else
+            m_irqPending = true;
+#endif
             if (spu2Trace())
                 std::fprintf(stderr, "[TS:spu2] irq core=%u at=%06x\n", c, irq);
         }
     }
 }
 
+#if !defined(PLATFORM_XBOX)
+bool Spu2::takeIrq()
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const bool pending = m_irqPending;
+    m_irqPending = false;
+    return pending;
+}
+
+#endif
 void Spu2::dmaWrite(unsigned core, const uint8_t *data, uint32_t bytes)
 {
     std::lock_guard<std::mutex> lock(m_mutex);

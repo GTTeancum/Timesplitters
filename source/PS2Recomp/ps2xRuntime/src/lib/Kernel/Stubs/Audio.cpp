@@ -196,6 +196,7 @@ namespace ps2_stubs
                 }
                 else
                 {
+#if defined(PLATFORM_XBOX)
                     // Through a fixed buffer, a piece at a time (the copy used
                     // to allocate a vector of up to 2 MiB per transfer, in the
                     // middle of a match). Both ranges were validated above
@@ -204,7 +205,12 @@ namespace ps2_stubs
                     static uint8_t s_piece[4096]; // under g_audio_stub_mutex
                     copied = true;
                     for (uint64_t done = 0; copied && done < physicalBytes; done += sizeof(s_piece))
+#else
+                    std::vector<uint8_t> bytes(static_cast<size_t>(physicalBytes));
+                    if (direction == 0u)
+#endif
                     {
+#if defined(PLATFORM_XBOX)
                         const size_t piece = static_cast<size_t>(std::min<uint64_t>(sizeof(s_piece), physicalBytes - done));
                         const uint32_t iop = arg4 + static_cast<uint32_t>(done), spu = arg5 + static_cast<uint32_t>(done);
                         if (direction == 0u)
@@ -214,6 +220,17 @@ namespace ps2_stubs
                             // Entire destination validated before any copy.
                             copied = runtime->audioBackend().readSpuMemory(spu, s_piece, piece) &&
                                      runtime->writeIopMemory(iop, s_piece, piece);
+#else
+                        copied = runtime->readIopMemory(arg4, bytes.data(), bytes.size()) &&
+                                 runtime->audioBackend().writeSpuMemory(arg5, bytes.data(), bytes.size());
+                    }
+                    else
+                    {
+                        // Entire destination validated before any copy. Failed
+                        // destinations must not leave partial IOP writes.
+                        copied = runtime->audioBackend().readSpuMemory(arg5, bytes.data(), bytes.size()) &&
+                                 runtime->writeIopMemory(arg4, bytes.data(), bytes.size());
+#endif
                     }
                 }
             }

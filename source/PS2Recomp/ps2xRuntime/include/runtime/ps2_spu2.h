@@ -1,10 +1,13 @@
 #pragma once
 
 #include <array>
+#if defined(PLATFORM_XBOX)
 #include <atomic>
+#endif
 #include <cstdint>
 #include <mutex>
 
+#if defined(PLATFORM_XBOX)
 // TS_SPU2_SELFCHECK 1: one mix in TS_SPU2_SELFCHECK_EVERY also runs the
 // frame-major reference from the same state and compares output and state
 // (g_spu2Diffs: spu2diff=; the reference plays when they differ). Sound RAM
@@ -17,6 +20,7 @@
 #define TS_SPU2_SELFCHECK_EVERY 1
 #endif
 
+#endif
 // SPU2 sound processor: two cores of 24 voices playing 4-bit ADPCM from the
 // shared 2 MiB sound RAM, with the hardware's Gaussian interpolation, ADSR
 // envelopes, pitch, looping, per-voice and master volume. Driven at the libsd
@@ -53,15 +57,21 @@ public:
     bool readRegister(uint32_t offset, uint16_t &value);
     // IOP DMA into sound RAM at the core's transfer address (TSA).
     void dmaWrite(unsigned core, const uint8_t *data, uint32_t bytes);
+#if defined(PLATFORM_XBOX)
     // SPU interrupt raised since the last call (IRQA hit). Lock-free: the
     // IOP polls it, and it must not wait for a mix in progress.
     bool takeIrq() { return m_irqPending.exchange(false, std::memory_order_acq_rel); }
+#else
+    // SPU interrupt raised since the last call (IRQA hit).
+    bool takeIrq();
+#endif
 
     // Mixes frames of interleaved stereo 16-bit output at 48 kHz.
     // TS_SPU2_VOICE_MAJOR (ps2_spu2.cpp): voice by voice over a chunk of
     // frames, the same output and state to the bit as the frame-major
     // reference (mixReference), which TS_SPU2_SELFCHECK compares it with.
     void mix(int16_t *out, unsigned frames);
+#if defined(PLATFORM_XBOX)
     // The frame-major mix (every voice once per output frame), the
     // reference the voice-major mix is checked against (host tests).
     void mixReference(int16_t *out, unsigned frames);
@@ -70,6 +80,7 @@ public:
     const uint8_t *ram() const { return m_ram; }
     // The lock a mix holds (TS_SPU2_SELFCHECK: sound RAM writers take it).
     std::mutex &mixLock() { return m_mutex; }
+#endif
 
 private:
     enum class Phase : uint8_t { Off, Attack, Decay, Sustain, Release };
@@ -129,6 +140,7 @@ private:
     void decodeBlock(Voice &v);
     void nextBlock(Core &core, unsigned index, Voice &v);
     int16_t tickVoice(Core &core, unsigned index, Voice &v);
+#if defined(PLATFORM_XBOX)
     // The two mixes' bodies (the lock held).
     void mixFrameMajor(int16_t *out, unsigned frames);
     void mixVoiceMajor(int16_t *out, unsigned frames);
@@ -137,26 +149,35 @@ private:
     void saveMixState(MixState &out) const;
     void restoreMixState(const MixState &state);
     static bool sameMixState(const MixState &a, const MixState &b);
+#endif
 
     uint8_t *m_ram;
     uint16_t m_irqInfo = 0;
+#if defined(PLATFORM_XBOX)
     std::atomic<bool> m_irqPending{false};
+#else
+    bool m_irqPending = false;
+#endif
     std::array<Core, 2> m_cores{};
     std::mutex m_mutex;
 };
 
+#if defined(PLATFORM_XBOX)
 // The SPU2 and music output as the host audio stream plays it (48 kHz
 // stereo, 16-bit): the SPU2 mix, then the music added with its own clamp.
 // B-SCHED's det pcm stream calls it; silence before the output started
 // (runtime/ps2_audio.cpp).
 void ps2AudioMixOutput(int16_t *out, unsigned frames);
 
+#endif
 #if defined(PLATFORM_XBOX)
 // Development counter for the Xbox status block (cumulative): voice samples
 // mixed, one per playing voice per output frame. With the mix's CPU time it
 // gives the cost per voice sample.
 extern unsigned long long g_spu2VoiceSamples;
+#if defined(PLATFORM_XBOX)
 // TS_SPU2_SELFCHECK: mixes compared, and those whose voice-major output or
 // state differed from the frame-major reference (spu2diff=, [TS:audio]).
 extern unsigned g_spu2Checks, g_spu2Diffs;
+#endif
 #endif

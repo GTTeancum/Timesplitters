@@ -4,6 +4,8 @@
 //    0.6 MB each), the flip bookkeeping sized by the buffer count;
 //  - pb_ts_set_depth_format(): a 16-bit depth buffer (0.6 MB instead of 1.2);
 //  - pb_ts_front_buffer(): the buffer on screen;
+//  - pb_vbl_handler retires a queued frame only once it is on screen;
+//  - pb_ts_back_buffer_on_screen(): the renderer's ownership guard;
 //  - pb_ts_end_count: pb_end calls so far (the renderer's status line);
 //  - pb_init's early failures (-2, -3) free the Dma buffers;
 //  - TS_PB_UNTILED_COLOUR: untiled frame buffers at the surface pitch.
@@ -18,6 +20,18 @@
 //    them a little slower. 0: tiled, as nxdk does.
 #ifndef TS_PB_UNTILED_COLOUR
 #define TS_PB_UNTILED_COLOUR 1
+#endif
+
+//TS: TS_DIAG (make TS_DIAG=1, src/xbox/xbox_diag.h): the colour buffers'
+//    tiling and the frame buffer count are chosen at boot (D:\diag.ini, set
+//    by the renderer before pb_init), and the flips still waiting for a
+//    vblank can be counted. Not compiled otherwise.
+#ifndef TS_DIAG
+#define TS_DIAG 0
+#endif
+#if TS_DIAG
+int pb_ts_diag_untiled = 1;      //1: untiled colour buffers (release); 0: tiled, as nxdk
+int pb_ts_diag_back_buffers = 2; //back buffers: 2 (release, three buffers) or 1
 #endif
 
 //pbKit core functions
@@ -144,6 +158,10 @@ static  int         pb_BackBufferNxtVBL=0;
 static  int         pb_BackBufferbReady[3]={0,0,0};
 static  int         pb_BackBufferIndex[3];
 
+//TS: frames left queued by pb_vbl_handler because the screen did not show
+//    them yet (read from thread context over XBDM: build/xbox/main.map).
+volatile unsigned int g_tsPbkitDeferredSwaps = 0;
+
 static  DWORD           pb_FifoChannelsReady=0;
 static  DWORD           pb_FifoChannelsMode=NV_PFIFO_MODE_ALL_PIO;
 static  DWORD           pb_FifoChannelID=0;
@@ -254,6 +272,20 @@ static void pb_vbl_handler(void)
     //Is the next back buffer to show up is ready?
     if (pb_BackBufferbReady[next]==1)
     {
+        //TS: retire the queued frame only once the ISR has put it on screen
+        //    (PCRTC_START selects it). The DPC can run this handler for a
+        //    vblank the ISR did not swap at: GPU interrupts are drained with
+        //    INTA disabled, and a frame finished (PB_FINISHED, same DPC) after
+        //    the ISR's check is ready here but was never shown. nxdk retired
+        //    it anyway: the frame was skipped and the queue ran ahead of the
+        //    screen, so the renderer could take the buffer still on screen
+        //    (moving black bands on a TV; Perfect Dark Xbox port issue #3).
+        //    Otherwise it stays queued for the next ISR, keeping the scanout
+        //    write at vblank onset. The debug screen stops the ISR's swaps:
+        //    retire as nxdk did there.
+        if (pb_debug_screen_active ||
+            (VIDEOREG(PCRTC_START)&0x03FFFFFF)==(pb_FBAddr[pb_BackBufferIndex[next]]&0x03FFFFFF))
+        {
         //screen swapping has been done already, theoretically, in ISR
         pb_BackBufferbReady[next]=0;
 
@@ -262,6 +294,8 @@ static void pb_vbl_handler(void)
         //rotate next back buffer
         next=(next+1)%pb_FrameBuffersCount; //TS: was %3 (triple buffering)
         pb_BackBufferNxtVBL=next;
+        }
+        else ++g_tsPbkitDeferredSwaps;
     }
 
     do
@@ -2969,6 +3003,9 @@ int pb_init(void)
     //one still on screen before its flip: a half-drawn frame (the cleared
     //screen and the far scenery) showed for a refresh. 600 KB more.
     BackBufferCount=2;
+#if TS_DIAG
+    BackBufferCount=pb_ts_diag_back_buffers==1?1:2;
+#endif
                         //allows dynamic details adjustment
 
     pb_FrameBuffersCount=BackBufferCount+1; //front buffer + back buffers
@@ -2991,7 +3028,10 @@ int pb_init(void)
     Pitch=(((ColorBpp*HSize)>>3)+0x3F)&0xFFFFFFC0; //64 units aligned
     pb_FrameBuffersPitch=Pitch;
 
-#if !TS_PB_UNTILED_COLOUR //TS: untiled, the rows stay at the surface pitch
+#if TS_DIAG
+    if (!pb_ts_diag_untiled)
+#endif
+#if TS_DIAG || !TS_PB_UNTILED_COLOUR //TS: untiled, the rows stay at the surface pitch
     //look for a standard listed pitch value greater or equal to theoretical one
     for(i=0;i<16;i++)
     {
@@ -3004,7 +3044,10 @@ int pb_init(void)
 #endif
 
     Size=Pitch*VSize;
-#if TS_PB_UNTILED_COLOUR
+#if TS_DIAG
+    if (pb_ts_diag_untiled)
+#endif
+#if TS_DIAG || TS_PB_UNTILED_COLOUR
     Size=(Size+0x3FFF)&0xFFFFC000; //TS: each buffer still starts 16 KB aligned, as tiled
 #endif
 
@@ -3050,9 +3093,14 @@ int pb_init(void)
     //fully recover original values. Compression is aborted if the 16 dwords have
     //very different values (will occur at the edges of projected triangles).
 
-#if TS_PB_UNTILED_COLOUR
+#if TS_DIAG
+    if (pb_ts_diag_untiled)
+        pb_release_tile(0,0);
+    else
+#elif TS_PB_UNTILED_COLOUR
     pb_release_tile(0,0); //TS: no tile over the colour buffers (nor one left from before)
-#else
+#endif
+#if TS_DIAG || !TS_PB_UNTILED_COLOUR
     pb_assign_tile( 0,              //int   tile_index,
             pb_FrameBuffersAddr&0x03FFFFFF, //DWORD tile_addr,
             FBSize,             //DWORD tile_size,
@@ -3347,3 +3395,23 @@ DWORD *pb_ts_front_buffer(void)
 {
     return (DWORD *)pb_FBAddr[pb_front_index];
 }
+
+//TS: 1 while the back buffer (the next frame's target) is the one on screen.
+int pb_ts_back_buffer_on_screen(void)
+{
+    return (VIDEOREG(PCRTC_START)&0x03FFFFFF)==(pb_FBAddr[pb_back_index]&0x03FFFFFF);
+}
+
+#if TS_DIAG
+//TS: finished frames waiting for a vblank to be shown, and the buffer count.
+int pb_ts_pending_flips(void)
+{
+    int i,n=0;
+    for(i=0;i<(int)pb_FrameBuffersCount&&i<3;i++) n+=pb_BackBufferbReady[i]==1;
+    return n;
+}
+int pb_ts_buffer_count(void)
+{
+    return (int)pb_FrameBuffersCount;
+}
+#endif

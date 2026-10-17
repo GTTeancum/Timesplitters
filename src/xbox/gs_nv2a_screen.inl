@@ -103,12 +103,19 @@
     };
     void openScreenDraw(const GSDrawState &state, const GSVertex *verts, uint32_t count, ScreenDraw &out)
     {
+#if TS_DIAG
+        if (frameOpen && state.context.frame.fbp != frameFbp && diagFrameSwitch(state))
+#else
         if (frameOpen && state.context.frame.fbp != frameFbp)
+#endif
             finishFrame();
         if (!frameOpen)
             beginFrame(state);
         else if (screenVramNewer)
             loadScreenFromVram();
+#if TS_DIAG
+        diagScreenDraw(state);
+#endif
 
         const Texture *tex = state.prim.tme ? texture(state) : nullptr;
         out.key = keyFor(state, tex);

@@ -156,7 +156,7 @@
     size_t textureBytes = 0;
     uint64_t textureTick = 0;
     uint64_t clutHash = 0;
-#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
+#if TS_NV2A_TEXTURE_WHOLE
     std::vector<uint32_t> decoded;
     std::vector<uint8_t> swizzled;
     std::vector<uint32_t> spreadU, spreadV;
@@ -439,6 +439,10 @@
         const uint64_t tex0Bits = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
                                   (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
         const uint32_t size = w | (h << 16);
+#if TS_DIAG
+        if (!dv[xdiag::kTexFast])
+            return textureLookup(state); // the recent-texture table switched off
+#endif
         RecentTexture *const set = recentSet(tex, hash);
         uint32_t way = 0;
         while (way < kRecentWays && !(set[way].texture && set[way].tex0 == tex0Bits && set[way].texa == texa &&
@@ -765,7 +769,33 @@
 #if TS_TEXTURE_INDEX
         t.indexTag = tag;
 #endif
-#if TS_NV2A_TEXTURE_STREAM
+#if TS_DIAG
+        // TS_DIAG: the streamed decode or the whole-texture one, as switched
+        // (xdiag::kTexStream; the same two blocks as below).
+        const bool streamed = dv[xdiag::kTexStream] != 0;
+        TexelPlan plan;
+        if (streamed)
+        {
+            const bool packed = pack.enabled() && !renderTarget(range);
+            beginTexels(state, t, packed, plan);
+            if (packed)
+                if (Texture *pooled = packTexture(t, plan.key))
+                    return pooled;
+            (void)cpuFlushed();
+            planTexels(t, state, plan);
+        }
+        else
+        {
+            cpu.DecodeTexture(state, decoded);
+            const bool whole = decoded.size() >= size_t(w) * h;
+            if (!whole)
+                decoded.assign(size_t(w) * h, 0u);
+            if (whole && pack.enabled() && !renderTarget(range))
+                if (Texture *pooled = packTexture(t, gs_texture_hash::hash(decoded.data(), t.width, t.height)))
+                    return pooled;
+            encodeTexture(t, state);
+        }
+#elif TS_NV2A_TEXTURE_STREAM
         // Decoded once when it fits the scratch (TexelPlan), else streamed.
         const bool packed = pack.enabled() && !renderTarget(range);
         TexelPlan plan;
@@ -818,7 +848,12 @@
         t.texels = allocGpu(t.bytes);
         if (!t.texels)
             return nullptr;
-#if TS_NV2A_TEXTURE_STREAM
+#if TS_DIAG
+        if (streamed)
+            writeTexels(t, state, plan);
+        else
+            memcpy(t.texels, swizzled.data(), t.bytes);
+#elif TS_NV2A_TEXTURE_STREAM
         writeTexels(t, state, plan);
 #if TS_NV2A_TEXTURE_SELFCHECK
         checkTexels(t, state, plan);
@@ -1054,7 +1089,7 @@
         return false;
     }
 
-#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
+#if TS_NV2A_TEXTURE_WHOLE
     // Encodes the decoded GS texture (`decoded`: CLUT and TEXA applied) into
     // `swizzled`, the layout the NV2A samples with wrapping: DXT1/DXT5 from
     // 8x8 up, else A1R5G5B5 when that loses nothing (16-bit sources,
@@ -1429,7 +1464,7 @@
     // DXT5: the same colour blocks (every texel coloured) preceded by an
     // 8-byte alpha block (two end points, 3-bit indices into their 8-step
     // interpolation).
-#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
+#if TS_NV2A_TEXTURE_WHOLE
     void encodeDxt(uint32_t w, uint32_t h, bool dxt5, uint8_t *out)
     {
         for (uint32_t by = 0; by < h; by += 4)
@@ -1867,6 +1902,14 @@
         k.shade = state.prim.iip ? NV097_SET_SHADE_MODEL_SMOOTH : NV097_SET_SHADE_MODEL_FLAT;
 #if TS_NV2A_SCISSOR
         clipFor(state.context.scissor, k.clipX, k.clipY);
+#if TS_DIAG
+        if (!dv[xdiag::kScissor])
+        {
+            // The window clip switched off: the whole screen, as before Push A.
+            k.clipX = gs_nv2a_clip::kFullClipX;
+            k.clipY = gs_nv2a_clip::kFullClipY;
+        }
+#endif
 #endif
         return k;
     }

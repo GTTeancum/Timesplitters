@@ -303,12 +303,19 @@
 #endif
         if (state.prim.type != GS_PRIM_TRISTRIP || state.prim.fst || c.variant > 3u || !isScreenTarget(state))
             return false;
+#if TS_DIAG
+        if (frameOpen && state.context.frame.fbp != frameFbp && diagFrameSwitch(state))
+#else
         if (frameOpen && state.context.frame.fbp != frameFbp)
+#endif
             finishFrame();
         if (!frameOpen)
             beginFrame(state);
         else if (screenVramNewer)
             loadScreenFromVram();
+#if TS_DIAG
+        diagScreenDraw(state);
+#endif
 
         checkRun = c.check != 0u;
         const Texture *tex = state.prim.tme ? texture(state) : nullptr;

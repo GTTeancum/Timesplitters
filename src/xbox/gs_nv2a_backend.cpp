@@ -7,6 +7,7 @@
 #include "runtime/ps2_host_settings.h" // widescreen: the bulk path declines (gs_nv2a_screen.inl)
 #include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: beginXfRun, keyFor, texture() and the DrawKey compares timed
 #include "runtime/gs/gs_texture_hash.h"
+#include "xbox_diag.h"           // TS_DIAG: the picture diagnostics' switches (src/xbox/DIAG.md)
 
 // Split screen (REWRITE-PLAN.md M2.3). Each switch at 0 restores the old path.
 // TS_NV2A_DISPLAY_HEIGHT 1: the GS frame's height (its mapping onto the
@@ -124,6 +125,12 @@ void xboxGpuOwnsDisplay(bool owns);
 void xboxLogToScreen(bool enabled);
 extern "C" void pb_ts_set_depth_format(unsigned int fmt); // src/xbox/pbkit/pbkit_ts.c
 extern "C" unsigned int pb_ts_end_count;                  // pb_end calls so far (pbkit_ts.c)
+extern "C" int pb_ts_back_buffer_on_screen(void);         // the next frame's target is on screen
+#if TS_DIAG
+extern "C" int pb_ts_diag_untiled, pb_ts_diag_back_buffers; // boot: set before pb_init (pbkit_ts.c)
+extern "C" int pb_ts_pending_flips(void);                    // finished frames not shown yet
+extern "C" int pb_ts_buffer_count(void);
+#endif
 
 namespace
 {
@@ -183,6 +190,16 @@ namespace
 #endif
 #ifndef TS_NV2A_TEXTURE_SELFCHECK
 #define TS_NV2A_TEXTURE_SELFCHECK 0
+#endif
+// The whole-texture path's members: without streaming, for its self-check,
+// and in the diagnostic build (TS_DIAG), which switches between the two.
+#define TS_NV2A_TEXTURE_WHOLE (!TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK || TS_DIAG)
+#if TS_DIAG
+// The diagnostic build's switches: compiled in whatever their values, so the
+// renderer's own must be at their release settings.
+#if !TS_NV2A_DISPLAY_HEIGHT || !TS_NV2A_SCISSOR || !TS_NV2A_TEXTURE_STREAM || !TS_CLUT_IDENTITY || !TS_GPU_RANGE_MEMO
+#error "TS_DIAG needs TS_NV2A_DISPLAY_HEIGHT, TS_NV2A_SCISSOR, TS_NV2A_TEXTURE_STREAM, TS_CLUT_IDENTITY and TS_GPU_RANGE_MEMO at 1"
+#endif
 #endif
 #if TS_NV2A_TEXTURE_STREAM
     constexpr uint32_t kScratchTexels = 16384u; // 128 x 128 decoded at once: 64 KB
@@ -493,6 +510,14 @@ namespace
 
 // Development aid: the renderer's current step, read with a debugger.
 extern "C" volatile int g_nv2aStep = 0;
+// Presentation counters, cumulative from boot, read over XBDM from thread
+// context (names in build/xbox/main.map; the TS_DIAG summary prints them
+// a second at a time). pbkit_ts.c keeps g_tsPbkitDeferredSwaps.
+extern "C" volatile uint32_t g_tsFramesPresented = 0;      // frames queued for a vblank (pb_finished)
+extern "C" volatile uint32_t g_tsEmptyPresents = 0;        // presentations with no frame to queue
+extern "C" volatile uint32_t g_tsScanoutGuardHits = 0;     // frames whose target was on screen at their start
+extern "C" volatile uint32_t g_tsScanoutGuardWaitMs = 0;   // time those frames waited for it to leave
+extern "C" volatile uint32_t g_tsScanoutGuardTimeouts = 0; // waits given up (drew into the screen)
 GSNv2aTextureStats g_nv2aTextureStats{};
 namespace
 {
@@ -599,7 +624,15 @@ struct GSNv2aBackend::Impl
     uint32_t gpuRangeRows = 0, gpuRangeFbp = 0, gpuRangeFbw = 0, gpuRangePsm = 0;
     GSCpuBackend::VramRange gpuRange()
     {
+#if TS_DIAG
+        // RBA: every displayed row counts as drawn; RGM 0: no memo.
+        const uint32_t rows = dv[xdiag::kReadbackAll] ? std::min<uint32_t>(frameHeight, kDisplayRows)
+                                                       : std::max<uint32_t>(gpuRows, 1u);
+        if (!dv[xdiag::kRangeMemo])
+            return frameRangeExact(framePsm, frameFbp, frameFbw, rows);
+#else
         const uint32_t rows = std::max<uint32_t>(gpuRows, 1u);
+#endif
         if (rows != gpuRangeRows || frameFbp != gpuRangeFbp || frameFbw != gpuRangeFbw || framePsm != gpuRangePsm)
         {
             gpuRangeRows = rows;
@@ -627,8 +660,115 @@ struct GSNv2aBackend::Impl
         return f.fbp == displayFbp[0] || f.fbp == displayFbp[1];
     }
 
+#if TS_DIAG
+    // ---- picture diagnostics (TS_DIAG, xbox_diag.h): the switches as at
+    // this frame's start, and what was last logged.
+    uint8_t dv[xdiag::kItems] = {};
+    uint32_t diagGeneration = 0;
+    bool diagClutSelfTest = true; // the boot self-test's verdict (TS_CLUT_IDENTITY)
+    uint32_t diagFrameKey[5] = {UINT32_MAX, 0, 0, 0, 0}; // fbp, fbw, psm, height, display rows
+    uint64_t diagDisplayKey[3] = {~0ull, 0, 0};          // pmode, dispfb, display
+    uint64_t diagScissorKey = ~0ull;
+    uint32_t diagOffTarget[3] = {UINT32_MAX, 0, 0};      // off-screen target: fbp, fbw, psm
+
+    // The switches' values from now on; a change drops what was worked out
+    // under the old ones (kept clip and key, the GPU's state, the palette path).
+    void diagRefresh() { diagRefreshBody(); }
+    // Every screen draw: counted, partial ones (a scissor short of the
+    // frame) too, and a change of scissor logged.
+    void diagScreenDraw(const GSDrawState &state)
+    {
+        ++xdiag::g_count.screenDraws;
+        const GSScissorReg &s = state.context.scissor;
+        if (s.x0 > 0u || s.y0 > 0u || uint32_t(s.x1) + 1u < frameFbw * 64u || uint32_t(s.y1) + 1u < frameHeight)
+            ++xdiag::g_count.partialDraws;
+        uint64_t key;
+        std::memcpy(&key, &s, sizeof(key));
+        if (key != diagScissorKey)
+        {
+            diagScissorKey = key;
+            if (xdiag::logAllowed())
+            {
+                uint32_t x, y;
+                gs_nv2a_clip::windowClip(s.x0, s.x1, s.y0, s.y1, frameFbw * 64u, frameHeight, x, y);
+                xdiag::logLine("[TS:diag] scissor %u-%u,%u-%u of %ux%u fbp=%u -> clip x %u-%u y %u-%u%s", unsigned(s.x0),
+                               unsigned(s.x1), unsigned(s.y0), unsigned(s.y1), unsigned(frameFbw * 64u),
+                               unsigned(frameHeight), unsigned(frameFbp), unsigned(x & 0xFFFu), unsigned(x >> 16),
+                               unsigned(y & 0xFFFu), unsigned(y >> 16), dv[xdiag::kScissor] ? "" : " (SCI off: whole screen)");
+            }
+        }
+    }
+
+    // A draw for the other display buffer while a frame is open: true ends
+    // the frame (release); FBS 0 keeps drawing into it.
+    bool diagFrameSwitch(const GSDrawState &state)
+    {
+        ++xdiag::g_count.frameSwitches;
+        if (xdiag::logAllowed())
+            xdiag::logLine("[TS:diag] frame switch: draw to fbp %u while frame fbp %u is open (%s)",
+                           unsigned(state.context.frame.fbp), unsigned(frameFbp),
+                           dv[xdiag::kFrameSwitch] ? "frame ended" : "FBS off: kept");
+        if (dv[xdiag::kFrameSwitch])
+            return true;
+        ++xdiag::g_count.frameSwitchesKept;
+        return false;
+    }
+
+    // FLW: before a frame draws, the finished frames still waiting for a
+    // vblank: 1 keeps the next back buffer off the screen (at most
+    // buffers - 2 waiting), 2 waits for every flip. 100 ms at most.
+    void diagFlipWait()
+    {
+        const int mode = dv[xdiag::kFlipWait];
+        if (!mode)
+            return;
+        const int limit = mode == 1 ? std::max(pb_ts_buffer_count() - 2, 0) : 0;
+        if (pb_ts_pending_flips() <= limit)
+            return;
+        ++xdiag::g_count.flipWaits;
+        const DWORD start = GetTickCount();
+        while (pb_ts_pending_flips() > limit && GetTickCount() - start < 100u)
+        {
+        }
+        xdiag::g_count.flipWaitMs += GetTickCount() - start;
+    }
+
+    // The frame's target and height, logged when they change.
+    void diagFrameLog(const GSDrawState &state)
+    {
+        const uint32_t key[5] = {frameFbp, frameFbw, framePsm, frameHeight, display.rows};
+        if (std::memcmp(key, diagFrameKey, sizeof(key)) == 0)
+            return;
+        std::memcpy(diagFrameKey, key, sizeof(key));
+        if (xdiag::logAllowed())
+            xdiag::logLine("[TS:diag] frame fbp=%u fbw=%u psm=%u height=%u (display rows %u fbw %u psm %u; first "
+                           "scissor rows %u; HGT %u)",
+                           unsigned(frameFbp), unsigned(frameFbw), unsigned(framePsm), unsigned(frameHeight),
+                           unsigned(display.rows), unsigned(display.fbw), unsigned(display.psm),
+                           unsigned(gs_nv2a_clip::scissorRows(state.context.scissor.y1)), unsigned(dv[xdiag::kHeight]));
+    }
+#endif
+
 #include "gs_nv2a_state.inl"
 #include "gs_nv2a_screen.inl"
+
+#if TS_DIAG
+    void diagRefreshBody()
+    {
+        const uint32_t generation = xdiag::g_generation;
+        if (generation == diagGeneration)
+            return;
+        diagGeneration = generation;
+        for (int i = 0; i < xdiag::kItems; ++i)
+            dv[i] = xdiag::g_value[i];
+        clipScissor = UINT64_MAX;
+        keyMemo.serial = 0;
+        stateValid = false;
+        lastTexture = nullptr;
+        clutIdentity = diagClutSelfTest && dv[xdiag::kClutId] != 0;
+        gpuRangeRows = 0;
+    }
+#endif
 
     void waitIdle()
     {
@@ -689,9 +829,37 @@ struct GSNv2aBackend::Impl
     }
 
 
+    // pb_finished hands out the next of the three buffers without checking
+    // the screen: with frames queued, or one shown late, that can be the
+    // buffer still being scanned out, and the frame's clear and draws would
+    // then show on the TV (moving black bands; a grab of the finished frame
+    // looks clean). Nothing is drawn into it until the screen has moved on:
+    // the queued frames ahead of it take it off at their vblank. 100 ms at
+    // most (pbkit's debug screen, or a lost flip): then draw anyway.
+    void waitBackBufferOffScreen()
+    {
+        if (!pb_ts_back_buffer_on_screen())
+            return;
+        ++g_tsScanoutGuardHits;
+        const DWORD start = GetTickCount();
+        while (pb_ts_back_buffer_on_screen())
+        {
+            if (GetTickCount() - start >= 100u)
+            {
+                ++g_tsScanoutGuardTimeouts;
+                break;
+            }
+            SwitchToThread();
+        }
+        g_tsScanoutGuardWaitMs += GetTickCount() - start;
+    }
+
     void beginFrame(const GSDrawState &state)
     {
         g_nv2aStep = 20;
+#if TS_DIAG
+        diagRefresh();
+#endif
         frameOpen = true;
         frameFbp = state.context.frame.fbp;
         frameFbw = state.context.frame.fbw;
@@ -706,11 +874,20 @@ struct GSNv2aBackend::Impl
 #else
         frameHeight = std::clamp<uint32_t>(uint32_t(state.context.scissor.y1) + 1u, 1u, 512u);
 #endif
+#if TS_DIAG
+        if (!dv[xdiag::kHeight]) // HGT 0: the first draw's scissor, as before Push A
+            frameHeight = std::clamp<uint32_t>(uint32_t(state.context.scissor.y1) + 1u, 1u, 512u);
+        diagFrameLog(state);
+#endif
 #if TS_NV2A_SCISSOR
         clipScissor = UINT64_MAX; // the mapping may have changed (clipFor)
 #endif
         gpuRows = 0;
         settleFrame();
+#if TS_DIAG
+        diagFlipWait();
+#endif
+        waitBackBufferOffScreen();
         pb_reset();
         // The frame's setup goes to the GPU as one block (each hand-over is
         // a write-combine flush and a DMA register write).
@@ -740,8 +917,15 @@ struct GSNv2aBackend::Impl
         *p++ = ((kScreenHeight - 1u) << 16);
         p = pushMethod(p, NV097_SET_ZSTENCIL_CLEAR_VALUE, 3);
         *p++ = 0;    // depth 0, stencil 0
+#if TS_DIAG
+        // CLR: the colour buffer too, black (1) or a bright colour (2: magenta
+        // read as R5G6B5, green as A8R8G8B8): rows nothing draws show it.
+        *p++ = dv[xdiag::kClear] == 2u ? 0xF81FF81Fu : 0u;
+        *p++ = dv[xdiag::kClear] ? 0xF3u : 0x03u;
+#else
         *p++ = 0;    // colour (unused)
         *p++ = 0x03; // clear depth and stencil
+#endif
         pb_end(p);
         lastPut = p;
         framePushDwords = 0;
@@ -768,11 +952,25 @@ struct GSNv2aBackend::Impl
         closeBlock();
         g_nv2aTextureStats.pushPeakKB = std::max<uint32_t>(g_nv2aTextureStats.pushPeakKB,
             uint32_t((framePushDwords + size_t(lastPut - pushHead)) / 256u));
+#if TS_DIAG
+        ++xdiag::g_count.frames;
+        // DRN: the GPU finishes the frame before its flip is queued; the
+        // overlay is drawn by the CPU into the finished frame.
+        const bool overlay = xdiag::overlayVisible();
+        if (dv[xdiag::kGpuDrain] || overlay)
+            while (pb_busy())
+            {
+            }
+        if (overlay)
+            xdiag::drawOverlay(pb_back_buffer(), pb_back_buffer_pitch(), XVideoGetMode().bpp == 16);
+        xdiag::maybeSummary();
+#endif
         shownBuffer = pb_back_buffer(); // drawn into; on screen until the next flip
         g_nv2aStep = 31;
         while (pb_finished()) // only while both buffers wait for a vblank
         {
         }
+        ++g_tsFramesPresented;
         g_nv2aStep = 32;
         // The GPU finishes this frame while the game builds the next one;
         // the next frame's start waits for this fence (settleFrame).
@@ -833,6 +1031,10 @@ struct GSNv2aBackend::Impl
     {
         if (!openBlock)
             return;
+#if TS_DIAG
+        if (dv[xdiag::kFence])
+            __asm__ __volatile__("sfence" ::: "memory"); // FNC: CPU writes to GPU memory out first
+#endif
         pb_end(cursor);
         lastPut = cursor;
         openBlock = cursor = nullptr;
@@ -932,6 +1134,13 @@ struct GSNv2aBackend::Impl
         g_nv2aStep = 40;
         if (!screenGpuNewer)
             return;
+#if TS_DIAG
+        if (!dv[xdiag::kReadback])
+        {
+            ++xdiag::g_count.readbacksSkipped; // RB 0: GS memory keeps what it had
+            return;
+        }
+#endif
         ++g_nv2aTextureStats.waitReadback;
         const uint64_t readbackStart = cycles();
         waitIdle();
@@ -939,7 +1148,15 @@ struct GSNv2aBackend::Impl
         const uint32_t pitch = pb_back_buffer_pitch();
         const bool fb16 = XVideoGetMode().bpp == 16;
         const uint32_t width = frameFbw * 64u, height = frameHeight;
+#if TS_DIAG
+        // RBA: every displayed row, not only those drawn this frame.
+        const uint32_t rows = dv[xdiag::kReadbackAll] ? std::min<uint32_t>(height, kDisplayRows)
+                                                       : std::min<uint32_t>(std::max<uint32_t>(gpuRows, 1u), height);
+        ++xdiag::g_count.readbacks;
+        xdiag::g_count.readbackRows += rows;
+#else
         const uint32_t rows = std::min<uint32_t>(std::max<uint32_t>(gpuRows, 1u), height);
+#endif
         const bool sixteen = framePsm == GS_PSM_CT16 || framePsm == GS_PSM_CT16S;
         // One row at a time: a whole frame's worth (up to 1.1 MB) is more
         // than the Xbox can be sure to spare.
@@ -987,6 +1204,15 @@ struct GSNv2aBackend::Impl
     // uploaded into it: loading screens, movies, CPU-side draws).
     void loadScreenFromVram()
     {
+#if TS_DIAG
+        if (!dv[xdiag::kScreenLoad])
+        {
+            ++xdiag::g_count.screenLoadsSkipped; // LDS 0: the back buffer keeps the GPU's pixels
+            screenVramNewer = false;
+            return;
+        }
+        ++xdiag::g_count.screenLoads;
+#endif
         ++g_nv2aTextureStats.screenLoads;
         g_nv2aStep = 50;
         waitIdle();
@@ -1022,6 +1248,10 @@ struct GSNv2aBackend::Impl
                     row[x] = (a << 24) | (r << 16) | (g << 8) | b;
             }
         }
+#if TS_DIAG
+        if (dv[xdiag::kFence])
+            __asm__ __volatile__("sfence" ::: "memory");
+#endif
         screenVramNewer = false;
         screenGpuNewer = false;
     }
@@ -1059,6 +1289,14 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     // their share.
     std::unique_ptr<GSNv2aBackend> backend(new GSNv2aBackend());
     backend->m->openTexturePack();
+#if TS_DIAG
+    // The diagnostic switches' starting values and the boot settings
+    // (D:\diag.ini), before pbkit allocates its buffers.
+    xdiag::loadIni();
+    pb_ts_diag_untiled = xdiag::g_boot.untiledColour;
+    pb_ts_diag_back_buffers = xdiag::g_boot.buffers - 1;
+    backend->m->diagRefresh();
+#endif
     // 16-bit colour and depth, like the game's own buffers: a 640x480 screen
     // buffer is 0.6 MB instead of 1.2, and there are two plus the depth buffer.
     XVideoSetMode(640, 480, 16, REFRESH_DEFAULT);
@@ -1147,6 +1385,10 @@ void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
     {
         m->clutOrderChecked = true;
         m->clutIdentity = m->cpu.CheckFullClutOrder();
+#if TS_DIAG
+        m->diagClutSelfTest = m->clutIdentity;
+        m->clutIdentity = m->clutIdentity && m->dv[xdiag::kClutId] != 0;
+#endif
         std::cout << "[TS:xbox] CLUT load order self-test: "
                   << (m->clutIdentity ? "ok" : "differs, palette identities off") << std::endl;
     }
@@ -1171,6 +1413,25 @@ void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
         return;
     }
     // Off-screen target: the CPU renderer draws it into local memory.
+#if TS_DIAG
+    ++xdiag::g_count.offscreenDraws;
+    {
+        const GSFrameReg &f = batch.state.context.frame;
+        const uint32_t key[3] = {uint32_t(f.fbp), uint32_t(f.fbw), uint32_t(f.psm)};
+        if (std::memcmp(key, m->diagOffTarget, sizeof(key)) != 0)
+        {
+            std::memcpy(m->diagOffTarget, key, sizeof(key));
+            const GSScissorReg &s = batch.state.context.scissor;
+            if (xdiag::logAllowed())
+                xdiag::logLine("[TS:diag] off-screen target fbp=%u fbw=%u psm=%u prim=%u scissor %u-%u,%u-%u tex=%u "
+                               "tbp0=%u (screen fbp %u/%u)",
+                               unsigned(key[0]), unsigned(key[1]), unsigned(key[2]), unsigned(batch.state.prim.type),
+                               unsigned(s.x0), unsigned(s.x1), unsigned(s.y0), unsigned(s.y1),
+                               unsigned(batch.state.prim.tme), unsigned(batch.state.context.tex0.tbp0),
+                               unsigned(m->displayFbp[0]), unsigned(m->displayFbp[1]));
+        }
+    }
+#endif
     ++g_nv2aTextureStats.offscreenDraws;
     g_nv2aTextureStats.offscreenFbp = batch.state.context.frame.fbp;
     g_nv2aTextureStats.offscreenFbw = batch.state.context.frame.fbw;
@@ -1314,6 +1575,16 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
 {
     m->transfer = command;
     const GSBitBltBuf &buf = command.bitbltbuf;
+#if TS_DIAG
+    if (command.direction == 1u || command.direction == 2u)
+    {
+        ++xdiag::g_count.transfers;
+        const auto read = frameRangeRows(buf.spsm, buf.sbp / 32u, buf.sbw,
+                                         uint32_t(command.trxpos.ssay) + command.trxreg.rrh + 1u);
+        if (overlaps(read, m->screenRange()))
+            ++xdiag::g_count.screenTransfers;
+    }
+#endif
     if (command.direction == 1u || command.direction == 2u)
     {
         // Reads local memory: the GPU's screen pixels must be there.
@@ -1367,6 +1638,31 @@ PresentationFrame GSNv2aBackend::Present(const GSPresentationRequest &request)
     gs_nv2a_clip::displaySetup(request.pmode, request.dispfb1, request.display1, request.dispfb2, request.display2,
                                m->display);
 #endif
+#if TS_DIAG
+    {
+        // The GS display registers, logged when they change (DISPFB's FBP
+        // alternates every frame: left out of the comparison).
+        const bool first = (request.pmode & 1u) != 0u;
+        const uint64_t dispfb = first ? request.dispfb1 : request.dispfb2;
+        const uint64_t display = first ? request.display1 : request.display2;
+        const uint64_t key[3] = {uint64_t(request.pmode), dispfb & ~uint64_t(0x1FFu), display};
+        if (std::memcmp(key, m->diagDisplayKey, sizeof(key)) != 0)
+        {
+            std::memcpy(m->diagDisplayKey, key, sizeof(key));
+            if (xdiag::logAllowed())
+                xdiag::logLine("[TS:diag] display pmode=0x%x circuit %d fbp=%u fbw=%u psm=%u dbx=%u dby=%u "
+                               "dx=%u dy=%u magh=%u magv=%u dw=%u dh=%u -> rows %u",
+                               unsigned(request.pmode & 0xFFFFu), first ? 1 : 2, unsigned(dispfb & 0x1FFu),
+                               unsigned((dispfb >> 9) & 0x3Fu), unsigned((dispfb >> 15) & 0x1Fu),
+                               unsigned((dispfb >> 32) & 0x7FFu), unsigned((dispfb >> 43) & 0x7FFu),
+                               unsigned(display & 0xFFFu), unsigned((display >> 12) & 0x7FFu),
+                               unsigned((display >> 23) & 0xFu), unsigned((display >> 27) & 0x3u),
+                               unsigned((display >> 32) & 0xFFFu), unsigned((display >> 44) & 0x7FFu),
+                               unsigned(m->display.rows));
+        }
+        xdiag::maybeSummary();
+    }
+#endif
     if (m->frameOpen)
         m->finishFrame();
     else if (m->screenVramNewer)
@@ -1381,6 +1677,8 @@ PresentationFrame GSNv2aBackend::Present(const GSPresentationRequest &request)
         m->beginFrame(state);
         m->finishFrame();
     }
+    else
+        ++g_tsEmptyPresents; // nothing new: the last frame stays up, nothing queued
     // The picture is on screen already: the host gets no pixels (and keeps
     // drawing nothing; xboxGpuOwnsDisplay).
     return {};
@@ -1390,6 +1688,12 @@ bool GSNv2aBackend::ClearFramebuffer(const GSContext &context, uint32_t rgba)
 {
     GSDrawState state{};
     state.context = context;
+#if TS_DIAG
+    ++xdiag::g_count.clears;
+    if (xdiag::logAllowed())
+        xdiag::logLine("[TS:diag] clear fbp=%u fbw=%u psm=%u rgba=0x%08x (CPU renderer)", unsigned(context.frame.fbp),
+                       unsigned(context.frame.fbw), unsigned(context.frame.psm), unsigned(rgba));
+#endif
     const bool result = m->cpuFlushed().ClearFramebuffer(context, rgba);
     m->noteCpuWrite(GSCpuBackend::FrameRange(state));
     return result;

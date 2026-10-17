@@ -11,6 +11,7 @@
 #include "runtime/ps2_det.h"
 #include "runtime/ps2_music.h"
 #include "runtime/ps2_spu2.h"
+#include "xbox_diag.h"
 #include "xbox_log.h"
 #include "xbox_perf.h"
 
@@ -23,6 +24,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
@@ -45,6 +47,10 @@
 // events (the joystick's and the game controller's), each a heap block of
 // about 80 bytes until SDL's 65,535-event limit (5 MB): real play would fill
 // that, and a match has no free memory. 0: the events pile up, as before.
+// TS_PAD_LOG 1: controller 1's raw SDL state in the log once a second.
+#ifndef TS_PAD_LOG
+#define TS_PAD_LOG 0
+#endif
 #ifndef TS_SDL_EVENT_FLUSH
 #define TS_SDL_EVENT_FLUSH 1
 #endif
@@ -132,6 +138,40 @@ namespace
                 }
             }
         }
+#if TS_PAD_LOG
+        // Controller 1 as SDL reports it, once a second ([TS:pad]).
+        static DWORD nextPadLog = 0;
+        if (GetTickCount() >= nextPadLog)
+        {
+            nextPadLog = GetTickCount() + 1000;
+            if (SDL_GameController *pad = g_pads[0])
+            {
+                unsigned buttons = 0;
+                for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; ++b)
+                    buttons |= SDL_GameControllerGetButton(pad, SDL_GameControllerButton(b)) ? 1u << b : 0u;
+                char line[200];
+                std::snprintf(line, sizeof(line), "[TS:pad] buttons=%05x lx=%d ly=%d rx=%d ry=%d lt=%d rt=%d name=%s\n",
+                              buttons, SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX),
+                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY),
+                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_RIGHTX),
+                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_RIGHTY),
+                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERLEFT),
+                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERRIGHT),
+                              SDL_GameControllerName(pad));
+                xboxLogWrite(line, unsigned(std::strlen(line)));
+            }
+        }
+#endif
+#if TS_DIAG
+        // The diagnostic switches (xbox_diag.h): controller 1's combo.
+        if (SDL_GameController *pad = g_pads[0])
+        {
+            auto down = [pad](SDL_GameControllerButton b) { return SDL_GameControllerGetButton(pad, b) != 0; };
+            xdiag::pollPad({down(SDL_CONTROLLER_BUTTON_BACK), down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER),
+                            down(SDL_CONTROLLER_BUTTON_DPAD_UP), down(SDL_CONTROLLER_BUTTON_DPAD_DOWN),
+                            down(SDL_CONTROLLER_BUTTON_A), down(SDL_CONTROLLER_BUTTON_Y)});
+        }
+#endif
     }
 
     // The one audio stream (the SPU2 and music mix, 48 kHz 16-bit stereo)
@@ -524,6 +564,10 @@ bool IsGamepadButtonDown(int gamepad, int button)
 {
     if (!IsGamepadAvailable(gamepad))
         return false;
+#if TS_DIAG
+    if (gamepad == 0 && xdiag::padCaptured())
+        return false; // the diagnostic combo holds controller 1
+#endif
     SDL_GameController *pad = g_pads[gamepad];
     auto down = [pad](SDL_GameControllerButton b) { return SDL_GameControllerGetButton(pad, b) != 0; };
     switch (button)
@@ -557,6 +601,10 @@ float GetGamepadAxisMovement(int gamepad, int axis)
                                                    SDL_CONTROLLER_AXIS_TRIGGERLEFT, SDL_CONTROLLER_AXIS_TRIGGERRIGHT};
     if (axis < 0 || axis > 5)
         return 0.0f;
+#if TS_DIAG
+    if (gamepad == 0 && xdiag::padCaptured())
+        return axis >= 4 ? -1.0f : 0.0f; // released triggers, centred sticks
+#endif
     const float value = SDL_GameControllerGetAxis(g_pads[gamepad], kAxes[axis]) / 32767.0f;
     // raylib reports triggers as -1 (released) .. 1 (pressed).
     return axis >= 4 ? value * 2.0f - 1.0f : std::clamp(value, -1.0f, 1.0f);

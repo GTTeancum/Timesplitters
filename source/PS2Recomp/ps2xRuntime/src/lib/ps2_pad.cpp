@@ -668,7 +668,14 @@ bool PSPadBackend::multitapOnPort(int port) const
 uint8_t PSPadBackend::analogAxisFromUnit(float value)
 {
     value = std::clamp(value, -1.0f, 1.0f);
+#if defined(PLATFORM_XBOX)
+    // Round half up by hand: on the Xbox the lround path returned 0 for a
+    // centred stick (every live analog byte read 0x00: stick held up-left).
+    // The operand is never negative here, so this matches lround.
+    return static_cast<uint8_t>(static_cast<int>((value + 1.0f) * 127.5f + 0.5f));
+#else
     return static_cast<uint8_t>(std::lround((value + 1.0f) * 127.5f));
+#endif
 }
 
 uint8_t PSPadBackend::xinputThumbAxis(int16_t value, int16_t deadzone, bool invert)

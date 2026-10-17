@@ -18,3 +18,4 @@
 *.zip binary
 *.7z binary
 *.rar binary
+*.qpm binary

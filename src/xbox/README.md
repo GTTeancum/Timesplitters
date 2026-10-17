@@ -124,3 +124,10 @@ world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle c
 - `tools/xtpbuild.py`: the texture pack builder (pack format at the top of
   the script): PC-port texture keys, mip chains that keep alpha-tested
   coverage, and a DXT1/DXT5 encoder in numpy.
+- `tools/xboxglyphs.py`, `assets/buttons/`, `mk/glyphs.mk`: Xbox controller
+  button glyphs. The game draws its button prompts with the map maker's
+  button textures in MISC.PAK (cross, circle, square, triangle, SELECT, L1,
+  L2); the build writes Duke-controller versions (A, B, X, Y, BACK, White,
+  left trigger, drawn from the atlas in `assets/buttons/`) over them in its
+  copy of the PS2 disc image, same size and format, so nothing else moves.
+  The PC build keeps the PlayStation glyphs.

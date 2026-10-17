@@ -2,7 +2,7 @@
 #include <string>
 // Log output on the Xbox: every line goes to the kernel debug output
 // (DbgPrint, visible in xemu's log / a debugger) and, once the hard disk is
-// mounted, to E:\TimeSplitters\timesplitters.log.
+// mounted, to E:\UDATA\54530001\timesplitters.log (xbox_saves.h).
 // Call first thing in main: sets up std::cout / cerr / clog.
 void xboxLogInit();
 void xboxLogWrite(const char *text, unsigned length);

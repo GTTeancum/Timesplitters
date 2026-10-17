@@ -160,6 +160,63 @@ namespace ps2_stubs
             std::filesystem::create_directories(root, ec);
         }
 
+#if defined(PLATFORM_XBOX)
+        // A line of its own in the Xbox log (xbox_log.cpp hands the debugger
+        // and the log file whole lines; RUNTIME_LOG ends none, and a run of
+        // messages joined into one line is cut off by the debugger).
+        constexpr const char *kMcLogEnd = "\n";
+
+        // On the Xbox each card's folder is also an Xbox dashboard save
+        // (src/xbox/xbox_saves.h): its SaveMeta.xbx and SaveImage.xbx sit in
+        // the card's root. They are not part of the PS2 card: the game does
+        // not see them, and a format keeps them.
+        bool isXboxDashboardFile(const std::string &name)
+        {
+            const std::string lower = toLowerAscii(name);
+            return lower.size() > 4u && lower.compare(lower.size() - 4u, 4u, ".xbx") == 0;
+        }
+#else
+        constexpr const char *kMcLogEnd = "";
+#endif
+
+        // Before each read or write of a card file. nxdk's C library refuses
+        // to write to a stream opened for update ("r+b": the game rewriting
+        // an existing save, flags 2) until it has been positioned, and to
+        // read once a read has hit the end of the file; a seek to where the
+        // stream already is clears both. (On the Xbox every rewrite of a
+        // save failed: "Saving Game Status: Save failed.")
+        void prepareMcStream(FILE *file)
+        {
+#if defined(PLATFORM_XBOX)
+            std::fseek(file, 0, SEEK_CUR);
+#else
+            (void)file;
+#endif
+        }
+
+        // Empties a card's folder (format, unformat).
+        void clearMcRoot(const std::filesystem::path &root, std::error_code &ec)
+        {
+#if defined(PLATFORM_XBOX)
+            std::vector<std::filesystem::path> contents;
+            for (const auto &entry : std::filesystem::directory_iterator(root, ec))
+            {
+                if (!isXboxDashboardFile(entry.path().filename().string()))
+                {
+                    contents.push_back(entry.path());
+                }
+            }
+            for (const std::filesystem::path &path : contents)
+            {
+                std::filesystem::remove_all(path, ec);
+            }
+#else
+            std::filesystem::remove_all(root, ec);
+#endif
+            ec.clear();
+            std::filesystem::create_directories(root, ec);
+        }
+
         std::vector<std::string> splitMcPathComponents(const std::string &value)
         {
             std::vector<std::string> parts;
@@ -496,6 +553,29 @@ namespace ps2_stubs
                 }
             }
 
+#if defined(PLATFORM_XBOX)
+            // nxdk's fopen fails "w+" (it asks the kernel for an impossible
+            // create disposition) and "a+": create or empty the file with
+            // "wb", then open it for update.
+            if (std::strcmp(mode, "w+b") == 0 || std::strcmp(mode, "a+b") == 0)
+            {
+                if (mode[0] == 'w' || !exists)
+                {
+                    FILE *created = std::fopen(hostPath.string().c_str(), "wb");
+                    if (!created)
+                    {
+                        return nullptr;
+                    }
+                    std::fclose(created);
+                }
+                FILE *file = std::fopen(hostPath.string().c_str(), "r+b");
+                if (file && mode[0] == 'a')
+                {
+                    std::fseek(file, 0, SEEK_END);
+                }
+                return file;
+            }
+#endif
             return std::fopen(hostPath.string().c_str(), mode);
         }
     }
@@ -584,7 +664,7 @@ namespace ps2_stubs
         }
 
         RUNTIME_LOG("[MC] Chdir port=" << port << " '" << requestedDir
-                                       << "' -> result=" << result << " cwd='" << currentDir << "'");
+                                       << "' -> result=" << result << " cwd='" << currentDir << "'" << kMcLogEnd);
         writeMcCString(rdram, currentDirAddr, currentDir);
         setReturnS32(ctx, 0);
     }
@@ -710,6 +790,10 @@ namespace ps2_stubs
             {
                 closeMcFilesForPortLocked(port);
                 const std::filesystem::path root = getMcRootPath(port);
+#if defined(PLATFORM_XBOX)
+                std::error_code ec;
+                clearMcRoot(root, ec);
+#else
                 // No card location yet (no ELF loaded): fail, create nothing.
                 std::error_code ec = std::make_error_code(std::errc::no_such_file_or_directory);
                 if (!root.empty())
@@ -719,6 +803,7 @@ namespace ps2_stubs
                     ec.clear();
                     std::filesystem::create_directories(root, ec);
                 }
+#endif
                 if (!ec)
                 {
                     McPortState &state = g_mcPorts[static_cast<size_t>(port)];
@@ -849,6 +934,12 @@ namespace ps2_stubs
 
                             std::error_code entryEc;
                             const bool isDirectory = entry.is_directory(entryEc) && !entryEc;
+#if defined(PLATFORM_XBOX)
+                            if (parentRel.empty() && !isDirectory && isXboxDashboardFile(name))
+                            {
+                                continue;
+                            }
+#endif
                             const uint32_t sizeBytes =
                                 isDirectory ? 0u : static_cast<uint32_t>(entry.file_size(entryEc));
                             entryEc.clear();
@@ -884,7 +975,7 @@ namespace ps2_stubs
             setMcCommandResultLocked(kMcCmdGetDir, result);
         }
         RUNTIME_LOG("[MC] GetDir port=" << port << " '" << rawPath
-                                        << "' maxent=" << maxEntries << " -> result=" << result);
+                                        << "' maxent=" << maxEntries << " -> result=" << result << kMcLogEnd);
         setReturnS32(ctx, 0);
     }
 
@@ -948,7 +1039,7 @@ namespace ps2_stubs
 
         RUNTIME_LOG("[MC] GetInfo port=" << port << " type=" << cardType
                                          << " free=" << freeBlocks << " format=" << format
-                                         << " result=" << result);
+                                         << " result=" << result << kMcLogEnd);
         setReturnS32(ctx, 0);
     }
 
@@ -1029,7 +1120,7 @@ namespace ps2_stubs
         }
         RUNTIME_LOG("[MC] Mkdir port=" << port << " slot=" << slot
                                        << " raw='" << path << "' guest='" << guestPath
-                                       << "' host='" << hostPath.string() << "' -> result=" << result);
+                                       << "' host='" << hostPath.string() << "' -> result=" << result << kMcLogEnd);
         setReturnS32(ctx, 0);
     }
 
@@ -1105,7 +1196,7 @@ namespace ps2_stubs
                                       << "' host='" << hostPath.string() << "'"
                                       << " exists=" << (exists ? 1 : 0)
                                       << " parent_exists=" << (parentExists ? 1 : 0)
-                                      << " -> result=" << result);
+                                      << " -> result=" << result << kMcLogEnd);
         setReturnS32(ctx, 0);
     }
 
@@ -1134,6 +1225,7 @@ namespace ps2_stubs
             }
             else
             {
+                prepareMcStream(it->second.file);
                 const size_t bytesRead = std::fread(dst, 1u, static_cast<size_t>(size), it->second.file);
                 result = std::ferror(it->second.file) ? kMcResultDeniedPermit : static_cast<int32_t>(bytesRead);
                 if (std::ferror(it->second.file))
@@ -1279,7 +1371,7 @@ namespace ps2_stubs
             return;
         }
 
-        RUNTIME_LOG("[MC] Sync cmd=" << cmd << " result=" << result);
+        RUNTIME_LOG("[MC] Sync cmd=" << cmd << " result=" << result << kMcLogEnd);
 
         if (cmdPtr != 0u)
         {
@@ -1312,6 +1404,10 @@ namespace ps2_stubs
             {
                 closeMcFilesForPortLocked(port);
                 const std::filesystem::path root = getMcRootPath(port);
+#if defined(PLATFORM_XBOX)
+                std::error_code ec;
+                clearMcRoot(root, ec);
+#else
                 // No card location yet (no ELF loaded): fail, create nothing.
                 std::error_code ec = std::make_error_code(std::errc::no_such_file_or_directory);
                 if (!root.empty())
@@ -1321,6 +1417,7 @@ namespace ps2_stubs
                     ec.clear();
                     std::filesystem::create_directories(root, ec);
                 }
+#endif
                 if (!ec)
                 {
                     McPortState &state = g_mcPorts[static_cast<size_t>(port)];
@@ -1360,6 +1457,7 @@ namespace ps2_stubs
             }
             else
             {
+                prepareMcStream(it->second.file);
                 const size_t bytesWritten = std::fwrite(src, 1u, static_cast<size_t>(size), it->second.file);
                 result = std::ferror(it->second.file) ? kMcResultDeniedPermit : static_cast<int32_t>(bytesWritten);
                 if (!std::ferror(it->second.file))

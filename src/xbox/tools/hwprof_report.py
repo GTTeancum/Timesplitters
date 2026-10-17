@@ -8,7 +8,8 @@ LOG may be
   - an XBDM notification recording: `22:26:44 debugstr thread=56 lf string=...`
     (a string without the `lf` flag continues in the next one from the same
     thread; several [TS:...] messages may share one string),
-  - E:\\TimeSplitters\\timesplitters.log copied off the console,
+  - E:\\UDATA\\54530001\\timesplitters.log copied off the console (on a
+    development kit: xV:\\54530001\\timesplitters.log),
   - any text holding [TS:prof] lines (e.g. a gdb capture).
 MAP defaults to D:\\Programming\\GitHub\\Timesplitters\\build\\xbox\\main.map; it
 must be the map of the build that was run.

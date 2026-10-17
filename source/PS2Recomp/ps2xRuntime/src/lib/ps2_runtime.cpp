@@ -1263,7 +1263,13 @@ void PS2Runtime::configureIoPathsFromElf(const std::string &elfPath)
     {
         paths.hostRoot = paths.elfDirectory;
         paths.cdRoot = paths.elfDirectory;
+#if !defined(PLATFORM_XBOX)
+        // (The Xbox entry puts the memory cards on the hard disk before the
+        // game is loaded, src/xbox/xbox_saves.h; moved next to the ELF, the
+        // IOP reset in loadELF would make empty card folders on the game's
+        // drive.)
         paths.mcRoot = paths.elfDirectory / "mc0";
+#endif
     }
 
     setIoPaths(paths);

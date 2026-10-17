@@ -93,7 +93,7 @@ Example:
 
 ## The log
 
-Lines start with `[TS:diag]` (debug output and `E:\TimeSplitters\timesplitters.log`):
+Lines start with `[TS:diag]` (debug output and `E:\UDATA\54530001\timesplitters.log`):
 
 - `diagnostic build; D:\diag.ini read / not found; boot ...` and `start | HGT1 SCI1 ...`: the start-up settings.
 - `set flipwait=1 | ...` / `reset to release | ...`: every change from the controller, with all values after it.

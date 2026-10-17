@@ -6,13 +6,18 @@
 //   D:\ps2disc.iso            the PS2 disc image: the game reads its directory
 //                             sectors itself, as on the PC build
 //   D:\textures.xtp           prebuilt textures (optional; xbox_texture_pack.h)
-// Writable data on the hard disk:
-//   E:\TimeSplitters\mc0\     memory card 1
-//   E:\TimeSplitters\timesplitters.log
+//   D:\TitleImage.xbx, D:\SaveImage.xbx, D:\TitleMeta.xbx
+//                             the Xbox dashboard's icons and title name
+//                             (src/xbox/assets)
+// Writable data on the hard disk, where the Xbox dashboard finds it
+// (xbox_saves.h; 54530001 is the XBE's title ID):
+//   E:\UDATA\54530001\mc0\, mc1\   memory cards 1 and 2
+//   E:\UDATA\54530001\timesplitters.log
 #include "ps2_runtime.h"
 #include "runtime/gs/gs_frontend.h"
 #include "xbox_log.h"
 #include "xbox_hwprof.h"
+#include "xbox_saves.h"
 #include "xbox_perf.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_det.h"
@@ -21,7 +26,6 @@
 
 #include <hal/debug.h>
 #include <hal/video.h>
-#include <nxdk/mount.h>
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
 
@@ -53,7 +57,6 @@ extern uint32_t g_audioBuffers, g_audioMixKcyc; // xbox_raylib.cpp
 namespace
 {
     constexpr const char *kGameData = "D:\\game-data";
-    constexpr const char *kSaveRoot = "E:\\TimeSplitters";
 
     // Free physical memory, for tracking the 64 MB budget during start-up.
     void logMemory(const char *label)
@@ -271,13 +274,18 @@ int main()
     xboxEarlyPlatformInit();
     xboxLogInit();
     xboxLogToScreen(true);
-    if (nxMountDrive('E', "\\Device\\Harddisk0\\Partition1\\"))
-    {
-        CreateDirectoryA(kSaveRoot, nullptr);
-        CreateDirectoryA("E:\\TimeSplitters\\mc0", nullptr);
-        xboxLogOpenFile("E:\\TimeSplitters\\timesplitters.log");
-    }
+    const XboxSaveLayout saves = xboxSavesPrepare();
+    if (saves.mounted)
+        xboxLogOpenFile(saves.logFile.c_str());
     std::cout << "[TS:xbox] TimeSplitters starting" << std::endl;
+    xboxSavesSetup(saves);
+    {
+        // The memory cards' folder from the start: the runtime's IOP resets
+        // (initialisation, game load) create it.
+        PS2Runtime::IoPaths paths = PS2Runtime::getIoPaths();
+        paths.mcRoot = saves.card0;
+        PS2Runtime::setIoPaths(paths);
+    }
     logMemory("at start");
     checkClocks();
     checkCpuSpeed();
@@ -315,15 +323,18 @@ int main()
     PS2Runtime::IoPaths paths = PS2Runtime::getIoPaths();
     paths.hostRoot = kGameData;
     paths.cdRoot = kGameData;
-    paths.mcRoot = std::string(kSaveRoot) + "\\mc0";
+    paths.mcRoot = saves.card0; // memory card 2 beside it
     paths.cdImage = "D:\\ps2disc.iso";
     PS2Runtime::setIoPaths(paths);
 
-    // Test runs: a controller script on the disc (D:utoplay.pad, added by
+    // Test runs: a controller script on the disc (D:\autoplay.pad, added by
     // `make AUTOPLAY=<script>`) plays itself from a blank memory card, as the
-    // PC build's TS_PAD_SCRIPT does.
+    // PC build's TS_PAD_SCRIPT does: a card of its own under E:\TDATA, so a
+    // test run leaves the player's saves alone.
     if (GetFileAttributesA("D:\\autoplay.pad") != INVALID_FILE_ATTRIBUTES)
     {
+        paths.mcRoot = saves.testCard0;
+        PS2Runtime::setIoPaths(paths);
         std::error_code ec;
         std::filesystem::remove_all(paths.mcRoot, ec);
         std::filesystem::create_directories(paths.mcRoot, ec);

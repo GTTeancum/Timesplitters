@@ -35,8 +35,35 @@ it. `build.sh textures` builds only the pack;
 A status block (frames, free memory, script progress) is kept in memory and
 can be read with gdb from the addresses in `build/xbox/main.map`
 (`g_status`, `g_recent`); the full log is written to
-`E:\TimeSplitters\timesplitters.log`. A fatal error (out of memory, a failed
+`E:\UDATA\54530001\timesplitters.log`. A fatal error (out of memory, a failed
 game assertion) is logged with its cause.
+
+## Saves
+
+The XBE carries title ID `0x54530001` ("TS" 0001), and the game keeps its
+data where the Xbox dashboard looks for it (`xbox_saves.cpp`):
+
+    E:\UDATA\54530001\TitleMeta.xbx, TitleImage.xbx, SaveImage.xbx
+                                   the dashboard's "TimeSplitters" entry
+    E:\UDATA\54530001\mc0\         PS2 memory card 1: a dashboard save named
+                                   "Memory Card 1" (SaveMeta.xbx, SaveImage.xbx)
+    E:\UDATA\54530001\mc1\         memory card 2, "Memory Card 2"
+    E:\UDATA\54530001\timesplitters.log
+
+The folders and metadata are created at start-up; cards from earlier builds
+(`E:\TimeSplitters\mc0`, `mc1`) are moved over once. The game does not see
+the dashboard's `.xbx` files in a card. Scripted test runs (`AUTOPLAY`) use
+a card of their own, `E:\TDATA\54530001\autoplay\mc0`, emptied at each start.
+On a development kit the debug monitor's `E:` is `Partition1\DEVKIT`, so
+these show up as `xV:\54530001` (UDATA) and `xS:\54530001` (TDATA) there.
+
+The title name and icons (`assets/`) are built from `assets/icon.png` by
+`tools/build_dashboard_assets.py` with the XDK's bundler; the outputs are in
+git, so a build needs neither. The build sets the title ID and inserts them
+into the XBE (`tools/patch_xbe_metadata.py`,
+`tools/insert_xbe_dashboard_assets.py`, from the Perfect Dark X port) and
+puts them beside `default.xbe`, where the game copies them from: copy them
+along with `default.xbe` when installing to the hard disk.
 
 ## State (2026-10-02)
 

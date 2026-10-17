@@ -48,6 +48,7 @@ ps2_log.txt
 *.mkv
 *.avi
 *.png
+!src/xbox/assets/icon.png
 *.ppm
 *.bmp
 *.tga

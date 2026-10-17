@@ -355,10 +355,24 @@ $(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ) $(LINK_STAMP)
 	@printf '%s\n' $(patsubst $(OUT)/%,%,$(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)) $(NXDK_LIBS) > $(OUT)/link.rsp
 	@cd $(OUT) && $(LINK) -include:_automount_d_drive -stack:$(XBE_STACK) -errorlimit:0 -map:main.map -out:main.exe @link.rsp
 
-$(OUT)/iso/default.xbe: $(OUT)/main.exe
+# The XBE's title ID: the game's saves go to E:\UDATA\54530001 ("TS" 0001),
+# where the Xbox dashboard lists them (xbox_saves.h). cxbe cannot set it, nor
+# insert the dashboard metadata (title name, icon, default save icon) that
+# the XDK's image builder would: two scripts from the Perfect Dark X port
+# do. The metadata is built from assets/icon.png by
+# tools/build_dashboard_assets.py (XDK bundler; the outputs are in git) and
+# also goes on the disc beside default.xbe, where the game copies it from.
+XBOX_TITLE_ID := 0x54530001
+DASH_ASSETS   := $(addprefix $(XBOX)/assets/,TitleMeta.xbx TitleImage.xbx SaveImage.xbx)
+$(OUT)/iso/default.xbe: $(OUT)/main.exe $(DASH_ASSETS) $(XBOX)/tools/patch_xbe_metadata.py $(XBOX)/tools/insert_xbe_dashboard_assets.py
 	@mkdir -p $(dir $@)
 	@echo "[ CXBE    ] $@"
-	@$(CXBE) -OUT:$@ -TITLE:TimeSplitters $< > /dev/null
+	@$(CXBE) -OUT:$@.tmp -TITLE:TimeSplitters $< > /dev/null
+	@python $(XBOX)/tools/patch_xbe_metadata.py --xbe $@.tmp --title-id $(XBOX_TITLE_ID) > /dev/null
+	@python $(XBOX)/tools/insert_xbe_dashboard_assets.py --xbe $@.tmp --title-info $(XBOX)/assets/TitleMeta.xbx \
+	    --title-image $(XBOX)/assets/TitleImage.xbx --save-image $(XBOX)/assets/SaveImage.xbx > /dev/null
+	@cp $(DASH_ASSETS) $(dir $@)
+	@mv -f $@.tmp $@
 
 # The PS2 disc image (project/disc, not in git): the game reads the disc's
 # directory sectors itself, as on the PC build.

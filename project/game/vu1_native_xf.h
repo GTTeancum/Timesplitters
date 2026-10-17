@@ -196,8 +196,13 @@ namespace ts_native_xf
     // strip before it by two repeated vertices when cursor.join is set
     // (that strip's last, this one's first: degenerate triangles draw
     // nothing), front to back, the last record also into cursor.last.
+    // Forced inline on GCC/Clang (the Xbox build); MSVC (the PC build) has no
+    // __attribute__ and inlines it on its own.
     template <uint32_t kKind>
-    __attribute__((always_inline)) inline void writeJoinedStripKind(GSXfCursor &cursor, const uint8_t *data, uint32_t vi, uint32_t n)
+#if defined(__GNUC__) || defined(__clang__)
+    __attribute__((always_inline))
+#endif
+    inline void writeJoinedStripKind(GSXfCursor &cursor, const uint8_t *data, uint32_t vi, uint32_t n)
     {
         GSXfVertex *out = cursor.next;
         if (cursor.join)

@@ -2866,7 +2866,9 @@ void PS2Runtime::run()
             hostSettings().fxaa = !hostSettings().fxaa;
         if (IsKeyPressed(KEY_F10))
             hostSettings().widescreen = !hostSettings().widescreen;
-        const float outputAspect = hostSettings().widescreen ? 16.0f / 9.0f : m_hostAspectRatio;
+        // Split screen keeps the game's 4:3 views (ts_overrides.cpp leaves their
+        // projection unwidened), so it is shown at 4:3 too, not stretched to 16:9.
+        const float outputAspect = (hostSettings().widescreen && !gsSplitScreen()) ? 16.0f / 9.0f : m_hostAspectRatio;
 
         BeginDrawing();
         ClearBackground(BLACK);
@@ -3027,7 +3029,7 @@ void PS2Runtime::run()
         if (m_hostAspectRatio > 0.0f && captureWidth > 0u)
         {
             const int aspectHeight = static_cast<int>(static_cast<float>(captureWidth) / m_hostAspectRatio + 0.5f);
-            const float outputAspect = hostSettings().widescreen ? 16.0f / 9.0f : m_hostAspectRatio;
+            const float outputAspect = (hostSettings().widescreen && !gsSplitScreen()) ? 16.0f / 9.0f : m_hostAspectRatio;
             const int aspectWidth = static_cast<int>(static_cast<float>(aspectHeight) * outputAspect + 0.5f);
             if (aspectHeight > 0 && (aspectHeight != static_cast<int>(captureHeight) || aspectWidth != static_cast<int>(captureWidth)))
                 ImageResize(&frame, aspectWidth, aspectHeight);

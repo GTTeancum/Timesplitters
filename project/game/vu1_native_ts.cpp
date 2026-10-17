@@ -33,9 +33,13 @@
 #include "runtime/ps2_vu1_watch.h"
 #include "runtime/gs/gs_frontend.h"
 #include "runtime/gs/ps2_gif_arbiter.h"
+#include "ts_native_dl.h" // Tier 0: the emit knobs (C-EMIT)
 #include "vu1_native_draw.h"
 #include "vu1_native_material.h"
 #include "vu1_native_xf.h"
+#if defined(PLATFORM_XBOX)
+#include "../../src/xbox/xbox_perf.h" // TS_NATIVE_EMIT_TIER0
+#endif
 
 #if defined(PLATFORM_XBOX)
 // TS_NATIVE_KCYC 1 (with TS_NATIVE_RUN_LEAN, vu1_native_draw.h): CPU cycles
@@ -125,6 +129,29 @@ namespace
         }
         if (q + qwords > kDataQwords)
             return false;
+#if defined(PLATFORM_XBOX) // (ts_native_dl.cpp is in the Xbox build only)
+        ++g_tsEmitStats.kicks;
+        g_tsEmitStats.kickQwords += qwords;
+#endif
+#if defined(PLATFORM_XBOX) && TS_NATIVE_EMIT_TIER0
+        // Tier 0 (src/xbox/PUSH-BC-PLAN.md section 3.2 item 1): the packet
+        // goes to the GS front end's bulk path (B-GS's processPath1Bulk:
+        // state-only A+D tags through the material table, PACKED PRE
+        // vertex tags as decoded primitives in one SubmitPrimitives call,
+        // the rest as before), only while nothing is queued behind another
+        // path (the arbiter's order holds: a lone packet is processed at
+        // once either way), and while the knob (emit.tier0) says so.
+        if (g_tsEmitKnobs.tier0 != 0u)
+        {
+            if (!memory || !memory->gifArbiter() || memory->gifArbiter()->empty())
+            {
+                ++g_tsEmitStats.tier0;
+                gs.processPath1Bulk(data + q * 16u, qwords * 16u);
+                return true;
+            }
+            ++g_tsEmitStats.tier0Busy; // another path's packet queued first: the arbiter keeps the order
+        }
+#endif
         if (memory)
             memory->submitGifPacket(GifPathId::Path1, data + q * 16u, qwords * 16u);
         else
@@ -236,12 +263,40 @@ const ts_native_xf::Layout *vu1NativeDrawLayout(uint32_t pc)
     return layoutFor(pc & 0x3FFFu);
 }
 
-// Week 0: every program reads all of VU1 data memory; C-XF narrows a draw
-// entry to its batch and constant rows with R2.
+// ts_native_dl.h: the program's XGKICK entry (0x3FE0) for a Tier 1 op that
+// ran the MSCAL's VIF bookkeeping itself (PS2Memory::noteNativeMscal); the
+// same packet scan and routing (Tier 0 or the GIF arbiter) as a run.
+bool vu1NativeKick(uint8_t *vuData, uint32_t top, PS2Memory *memory, GS &gs)
+{
+    return kickPacket(vuData, top & (kDataQwords - 1u), memory, gs);
+}
+
+// The rows a program entry reads (the debt map settles them first, D2):
+//   the kick (0x3fe0)  its packet, from TOP to at most the end of VU1
+//                      memory (kickPacket refuses one that would wrap);
+//   a draw entry       the constant rows (0-21, 106-121: loadConstants and
+//                      the CPU path's) and the batch from TOP on (strip
+//                      headers, arrays, the state block at TOP + 216: the
+//                      strip loop refuses arrays past the end, so nothing
+//                      wraps) - one window from TOP through the end and
+//                      round to row 121, when TOP is past the constants;
+//   anything else      (the constant entries, an interpreted program)
+//                      everything.
 void vu1NativeReadWindow(uint32_t pc, uint32_t top, uint32_t *first, uint32_t *count)
 {
-    (void)pc;
-    (void)top;
+    constexpr uint32_t kConstantRowsEnd = 122u;
+    const uint32_t entry = pc & 0x3FFFu;
+    top &= kDataQwords - 1u;
     *first = 0u;
     *count = kDataQwords;
+    if (entry == 0x3fe0u)
+    {
+        *first = top;
+        *count = kDataQwords - top;
+    }
+    else if (layoutFor(entry) && top >= kConstantRowsEnd)
+    {
+        *first = top;
+        *count = kDataQwords - top + kConstantRowsEnd; // wraps round to the constant rows
+    }
 }

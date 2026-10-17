@@ -1,6 +1,7 @@
 #include "runtime/ps2_memory.h"
 #include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: the walk's time, the pieces' origins, CALLed chains, D1_CHCR
 #include "runtime/ps2_vu1_watch.h"
+#include "runtime/ps2_vif1_tokens.h" // TS_NATIVE_RECORDS: CALL admission, token pieces, in-list token tags (D1)
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_address.h"
@@ -20,6 +21,10 @@ namespace
 extern uint32_t g_vif1LastConsumed;
 extern bool g_vif1StopOnShort;
 Vu1WatchedRows g_vu1WatchedRows;
+#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
+Vif1TokenRing g_vif1Tokens;
+bool g_vif1DryDecode = false;
+#endif
 namespace
 {
     // A consumed DMA chain's buffer is released at once: holding it for the
@@ -309,6 +314,146 @@ namespace
 // every piece of the chain. TS_VIF_SELFCHECK compares the two totals.
 #ifndef TS_VIF_TAIL_FROM_WALK
 #define TS_VIF_TAIL_FROM_WALK 1
+#endif
+#if TS_NATIVE_RECORDS
+    // A CALL the records engine took (D1; ps2_vif1_records.h): its chain as
+    // cached pieces (a splice), or one token piece.
+    struct Vif1Admitted
+    {
+        const PS2Memory::Vif1Piece *pieces = nullptr;
+        size_t count = 0;
+        Vif1TokenEntry *entry = nullptr; // a token (pieces null)
+    };
+    // The walker met a CALL to `chain`: true when the engine takes it (the
+    // walker then reproduces CALL+RET and appends what out holds after the
+    // CALL tag's own payload). A token the ring has no room for becomes a
+    // splice of the chain's pieces; one with no pieces to fall back on is
+    // walked after all.
+    bool admitCalledChain(const Vif1RecordHooks &hooks, uint32_t chain, Vif1Admitted &out)
+    {
+        Vif1CallAdmit admit;
+        if (!hooks.admitCall(hooks.owner, chain, admit))
+            return false;
+        out = Vif1Admitted{};
+        if (admit.pieces) // (an empty chain: a splice of no pieces)
+        {
+            out.pieces = admit.pieces;
+            out.count = admit.pieceCount;
+            ++g_renderCounters.splices;
+            return true;
+        }
+        if (Vif1TokenEntry *entry = g_vif1Tokens.takeChain())
+        {
+            entry->token = admit.token;
+            out.entry = entry;
+            ++g_renderCounters.tokChain;
+            return true;
+        }
+        size_t count = 0;
+        const PS2Memory::Vif1Piece *pieces = hooks.expand ? hooks.expand(hooks.owner, admit.token, count) : nullptr;
+        if (!pieces || count == 0u)
+            return false;
+        ++g_renderCounters.tokRingFull;
+        ++g_renderCounters.splices;
+        out.pieces = pieces;
+        out.count = count;
+        return true;
+    }
+#if TS_VIF_SELFCHECK
+    // TS_VIF_SELFCHECK: an admitted chain walked again the old way (from
+    // its first tag to its RET, as the walker would have descended) and the
+    // guest ranges compared with what was appended in its place, both with
+    // contiguous ranges merged (spliceDiff; must stay 0). A chain the old
+    // walk would not take as a plain CALLed chain (an END, an IRQ, a
+    // payload outside main RAM) differs too.
+    void vif1MergedRanges(const PS2Memory::Vif1Piece *pieces, size_t count, std::vector<PS2Memory::Vif1Piece> &out)
+    {
+        for (size_t i = 0; i < count; ++i)
+        {
+            if (pieces[i].second == 0u)
+                continue;
+            if (!out.empty() && out.back().first + out.back().second == pieces[i].first)
+                out.back().second += pieces[i].second;
+            else
+                out.push_back(pieces[i]);
+        }
+    }
+    bool vif1WalkCalledChain(const uint8_t *rdram, uint32_t chain, std::vector<PS2Memory::Vif1Piece> &out)
+    {
+        uint32_t tagAddr = chain & 0x7FFFFFFFu;
+        uint32_t stack[2] = {}, depth = 0;
+        for (uint32_t tags = 0; tags < 65536u; ++tags)
+        {
+            if (tagAddr > PS2_RAM_SIZE - 16u)
+                return false;
+            uint64_t tag;
+            std::memcpy(&tag, rdram + tagAddr, sizeof(tag));
+            const uint32_t qwc = static_cast<uint32_t>(tag & 0xFFFFu);
+            const uint32_t id = static_cast<uint32_t>((tag >> 28) & 0x7u);
+            const uint32_t addr = static_cast<uint32_t>((tag >> 32) & 0x7FFFFFFFu);
+            if (((tag >> 31) & 1u) != 0u)
+                return false;
+            uint32_t dataAddr = tagAddr + 16u, next = 0;
+            bool done = false;
+            switch (id)
+            {
+            case 1: next = dataAddr + qwc * 16u; break;
+            case 2: next = addr; break;
+            case 3:
+            case 4:
+                dataAddr = addr;
+                next = tagAddr + 16u;
+                break;
+            case 5:
+                if (depth == 2u)
+                    return false;
+                stack[depth++] = dataAddr + qwc * 16u;
+                next = addr;
+                break;
+            case 6:
+                if (depth == 0u)
+                    done = true;
+                else
+                    next = stack[--depth];
+                break;
+            default:
+                return false; // REFE / END: the chain would end the DMA
+            }
+            if (qwc != 0u)
+            {
+                if (dataAddr >= PS2_RAM_SIZE || qwc * 16u > PS2_RAM_SIZE - dataAddr)
+                    return false;
+                const PS2Memory::Vif1Piece piece(rdram + dataAddr, qwc * 16u);
+                vif1MergedRanges(&piece, 1u, out);
+            }
+            if (done)
+                return true;
+            tagAddr = next;
+        }
+        return false;
+    }
+    void vif1CheckAdmitted(const Vif1RecordHooks &hooks, const uint8_t *rdram, uint32_t chain,
+                           const Vif1Admitted &admitted)
+    {
+        static std::vector<PS2Memory::Vif1Piece> walked, appended;
+        walked.clear();
+        appended.clear();
+        const PS2Memory::Vif1Piece *pieces = admitted.pieces;
+        size_t count = admitted.count;
+        if (admitted.entry)
+            pieces = hooks.expand ? hooks.expand(hooks.owner, admitted.entry->token, count) : nullptr;
+        if (pieces)
+            vif1MergedRanges(pieces, count, appended);
+        const bool walkedOk = vif1WalkCalledChain(rdram, chain, walked);
+        ++g_renderCounters.spliceChecked;
+        if (walkedOk && walked == appended)
+            return;
+        if (++g_renderCounters.spliceDiff <= 8u)
+            RUNTIME_LOG("[VIF:selfcheck] CALL 0x" << std::hex << chain << std::dec << ": "
+                        << (admitted.entry ? "token" : "splice") << " of " << appended.size()
+                        << " ranges, the walk " << (walkedOk ? "" : "(refused) ") << walked.size() << '\n');
+    }
+#endif
 #endif
 #endif
 }
@@ -1536,6 +1681,39 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         else
                             s_vif1Segments.emplace_back(data, bytes);
                     };
+#if TS_NATIVE_RECORDS
+                    // A token piece: a piece of its own (emplace_back, never
+                    // joined to a neighbour; its 16 bytes in the chain's total).
+                    auto addTokenPiece = [&](Vif1TokenEntry *entry)
+                    {
+#if TS_WALK_SKIP_ZERO_TTE
+                        skippedTte = nullptr;
+#if TS_VIF_SELFCHECK
+                        s_vif1FullSegments.emplace_back(entry->piece, 16u);
+#endif
+#endif
+                        segmentBytes += 16u;
+                        s_vif1Segments.emplace_back(entry->piece, 16u);
+                    };
+                    auto appendListToken = [&](const Vif1RecordHooks &hooks, uint32_t tagAddress, uint32_t addrField)
+                    {
+                        Vif1Token token;
+                        if (!hooks.admitListToken || !hooks.admitListToken(hooks.owner, tagAddress, addrField, token))
+                        {
+                            ++g_renderCounters.tokStale;
+                            return;
+                        }
+                        Vif1TokenEntry *entry = g_vif1Tokens.take();
+                        if (!entry)
+                        {
+                            ++g_renderCounters.tokBad; // its packets are not in the list: lost
+                            return;
+                        }
+                        entry->token = token;
+                        addTokenPiece(entry);
+                        ++g_renderCounters.tokList;
+                    };
+#endif
                     if (!recordSegments)
 #endif
                     chainBuf.reserve(s_lastChainBytes + 4096u);
@@ -1619,6 +1797,16 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     const bool isVifChannel =
                         channelBase == 0x10009000u || channelBase == 0x10008000u;
                     const bool transferTagData = isVifChannel && (chcr & 0x40u) != 0u;
+#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
+                    // D1: CALLs to registered chains and in-list token tags
+                    // (the records engine's hooks; the VIF1 list only, and
+                    // CALLs only with CHCR.TTE off, as the game kicks it:
+                    // a splice or token holds no tag halves).
+                    const Vif1RecordHooks &recordHooks = vif1RecordHooks();
+                    const bool admitCalls = recordSegments && !transferTagData && recordHooks.admitCall != nullptr;
+                    Vif1Admitted admitted;
+                    bool callAdmitted = false;
+#endif
 
                     int tagsProcessed = 0;
                     uint32_t lastTagUpper = (chcr >> 16) & 0xFFFFu;
@@ -1727,6 +1915,26 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                             dataAddr = tagAddr + 16;
                             {
                                 const uint32_t retAddr = dataAddr + static_cast<uint32_t>(tagQwc) * 16u;
+#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
+                                // A registered chain: not descended into. The net
+                                // effect of CALL then RET on the registers (the
+                                // return address left in ASR[ASP], ASP as it was),
+                                // the walk going on at the return address; its
+                                // splice or token goes in after this tag's payload.
+                                // (Not a CALL that stops the transfer: IRQ with TIE.)
+                                if (admitCalls && asp < 2u && !(irq && tieEnabled) &&
+                                    admitCalledChain(recordHooks, addr, admitted))
+                                {
+                                    if (asp == 0u)
+                                        asr0 = retAddr;
+                                    else
+                                        asr1 = retAddr;
+                                    callAdmitted = true;
+                                    TS_MEASURE(xboxMeasureChainCall(addr));
+                                    tagAddr = retAddr;
+                                    break;
+                                }
+#endif
                                 if (asp == 0u)
                                 {
                                     asr0 = retAddr;
@@ -1823,6 +2031,14 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #endif
                                 }
                             }
+#if TS_NATIVE_RECORDS
+                            // An in-list token tag (D1): REF, QWC 0, ADDR
+                            // 0x7FE00000 | slot. Transfers nothing as a tag; a
+                            // token piece when the run table vouches for it,
+                            // else counted stale (must stay 0).
+                            if (id == 3u && tagQwc == 0u && (addr & 0x7FF00000u) == 0x7FE00000u)
+                                appendListToken(recordHooks, currentTagAddr, addr);
+#endif
                             const uint32_t payloadBytes = static_cast<uint32_t>(tagQwc) * 16u;
                             if (hasPayload && dataAddr < PS2_RAM_SIZE && payloadBytes <= PS2_RAM_SIZE - dataAddr)
                             {
@@ -1843,6 +2059,23 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 
                         if (hasPayload)
                             appendData(dataAddr, tagQwc);
+#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
+                        // The admitted CALL's chain, after the CALL tag's payload.
+                        if (callAdmitted)
+                        {
+                            callAdmitted = false;
+                            TS_MEASURE(g_measure.pieceOriginNow = 1u); // a CALLed chain's
+                            if (admitted.entry)
+                                addTokenPiece(admitted.entry);
+                            else
+                                for (size_t i = 0; i < admitted.count; ++i)
+                                    addSegment(admitted.pieces[i].first, admitted.pieces[i].second);
+#if TS_VIF_SELFCHECK
+                            if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS)
+                                vif1CheckAdmitted(recordHooks, m_rdram, addr, admitted);
+#endif
+                        }
+#endif
                         if (irq && tieEnabled)
                             endChain = true;
                         if (endChain)
@@ -2315,6 +2548,31 @@ namespace
             gifBytes += bytes;
         };
 
+#if TS_NATIVE_RECORDS
+        // Every decode here is dry (D1): the piece decoder expands each
+        // chain token instead of running it and reads a list token as its
+        // NOPs; the window path is given the same stream, the chain tokens'
+        // pieces in their place.
+        g_vif1DryDecode = true;
+        static std::vector<PS2Memory::Vif1Piece> windowPieces;
+        windowPieces.clear();
+        for (size_t i = 0; i < oldCount; ++i)
+        {
+            const Vif1TokenEntry *entry = g_vif1Tokens.entryOf(oldPieces[i].first);
+            const Vif1RecordHooks &hooks = PS2Memory::vif1RecordHooks();
+            size_t n = 0;
+            const PS2Memory::Vif1Piece *expanded =
+                entry && entry->token.kind == Vif1TokenKind::Chain && hooks.expand
+                    ? hooks.expand(hooks.owner, entry->token, n)
+                    : nullptr;
+            if (expanded && n != 0u)
+                windowPieces.insert(windowPieces.end(), expanded, expanded + n);
+            else
+                windowPieces.push_back(oldPieces[i]);
+        }
+        oldPieces = windowPieces.data();
+        oldCount = windowPieces.size();
+#endif
         for (int run = 0; run < kRuns; ++run)
         {
             restore();
@@ -2339,6 +2597,9 @@ namespace
         }
 
         restore();
+#if TS_NATIVE_RECORDS
+        g_vif1DryDecode = false;
+#endif
 #if TS_VIF1_BATCH
         if (flushCount != 0u)
             now.load(m);
@@ -2691,6 +2952,12 @@ void PS2Memory::processPendingTransfers()
     }
 #if defined(PLATFORM_XBOX)
     s_vif1Segments.clear();
+#if TS_NATIVE_RECORDS
+    // The pieces are gone, and every token piece with them: the ring
+    // starts again (a token taken and never consumed is a drop).
+    if (g_vif1Tokens.pending() != 0u)
+        g_renderCounters.tokDrop += g_vif1Tokens.reset();
+#endif
 #if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
     s_vif1FullSegments.clear();
     s_vif1FullEnds.clear();

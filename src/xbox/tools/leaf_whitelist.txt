@@ -1,0 +1,11 @@
+# The leaves B-CODEGEN's patcher (-leaf-calls, src/xbox/mk/b_codegen.mk
+# TS_LEAF_CALLS=1) calls inline at translated call sites (B-LOGIC;
+# src/xbox/PUSH-BC-PLAN.md section 3.6 item 4): one per line,
+#   <hex address> <core>
+# the core in project/game/native/ts_leaf.h (namespace ts_leaf). Each core is
+# exact (every register and byte as the original leaves them), so the
+# audited sets in ts_abi_observed.h do not limit it. A core enters this list
+# only after its boot test passed (TS_LEAF_BOOTTEST=1, [TS:leaf] ... exact).
+0x2DC5A0 fabsfCore      # fabsf
+0x284E38 anglediffCore  # anglediff
+0x2E4648 muldi3Core     # __muldi3

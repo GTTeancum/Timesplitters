@@ -1,7 +1,10 @@
 // GS renderer for the original Xbox (NV2A via pbkit). See gs_nv2a_backend.h.
 #include "gs_nv2a_backend.h"
 #include "gs_nv2a_clip.h"
+#include "gs_nv2a_screen_math.h" // the screen-vertex arithmetic (shared with the host test)
+#include "xbox_perf.h"           // TS_NATIVE_EMIT_TIER0 (the Tier 0 switch the bulk path follows)
 #include "xbox_texture_pack.h"
+#include "runtime/ps2_host_settings.h" // widescreen: the bulk path declines (gs_nv2a_screen.inl)
 #include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: beginXfRun, keyFor, texture() and the DrawKey compares timed
 #include "runtime/gs/gs_texture_hash.h"
 
@@ -78,6 +81,31 @@
 // rebuilt and compared, and every row compared with the GPU's copy.
 #ifndef TS_XF_DIRTY_ROWS
 #define TS_XF_DIRTY_ROWS 1
+#endif
+// TS_NATIVE_EMIT_BULK 1 (default: TS_NATIVE_EMIT_TIER0's value; src/xbox/
+// PUSH-BC-PLAN.md section 3.2, C-EMIT): the Tier 0 bulk path, SubmitPrimitives
+// in gs_nv2a_screen.inl, takes a run of decoded primitives of one PRIM in
+// one call (one texture lookup, one key, one reserve); the backend declares
+// it in DrawPaths. 0: the old path (the front end kicks primitives one by
+// one; DrawPaths has no bulk bit, so a build with TS_NATIVE_EMIT_TIER0 on
+// and this off refuses to start).
+#ifndef TS_NATIVE_EMIT_BULK
+#define TS_NATIVE_EMIT_BULK TS_NATIVE_EMIT_TIER0
+#endif
+// TS_NV2A_SCREEN_SEGMENTS 1 (C-EMIT, section 5.10): the screen vertex ring
+// is two fenced segments, like the transform ring; a full segment is
+// handed to the GPU behind a fence and the ring waits only for the other
+// segment's fence. 0: a full ring drains the whole GPU (waitIdle).
+#ifndef TS_NV2A_SCREEN_SEGMENTS
+#define TS_NV2A_SCREEN_SEGMENTS 1
+#endif
+// TS_NV2A_SPRITE_QUADS 1 (C-EMIT, section 5.10 "optional QUADS after T9"):
+// the bulk path sends sprites as one quad of four vertices (topology 2)
+// instead of two triangles of three. Only when the console probe's T9 has
+// shown a quad covers exactly the pixels of its triangle pair. 0 (default):
+// triangle pairs, as the per-primitive path.
+#ifndef TS_NV2A_SPRITE_QUADS
+#define TS_NV2A_SPRITE_QUADS 0
 #endif
 // TS_NV2A_SELFCHECK 1 (default: TS_NATIVE_DRAW_SELFCHECK's value): every
 // texture lookup also walks the list and every full CLUT load also takes
@@ -236,6 +264,13 @@ namespace
         float s, t, r, q;
     };
     static_assert(sizeof(GpuVertex) == 36, "vertex layout");
+    // The screen half writes these through gs_nv2a_screen::Vertex (the same
+    // layout; gs_nv2a_screen_math.h).
+    static_assert(sizeof(GpuVertex) == sizeof(gs_nv2a_screen::Vertex) &&
+                      offsetof(GpuVertex, color) == offsetof(gs_nv2a_screen::Vertex, color) &&
+                      offsetof(GpuVertex, s) == offsetof(gs_nv2a_screen::Vertex, s) &&
+                      offsetof(GpuVertex, q) == offsetof(gs_nv2a_screen::Vertex, q),
+                  "GpuVertex and gs_nv2a_screen::Vertex layouts");
 
     // ----------------------------------------------------------- shaders
     const uint32_t kVertexProgram[] = {
@@ -253,6 +288,14 @@ namespace
     const uint32_t kXfSkin[] = {
 #include "gs_xf_skin.inl"
     };
+#if TS_NATIVE_INPLACE
+    // M8's skin program for in-place strips (vertex mode 8): the bone index
+    // read as the game keeps it (shaders/gs_xf.vs.cg, XF_SKIN_INPLACE; built
+    // by src/xbox/mk/c_xf.mk with TS_NATIVE_INPLACE=1).
+    const uint32_t kXfSkinInPlace[] = {
+#include "gs_xf_skininplace.inl"
+    };
+#endif
     struct VertexProgram
     {
         const uint32_t *words;
@@ -260,10 +303,17 @@ namespace
     };
     // Vertex mode 0: pass-through (screen-space vertices); 1 + variant: the
     // native pipeline's transform programs (GSXfConstants::Variant).
-    const VertexProgram kVertexPrograms[5] = {
+    // (The in-place modes 5-8 run these too: gs_nv2a_xf.inl's programStart;
+    // a sixth, with TS_NATIVE_INPLACE, is mode 8's.)
+    const VertexProgram kVertexPrograms[] = {
         {kVertexProgram, sizeof(kVertexProgram) / 4}, {kXfPlain, sizeof(kXfPlain) / 4},
         {kXfLit, sizeof(kXfLit) / 4},                 {kXfEnv, sizeof(kXfEnv) / 4},
-        {kXfSkin, sizeof(kXfSkin) / 4}};
+        {kXfSkin, sizeof(kXfSkin) / 4},
+#if TS_NATIVE_INPLACE
+        {kXfSkinInPlace, sizeof(kXfSkinInPlace) / 4},
+#endif
+    };
+    constexpr uint32_t kVertexProgramCount = uint32_t(sizeof(kVertexPrograms) / sizeof(kVertexPrograms[0]));
     constexpr uint32_t kXfConstantRegs = 35;   // k[0..33] and the compiler's literals at c[34]
     constexpr uint32_t kConstantBase = 96;     // vp20's c[0] in the NV2A's constant file
     constexpr uint32_t kMaxXfVertices = 8192u; // 352 KB
@@ -405,21 +455,10 @@ namespace
         default: return 1.0f / 256.0f;
         }
     }
-    float depth24(double z, uint32_t zpsm)
-    {
-        switch (zpsm)
-        {
-        case GS_PSM_Z16:
-        case GS_PSM_Z16S: return float(std::min(z, 65535.0) * 256.0);
-        case GS_PSM_Z24: return float(std::min(z, 16777215.0));
-        default: return float(std::min(z / 256.0, 16777215.0));
-        }
-    }
-
-    uint32_t d3dColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
-    {
-        return uint32_t(b) | (uint32_t(g) << 8) | (uint32_t(r) << 16) | (uint32_t(a) << 24);
-    }
+    // The screen-vertex arithmetic lives in gs_nv2a_screen_math.h (one copy
+    // for the per-primitive path, the bulk path and the host test).
+    using gs_nv2a_screen::d3dColor;
+    using gs_nv2a_screen::depth24;
 
     // NV2A swizzled texture layout: texel coordinates interleaved bit by bit
     // (u first) while both sizes last, then the longer one's upper bits.
@@ -477,7 +516,7 @@ std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &s)
                << " miss new/conf/ver/other=" << s.clutNew << "/" << s.clutConflicts << "/" << s.clutVersions << "/"
                << s.clutOther << " old hit/new/conf/ver=" << s.oldHits << "/" << s.oldNew << "/" << s.oldConflicts
                << "/" << s.oldVersions << " fill=" << s.clutFills << " cdiff=" << s.clutDiffs << " krows=" << s.constRows
-               << " kup=" << s.constUploads;
+               << " kup=" << s.constUploads << " keyhit=" << s.keyHits << " keydiff=" << s.keyChecks << "/" << s.keyDiffs;
 }
 
 // Guest RAM, for the local player count (TS_NV2A_MP_TEXTURE_BUDGET).
@@ -709,6 +748,7 @@ struct GSNv2aBackend::Impl
         stateValid = false;
         currentProgram = -1;
         verticesUsed = 0;
+        resetScreenSegments();
         // The GPU is idle at a frame's start (settleFrame): every fence passed.
         xfUsed = 0;
         xfSegment = 0;
@@ -839,7 +879,18 @@ struct GSNv2aBackend::Impl
         uint32_t *p = openCursor();
         if (!stateMatches())
             p = applyState(p, batchKey);
-        if (batchKey.topology == 1u)
+        if (batchKey.topology == 2u)
+        {
+            // Quads (the Tier 0 bulk path's sprites, TS_NV2A_SPRITE_QUADS):
+            // 256 vertices a draw, whole quads each.
+            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_QUADS);
+            for (uint32_t first = 0; first < batchCount; first += 256)
+            {
+                const uint32_t n = std::min<uint32_t>(batchCount - first, 256u);
+                p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
+            }
+        }
+        else if (batchKey.topology == 1u)
         {
             // One strip; a draw takes at most 256 vertices, so consecutive
             // draws overlap by two (a fresh strip continues the triangles;
@@ -1058,8 +1109,30 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     return backend;
 }
 
-GSNv2aBackend::GSNv2aBackend() : m(std::make_unique<Impl>()) {}
-GSNv2aBackend::~GSNv2aBackend() = default;
+// The renderer the in-place writer hooks reach (one NV2A backend at a time).
+namespace
+{
+    GSNv2aBackend::Impl *s_inPlaceImpl = nullptr;
+}
+
+GSNv2aBackend::GSNv2aBackend() : m(std::make_unique<Impl>()) { s_inPlaceImpl = m.get(); }
+GSNv2aBackend::~GSNv2aBackend()
+{
+    if (s_inPlaceImpl == m.get())
+        s_inPlaceImpl = nullptr;
+}
+
+void nv2aInPlaceBeforeWrite()
+{
+    if (s_inPlaceImpl)
+        s_inPlaceImpl->inPlaceBarrier();
+}
+
+void nv2aInPlaceAfterWrite(bool flushCache)
+{
+    if (s_inPlaceImpl)
+        s_inPlaceImpl->inPlaceAfterWrite(flushCache);
+}
 
 void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
 {

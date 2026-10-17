@@ -1,5 +1,6 @@
 #include "iop_emulator.h"
 #include "ps2x/exceptions.h"
+#include "ps2x/iop_idle_stats.h" // the idle fast path's switches and counters (TS_IOP_IDLE)
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -146,6 +147,8 @@ namespace ps2x::iop::detail
             servicingDmaInterrupts = false;
             servicingGuestCallbacks = false;
             callDepth = 0u;
+            noteInput();
+            idleUntil = 0u;
             secrMcCommandHandler = {};
             secrMcDevIdHandler = {};
             checkKelfPathCallback = {};
@@ -566,14 +569,53 @@ namespace ps2x::iop::detail
 
         void runCycles(uint64_t cycles) noexcept
         {
+#if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
+            // The idle fast path (ps2x/iop_idle_stats.h): the last batch
+            // ended with every thread waiting, nothing reached the IOP since,
+            // and this batch ends before the earliest timed event.
+            ++g_iopIdleStats.batches;
+            bool spuTaken = false;
+            const uint64_t fastTarget = totalCycles + cycles;
+            const bool idle = idleEpoch == inputEpoch && totalCycles < idleUntil && fastTarget <= idleUntil;
+            idleUntil = 0u; // recomputed below when this batch ends idle too
+#if TS_IOP_IDLE_CHECK
+            const uint64_t instructionsBefore = totalInstructions;
+            const size_t dmaBefore = pendingDmaInterrupts.size(), callbacksBefore = pendingGuestCallbacks.size();
+            spuFired = false;
+#else
+            if (idle)
+            {
+                if (servicingSpuInterrupt || !host.spu2TakeIrq())
+                {
+                    totalCycles = fastTarget; // what the full loop would find: nothing to run before then
+                    ++g_iopIdleStats.skipped;
+                    idleUntil = idleWake;
+                    idleEpoch = inputEpoch;
+                    return;
+                }
+                spuTaken = true; // taken: the full loop dispatches it first
+            }
+#endif
+#endif
             PS2X_TRY
             {
                 const uint64_t target = totalCycles + cycles;
+                bool endedIdle = false;
+                uint64_t eventWake = UINT64_MAX;
                 while (totalCycles < target)
                 {
                     // SPU2 interrupt (IRQA reached): INTC line 9.
+#if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
+                    const bool spuIrq = spuTaken || (!servicingSpuInterrupt && host.spu2TakeIrq());
+                    spuTaken = false;
+                    if (spuIrq)
+#else
                     if (!servicingSpuInterrupt && host.spu2TakeIrq())
+#endif
                     {
+#if TS_IOP_IDLE_CHECK
+                        spuFired = true;
+#endif
                         servicingSpuInterrupt = true;
                         (void)intrman.dispatchInterrupt(9, *this);
                         servicingSpuInterrupt = false;
@@ -585,6 +627,18 @@ namespace ps2x::iop::detail
                     IopThread *next = kernel.beginNextReady(totalCycles, &delayedWake);
                     if (!next)
                     {
+#if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
+                        // The earliest timed event, not cut at the target
+                        // (the same minimum the line below takes).
+                        eventWake = delayedWake;
+                        for (const auto &[irq, completionCycle] : pendingDmaInterrupts)
+                            eventWake = std::min(eventWake, completionCycle);
+                        if (!pendingGuestCallbacks.empty())
+                            eventWake = std::min(eventWake, pendingGuestCallbacks.begin()->first);
+                        eventWake = timrman.nextEventCycle(eventWake);
+                        endedIdle = true;
+                        totalCycles = std::max(totalCycles + 1u, std::min(target, eventWake));
+#else
                         uint64_t nextWake = std::min(target, delayedWake);
                         for (const auto &[irq, completionCycle] : pendingDmaInterrupts)
                             nextWake = std::min(nextWake, completionCycle);
@@ -592,19 +646,53 @@ namespace ps2x::iop::detail
                             nextWake = std::min(nextWake, pendingGuestCallbacks.begin()->first);
                         nextWake = timrman.nextEventCycle(nextWake);
                         totalCycles = std::max(totalCycles + 1u, std::min(target, nextWake));
+#endif
                         continue;
                     }
+                    endedIdle = false;
                     const uint64_t before = totalCycles;
                     runCpu(next->cpu, static_cast<uint32_t>(std::min<uint64_t>(kDefaultSlice, target - totalCycles)));
                     kernel.endTimeslice(*next, kThreadReturnSentinel);
                     if (totalCycles == before)
                         ++totalCycles;
                 }
+#if TS_IOP_IDLE || TS_IOP_IDLE_CHECK
+                if (endedIdle && totalCycles == target && eventWake > totalCycles)
+                {
+                    // Idle to the end: the next batches may skip up to the
+                    // earliest event (2^17 cycles at most).
+                    constexpr uint64_t kIdleCap = 1ull << 17;
+                    idleWake = std::min(eventWake, totalCycles + kIdleCap);
+                    idleUntil = idleWake;
+                    idleEpoch = inputEpoch;
+                }
+#if TS_IOP_IDLE_CHECK
+                if (idle)
+                {
+                    // The fast path would have moved the clock to fastTarget
+                    // and done nothing else (an SPU2 interrupt it would have
+                    // taken too).
+                    ++g_iopIdleStats.checked;
+                    if (!spuFired && (totalInstructions != instructionsBefore || totalCycles != fastTarget ||
+                                      pendingDmaInterrupts.size() != dmaBefore ||
+                                      pendingGuestCallbacks.size() != callbacksBefore))
+                        ++g_iopIdleStats.miss;
+                }
+#endif
+#endif
             }
             PS2X_CATCH_ALL
             {
                 // Runtime scheduling must never throw through EeScheduler::accountCycles().
             }
+        }
+
+        // Something reached the IOP from outside (an RPC, a SIF transfer, a
+        // memory write, a module load, a reset): the idle fast path's
+        // decision is stale.
+        void noteInput() noexcept
+        {
+            ++inputEpoch;
         }
 
         ModuleLoadResult loadImage(std::string path, std::span<const uint8_t> image, const void *arguments, uint32_t argumentSize)
@@ -727,6 +815,11 @@ namespace ps2x::iop::detail
         bool servicingDmaInterrupts = false;
         bool servicingGuestCallbacks = false;
         uint32_t callDepth = 0u;
+        // The idle fast path (TS_IOP_IDLE): the input epoch, the epoch and
+        // clock bound recorded when a batch ended idle, the bound to renew.
+        uint32_t inputEpoch = 0u, idleEpoch = UINT32_MAX;
+        uint64_t idleUntil = 0u, idleWake = 0u;
+        bool spuFired = false; // TS_IOP_IDLE_CHECK
         GuestCallback secrMcCommandHandler;
         GuestCallback secrMcDevIdHandler;
         GuestCallback checkKelfPathCallback;
@@ -746,16 +839,19 @@ namespace ps2x::iop::detail
 
     ModuleLoadResult IopEmulator::loadModule(std::string_view path, const void *arguments, uint32_t argumentSize)
     {
+        m_impl->noteInput();
         return m_impl->loadModule(path, arguments, argumentSize);
     }
 
     ModuleLoadResult IopEmulator::loadModuleBuffer(uint32_t guestAddress, const void *arguments, uint32_t argumentSize)
     {
+        m_impl->noteInput();
         return m_impl->loadModuleBuffer(guestAddress, arguments, argumentSize);
     }
 
     bool IopEmulator::stopModule(int32_t moduleId, int32_t *result)
     {
+        m_impl->noteInput();
         return m_impl->stopModule(moduleId, result);
     }
 
@@ -770,6 +866,7 @@ namespace ps2x::iop::detail
 
     RpcResult IopEmulator::handleRpc(const RpcRequest &request)
     {
+        m_impl->noteInput();
         return m_impl->rpc.handleRpc(request, *m_impl);
     }
 
@@ -780,16 +877,19 @@ namespace ps2x::iop::detail
 
     void IopEmulator::onSifTransfer(const SifTransfer &transfer)
     {
+        m_impl->noteInput();
         m_impl->rpc.onSifTransfer(transfer);
     }
 
     uint32_t IopEmulator::allocateMemory(uint32_t size, uint32_t alignment)
     {
+        m_impl->noteInput();
         return m_impl->memory.allocate(size, alignment);
     }
 
     bool IopEmulator::freeMemory(uint32_t address)
     {
+        m_impl->noteInput();
         return m_impl->memory.freeAllocation(address);
     }
 
@@ -801,12 +901,14 @@ namespace ps2x::iop::detail
 
     bool IopEmulator::writeMemory(uint32_t address, const void *source, size_t size)
     {
+        m_impl->noteInput();
         return isMemoryRange(address, size) &&
                m_impl->memory.writeRam(address, source, size);
     }
 
     bool IopEmulator::zeroMemory(uint32_t address, size_t size)
     {
+        m_impl->noteInput();
         return isMemoryRange(address, size) &&
                m_impl->memory.zeroRam(address, size);
     }

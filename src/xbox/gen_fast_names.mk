@@ -29,3 +29,17 @@ NATIVE_TWINS := animMtxTick_0x273bb0 animUpdate_0x212cf8 bgBulletGetClosest_0x25
     extractAnimData_0x215280 hittestLinePoly_0x209b08 hittestLineTri_0x209818 matrixScaleSet_0x2b4f20 \
     moveFindFloorHeight_0x27c578 moveTest_0x27d0c0 obInstLightUpdate_0x25c160 obinstCalcAmbientLight_0x25aae0 \
     partGfx_0x260ae0 particleTick_0x29bc58 quaternionToMatrix_0x2b3f90 rotateChr_0x2bc5d0 spawnfxTick_0x2abea0
+
+# make TS_O2_RANKED=1 (B-CODEGEN, M3.6): the list src/xbox/tools/rank_o2.py
+# writes from a console profile (src/xbox/gen_fast_names_ranked.mk) in place
+# of the hand list above; NATIVE_TWINS stays as it is (rank_o2.py leaves the
+# twins out already). Off until a post-Push-A console profile has been
+# ranked: the hand list is the measured one.
+TS_O2_RANKED ?= 0
+ifeq ($(TS_O2_RANKED),1)
+ifeq ($(wildcard $(XBOX)/gen_fast_names_ranked.mk),)
+$(error TS_O2_RANKED=1 needs src/xbox/gen_fast_names_ranked.mk: run src/xbox/tools/rank_o2.py on a console profile)
+endif
+include $(XBOX)/gen_fast_names_ranked.mk
+GEN_FAST_NAMES := $(GEN_FAST_NAMES_RANKED)
+endif

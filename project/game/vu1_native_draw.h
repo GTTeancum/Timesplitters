@@ -31,6 +31,8 @@
 //                                    GIF arbiter's order)
 //   applyStateBlock(gs, block), checkStateBlock(gs, bytes, size)
 //   submitStrip(gs, prim, v, n)
+//   primNoDraw(gs, prim)             a strip that draws nothing (the texture
+//                                    kick; its run had no vertex): statistics
 //   beginXfRun(gs, prim, xc, cursor), growXfCursor(gs, cursor, n),
 //   emitXfStrip(gs, v, n), endXfRun(gs, cursor)
 //
@@ -79,10 +81,27 @@
 #ifndef TS_NATIVE_RUN_LEAN
 #define TS_NATIVE_RUN_LEAN 1
 #endif
+// TS_NATIVE_TEXKICK_SHORTCUT 1 (src/xbox/PUSH-BC-PLAN.md section 3.2 item
+// 7, C-XF): a texture kick (dlSelectTextureKick: the 8-qword texture
+// packet as the batch's state block and the static 6-qword template at
+// 0x3805B0, which draws one strip of three vertices all at the origin) is
+// recognised by its header and its three zero position rows; the state
+// block is applied as before and the renderer's run is opened and closed
+// with no vertex in it: the strip, which covers no pixel (zero area on the
+// GS, zero area on the NV2A), is neither decoded nor drawn. Everything
+// else the run does stays (PRIM written, the frame and batch handling, the
+// constants), and when the renderer declines the run (an off-screen
+// target) the strip takes the CPU path exactly as before, which also
+// leaves the GS's current ST and RGBAQ as the packet sets them. Exact by
+// construction. 0: the strip goes through the renderer as any other.
+#ifndef TS_NATIVE_TEXKICK_SHORTCUT
+#define TS_NATIVE_TEXKICK_SHORTCUT 1
+#endif
 #else
 #undef TS_NATIVE_RING_SELFCHECK
 #define TS_NATIVE_RING_SELFCHECK 0
 #define TS_NATIVE_RUN_LEAN 0
+#define TS_NATIVE_TEXKICK_SHORTCUT 0
 #ifndef TS_RENDER_COUNT
 #define TS_RENDER_COUNT(expr) ((void)0)
 #endif
@@ -293,6 +312,9 @@ namespace ts_native_draw
         static GS::StateBlockResult applyStateBlock(GS &gs, const GS::StateBlock &block) { return gs.applyStateBlock(block); }
         static bool checkStateBlock(GS &gs, const uint8_t *block, uint32_t bytes) { return gs.checkStateBlock(block, bytes); }
         static void submitStrip(GS &gs, uint32_t prim, const GSVertex *vertices, uint32_t n) { gs.submitStrip(prim, vertices, n); }
+        // A strip the run recognised as drawing nothing (the texture kick),
+        // for the GS front end's statistics.
+        static void primNoDraw(GS &gs, uint32_t prim) { gs.notePrimNoDraw(prim); }
         static bool beginXfRun(GS &gs, uint32_t prim, const GSXfConstants &xc, GSXfCursor &cursor)
         {
             return gs.beginXfRun(prim, xc, cursor);
@@ -300,6 +322,12 @@ namespace ts_native_draw
         static void growXfCursor(GS &gs, GSXfCursor &cursor, uint32_t count) { gs.growXfCursor(cursor, count); }
         static void emitXfStrip(GS &gs, const GSXfVertex *vertices, uint32_t n) { gs.emitXfStrip(vertices, n); }
         static void endXfRun(GS &gs, GSXfCursor &cursor) { gs.endXfRun(cursor); }
+        // Inside an open run: strips the renderer fetches in place (M8,
+        // runtime/gs/gs_xf_inplace.h); cursor.inPlaceTaken says how many.
+        static void xfInPlace(GS &gs, GSXfCursor &cursor, const GSXfInPlaceStrip *strips, uint32_t n)
+        {
+            gs.xfInPlace(cursor, strips, n);
+        }
     };
 
     // A draw entry's batch at `top`: strip headers (GIF tags; NLOOP = vertex
@@ -573,6 +601,48 @@ namespace ts_native_draw
         }
         if (stripCount == 0u)
             return false; // nothing at all: not even the state block
+#if TS_NATIVE_TEXKICK_SHORTCUT
+        // The texture kick (TS_NATIVE_TEXKICK_SHORTCUT above): dlSelectTextureKick's
+        // template is one strip of three vertices, PACKED ST/RGBAQ/XYZF2
+        // with PRE and PRIM 0x4C (a gouraud strip, texture off), EOP, on the
+        // Plain entry, with its three position rows unpacked as zeros (the
+        // colours are 0xFFFF V4-16 at the Plain layout's RGBA array; the ST
+        // rows are whatever VU1 memory holds). Three vertices at one point
+        // make a zero-area triangle, which neither the GS nor the NV2A
+        // rasterises: on the renderer's path the run is opened and closed
+        // empty. A run the renderer declines falls through to the path
+        // below (which declines it again and takes the CPU path).
+        if (gpuTransform && stripCount == 1u && strips[0].n == 3u && !L.lit && !L.envMap && !L.skinned &&
+            strips[0].tag[0] == 0x00008003u && strips[0].tag[1] == 0x30264000u && strips[0].tag[2] == 0x00000412u)
+        {
+            uint32_t pos[3][4];
+            bool zero = true;
+            for (uint32_t v = 0; v < 3u && zero; ++v)
+            {
+                src.row(strips[0].vi + L.pos + v, pos[v]);
+                zero = (pos[v][0] | pos[v][1] | pos[v][2]) == 0u;
+            }
+            const uint32_t prim = (strips[0].tag[1] >> 15) & 0x7FFu;
+            GSXfCursor kick;
+            if (zero)
+            {
+                sendState();
+                packet.submit(); // the state block as a packet, when it had to be one
+                sink.drainOthers(memory);
+            }
+            if (zero && sink.beginXfRun(gs, prim, *xc, kick))
+            {
+                TS_RENDER_COUNT(++g_renderCounters.draws);
+                TS_RENDER_COUNT(++g_renderCounters.drawStrips);
+                TS_RENDER_COUNT(g_renderCounters.drawVertices += 3u);
+                TS_RENDER_COUNT(++g_renderCounters.gpuRuns);
+                TS_NATIVE_STAT(++g_nv2aTextureStats.texKicks);
+                sink.endXfRun(gs, kick); // no vertex
+                sink.primNoDraw(gs, prim);
+                return true;
+            }
+        }
+#endif
         sendState();
         // (The strips' arrays lie back to back from top + vertexBase.)
         TS_RENDER_COUNT(++g_renderCounters.draws);
@@ -622,6 +692,24 @@ namespace ts_native_draw
         GSXfCursor cursor;
         auto gpuStrip = [&](const Strip &strip) {
             const uint32_t n = strip.n, vi = strip.vi;
+            // M8: a source that knows where the strip's arrays lie in guest
+            // RAM (R2's GuestSource) may hand it to the renderer to fetch in
+            // place (a gouraud run only; the source says whether the strip
+            // is eligible); what the renderer does not take goes into the
+            // ring as below.
+            if constexpr (requires(GSXfInPlaceStrip &ip) {
+                              src.inPlaceStrip(kind, vi, n, ip);
+                              sink.xfInPlace(gs, cursor, &ip, 1u);
+                          })
+            {
+                GSXfInPlaceStrip ip;
+                if (cursor.direct && src.inPlaceStrip(kind, vi, n, ip))
+                {
+                    sink.xfInPlace(gs, cursor, &ip, 1u);
+                    if (cursor.inPlaceTaken != 0u)
+                        return;
+                }
+            }
             if (cursor.direct)
             {
                 // Room for the strip and its join, else the next segment.
@@ -710,9 +798,11 @@ namespace ts_native_draw
 
 // The VU1 data rows (16 bytes each, 1024 in all) the program at pc reads
 // when started with TOP = top: the rows the debt map (D2) must settle before
-// the program runs. An entry this program does not recognise, or an
-// interpreted program, reads everything: first 0, count 1024.
-// Week 0: every program reads everything (C-XF narrows it with R2).
+// the program runs. The window wraps at 1024 like VU1 addresses (first +
+// count may pass 1024: a draw entry's runs from TOP round to the constant
+// rows). An entry this program does not recognise, or an interpreted
+// program, reads everything: first 0, count 1024. (C-XF: the kick and the
+// draw entries narrowed; the constant entries read everything.)
 void vu1NativeReadWindow(uint32_t pc, uint32_t top, uint32_t *first, uint32_t *count);
 
 // The microprogram's constant entries (0x3af8 .. 0x3f00: the batch's rows

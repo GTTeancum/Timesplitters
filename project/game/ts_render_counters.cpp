@@ -32,10 +32,25 @@
 //          destination (format vn<<2|vl in hex: c V4-32, 8 V3-32, 4 V2-32,
 //          e V4-8, d V4-16, 5 V2-16, ...; destination 0 rows 0-23 of the
 //          batch, 1 rows 24-215, 2 rows 216 up, 3 absolute), msk masked ones
+// Once the records engine has registered a chain or the spine made a splice
+// or token (src/xbox/PUSH-BC-PLAN.md D1, 3.1), a [TS:rec] line:
+//   lvl    the knob `records` (0 walk, 1 splice, 2 token->T0, 3 token->R1)
+//   reg    chains registered (dlPopDmaTag), full: refused (registry full)
+//   bld    descriptors built; unspl: chains the walker must take itself,
+//          unrec: R1 cannot replay (spliced); arena: admissions refused for
+//          want of arena room; aud/stale: audits / found stale (rebuilt)
+//   spl    CALLs spliced; tok: replaced by a chain token, list: in-list
+//          tokens; ringfull: chain tokens spliced instead
+//   run    tokens run by their executor, exp: expanded, nops: read as NOPs;
+//          r1/t0: chain tokens by replay / by expansion
+//   then, from boot (each must stay 0): tokmid (a data read crossing into a
+//   token: bad/all), tokstale, drop, bad; TS_VIF_SELFCHECK splicediff=,
+//   TS_NATIVE_RECORD_SELFCHECK recdiff= (differing/checked)
 #if defined(PLATFORM_XBOX)
 #include "game_overrides.h"
 #include "ps2_runtime.h"
 #include "ts_game_hooks.h"
+#include "ts_knobs.h" // the records level for [TS:rec]
 #include "../../src/xbox/gs_nv2a_backend.h" // game frames
 #include "../../src/xbox/xbox_log.h"
 
@@ -185,6 +200,26 @@ void renderCountersReport()
     line.add(" msk=%u", d.unpackMasked);
     line.write();
 #endif
+    // The spine's splices and tokens and the records engine, once there is
+    // anything to say (records 0: never).
+    if (total.recRegistered | total.splices | total.tokChain | total.tokList | total.tokStale | total.tokMid)
+    {
+        uint32_t level = 0;
+        tsKnobGet("records", level);
+        line.add("[TS:rec] lvl=%u reg=%u full=%u bld=%u unspl=%u unrec=%u arena=%u aud=%u stale=%u spl=%u tok=%u "
+                 "list=%u ringfull=%u run=%u exp=%u nops=%u r1=%u t0=%u",
+                 level, d.recRegistered, d.recRegFull, d.recBuilds, d.recUnspliceable, d.recUnrecordable,
+                 d.recArenaFull, d.recAudits, d.recStale, d.splices, d.tokChain, d.tokList, d.tokRingFull, d.tokRun,
+                 d.tokExpand, d.tokNops, d.recR1, d.recT0);
+        // The check counters, from boot (each must stay 0).
+        line.add(" | tokmid=%u/%u tokstale=%u drop=%u bad=%u", total.tokMidBad, total.tokMid, total.tokStale,
+                 total.tokDrop, total.tokBad);
+        if (total.spliceChecked)
+            line.add(" splicediff=%u/%u", total.spliceDiff, total.spliceChecked);
+        if (total.recChecked)
+            line.add(" recdiff=%u/%u", total.recDiff, total.recChecked);
+        line.write();
+    }
 #endif
 }
 

@@ -62,6 +62,14 @@ namespace
             std::string key = trim(line.substr(0, equals));
             const std::string value = trim(line.substr(equals + 1));
             std::transform(key.begin(), key.end(), key.begin(), [](unsigned char c) { return std::tolower(c); });
+#if defined(TS_DET) && TS_DET
+            // Deterministic mode (runtime/ps2_det.h; src/xbox/PUSH-BC-PLAN.md
+            // M0.8): every host setting at its default, so two runs compare
+            // whatever the settings file says. Knob lines still apply: they
+            // are how the switch under test is set.
+            if (key.rfind("knob.", 0) != 0)
+                continue;
+#endif
             if (key == "resolution")
             {
                 int w = 0, h = 0;

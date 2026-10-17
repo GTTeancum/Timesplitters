@@ -9,6 +9,21 @@
 //  - a timed-out wait sets ERROR_TIMEOUT. libc++ reads GetLastError() after
 //    a failed wait; the stale value left by an earlier call (a file not
 //    found, say) made it treat a timeout as an error and abort.
+//  - TS_UP_LOCKS (default 1; src/xbox/PUSH-BC-PLAN.md M3.3, B-PLATFORM): the
+//    SRW lock and condition-variable counters use cmpxchg / and / xadd
+//    without the lock prefix. The Xbox has one CPU and no other bus master
+//    touches these words, and an interrupt (so a thread switch) only comes
+//    between two instructions, so one read-modify-write instruction is
+//    atomic as it is; the prefix only costs its bus lock (about 20 cycles on
+//    the Pentium III). 0: the __sync/__atomic builtins, as nxdk has them.
+//  - TS_CV_SKIP_IDLE_WAKE (default 0): a wake with no waiter counted is not
+//    sent (no NtSetEvent kernel call). Every waiter is counted before it
+//    lets the lock go (above), so a waiter that would see the wake has
+//    already counted itself; one that has not re-checks its condition under
+//    the lock first. The one difference: a notifier that changes the
+//    condition without the lock (an atomic flag) and races a waiter between
+//    its check and its count costs that waiter one 10 ms wait instead of a
+//    stale wake left set. Off until Train 1's A/B.
 // SPDX-License-Identifier: MIT
 
 // SPDX-FileCopyrightText: 2019-2020 Stefan Schmidt
@@ -71,6 +86,45 @@ VOID LeaveCriticalSection (LPCRITICAL_SECTION lpCriticalSection)
     RtlLeaveCriticalSection(lpCriticalSection);
 }
 
+#ifndef TS_UP_LOCKS
+#define TS_UP_LOCKS 1
+#endif
+#ifndef TS_CV_SKIP_IDLE_WAKE
+#define TS_CV_SKIP_IDLE_WAKE 0
+#endif
+
+#if TS_UP_LOCKS && defined(__i386__)
+// Uniprocessor read-modify-writes (TS_UP_LOCKS, above): one instruction
+// each, no lock prefix; "memory" keeps the compiler from moving guarded
+// accesses across them (the CPU keeps its own order on one core).
+static inline bool up_cas (volatile uintptr_t *p, uintptr_t expected, uintptr_t desired)
+{
+    uintptr_t prev;
+    __asm__ __volatile__("cmpxchgl %2, %1" : "=a"(prev), "+m"(*p) : "r"(desired), "0"(expected) : "memory", "cc");
+    return prev == expected;
+}
+static inline void up_and (volatile uintptr_t *p, uintptr_t mask)
+{
+    __asm__ __volatile__("andl %1, %0" : "+m"(*p) : "ir"(mask) : "memory", "cc");
+}
+static inline uintptr_t up_xadd (volatile uintptr_t *p, uintptr_t delta)
+{
+    __asm__ __volatile__("xaddl %0, %1" : "+r"(delta), "+m"(*p) : : "memory", "cc");
+    return delta; // the value before
+}
+#define TS_CAS(p, e, d)    up_cas((volatile uintptr_t *)(p), (uintptr_t)(e), (uintptr_t)(d))
+#define TS_AND(p, m)       up_and((volatile uintptr_t *)(p), (uintptr_t)(m))
+#define TS_FETCH_ADD(p, v) up_xadd((volatile uintptr_t *)(p), (uintptr_t)(v))
+#define TS_FETCH_SUB(p, v) up_xadd((volatile uintptr_t *)(p), (uintptr_t)0 - (uintptr_t)(v))
+#define TS_COUNT_ADD(p, v) ((int)up_xadd((volatile uintptr_t *)(p), (uintptr_t)(intptr_t)(v)))
+#else
+#define TS_CAS(p, e, d)    __sync_bool_compare_and_swap((p), (e), (d))
+#define TS_AND(p, m)       ((void)__sync_fetch_and_and((p), (m)))
+#define TS_FETCH_ADD(p, v) __atomic_fetch_add((p), (v), __ATOMIC_ACQ_REL)
+#define TS_FETCH_SUB(p, v) __atomic_fetch_sub((p), (v), __ATOMIC_ACQ_REL)
+#define TS_COUNT_ADD(p, v) ((int)__atomic_fetch_add((p), (v), __ATOMIC_ACQ_REL))
+#endif
+
 #define SRW_GLOBAL_LOCK_MASK  ((uintptr_t)0x40000000)
 #define SRW_READER_LOCK_MASK  ((uintptr_t)0x80000000)
 #define SRW_READER_COUNT_MASK ~(SRW_GLOBAL_LOCK_MASK | SRW_READER_LOCK_MASK)
@@ -78,12 +132,12 @@ VOID LeaveCriticalSection (LPCRITICAL_SECTION lpCriticalSection)
 static bool TryAcquireLockMask (uintptr_t *lock, uintptr_t mask)
 {
     uintptr_t unlocked_val = *lock & ~mask;
-    return __sync_bool_compare_and_swap(lock, unlocked_val, unlocked_val | mask);
+    return TS_CAS(lock, unlocked_val, unlocked_val | mask);
 }
 
 static void ReleaseLockMask (uintptr_t *lock, uintptr_t mask)
 {
-    __sync_fetch_and_and(lock, ~mask);
+    TS_AND(lock, ~mask);
 }
 
 void AcquireSRWLockExclusive (PSRWLOCK SRWLock)
@@ -120,7 +174,7 @@ void AcquireSRWLockShared (PSRWLOCK SRWLock)
 #endif
 
     // Increase reader count by one
-    uintptr_t prev_val = __atomic_fetch_add(&SRWLock->Ptr, 1, __ATOMIC_ACQ_REL);
+    uintptr_t prev_val = TS_FETCH_ADD(&SRWLock->Ptr, 1);
     if ((prev_val & SRW_READER_COUNT_MASK) == 0) {
         // If we're the first reader, grab the global lock, too
         AcquireSRWLockExclusive(SRWLock);
@@ -149,7 +203,7 @@ void ReleaseSRWLockShared (PSRWLOCK SRWLock)
     }
 
     // Decrease reader count by one
-    uintptr_t prev_val = __atomic_fetch_sub(&SRWLock->Ptr, 1, __ATOMIC_ACQ_REL);
+    uintptr_t prev_val = TS_FETCH_SUB(&SRWLock->Ptr, 1);
     assert((prev_val & SRW_READER_COUNT_MASK) != 0);
     if ((prev_val & SRW_READER_COUNT_MASK) == 1) {
         // If we're the last reader, release the global lock
@@ -176,7 +230,7 @@ BOOLEAN TryAcquireSRWLockShared (PSRWLOCK SRWLock)
     }
 
     // Increase reader count by one
-    uintptr_t prev_val = __atomic_fetch_add(&SRWLock->Ptr, 1, __ATOMIC_ACQ_REL);
+    uintptr_t prev_val = TS_FETCH_ADD(&SRWLock->Ptr, 1);
     if ((prev_val & SRW_READER_COUNT_MASK) == 0) {
         // If we're the first reader, try grab the global lock
         success = TryAcquireSRWLockExclusive(SRWLock);
@@ -186,7 +240,7 @@ BOOLEAN TryAcquireSRWLockShared (PSRWLOCK SRWLock)
 
     if (!success) {
         // If we didn't succeed, we decrement the reader count again
-        __atomic_fetch_sub(&SRWLock->Ptr, 1, __ATOMIC_ACQ_REL);
+        TS_FETCH_SUB(&SRWLock->Ptr, 1);
     }
 
     // Release the reader lock
@@ -370,17 +424,17 @@ BOOL SleepConditionVariableCS (PCONDITION_VARIABLE ConditionVariable, PCRITICAL_
 
     //TS: count the waiter before giving up the lock, so a wake sent in between
     //    is not lost (it leaves the event set for the wait below).
-    __atomic_add_fetch(&ConditionVariable->waitCount, 1, __ATOMIC_ACQ_REL);
+    TS_COUNT_ADD(&ConditionVariable->waitCount, 1);
     LeaveCriticalSection(CriticalSection);
     status = NtWaitForMultipleObjectsEx(2, ConditionVariable->eventHandles, WaitAny, UserMode, FALSE, waitTimePtr);
     if (status == WAIT_FAILED || status == STATUS_TIMEOUT) {
         SetLastError(status == STATUS_TIMEOUT ? ERROR_TIMEOUT : ERROR_GEN_FAILURE); //TS
-        __atomic_sub_fetch(&ConditionVariable->waitCount, 1, __ATOMIC_ACQ_REL);
+        TS_COUNT_ADD(&ConditionVariable->waitCount, -1);
         EnterCriticalSection(CriticalSection);
         return FALSE;
     }
 
-    int oldCount = __atomic_fetch_sub(&ConditionVariable->waitCount, 1, __ATOMIC_ACQ_REL);
+    int oldCount = TS_COUNT_ADD(&ConditionVariable->waitCount, -1);
     if (oldCount == 1) {
         // Last waiter needs to manually reset the broadcast-object
         status = NtClearEvent(ConditionVariable->eventHandles[1]);
@@ -412,7 +466,7 @@ BOOL SleepConditionVariableSRW (PCONDITION_VARIABLE ConditionVariable, PSRWLOCK 
 
     //TS: count the waiter before giving up the lock, so a wake sent in between
     //    is not lost (it leaves the event set for the wait below).
-    __atomic_add_fetch(&ConditionVariable->waitCount, 1, __ATOMIC_ACQ_REL);
+    TS_COUNT_ADD(&ConditionVariable->waitCount, 1);
     if (Flags == CONDITION_VARIABLE_LOCKMODE_SHARED) {
         ReleaseSRWLockShared(SRWLock);
     } else {
@@ -421,7 +475,7 @@ BOOL SleepConditionVariableSRW (PCONDITION_VARIABLE ConditionVariable, PSRWLOCK 
     status = NtWaitForMultipleObjectsEx(2, ConditionVariable->eventHandles, WaitAny, UserMode, FALSE, waitTimePtr);
     if (status == WAIT_FAILED || status == STATUS_TIMEOUT) {
         SetLastError(status == STATUS_TIMEOUT ? ERROR_TIMEOUT : ERROR_GEN_FAILURE); //TS
-        __atomic_sub_fetch(&ConditionVariable->waitCount, 1, __ATOMIC_ACQ_REL);
+        TS_COUNT_ADD(&ConditionVariable->waitCount, -1);
         if (Flags == CONDITION_VARIABLE_LOCKMODE_SHARED) {
             AcquireSRWLockShared(SRWLock);
         } else {
@@ -430,7 +484,7 @@ BOOL SleepConditionVariableSRW (PCONDITION_VARIABLE ConditionVariable, PSRWLOCK 
         return FALSE;
     }
 
-    int oldCount = __atomic_fetch_sub(&ConditionVariable->waitCount, 1, __ATOMIC_ACQ_REL);
+    int oldCount = TS_COUNT_ADD(&ConditionVariable->waitCount, -1);
     if (oldCount == 1) {
         // Last waiter needs to manually reset the broadcast-object
         status = NtClearEvent(ConditionVariable->eventHandles[1]);
@@ -454,6 +508,10 @@ BOOL SleepConditionVariableSRW (PCONDITION_VARIABLE ConditionVariable, PSRWLOCK 
 
 VOID WakeConditionVariable (PCONDITION_VARIABLE ConditionVariable)
 {
+#if TS_CV_SKIP_IDLE_WAKE
+    if (__atomic_load_n(&ConditionVariable->waitCount, __ATOMIC_ACQUIRE) == 0)
+        return; // nobody counted: nobody to wake (TS_CV_SKIP_IDLE_WAKE, above)
+#endif
     BOOL success = InitOnceExecuteOnce(&ConditionVariable->initOnce, condvar_init, ConditionVariable, NULL);
     assert(success);
 
@@ -464,6 +522,10 @@ VOID WakeConditionVariable (PCONDITION_VARIABLE ConditionVariable)
 
 VOID WakeAllConditionVariable (PCONDITION_VARIABLE ConditionVariable)
 {
+#if TS_CV_SKIP_IDLE_WAKE
+    if (__atomic_load_n(&ConditionVariable->waitCount, __ATOMIC_ACQUIRE) == 0)
+        return;
+#endif
     BOOL success = InitOnceExecuteOnce(&ConditionVariable->initOnce, condvar_init, ConditionVariable, NULL);
     assert(success);
 

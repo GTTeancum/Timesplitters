@@ -1,5 +1,5 @@
 # nv2a_probe: console feasibility tests T1-T8 of src/xbox/REWRITE-PLAN.md
-# (M0.7), a standalone nxdk program built like nxdk's samples. See README.md.
+# (M0.7) and T9-T11 of src/xbox/PUSH-BC-PLAN.md (5.9), a standalone nxdk program built like nxdk's samples. See README.md.
 #
 # Build with build.sh (MSYS2 CLANG64): it copies these files to
 # build/nv2a_probe and runs make there, so nothing is written next to the
@@ -24,7 +24,7 @@ endif
 XBE_TITLE = nv2a_probe
 GEN_XISO = $(XBE_TITLE).iso
 SRCS = $(CURDIR)/nv2a_probe.c
-SHADER_OBJS = probe_vs.inl probe_ps.inl
+SHADER_OBJS = probe_vs.inl probe_ps.inl probe_arl.inl
 NXDK_DIR ?= /c/nxdk
 
 PROBE_IMAGE_PAD_MB ?= 13

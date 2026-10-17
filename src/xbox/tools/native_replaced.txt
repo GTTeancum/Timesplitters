@@ -1,0 +1,11 @@
+# Translated originals an idiomatic module has replaced for good (B-LOGIC;
+# src/xbox/PUSH-BC-PLAN.md section 3.6 item 6): once a module's lockstep and
+# console A/B have passed and its transcriptions are dropped
+# (TS_NATIVE_TRANSCRIBED_<MODULE>=0), the translated original is only the
+# fallback, the switch-back target and the lockstep's reference run, and is
+# built for size (-Oz) through NATIVE_TWINS (B-CODEGEN's rank_o2.py reads
+# this list). One per line:
+#   <hex address> <name>   # module
+#
+# Nothing yet: M7.1 (x87 doubles) replaces the fp-bit transcriptions'
+# entries, not the originals, and keeps the transcriptions as its fallback.

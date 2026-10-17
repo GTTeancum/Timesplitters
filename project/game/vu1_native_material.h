@@ -10,6 +10,7 @@
 
 #include "runtime/ps2_vu1_watch.h"
 #include "runtime/gs/gs_frontend.h"
+#include "ts_material.h" // the material table's ids (M4.1 phase 1)
 #include "vu1_native_xf.h"
 
 #if defined(PLATFORM_XBOX)
@@ -120,6 +121,33 @@ namespace ts_native_draw
     // translation unit calls.)
     inline const GS::StateBlock *materialFor(const uint8_t *block, uint32_t size, bool &found)
     {
+#if TS_GS_MATERIAL_TABLE
+        // M4.1 phase 1: the GS material table (runtime/gs/gs_material.h),
+        // content-exact, shared with the GIF bulk path; the block's id is its
+        // serial. The last block's bytes and id are kept to find a repeat
+        // without decoding it (the id is checked still to be the entry's).
+        static uint8_t s_lastBytes[kMaxMaterialBytes];
+        static uint32_t s_lastSize = 0, s_lastId = 0;
+        found = true;
+        if (size > kMaxMaterialBytes)
+            return nullptr;
+        GSMaterialTable &table = gsMaterialTable();
+        if (s_lastSize == size && std::memcmp(s_lastBytes, block, size) == 0)
+            if (const GSMaterial *m = table.entry(s_lastId))
+                return &m->block;
+        const uint32_t inserts = table.inserts();
+        const GSMaterial *m = table.find(block, size);
+        if (!m)
+        {
+            s_lastSize = 0;
+            return nullptr;
+        }
+        found = table.inserts() == inserts;
+        std::memcpy(s_lastBytes, block, size);
+        s_lastSize = size;
+        s_lastId = m->id;
+        return &m->block;
+#else
         static Material s_materials[kMaterialSets][2];
         static uint8_t s_older[kMaterialSets]; // the way to replace next
         static Material *s_last = nullptr;
@@ -156,6 +184,7 @@ namespace ts_native_draw
         s_older[set] = static_cast<uint8_t>(way ^ 1u);
         s_last = &s_materials[set][way];
         return &s_last->block;
+#endif
     }
 
     inline void loadConstants(GSXfConstants &xc, const uint8_t *data)

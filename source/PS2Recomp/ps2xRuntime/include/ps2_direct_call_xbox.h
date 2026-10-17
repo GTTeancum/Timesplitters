@@ -37,6 +37,38 @@
 // delay slot; unwind: the statement that leaves the caller when the
 // dispatch would not resume at the fallthrough (the generated
 // "if (!dispatch) return;").
+// PS2X_CALL_RETURN_SLOW 1 (src/xbox/PUSH-BC-PLAN.md M3.1, B-SCHED): the
+// post-call check is one compare, ctx->pc != resume, and only then the
+// stop / pc 0 / native-override cases go out of line (ps2xCallReturnSlow).
+// A stop request with pc at resume is then noticed at the next checkpoint
+// instead of here (requestStop zeroes the countdown, so that is the next
+// back-edge or call entry). 0 (the default until Train 2, with the
+// countdown): the three tests inline, as before.
+#ifndef PS2X_CALL_RETURN_SLOW
+#define PS2X_CALL_RETURN_SLOW 0
+#endif
+
+#if PS2X_CALL_RETURN_SLOW
+#define PS2X_CALL_ENTRY(entry, target, resume, unwind)                                  \
+    do {                                                                                \
+        ctx->pc = (target);                                                             \
+        /* Every inter-function transfer is an EE safe point: this charge */            \
+        /* bounds straight-line call chains that have no local loop. (The */            \
+        /* dispatcher also checks for a scheduler; guest code only runs   */            \
+        /* under one.) When it fires, pc is the target: the scheduler     */            \
+        /* resumes this thread by dispatching the callee itself.          */            \
+        if (runtime->eeCheckpointDue(PS2X_GUEST_DISPATCH_CYCLES)) {                     \
+            unwind;                                                                     \
+        }                                                                               \
+        (entry)(rdram, ctx, runtime);                                                   \
+        /* Back at the fallthrough: on. Anything else (a stop, pc 0, a     */           \
+        /* native override that left pc at the entry, a thread switch, an  */           \
+        /* exception) is sorted out out of line.                           */           \
+        if (ctx->pc != (resume) && !ps2xCallReturnSlow(ctx, runtime, (target), (resume))) { \
+            unwind;                                                                     \
+        }                                                                               \
+    } while (0)
+#else
 #define PS2X_CALL_ENTRY(entry, target, resume, unwind)                                  \
     do {                                                                                \
         ctx->pc = (target);                                                             \
@@ -63,6 +95,14 @@
             unwind;                                                                     \
         }                                                                               \
     } while (0)
+#endif
+
+// The post-call cases other than "back at resume" (PS2X_CALL_RETURN_SLOW):
+// true when the caller continues at resume (the callee left pc at its
+// entry: a native override), false when it unwinds (a stop, pc 0, a thread
+// switch or an exception). Fastcall: ctx and runtime in ECX/EDX.
+bool __attribute__((fastcall)) ps2xCallReturnSlow(R5900Context *ctx, PS2Runtime *runtime, uint32_t target,
+                                                  uint32_t resume);
 
 // PS2X_CALL_ENTRY out of line: true when the caller continues at resume.
 // Fastcall: rdram and ctx travel in ECX/EDX and the callee pops the rest.

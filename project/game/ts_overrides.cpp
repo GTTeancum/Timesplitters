@@ -841,6 +841,24 @@ namespace
         ++g_nv2aTextureStats.gameFrames;
         xboxPerfGameFrame(); // the frame-time histogram
         tsKnobApplyFrame();  // knobs change here, at the frame boundary, on the game's thread (ts_knobs.h)
+#if TS_DET
+        {
+            // The det exclusions of src/xbox/PUSH-BC-PLAN.md D4: the two
+            // display-list buffers (gp-0x6CF0[0..1]; static and adjacent, so
+            // their distance is a buffer's size) and the game's list
+            // high-water mark (gp-0x6CA0). In-list tokens change only these.
+            // Re-registering the same range is free (xboxDetExclude dedups).
+            const uint32_t list0 = READ32(gp - 0x6CF0u) & 0x01FFFFFFu;
+            const uint32_t list1 = READ32(gp - 0x6CF0u + 4u) & 0x01FFFFFFu;
+            const uint32_t listBytes = list1 > list0 ? list1 - list0 : list0 - list1;
+            if (list0 != 0u && list1 != 0u && listBytes != 0u && listBytes <= 0x00400000u)
+            {
+                xboxDetExclude(list0, listBytes, 0u);
+                xboxDetExclude(list1, listBytes, 0u);
+            }
+            xboxDetExclude(gp - 0x6CA0u, 4u, 0u);
+        }
+#endif
         xboxDetFrame();      // TS_DET: the frame's hashes (runtime/ps2_det.h; nothing otherwise, whatever TS_PERF says)
         const uint32_t next = 1u - READ32(gp - 0x4CDCu);
         WRITE32(gp - 0x4CDCu, next);

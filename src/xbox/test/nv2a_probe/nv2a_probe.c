@@ -12,6 +12,11 @@
 //   T6  a page-table DMA object as the fallback for T1
 //   T7  is the GPU at most one frame behind the CPU?
 //   T8  what does WBINVD cost?
+//   T9  QUADS: does a quad cover exactly the pixels of its two triangles
+//       (src/xbox/PUSH-BC-PLAN.md section 3.2: sprites as 4 vertices)?
+//   T10 formats for fetching the game's arrays in place (M8): UB_OGL byte
+//       order, F3 positions at stride 16, ARL constant indexing
+//   T11 index lists: post-transform reuse cost, aliasing across batches
 // A standalone nxdk program (pbkit); nothing here depends on the game build.
 // Each result is one "[PROBE] ..." line on the kernel debug output (XBDM's
 // notification channel shows it as debugstr) and one short line on screen;
@@ -112,8 +117,10 @@ static void calibrate(void)
 // ------------------------------------------------------------------ output
 // One [PROBE] line per result (DbgPrint) and a short one on screen. nxdk's
 // debugPrint wraps after 65 characters and wipes the screen at 430 px, so
-// screen lines stay within 60 characters and 23 rows below the header.
-#define MAX_LINES 23
+// screen lines stay within 60 characters and 23 rows below the header (the
+// last 23 lines are shown; the debug channel and the file have them all).
+#define MAX_LINES 32
+#define SCREEN_ROWS 23
 #define LINE_BYTES 384
 #define SCREEN_COLS 60
 static char g_lines[MAX_LINES][LINE_BYTES];
@@ -125,9 +132,10 @@ static void redraw(void)
     debugClearScreen();
     debugMoveCursor(25, 25);
     debugPrint("nv2a_probe (REWRITE-PLAN M0.7) pass %d fail %d skip %d", g_pass, g_fail, g_skip);
-    for (int i = 0; i < g_lineCount; ++i)
+    const int first = g_lineCount > SCREEN_ROWS ? g_lineCount - SCREEN_ROWS : 0;
+    for (int i = first; i < g_lineCount; ++i)
     {
-        debugMoveCursor(25, 25 + 17 * (i + 1));
+        debugMoveCursor(25, 25 + 17 * (i - first + 1));
         debugPrint("%s", g_screen[i]);
     }
 }
@@ -1284,6 +1292,502 @@ static void t5_costs(void)
          dwMesh[MESH_AE16_PAIRS] / 256u, to_us(kick), pushNs, MESH_STRIPS, MESH_STRIP_LEN, g_meshUs);
 }
 
+// -------------------------------------------------------------------- T9
+// QUADS (src/xbox/PUSH-BC-PLAN.md section 3.2, C-EMIT: sprites as one quad
+// of four vertices instead of two triangles of three). Sixteen sprites of
+// odd sizes at quarter-pixel positions, uniform colour each (the game's
+// sprites: colour from the second GS vertex), drawn as QUADS and as the
+// renderer's two triangles (corners 0 1 2 and 0 2 3); every pixel of the
+// 256x192 test area compared. Then the same with a different colour per
+// corner (informational: which diagonal the hardware splits a quad on,
+// against triangles 0 1 2 / 0 2 3 and 0 1 3 / 1 2 3).
+//   g_small: 400-463 uniform quads, 464-559 uniform triangles, 560-623
+//   gradient quads, 624-719 gradient triangles (0 1 2 / 0 2 3), 720-815
+//   gradient triangles (0 1 3 / 1 2 3).
+#define T9_SPRITES 16u
+#define T9_W 256
+#define T9_H 192
+#define T9_QUADS 400u
+#define T9_TRIS 464u
+#define T9_GQUADS 560u
+#define T9_GTRIS 624u
+#define T9_GALT 720u
+static uint32_t g_t9Img[T9_W * T9_H];
+
+static void t9_sprite(uint32_t k, float c[4][2])
+{
+    // A 4x4 grid of 64x48 cells; sizes 3.25 .. 52 px wide, 2.5 .. 40 high,
+    // corners at quarter-pixel offsets.
+    const float x0 = (float)((k % 4u) * 64u) + 4.0f + 0.25f * (float)(k % 4u);
+    const float y0 = (float)((k / 4u) * 48u) + 4.0f + 0.25f * (float)((k / 4u + k) % 4u);
+    const float w = 3.25f + (float)((k * 7u) % 16u) * 3.25f, h = 2.5f + (float)((k * 5u) % 16u) * 2.5f;
+    c[0][0] = x0;
+    c[0][1] = y0;
+    c[1][0] = x0 + w;
+    c[1][1] = y0;
+    c[2][0] = x0 + w;
+    c[2][1] = y0 + h;
+    c[3][0] = x0;
+    c[3][1] = y0 + h;
+}
+
+static void t9_vertices(void)
+{
+    static const int tris[6] = {0, 1, 2, 0, 2, 3}, alt[6] = {0, 1, 3, 1, 2, 3};
+    for (uint32_t k = 0; k < T9_SPRITES; ++k)
+    {
+        float c[4][2];
+        t9_sprite(k, c);
+        const uint32_t uni = 0xFF000000u | ((40u + k * 13u) << 16) | ((200u - k * 9u) << 8) | (64u + k * 11u);
+        for (int i = 0; i < 4; ++i)
+        {
+            vtx(&g_small[T9_QUADS + k * 4u + (uint32_t)i], c[i][0], c[i][1], uni);
+            vtx(&g_small[T9_GQUADS + k * 4u + (uint32_t)i], c[i][0], c[i][1], kVc[i]);
+        }
+        for (int i = 0; i < 6; ++i)
+        {
+            vtx(&g_small[T9_TRIS + k * 6u + (uint32_t)i], c[tris[i]][0], c[tris[i]][1], uni);
+            vtx(&g_small[T9_GTRIS + k * 6u + (uint32_t)i], c[tris[i]][0], c[tris[i]][1], kVc[tris[i]]);
+            vtx(&g_small[T9_GALT + k * 6u + (uint32_t)i], c[alt[i]][0], c[alt[i]][1], kVc[alt[i]]);
+        }
+    }
+    sfence();
+}
+
+// Draws `count` vertices from `first` as `op`; capture 1 keeps the test
+// area in g_t9Img and returns the pixels drawn (not the background),
+// capture 0 returns the pixels that differ from g_t9Img; -1 on a GPU stop.
+static int t9_draw(uint32_t op, uint32_t first, uint32_t count, int capture)
+{
+    uint32_t *p = gpu_begin();
+    p = clear(p, BG);
+    p = set_arrays(p, DMA_ALL_RAM, g_smallPa);
+    p = draw_arrays(p, op, first, count);
+    if (!gpu_submit(p))
+        return -1;
+    int n = 0;
+    for (int y = 0; y < T9_H; ++y)
+        for (int x = 0; x < T9_W; ++x)
+        {
+            const uint32_t px = pixel(x, y);
+            if (capture)
+            {
+                g_t9Img[y * T9_W + x] = px;
+                n += !same_color(px, BG);
+            }
+            else
+                n += px != g_t9Img[y * T9_W + x];
+        }
+    return n;
+}
+
+static void t9_quads(void)
+{
+    t9_vertices();
+    const int drawn = t9_draw(NV097_SET_BEGIN_END_OP_TRIANGLES, T9_TRIS, T9_SPRITES * 6u, 1);
+    const int diff = drawn < 0 ? -1 : t9_draw(NV097_SET_BEGIN_END_OP_QUADS, T9_QUADS, T9_SPRITES * 4u, 0);
+    const int gdrawn = diff < 0 ? -1 : t9_draw(NV097_SET_BEGIN_END_OP_QUADS, T9_GQUADS, T9_SPRITES * 4u, 1);
+    const int gdiff = gdrawn < 0 ? -1 : t9_draw(NV097_SET_BEGIN_END_OP_TRIANGLES, T9_GTRIS, T9_SPRITES * 6u, 0);
+    const int galt = gdiff < 0 ? -1 : t9_draw(NV097_SET_BEGIN_END_OP_TRIANGLES, T9_GALT, T9_SPRITES * 6u, 0);
+    if (galt < 0)
+    {
+        emit("T9", "ERR", "GPU stopped", "quads GPU timeout");
+        return;
+    }
+    const char *diag = gdiff == 0 ? "0-2" : galt == 0 ? "1-3" : "neither";
+    char screen[64];
+    snprintf(screen, sizeof(screen), "QUADS vs 2 tris: %d px differ, diag %s", diff, diag);
+    emit("T9", drawn < 100 ? "ERR" : diff == 0 ? "PASS" : "FAIL", screen,
+         "quads uniform-colour sprites QUADS vs triangles 0-1-2/0-2-3: %d px differ of %d drawn (PASS: the renderer "
+         "may send sprites as QUADS, 4 vertices instead of 6; FAIL: keep the triangle pairs) | gradient corners: vs "
+         "0-1-2/0-2-3 %d px, vs 0-1-3/1-2-3 %d px of %d drawn (diagonal %s; matters only for corner colours that "
+         "differ, which the game's sprites never have) | drawn<100: ERR",
+         diff, drawn, gdiff, galt, gdrawn, diag);
+}
+
+// ------------------------------------------------------------------- T10
+// Formats for M8 (the NV2A reading the game's own arrays in place):
+//   T10a  UB_OGL: a colour array whose bytes are R, G, B, A in memory (the
+//         guest's order) read as red, green, blue, alpha; UB_D3D as control.
+//   T10b  positions as F3 at stride 16 (the guest's quadword rows: x y z and
+//         a fourth word the format must ignore, here a NaN); w comes out 1.
+//   T10c  ARL: a vertex program indexing its constants by a value read from
+//         an attribute (the skin-in-place program's bone index;
+//         probe_arl.vs.cg, loaded behind the pass-through program).
+//   g_small: 820-822 T10a, 826-828 T10b's control and colours, 830-832 its
+//   F3 rows (as bytes), 840-851 T10c.
+#define T10_OGL 820u
+#define T10_F3C 826u
+#define T10_F3ROWS 830u
+#define T10_ARL 840u
+static const uint32_t kArlProgram[] = {
+#include "probe_arl.inl"
+};
+#define ARL_SLOT ((uint32_t)(sizeof(kVertexProgram) / 16u))
+
+static uint32_t *set_format(uint32_t *p, uint32_t attr, uint32_t type, uint32_t size, uint32_t stride)
+{
+    return push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + attr * 4u, type | (size << 4) | (stride << 8));
+}
+static uint32_t *default_formats(uint32_t *p)
+{
+    p = set_format(p, 0, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, VTX_STRIDE);
+    return set_format(p, 3, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, VTX_STRIDE);
+}
+
+// The pixel at T10a's triangle's centre with the colour array read as `type`.
+static int t10_colour(uint32_t type, uint32_t *out)
+{
+    const Vtx *v = g_small + T10_OGL;
+    uint32_t *p = gpu_begin();
+    p = clear(p, BG);
+    p = set_format(p, 3, type, 4, VTX_STRIDE);
+    p = set_arrays(p, DMA_ALL_RAM, g_smallPa);
+    p = draw_arrays(p, NV097_SET_BEGIN_END_OP_TRIANGLES, T10_OGL, 3);
+    p = default_formats(p);
+    if (!gpu_submit(p))
+        return 0;
+    *out = centroid_pixel(&v[0], &v[1], &v[2]);
+    return 1;
+}
+
+// F3 rows at stride 16 (form 1) or the Vtx control (form 0): 1 if drawn
+// where it should be, -1 on a GPU stop.
+static int t10_f3(int form)
+{
+    const Vtx *v = g_small + T10_F3C;
+    uint32_t *p = gpu_begin();
+    p = clear(p, BG);
+    if (form)
+    {
+        p = set_format(p, 0, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 3, 16);
+        p = push1(p, NV097_SET_CONTEXT_DMA_VERTEX_A, DMA_ALL_RAM);
+        p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 0u * 4u, g_smallPa + T10_F3ROWS * VTX_STRIDE);
+        p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 3u * 4u, g_smallPa + T10_F3C * VTX_STRIDE + 16u);
+        p = draw_arrays(p, NV097_SET_BEGIN_END_OP_TRIANGLES, 0, 3);
+        p = default_formats(p);
+    }
+    else
+    {
+        p = set_arrays(p, DMA_ALL_RAM, g_smallPa);
+        p = draw_arrays(p, NV097_SET_BEGIN_END_OP_TRIANGLES, T10_F3C, 3);
+    }
+    if (!gpu_submit(p))
+        return -1;
+    return same_color(centroid_pixel(&v[0], &v[1], &v[2]), GREEN) && same_color(pixel(600, 40), BG);
+}
+
+// ARL: four triangles whose red byte is the palette index 0, 3, 5, 7; the
+// program colours each with pal[index]. How many came out right, -1 on a
+// GPU stop.
+static const uint32_t kPal[8] = {0xFF102030u, 0xFF203040u, 0xFF304050u, 0xFFC02040u,
+                                 0xFF405060u, 0xFF20C060u, 0xFF506070u, 0xFF4060C0u};
+static int t10_arl(void)
+{
+    static const uint32_t idx[4] = {0, 3, 5, 7};
+    Vtx *v = g_small + T10_ARL;
+    for (uint32_t k = 0; k < 4u; ++k)
+        tri(&v[k * 3u], 110.0f + 140.0f * (float)k, RY, 0xFF000000u | (idx[k] << 16));
+    sfence();
+    uint32_t *p = gpu_begin();
+    p = clear(p, BG);
+    p = push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, ARL_SLOT);
+    for (uint32_t i = 0; i < sizeof(kArlProgram) / 4u; i += 4u)
+    {
+        *p++ = mh(NV097_SET_TRANSFORM_PROGRAM, 4);
+        for (uint32_t j = 0; j < 4u; ++j)
+            *p++ = kArlProgram[i + j];
+    }
+    p = push1(p, NV097_SET_TRANSFORM_PROGRAM_START, ARL_SLOT);
+    // pal[0..7] at c[0..7], sel = (255, 0.5, 0, 0) at c[8] (vp20's c[0] is
+    // the NV2A's constant 96, as in the renderer).
+    p = push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, 96u);
+    for (uint32_t i = 0; i < 9u; ++i)
+    {
+        float row[4];
+        if (i < 8u)
+        {
+            row[0] = (float)((kPal[i] >> 16) & 0xFFu) / 255.0f;
+            row[1] = (float)((kPal[i] >> 8) & 0xFFu) / 255.0f;
+            row[2] = (float)(kPal[i] & 0xFFu) / 255.0f;
+            row[3] = 1.0f;
+        }
+        else
+        {
+            row[0] = 255.0f;
+            row[1] = 0.5f;
+            row[2] = row[3] = 0.0f;
+        }
+        *p++ = mh(NV097_SET_TRANSFORM_CONSTANT, 4);
+        memcpy(p, row, 16);
+        p += 4;
+    }
+    p = set_arrays(p, DMA_ALL_RAM, g_smallPa);
+    p = draw_arrays(p, NV097_SET_BEGIN_END_OP_TRIANGLES, T10_ARL, 12);
+    p = push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
+    if (!gpu_submit(p))
+        return -1;
+    int right = 0;
+    for (uint32_t k = 0; k < 4u; ++k)
+        right += same_color(centroid_pixel(&v[k * 3u], &v[k * 3u + 1u], &v[k * 3u + 2u]), kPal[idx[k]]);
+    return right;
+}
+
+static void t10_formats(void)
+{
+    // T10a: the bytes 10 80 F0 FF in memory (R G B A in the guest's order).
+    Vtx *v = g_small + T10_OGL;
+    tri(v, 320.0f, RY, 0xFFF08010u);
+    // T10b: the Vtx control, and the same positions as F3 rows of 16 bytes
+    // with a NaN in the fourth word.
+    Vtx *c = g_small + T10_F3C;
+    tri(c, 320.0f, RY, GREEN);
+    uint32_t *rows = (uint32_t *)(g_small + T10_F3ROWS);
+    for (uint32_t i = 0; i < 3u; ++i)
+    {
+        memcpy(&rows[i * 4u + 0u], &c[i].x, 4);
+        memcpy(&rows[i * 4u + 1u], &c[i].y, 4);
+        memcpy(&rows[i * 4u + 2u], &c[i].z, 4);
+        rows[i * 4u + 3u] = 0xFFFFFFFFu;
+    }
+    sfence();
+    uint32_t ogl = 0, d3d = 0;
+    if (!t10_colour(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL, &ogl) ||
+        !t10_colour(NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, &d3d))
+    {
+        emit("T10a", "ERR", "GPU stopped", "format UB_OGL GPU timeout");
+        return;
+    }
+    // Read back as A R G B: UB_OGL should give R=10 G=80 B=F0.
+    const int oglOk = same_color(ogl, 0xFF1080F0u), d3dOk = same_color(d3d, 0xFFF08010u);
+    char screen[64];
+    snprintf(screen, sizeof(screen), "UB_OGL %s (px %08x)", oglOk ? "RGBA" : "other", (unsigned)ogl);
+    emit("T10a", !d3dOk ? "ERR" : oglOk ? "PASS" : "FAIL", screen,
+         "format UB_OGL bytes 10 80 F0 FF -> px=%08x (want FF1080F0: byte 0 is red, the guest's RGBA colours need no "
+         "swizzle) | UB_D3D control px=%08x (want FFF08010)",
+         (unsigned)ogl, (unsigned)d3d);
+    const int f3Control = t10_f3(0), f3 = f3Control < 0 ? -1 : t10_f3(1);
+    snprintf(screen, sizeof(screen), "F3 stride 16: %s", f3 == 1 ? "drawn" : f3 == 0 ? "NOT drawn" : "timeout");
+    emit("T10b", f3Control != 1 || f3 < 0 ? "ERR" : f3 ? "PASS" : "FAIL", screen,
+         "format F3 at stride 16 with a NaN fourth word: %s, control (F4 stride 20)=%d (PASS: the guest's position "
+         "rows can be fetched in place, w = 1)",
+         f3 == 1 ? "drawn" : f3 == 0 ? "not drawn" : "timeout", f3Control);
+    if (g_gpuDead)
+        return;
+    const int arl = t10_arl();
+    snprintf(screen, sizeof(screen), "ARL palette %d/4", arl);
+    emit("T10c", arl < 0 ? "ERR" : arl == 4 ? "PASS" : "FAIL", screen,
+         "arl constants indexed by an attribute byte (pal[R]): %d of 4 triangles coloured right (PASS: the "
+         "skin-in-place program may pick bone rows by a byte read in place)",
+         arl);
+}
+
+// ------------------------------------------------------------------- T11
+// M8's index lists: what the post-transform cache gives back, and whether it
+// can alias across batches.
+//   T11a (INFO) GPU time per triangle of the first 512 mesh strips as
+//         DRAW_ARRAYS triangles of expanded vertices (no reuse possible), as
+//         an ARRAY_ELEMENT16 triangle list over the strips' own vertices
+//         (each vertex referenced up to three times) and as AE16 strips.
+//         The list near the strip cost means transformed vertices are
+//         reused.
+//   T11b  consecutive in-place batches whose index ranges overlap at
+//         different array offsets (the same indices, other vertices):
+//         stale transformed vertices from the batch before mean M8 must
+//         break the cache between batches. Overlapping (offset +1 vertex)
+//         and disjoint (+10) cases, eight trials each, BREAK as control.
+//   g_small: 860-863 overlap, 870-872 and 880-882 disjoint.
+#define T11_STRIPS 512u
+#define T11_TRIS (T11_STRIPS * (MESH_STRIP_LEN - 2u))
+static Vtx *g_t11List; // expanded: three vertices a triangle
+static uint32_t g_t11ListPa;
+
+enum
+{
+    T11_DA_LIST,
+    T11_AE16_LIST,
+    T11_AE16_STRIPS,
+    T11_KINDS
+};
+
+// Mesh vertex of corner `corner` of triangle `t` (strip by strip).
+static uint32_t t11_index(uint32_t t, uint32_t corner)
+{
+    const uint32_t strip = t / (MESH_STRIP_LEN - 2u), i = t % (MESH_STRIP_LEN - 2u);
+    return strip * MESH_STRIP_LEN + i + corner;
+}
+
+static uint32_t *t11_push(uint32_t *p, int kind)
+{
+    switch (kind)
+    {
+    case T11_DA_LIST:
+        p = set_arrays(p, DMA_ALL_RAM, g_t11ListPa);
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
+        for (uint32_t first = 0; first < T11_TRIS * 3u; first += 255u)
+        {
+            const uint32_t n = T11_TRIS * 3u - first < 255u ? T11_TRIS * 3u - first : 255u;
+            *p++ = mh_ni(NV097_DRAW_ARRAYS, 1);
+            *p++ = ((n - 1u) << 24) | first;
+        }
+        return push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+    case T11_AE16_LIST:
+    {
+        p = set_arrays(p, DMA_ALL_RAM, g_meshPa);
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
+        const uint32_t words = T11_TRIS * 3u / 2u;
+        for (uint32_t j = 0; j < words;)
+        {
+            const uint32_t c = words - j < 2047u ? words - j : 2047u;
+            *p++ = mh_ni(NV097_ARRAY_ELEMENT16, c);
+            for (uint32_t e = 0; e < c; ++e, ++j)
+            {
+                const uint32_t n0 = 2u * j, n1 = 2u * j + 1u;
+                *p++ = t11_index(n0 / 3u, n0 % 3u) | (t11_index(n1 / 3u, n1 % 3u) << 16);
+            }
+        }
+        return push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+    }
+    default:
+        p = set_arrays(p, DMA_ALL_RAM, g_meshPa);
+        for (uint32_t k = 0; k < T11_STRIPS; ++k)
+        {
+            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
+            *p++ = mh_ni(NV097_ARRAY_ELEMENT16, MESH_STRIP_LEN / 2u);
+            for (uint32_t i = 0; i < MESH_STRIP_LEN; i += 2u)
+                *p++ = (k * MESH_STRIP_LEN + i) | ((k * MESH_STRIP_LEN + i + 1u) << 16);
+            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+        }
+        return p;
+    }
+}
+
+// GPU time of one submission, best of three, in cycles (kind -1: an empty
+// one, the kick's own cost); 0 on a GPU stop.
+static uint64_t t11_time(int kind)
+{
+    uint64_t best = ~0ull;
+    for (int r = 0; r < 3; ++r)
+    {
+        uint32_t *p = gpu_begin();
+        p = kind < 0 ? push1(p, NV097_NO_OPERATION, 0) : t11_push(p, kind);
+        const uint64_t t0 = rdtsc();
+        if (!gpu_submit(p))
+            return 0;
+        const uint64_t t = rdtsc() - t0;
+        best = t < best ? t : best;
+    }
+    return best;
+}
+
+// One trial of T11b: batch one at vertex `aFirst`, batch two at `bFirst`,
+// each drawn by the indices 0 1 2 (as the pairs 0-1, 2-0, 1-2: the triangle
+// twice) with the arrays re-sent in between. 1 fresh (batch two drew its
+// own vertices: pixel b set), 0 stale, -1 batch one did not draw, -2 GPU.
+static int t11_alias(uint32_t aFirst, uint32_t bFirst, int brk, int ax, int ay, int bx, int by)
+{
+    uint32_t *p = gpu_begin();
+    p = clear(p, BG);
+    for (int batch = 0; batch < 2; ++batch)
+    {
+        if (batch == 1 && brk)
+            p = push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0);
+        p = set_arrays(p, DMA_ALL_RAM, g_smallPa + (batch ? bFirst : aFirst) * VTX_STRIDE);
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLES);
+        *p++ = mh_ni(NV097_ARRAY_ELEMENT16, 3);
+        *p++ = 0u | (1u << 16);
+        *p++ = 2u | (0u << 16);
+        *p++ = 1u | (2u << 16);
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+    }
+    if (!gpu_submit(p))
+        return -2;
+    if (!same_color(pixel(ax, ay), GREEN))
+        return -1;
+    return same_color(pixel(bx, by), GREEN) ? 1 : 0;
+}
+
+static void t11_alias_run(uint32_t aFirst, uint32_t bFirst, int brk, int ax, int ay, int bx, int by, int *fresh,
+                          int *stale, int *other)
+{
+    *fresh = *stale = *other = 0;
+    for (int t = 0; t < VC_TRIALS; ++t)
+    {
+        const int r = t11_alias(aFirst, bFirst, brk, ax, ay, bx, by);
+        if (r == -2)
+        {
+            *other += VC_TRIALS - t;
+            return;
+        }
+        if (r == 1)
+            ++*fresh;
+        else if (r == 0)
+            ++*stale;
+        else
+            ++*other;
+    }
+}
+
+static void t11_reuse(void)
+{
+    if (g_t11List)
+    {
+        for (uint32_t t = 0; t < T11_TRIS; ++t)
+            for (uint32_t c = 0; c < 3u; ++c)
+                g_t11List[t * 3u + c] = g_mesh[t11_index(t, c)];
+        sfence();
+        const uint64_t kick = t11_time(-1);
+        uint64_t t[T11_KINDS];
+        int ok = kick != 0;
+        for (int k = 0; k < T11_KINDS && ok; ++k)
+            ok = (t[k] = t11_time(k)) != 0;
+        if (!ok)
+            emit("T11a", "ERR", "GPU stopped", "reuse GPU timeout");
+        else
+        {
+            uint32_t ns[T11_KINDS];
+            for (int k = 0; k < T11_KINDS; ++k)
+                ns[k] = to_ns(t[k] > kick ? t[k] - kick : 0) / T11_TRIS;
+            char screen[64];
+            snprintf(screen, sizeof(screen), "ns/tri DA-list %u AE16-list %u strip %u", ns[0], ns[1], ns[2]);
+            emit("T11a", "INFO", screen,
+                 "reuse ns/triangle DA-list=%u (no reuse possible) AE16-list=%u (shared vertices) AE16-strips=%u | "
+                 "%u strips x %u (AE16-list near AE16-strips: the post-transform cache reuses vertices; near "
+                 "DA-list: it does not, and an index list costs a full transform per index)",
+                 ns[0], ns[1], ns[2], T11_STRIPS, MESH_STRIP_LEN);
+        }
+    }
+    else
+        emit("T11a", "SKIP", "no memory", "reuse no buffer for the expanded list");
+    if (g_gpuDead)
+        return;
+    // Overlapping: batch two at batch one's +1 vertex, so its triangle
+    // (861 862 863) shares two vertices with batch one's (860 861 862) and
+    // reaches right to 863; a stale cache redraws batch one's. Disjoint:
+    // +10 vertices, a triangle at region B.
+    Vtx *v = g_small + 860;
+    vtx(&v[0], 100.0f, 300.0f, GREEN);
+    vtx(&v[1], 200.0f, 200.0f, GREEN);
+    vtx(&v[2], 200.0f, 400.0f, GREEN);
+    vtx(&v[3], 300.0f, 300.0f, GREEN);
+    tri(g_small + 870, AX, RY, GREEN);
+    tri(g_small + 880, BX, RY, GREEN);
+    sfence();
+    int of, os, oo, df, ds, dother, cf, cs, co;
+    t11_alias_run(860, 861, 0, 150, 300, 240, 300, &of, &os, &oo);
+    t11_alias_run(870, 880, 0, (int)AX, (int)RY, (int)BX, (int)RY, &df, &ds, &dother);
+    t11_alias_run(860, 861, 1, 150, 300, 240, 300, &cf, &cs, &co);
+    const int control = cf == VC_TRIALS;
+    const int pass = of == VC_TRIALS && df == VC_TRIALS;
+    char screen[64];
+    snprintf(screen, sizeof(screen), "alias overlap %d/%d disjoint %d/%d fresh", of, VC_TRIALS, df, VC_TRIALS);
+    emit("T11b", !control || oo || dother ? "ERR" : pass ? "PASS" : "FAIL", screen,
+         "alias consecutive AE16 batches, same indices at other offsets: overlap(+1) fresh=%d stale=%d other=%d | "
+         "disjoint(+10) fresh=%d stale=%d other=%d | BREAK control fresh=%d stale=%d other=%d (PASS: no break needed "
+         "between in-place batches; FAIL: M8 pushes BREAK_VERTEX_BUFFER_CACHE at every array-offset change)",
+         of, os, oo, df, ds, dother, cf, cs, co);
+}
+
 // -------------------------------------------------------------------- T6
 // Page-table DMA objects: word 0 flags (class, page table present, not
 // linear, access as pbkit's, target), word 1 the limit, then one entry per
@@ -1778,6 +2282,7 @@ int main(void)
         g_cachedPa = phys_of(g_cached);
     g_small = (Vtx *)alloc_wc(SMALL_VERTS * VTX_STRIDE);
     g_mesh = (Vtx *)alloc_wc(MESH_VERTS * VTX_STRIDE);
+    g_t11List = (Vtx *)alloc_wc(T11_TRIS * 3u * VTX_STRIDE); // optional: T11a is skipped without it
     g_fence = (volatile uint32_t *)alloc_wc(64);
     if (g_gpuOk && (!g_small || !g_mesh || !g_fence || !g_cached))
         g_gpuOk = 0;
@@ -1785,6 +2290,7 @@ int main(void)
     {
         g_smallPa = phys_of(g_small);
         g_meshPa = phys_of(g_mesh);
+        g_t11ListPa = g_t11List ? phys_of(g_t11List) : 0u;
         *g_fence = 0;
         static struct s_CtxDma fenceDma;
         pb_create_dma_ctx(H_FENCE, DMA_CLASS_3D, (DWORD)(uintptr_t)g_fence, 63, &fenceDma);
@@ -1815,13 +2321,19 @@ int main(void)
         // Safe ones first; the GPU is not expected to stop in any of them.
         // Without a working readback only the timings run.
         if (!g_pixelsOk)
-            emit("PIX", "SKIP", "no readback: pixel tests not run", "pixel tests T2 T3 T4 T5a-c T6 not run (GPU line)");
+            emit("PIX", "SKIP", "no readback: pixel tests not run", "pixel tests T2 T3 T4 T5a-c T6 T9 T10 T11b not run (GPU line)");
         if (g_pixelsOk && !g_gpuDead)
             t4_flat_shading();
         if (g_pixelsOk && !g_gpuDead)
             t5_assembly();
         if (!g_gpuDead)
             t5_costs();
+        if (g_pixelsOk && !g_gpuDead)
+            t9_quads();
+        if (g_pixelsOk && !g_gpuDead)
+            t10_formats();
+        if (!g_gpuDead)
+            t11_reuse();
         if (g_pixelsOk && !g_gpuDead)
             t3_vertex_cache();
         if (g_pixelsOk && !g_gpuDead)

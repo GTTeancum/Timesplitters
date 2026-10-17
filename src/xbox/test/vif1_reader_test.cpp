@@ -20,6 +20,18 @@
 #include <vector>
 
 Vif1StreamStats g_vif1StreamStats; // (the runtime's is in ps2_vif1_interpreter.cpp)
+#if TS_NATIVE_RECORDS
+// The token ring and the hooks the piece reader consults (the runtime's are
+// in ps2_memory.cpp); no token here: the reader must read as before.
+RenderCounters g_renderCounters;
+Vif1TokenRing g_vif1Tokens;
+bool g_vif1DryDecode = false;
+const Vif1RecordHooks &PS2Memory::vif1RecordHooks()
+{
+    static const Vif1RecordHooks hooks{};
+    return hooks;
+}
+#endif
 
 namespace
 {

@@ -23,6 +23,46 @@
 #define PS2_XBOX_JOURNAL_SPECIAL(addr, size) ((void)0)
 #endif
 
+// TS_SCRATCH_SHORTCUT 1 (default; src/xbox/PUSH-BC-PLAN.md M3.10, B-PLATFORM):
+// an aligned scratchpad access is made here, straight into the scratchpad's
+// host memory, instead of through runtime->LoadN/StoreN and PS2Memory's
+// address decode. What that path does for such an address, and nothing
+// else, is kept: PS2Memory's VIF1 sync never applies (the scratchpad is not
+// a pipeline address), an aligned access never throws, the stores keep the
+// write trace and journal, and a 32-bit store whose DMAC completion queue
+// is not empty still goes the long way (Store32 drains it). A misaligned
+// access goes the long way too (it raises the address error). 0: every
+// special address through the runtime, as before.
+#ifndef TS_SCRATCH_SHORTCUT
+#define TS_SCRATCH_SHORTCUT 1
+#endif
+
+#if TS_SCRATCH_SHORTCUT
+namespace
+{
+    // The host address of an aligned size-byte scratchpad access, or null.
+    inline uint8_t *scratchpadHost(uint32_t addr, uint32_t size)
+    {
+        if ((addr & (size - 1u)) != 0u || !ps2IsScratchpadAddress(addr))
+            return nullptr;
+        uint8_t *base = ps2GetScratchpadHostPtr();
+        return base ? base + ps2ScratchpadOffset(addr) : nullptr;
+    }
+}
+#define PS2_XBOX_SCRATCH_LOAD(type, size)                          \
+    do                                                             \
+    {                                                              \
+        if (const uint8_t *host = scratchpadHost(addr, size))      \
+        {                                                          \
+            type value;                                            \
+            std::memcpy(&value, host, sizeof(value));              \
+            return value;                                          \
+        }                                                          \
+    } while (0)
+#else
+#define PS2_XBOX_SCRATCH_LOAD(type, size) ((void)0)
+#endif
+
 PS2_XBOX_GUEST_SLOW uint16_t Ps2XboxFastRead16Slow(uint32_t addr, const uint8_t *rdram) { return Ps2FastRead16(rdram, addr); }
 PS2_XBOX_GUEST_SLOW uint32_t Ps2XboxFastRead32Slow(uint32_t addr, const uint8_t *rdram) { return Ps2FastRead32(rdram, addr); }
 PS2_XBOX_GUEST_SLOW uint64_t Ps2XboxFastRead64Slow(uint32_t addr, const uint8_t *rdram) { return Ps2FastRead64(rdram, addr); }
@@ -46,26 +86,37 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxFastWrite128Slow(uint32_t addr, uint8_t *rdram, 
 
 PS2_XBOX_GUEST_SLOW uint8_t Ps2XboxRead8Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
 {
+    PS2_XBOX_SCRATCH_LOAD(uint8_t, 1u);
     return PS2Runtime::isSpecialAddress(addr) ? runtime->Load8(rdram, ctx, addr) : Ps2FastRead8(rdram, addr);
 }
 
 PS2_XBOX_GUEST_SLOW uint16_t Ps2XboxRead16Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
 {
+    PS2_XBOX_SCRATCH_LOAD(uint16_t, 2u);
     return PS2Runtime::isSpecialAddress(addr) ? runtime->Load16(rdram, ctx, addr) : Ps2FastRead16(rdram, addr);
 }
 
 PS2_XBOX_GUEST_SLOW uint32_t Ps2XboxRead32Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
 {
+    PS2_XBOX_SCRATCH_LOAD(uint32_t, 4u);
     return PS2Runtime::isSpecialAddress(addr) ? runtime->Load32(rdram, ctx, addr) : Ps2FastRead32(rdram, addr);
 }
 
 PS2_XBOX_GUEST_SLOW uint64_t Ps2XboxRead64Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
 {
+    PS2_XBOX_SCRATCH_LOAD(uint64_t, 8u);
     return PS2Runtime::isSpecialAddress(addr) ? runtime->Load64(rdram, ctx, addr) : Ps2FastRead64(rdram, addr);
 }
 
 PS2_XBOX_GUEST_SLOW void Ps2XboxRead128Slow(uint32_t addr, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, void *out)
 {
+#if TS_SCRATCH_SHORTCUT
+    if (const uint8_t *host = scratchpadHost(addr, 16u))
+    {
+        std::memcpy(out, host, 16u);
+        return;
+    }
+#endif
     const __m128i value = PS2Runtime::isSpecialAddress(addr) ? runtime->Load128(rdram, ctx, addr) : Ps2FastRead128(rdram, addr);
     std::memcpy(out, &value, sizeof(value));
 }
@@ -75,6 +126,14 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite8Slow(uint32_t addr, uint8_t *rdram, R5900C
     if (PS2Runtime::isSpecialAddress(addr))
     {
         PS2_XBOX_JOURNAL_SPECIAL(addr, 1u);
+#if TS_SCRATCH_SHORTCUT
+        if (uint8_t *host = scratchpadHost(addr, 1u))
+        {
+            ps2TraceGuestWrite(rdram, addr, 1u, value, 0u, "WRITE8", ctx); // as Store8
+            std::memcpy(host, &value, sizeof(value));
+            return;
+        }
+#endif
         runtime->Store8(rdram, ctx, addr, value);
         return;
     }
@@ -87,6 +146,14 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite16Slow(uint32_t addr, uint8_t *rdram, R5900
     if (PS2Runtime::isSpecialAddress(addr))
     {
         PS2_XBOX_JOURNAL_SPECIAL(addr, 2u);
+#if TS_SCRATCH_SHORTCUT
+        if (uint8_t *host = scratchpadHost(addr, 2u))
+        {
+            ps2TraceGuestWrite(rdram, addr, 2u, value, 0u, "WRITE16", ctx); // as Store16
+            std::memcpy(host, &value, sizeof(value));
+            return;
+        }
+#endif
         runtime->Store16(rdram, ctx, addr, value);
         return;
     }
@@ -99,6 +166,14 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite32Slow(uint32_t addr, uint8_t *rdram, R5900
     if (PS2Runtime::isSpecialAddress(addr))
     {
         PS2_XBOX_JOURNAL_SPECIAL(addr, 4u);
+#if TS_SCRATCH_SHORTCUT
+        if (uint8_t *host = runtime->memory().hasCompletedDmacCauses() ? nullptr : scratchpadHost(addr, 4u))
+        {
+            ps2TraceGuestWrite(rdram, addr, 4u, value, 0u, "WRITE32", ctx); // as Store32
+            std::memcpy(host, &value, sizeof(value));
+            return;
+        }
+#endif
         runtime->Store32(rdram, ctx, addr, value);
         return;
     }
@@ -111,6 +186,14 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite64Slow(uint32_t addr, uint8_t *rdram, R5900
     if (PS2Runtime::isSpecialAddress(addr))
     {
         PS2_XBOX_JOURNAL_SPECIAL(addr, 8u);
+#if TS_SCRATCH_SHORTCUT
+        if (uint8_t *host = scratchpadHost(addr, 8u))
+        {
+            ps2TraceGuestWrite(rdram, addr, 8u, value, 0u, "WRITE64", ctx); // as Store64
+            std::memcpy(host, &value, sizeof(value));
+            return;
+        }
+#endif
         runtime->Store64(rdram, ctx, addr, value);
         return;
     }
@@ -125,6 +208,15 @@ PS2_XBOX_GUEST_SLOW void Ps2XboxWrite128Slow(uint32_t addr, uint8_t *rdram, R590
     if (PS2Runtime::isSpecialAddress(addr))
     {
         PS2_XBOX_JOURNAL_SPECIAL(addr, 16u);
+#if TS_SCRATCH_SHORTCUT
+        if (uint8_t *host = scratchpadHost(addr, 16u))
+        {
+            ps2TraceGuestWrite(rdram, addr, 16u, static_cast<uint64_t>(PS2_EXTRACT_EPI64_0(bits)),
+                               static_cast<uint64_t>(PS2_EXTRACT_EPI64_1(bits)), "WRITE128", ctx); // as Store128
+            std::memcpy(host, &bits, 16u);
+            return;
+        }
+#endif
         runtime->Store128(rdram, ctx, addr, bits);
         return;
     }

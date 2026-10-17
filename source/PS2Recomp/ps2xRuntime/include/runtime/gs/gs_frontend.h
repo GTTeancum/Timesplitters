@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "runtime/gs/gs_backend.h"
+#include "runtime/gs/gs_material.h"
 #include "runtime/ps2_host_lock.h"
 
 // TS_LEAN_GS_HISTORY 1 (Xbox): GS::m_debugHistory keeps one entry, not 512
@@ -136,18 +137,9 @@ public:
     // register A+D, writing drawing-state registers only (no vertex, PRIM,
     // transfer, SIGNAL/FINISH/LABEL or privileged ones). The pipeline decodes
     // a block once and applies it without the GIF stream.
-    struct StateBlock
-    {
-        static constexpr uint32_t kMaxWrites = 8u;
-        uint32_t serial = 0;       // the owner's: equal serials, equal writes (0: none)
-        uint32_t count = 0;        // A+D writes, in packet order
-        uint32_t nloop = 0, nreg = 0;
-        bool repeatable = false;   // see applyStateBlock
-        bool idempotent = false;   // applying it twice is applying it once (but for TEXFLUSH)
-        bool flushes = false;      // writes TEXFLUSH
-        uint8_t regs[kMaxWrites] = {};
-        uint64_t values[kMaxWrites] = {};
-    };
+    // (GSStateBlock, runtime/gs/gs_material.h: serial is the material id,
+    // equal ids, equal writes; 0: none.)
+    using StateBlock = GSStateBlock;
     static bool decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out);
     // Applies a decoded block as processGIFPacket would apply its packet on
     // PATH1: the same register writes, in order. Repeated: the block is the
@@ -163,16 +155,35 @@ public:
     // again as a PATH1 packet; true when that changed no drawing state and no
     // CLUT (the block's effect was already in place).
     bool checkStateBlock(const uint8_t *data, uint32_t sizeBytes);
+    // Materials (M4.1 phase 1; gs_material.h): applies the table's entry
+    // with this id as applyStateBlock applies its block, with the
+    // commit-on-bind rule: the bound id is kept by value, and a block bound
+    // last with no texture register written since is Repeated (its values
+    // and CLUT are in place; only its TEXFLUSH is done). NotApplied: no such
+    // entry, or PATH1 inside a packet. Consumers go through
+    // ts_material::applyRunState (project/game/ts_material.h).
+    StateBlockResult applyMaterial(uint32_t materialId);
 
     // ---- Push B/C front-end API (src/xbox/PUSH-BC-PLAN.md section 6, I-5;
     // owned by B-GS). Week 0: each exists with the old path's behaviour so
     // that its consumers (C-EMIT, C-XF) build against it; B-GS replaces the
     // bodies (the cached drawState with its serial, the material table, the
     // GIF bulk path, submitPrimitives' end state).
-    // The state a draw would use now (what buildDrawBatch gives a draw).
-    GSDrawState drawState() const;
+    // The state a draw would use now (what buildDrawBatch gives a draw),
+    // cached: rebuilt only when its serial moved (stateSerial), else the
+    // same object again. The reference is good while the GS state is locked
+    // and no register is written.
+    const GSDrawState &drawState() const;
+    // Moves with every write of a drawing-state register whose value
+    // changed (writeRegisterUnlocked; the shadow of raw values makes a
+    // rewrite of the same value free), at reset, setRasterBackend and
+    // restoreCheckState. Never 0. Two states with the same serial are the
+    // same state (GSDrawState::serial).
+    uint32_t stateSerial() const { return m_stateSerial; }
     // Decoded primitives of one PRIM, as a PACKED packet with PRE set would
     // kick them (the backend's SubmitPrimitives first, else one by one).
+    // The vertex queue is left as the last kick leaves it, and the current
+    // colour, ST/Q, UV and fog at the last vertex's values.
     void submitPrimitives(uint32_t primRegister, const GSVertex *vertices, uint32_t count);
     // A PACKED vertex register (XYZF2 0x04, XYZ2 0x05, XYZF3 0x0C, XYZ3
     // 0x0D) decoded with the current colour, ST/UV and fog into out, as
@@ -180,7 +191,20 @@ public:
     // XYZ2 without ADC). Other registers: false, out untouched.
     bool decodePackedVertex(uint8_t regDesc, uint64_t lo, uint64_t hi, GSVertex &out) const;
     // Tier 0's front half (section 3.2 item 1): a PATH1 packet from the
-    // native VU1 program's kick. Week 0: processGIFPacket on PATH1.
+    // native VU1 program's kick, with the effect of processGIFPacket on
+    // PATH1. With TS_GS_BULK (gs_frontend.cpp) whole tags are read in place
+    // while the PATH1 stream is between tags: an A+D block of drawing-state
+    // registers is applied as a state block (a texture-only one found in
+    // the material table first, TS_GS_MATERIAL_TABLE, so that it repeats
+    // as applyMaterial's do); a PACKED vertex tag with PRE whose registers
+    // are vertex attributes only has its primitives gathered for the
+    // backend's SubmitPrimitives when it takes them (DrawPaths; not for
+    // widescreen overlays or display copies), else drawn as the kicks
+    // draw them; other PACKED tags are written register by register without
+    // the stream's buffering; anything else (IMAGE, REGLIST, a tag cut by
+    // the packet's end) goes through the stream from there on. Callers keep
+    // the GIF arbiter's order (the packet goes now). Without TS_GS_BULK:
+    // processGIFPacket on PATH1.
     void processPath1Bulk(const uint8_t *data, uint32_t sizeBytes);
     // The drawing state a self-check saves before it runs a packet through a
     // recording backend and restores after (TS_NATIVE_EMIT_SELFCHECK).
@@ -192,7 +216,24 @@ public:
     std::unique_ptr<GSRasterBackend> swapBackendForCheck(std::unique_ptr<GSRasterBackend> backend);
     // A primitive the native path recognised and drew nothing for (the
     // texture-kick strip): statistics only.
-    void notePrimNoDraw(uint32_t prim) { (void)prim; }
+    void notePrimNoDraw(uint32_t prim);
+    // Front-end statistics and check counters (cumulative; [TS:gs] on the
+    // Xbox through src/xbox/xbox_gs_report.cpp).
+    struct Stats
+    {
+        uint32_t serialBumps = 0;                 // stateSerial moves
+        uint32_t drawStateHits = 0, drawStateBuilds = 0;
+        uint32_t stateChecks = 0, stateDiffs = 0; // TS_GS_STATE_SELFCHECK: cached state against a fresh build
+        uint32_t materialApplied = 0, materialRepeated = 0, materialMissing = 0; // applyMaterial
+        uint32_t blockRepeats = 0;                // state blocks repeated (any caller)
+        uint32_t materialChecks = 0, materialDiffs = 0; // TS_GS_STATE_SELFCHECK: sampled commits re-checked
+        uint32_t bulkPackets = 0, bulkTags = 0, bulkStateTags = 0, bulkVertexTags = 0, bulkFallbackTags = 0;
+        uint32_t bulkSubmits = 0, bulkDeclined = 0, bulkVertices = 0, bulkFallbackPackets = 0;
+        uint32_t bulkChecks = 0, bulkDiffs = 0;   // TS_GS_BULK_SELFCHECK: bulk against per-register, by packet
+        uint32_t primsNoDraw = 0;                 // notePrimNoDraw
+        uint32_t submitPrimitives = 0, submitPrimitivesTaken = 0;
+    };
+    static const Stats &stats();
     // Inside an open xf run: in-place strips to the backend (M8).
     void xfInPlace(GSXfCursor &cursor, const GSXfInPlaceStrip *strips, uint32_t count)
     {
@@ -270,8 +311,58 @@ private:
 
     void processImageData(const uint8_t *data, uint32_t sizeBytes);
     bool tryProcessNativeImageUploadPacket(const uint8_t *data, uint32_t sizeBytes);
+    // processGIFPacket's stream, under the lock (nativeImage: the whole-
+    // packet image upload shortcut may be taken; only at a packet's start).
+    void processGIFStreamUnlocked(const uint8_t *data, uint32_t sizeBytes, GifPathId path, bool nativeImage);
     GSPrimitiveBatch buildDrawBatch(int vertexCount) const;
+    void buildDrawState(GSDrawState &out) const;
+    const GSDrawState &drawStateUnlocked() const; // drawState under the lock
+    // A drawing-state register written (writeRegisterUnlocked): the serial
+    // moves unless the raw value is the one the shadow holds.
+    void noteStateWrite(uint8_t regAddr, uint64_t value);
+    void bumpStateSerial();
+    // submitPrimitives under the lock (PRIM written first).
+    void submitPrimitivesUnlocked(uint32_t primRegister, const GSVertex *vertices, uint32_t count);
     void adjustWidescreenHud(GSPrimitiveBatch &batch);
+    // Widescreen HUD narrowing, as pure tests (the GIF bulk path declines a
+    // tag the old path would narrow): whether narrowing is on at all now,
+    // and whether a draw of this state is an overlay candidate (its vertices
+    // decide the rest).
+    bool widescreenActive() const;
+    static bool widescreenOverlayState(const GSDrawState &state);
+    // A full-screen sprite copying a frame into another (the display-source
+    // heuristic), from the two sprite vertices; displayCopyState: the
+    // state's half of that test (a sprite of this state may be one).
+    static bool displayCopySprite(const GSDrawState &state, const GSVertex &v0, const GSVertex &v1);
+    static bool displayCopyState(const GSDrawState &state);
+    // applyStateBlock / checkStateBlock under the lock.
+    StateBlockResult applyStateBlockUnlocked(const StateBlock &block, bool recordTag);
+    bool checkStateBlockUnlocked(const uint8_t *data, uint32_t sizeBytes);
+    // Primitives handed to the backend whole (submitPrimitives, the bulk
+    // path's vertex tags): the kicks' draws gathered into a run of one PRIM
+    // (vertexKickRun moves the vertex queue exactly as vertexKick does),
+    // given to SubmitPrimitives, else drawn one by one (flushPrimitiveRun).
+    // takeRun: the backend takes runs and no draw of the current state
+    // needs the per-primitive path (widescreen narrowing, display copies,
+    // a debugger's history).
+    struct PrimitiveRun;
+    void beginPrimitiveRun(PrimitiveRun &run, uint32_t primRegister) const;
+    bool takeRun() const;
+    void vertexKickRun(bool drawing, PrimitiveRun &run);
+    void flushPrimitiveRun(PrimitiveRun &run);
+    // The GIF bulk path's body (processPath1Bulk, under the lock; the PATH1
+    // stream is between tags).
+    // One whole PACKED tag at data (the tag qword first; payloadBytes
+    // after it), by the bulk path's routes; endBulkTag leaves the PATH1
+    // stream's fields as the stream leaves them after the tag.
+    void endBulkTag(uint64_t hi, uint32_t nreg, bool wroteRegisters);
+    struct BulkCheckExtra;
+    static bool sameBulkCheckExtra(const BulkCheckExtra &a, const BulkCheckExtra &b);
+    void bulkStateTag(const uint8_t *data, uint32_t tagBytes);
+    bool bulkVertexTag(uint64_t lo, uint64_t hi, const uint8_t *payload, uint32_t nloop, uint32_t nreg);
+    void bulkRegisterTag(uint64_t lo, uint64_t hi, const uint8_t *payload, uint32_t nloop, uint32_t nreg);
+    void bulkPath1Unlocked(const uint8_t *data, uint32_t sizeBytes);
+    void bulkSelfCheck(const uint8_t *data, uint32_t sizeBytes);
     uint64_t m_drawCounter = 0, m_lastPerspectiveDraw = 0;
     // Current row of HUD glyphs, moved as one piece so text is not split.
     uint64_t m_hudRunDraw = 0;
@@ -301,6 +392,18 @@ private:
     // (applyStateBlock's repeats).
     uint32_t m_textureStateWrites = 0;
     uint32_t m_lastStateBlock = 0, m_lastStateBlockWrites = 0;
+    // The state serial (stateSerial) and the shadow of the drawing-state
+    // registers' raw values it is compared against (m_rawValid: the shadow
+    // holds every register written since it was cleared); the cached
+    // drawState() and the serial it was built at.
+    uint32_t m_stateSerial = 1;
+    uint32_t m_stateSerialCounter = 1;
+    static constexpr uint32_t kShadowRegs = 0x63u;
+    uint64_t m_rawReg[kShadowRegs] = {};
+    uint64_t m_rawValid[2] = {}; // bit r: m_rawReg[r] holds register r's last value
+    mutable GSDrawState m_drawStateCache{};
+    mutable uint32_t m_drawStateCacheSerial = 0;
+    bool m_bulkChecking = false; // TS_GS_BULK_SELFCHECK: inside a check (no nested check)
     std::atomic<HostPresentationMode> m_hostPresentationMode{HostPresentationMode::VSync};
     std::atomic<uint64_t> m_hostPresentationSequence{0};
     uint8_t *m_localMemoryStorage = nullptr;

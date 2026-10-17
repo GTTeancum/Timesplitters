@@ -352,9 +352,67 @@ namespace ts_native_test
         return 0u;
     }
 
-    inline TestOutcome testFunction(PS2Runtime &runtime, uint8_t *rdram, const NativeEntry &fn, const char *tag,
-                                    uint32_t seed = 0u)
+    // Abi mode (src/xbox/PUSH-BC-PLAN.md section 3.6 "boot differential
+    // tests in Abi mode"; B-LOGIC): an idiomatic native is held to its
+    // audited contract (project/game/native/ts_abi_observed.h) instead of
+    // the whole context. The registers its callers never read after it and
+    // that the original writes ("free") are not compared, nor the upper 64
+    // bits of any caller-saved general register (compiled code reads those
+    // only through 128-bit MMI operations, never on a call's leftovers),
+    // nor the guest stack below the entry $sp (dead frames: deadStack bytes
+    // under the test's stack top). keep* are the audit's masks: bit n of
+    // keepGpr / keepFpr set means $n / $fn is compared; keepMisc holds
+    // ts_abi::Observed's kMisc* bits.
+    struct AbiMask
     {
+        uint32_t keepGpr, keepFpr, keepMisc;
+        uint32_t deadStack;
+    };
+
+    // The word kinds for mask (kinds: sizeof(R5900Context) / 4 entries).
+    inline void abiWordKinds(const AbiMask &mask, uint8_t *kinds)
+    {
+        std::memcpy(kinds, contextWordKinds(), sizeof(R5900Context) / 4u);
+        auto mark = [kinds](size_t offset, size_t bytes) {
+            for (size_t word = offset / 4u; word < (offset + bytes) / 4u; ++word)
+                kinds[word] = kWordIgnored;
+        };
+        constexpr uint32_t kCallerSavedGpr = 0x0300FFFEu; // $at-$t7, $t8, $t9
+        for (size_t reg = 1; reg < 32u; ++reg)
+        {
+            if (((kCallerSavedGpr >> reg) & 1u) == 0u)
+                continue;
+            mark(offsetof(R5900Context, r) + reg * 16u + 8u, 8u);
+            if (((mask.keepGpr >> reg) & 1u) == 0u)
+                mark(offsetof(R5900Context, r) + reg * 16u, 8u);
+        }
+        for (size_t reg = 0; reg < 20u; ++reg)
+            if (((mask.keepFpr >> reg) & 1u) == 0u)
+                mark(offsetof(R5900Context, f) + reg * 4u, 4u);
+        if ((mask.keepMisc & 1u) == 0u)
+        {
+            mark(offsetof(R5900Context, hi), 8u);
+            mark(offsetof(R5900Context, lo), 8u);
+        }
+        if ((mask.keepMisc & 2u) == 0u)
+        {
+            mark(offsetof(R5900Context, hi1), 8u);
+            mark(offsetof(R5900Context, lo1), 8u);
+        }
+        if ((mask.keepMisc & 4u) == 0u)
+            mark(offsetof(R5900Context, fcr31), 4u);
+        if ((mask.keepMisc & 8u) == 0u)
+            mark(offsetof(R5900Context, f_acc), 4u);
+    }
+
+    inline TestOutcome testFunction(PS2Runtime &runtime, uint8_t *rdram, const NativeEntry &fn, const char *tag,
+                                    uint32_t seed = 0u, const AbiMask *abi = nullptr)
+    {
+        static uint8_t abiKinds[sizeof(R5900Context) / 4u];
+        if (abi)
+            abiWordKinds(*abi, abiKinds);
+        const uint8_t *kinds = abi ? abiKinds : contextWordKinds();
+        const uint32_t deadStack = abi ? (abi->deadStack < kScratchBytes ? abi->deadStack : kScratchBytes) : 0u;
         static R5900Context base, want, got;
         static uint8_t before[kScratchBytes], wantMemory[kScratchBytes];
         static uint8_t beforeExtra[kExtraBytesMax], wantExtra[kExtraBytesMax], gotExtra[kExtraBytesMax];
@@ -382,8 +440,11 @@ namespace ts_native_test
             gatherExtra(fn, rdram, gotExtra);
 
             Difference regs, memory, extra;
+            if (deadStack != 0u) // Abi mode: the dead frames below the entry $sp are not compared
+                std::memcpy(rdram + kScratch + kScratchBytes - deadStack, wantMemory + kScratchBytes - deadStack,
+                            deadStack);
             compareWords(reinterpret_cast<const uint8_t *>(&want), reinterpret_cast<const uint8_t *>(&got),
-                         sizeof(R5900Context), contextWordKinds(), fn.floats, regs);
+                         sizeof(R5900Context), kinds, fn.floats, regs);
             compareWords(wantMemory, rdram + kScratch, kScratchBytes, nullptr, fn.floats, memory);
             compareWords(wantExtra, gotExtra, extraBytes, nullptr, fn.floats, extra);
             if (regs.words != 0u || memory.words != 0u || extra.words != 0u)

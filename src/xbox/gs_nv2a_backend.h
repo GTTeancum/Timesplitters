@@ -82,6 +82,19 @@ struct GSNv2aTextureStats
     uint32_t drawChecked = 0, drawDiffs = 0;
     char drawDiffLast[24] = ""; // what differed last (status line)
     uint32_t ringChecked = 0, ringDiffs = 0;
+    // Texture kicks the native draw path recognised and sent no strip for
+    // (TS_NATIVE_TEXKICK_SHORTCUT, project/game/vu1_native_draw.h).
+    uint32_t texKicks = 0;
+    // Tier 0 bulk submits (SubmitPrimitives, gs_nv2a_screen.inl): calls
+    // taken, primitives in them, calls declined (render-to-texture,
+    // widescreen, off-screen, points/lines: the front end kicks those one
+    // by one); screen-ring segment hand-overs and the waits on one.
+    uint32_t bulkCalls = 0, bulkPrims = 0, bulkDeclined = 0, screenSegments = 0, waitScreen = 0;
+    // In-place fetch (M8, TS_NATIVE_INPLACE; gs_nv2a_xf.inl): strips and
+    // vertices the GPU drew from guest RAM, vertex-cache breaks, WBINVDs
+    // before an in-place draw (Case C), writer barriers that had to wait for
+    // the GPU.
+    uint32_t inPlaceStrips = 0, inPlaceVertices = 0, inPlaceBreaks = 0, inPlaceFlushes = 0, inPlaceBarrierWaits = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
 
@@ -107,6 +120,10 @@ struct GSNv2aLookupStats
     uint32_t oldHits = 0, oldNew = 0, oldConflicts = 0, oldVersions = 0;
     // Transform-constant rows rebuilt with a new value, rows sent to the GPU.
     uint32_t constRows = 0, constUploads = 0;
+    // B-GS (TS_NV2A_KEY_CACHE): draw keys given again for the same state
+    // serial and texture; TS_NV2A_KEY_SELFCHECK: those built afresh too, and
+    // those that differed.
+    uint32_t keyHits = 0, keyChecks = 0, keyDiffs = 0;
 };
 GSNv2aLookupStats nv2aLookupStats();
 
@@ -120,6 +137,15 @@ void nv2aXfConstantsChanged(uint32_t serial, uint64_t rows);
 // One compact line of them (no allocation): look= slow= ovf= idxdiff= clut=
 // hit= miss new/conf/ver/other= old hit/new/conf/ver= fill= cdiff= krows= kup=
 std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &stats);
+
+// In-place fetch coherency (M8; project/game/ts_inplace.cpp's writer hooks):
+// before a hooked game function writes guest arrays, every in-place draw
+// pushed so far is waited for (the GPU may not have fetched them yet); after
+// it, the next in-place draw breaks the vertex cache and, with flushCache
+// (the GPU does not snoop the CPU cache: probe T2a), writes the CPU cache
+// back first (WBINVD). No-ops without the NV2A renderer.
+void nv2aInPlaceBeforeWrite();
+void nv2aInPlaceAfterWrite(bool flushCache);
 
 // Guest RAM (PS2Memory::getRDRAM), read once a frame for the game's local
 // player count: split screen lowers the texture budget.

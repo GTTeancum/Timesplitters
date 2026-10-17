@@ -13,9 +13,155 @@
 #include <iostream>
 #include <sstream>
 
+// ---- B-GS switches (src/xbox/PUSH-BC-PLAN.md sections 3.5 and 5.4). Each
+// is #ifndef so that a .mk define (src/xbox/mk/b_gs.mk) or a compiler -D
+// flips it; 0 is the old path.
+// TS_GS_DRAWSTATE_CACHE 1: drawState() and every draw's state come from a
+// copy rebuilt only when the state serial moved (a drawing-state register
+// written with a new value, reset, setRasterBackend, restoreCheckState);
+// 0: built afresh for every draw, as before.
+#ifndef TS_GS_DRAWSTATE_CACHE
+#define TS_GS_DRAWSTATE_CACHE 1
+#endif
+// TS_GS_BULK 1: processPath1Bulk reads whole tags in place (gs_frontend.h);
+// 0: it is processGIFPacket on PATH1.
+#ifndef TS_GS_BULK
+#define TS_GS_BULK 1
+#endif
+// TS_GS_BULK_ALL_PATH1 1: every PATH1 packet that starts between tags
+// takes the bulk path too, not only the native kick's (Tier 0's caller);
+// 0: only processPath1Bulk's callers. Development and measurement.
+#ifndef TS_GS_BULK_ALL_PATH1
+#define TS_GS_BULK_ALL_PATH1 0
+#endif
+// TS_GS_STATE_SELFCHECK 1: every drawState() served from the cache is
+// compared with a fresh build (stateDiffs, the fresh one is used), and one
+// material commit in TS_GS_STATE_SELFCHECK_EVERY is processed again as a
+// PATH1 packet (checkStateBlock: it must change nothing; materialDiffs).
+#ifndef TS_GS_STATE_SELFCHECK
+#define TS_GS_STATE_SELFCHECK 0
+#endif
+#ifndef TS_GS_STATE_SELFCHECK_EVERY
+#define TS_GS_STATE_SELFCHECK_EVERY 16
+#endif
+// TS_GS_BULK_SELFCHECK 1: one bulk packet in TS_GS_BULK_SELFCHECK_EVERY
+// (the first TS_GS_BULK_SELFCHECK_PACKETS) also runs through the
+// per-register stream from the same saved state into a recording backend,
+// and the bulk path into another (which takes SubmitPrimitives, expanding
+// them), and the two recordings (every backend call, every draw's state
+// and vertices) and end states are compared: bulkDiffs, the first few
+// logged. Then the state is restored and the packet goes for real.
+#ifndef TS_GS_BULK_SELFCHECK
+#define TS_GS_BULK_SELFCHECK 0
+#endif
+#ifndef TS_GS_BULK_SELFCHECK_EVERY
+#define TS_GS_BULK_SELFCHECK_EVERY 4
+#endif
+#ifndef TS_GS_BULK_SELFCHECK_PACKETS
+#define TS_GS_BULK_SELFCHECK_PACKETS 2000000
+#endif
+
 namespace
 {
     static constexpr uint32_t kHostFrameWidth = 640u;
+
+    // The front end's statistics (GS::stats(); one GS per runtime).
+    GS::Stats s_gsStats;
+
+    // The registers whose value is part of the drawing state a draw takes
+    // (buildDrawState): a write with a new value moves the state serial.
+    constexpr bool drawStateRegister(uint8_t reg)
+    {
+        switch (reg)
+        {
+        case GS_REG_PRIM: case GS_REG_PRMODECONT: case GS_REG_PRMODE:
+        case GS_REG_TEX0_1: case GS_REG_TEX0_2: case GS_REG_CLAMP_1: case GS_REG_CLAMP_2:
+        case GS_REG_TEX1_1: case GS_REG_TEX1_2: case GS_REG_TEX2_1: case GS_REG_TEX2_2:
+        case GS_REG_XYOFFSET_1: case GS_REG_XYOFFSET_2: case GS_REG_TEXCLUT: case GS_REG_SCANMSK:
+        case GS_REG_MIPTBP1_1: case GS_REG_MIPTBP1_2: case GS_REG_MIPTBP2_1: case GS_REG_MIPTBP2_2:
+        case GS_REG_TEXA: case GS_REG_FOGCOL:
+        case GS_REG_SCISSOR_1: case GS_REG_SCISSOR_2: case GS_REG_ALPHA_1: case GS_REG_ALPHA_2:
+        case GS_REG_DIMX: case GS_REG_DTHE: case GS_REG_COLCLAMP: case GS_REG_TEST_1: case GS_REG_TEST_2:
+        case GS_REG_PABE: case GS_REG_FBA_1: case GS_REG_FBA_2: case GS_REG_FRAME_1: case GS_REG_FRAME_2:
+        case GS_REG_ZBUF_1: case GS_REG_ZBUF_2:
+            return true;
+        default:
+            return false;
+        }
+    }
+    struct DrawStateRegisterTable
+    {
+        bool bits[256];
+        constexpr DrawStateRegisterTable() : bits{}
+        {
+            for (unsigned r = 0; r < 256u; ++r)
+                bits[r] = drawStateRegister(static_cast<uint8_t>(r));
+        }
+    };
+    constexpr DrawStateRegisterTable kDrawStateRegisters{};
+
+    // A draw state as canonical words (no padding, no serial), hashed: the
+    // self-checks compare states by this.
+    struct Fnv
+    {
+        uint32_t h = 2166136261u;
+        void word(uint32_t v) { h = (h ^ v) * 16777619u; }
+        void wide(uint64_t v)
+        {
+            word(static_cast<uint32_t>(v));
+            word(static_cast<uint32_t>(v >> 32));
+        }
+        void real(float f)
+        {
+            uint32_t bits;
+            std::memcpy(&bits, &f, 4);
+            word(bits);
+        }
+        void real(double d)
+        {
+            uint64_t bits;
+            std::memcpy(&bits, &d, 8);
+            wide(bits);
+        }
+    };
+    void hashContext(Fnv &f, const GSContext &c)
+    {
+        f.word(c.frame.fbp); f.word(c.frame.fbw); f.word(c.frame.psm); f.word(c.frame.fbmsk);
+        f.word(c.scissor.x0); f.word(c.scissor.x1); f.word(c.scissor.y0); f.word(c.scissor.y1);
+        const GSTex0Reg &t = c.tex0;
+        f.word(t.tbp0); f.word(t.tbw); f.word(t.psm); f.word(t.tw); f.word(t.th); f.word(t.tcc); f.word(t.tfx);
+        f.word(t.cbp); f.word(t.cpsm); f.word(t.csm); f.word(t.csa); f.word(t.cld);
+        f.word(c.xyoffset.ofx); f.word(c.xyoffset.ofy);
+        f.word(c.zbuf.zbp); f.word(c.zbuf.psm); f.word(c.zbuf.zmask);
+        f.wide(c.tex1); f.wide(c.miptbp1); f.wide(c.miptbp2); f.wide(c.clamp); f.wide(c.alpha); f.wide(c.test); f.wide(c.fba);
+    }
+    void hashPrim(Fnv &f, const GSPrimReg &p)
+    {
+        f.word(static_cast<uint32_t>(p.type) | (p.iip << 4) | (p.tme << 5) | (p.fge << 6) | (p.abe << 7) | (p.aa1 << 8) |
+               (p.fst << 9) | (p.ctxt << 10) | (p.fix << 11));
+    }
+    uint32_t hashDrawState(const GSDrawState &s)
+    {
+        Fnv f;
+        hashContext(f, s.context);
+        hashPrim(f, s.prim);
+        f.word(s.texa.ta0 | (s.texa.aem << 8) | (static_cast<uint32_t>(s.texa.ta1) << 16));
+        f.word(s.texclut.cbw | (s.texclut.cou << 8) | (static_cast<uint32_t>(s.texclut.cov) << 16));
+        f.word(s.pabe);
+        f.wide(s.scanmsk); f.wide(s.dimx); f.wide(s.dthe); f.wide(s.colclamp);
+        f.word(s.fogR | (s.fogG << 8) | (s.fogB << 16));
+        f.word(s.textureWidth | (static_cast<uint32_t>(s.textureHeight) << 16));
+        f.word(s.linearFilter);
+        return f.h;
+    }
+    void hashVertex(Fnv &f, const GSVertex &v)
+    {
+        f.real(v.x); f.real(v.y); f.real(v.z);
+        f.word(v.r | (v.g << 8) | (v.b << 16) | (static_cast<uint32_t>(v.a) << 24));
+        f.real(v.q); f.real(v.s); f.real(v.t);
+        f.word(v.u | (static_cast<uint32_t>(v.v) << 16));
+        f.word(v.fog);
+    }
 
     GSPrimReg decodePrimRegister(uint64_t value)
     {
@@ -97,51 +243,11 @@ namespace
                                     { return true; });
     }
 
-    // Registers a native state block may write (GS::decodeStateBlock):
-    // drawing state whose write does nothing beyond storing the value, a CLUT
-    // load (TEX0, TEX2) or a texture-cache flush.
-    bool isStateRegister(uint8_t reg)
-    {
-        switch (reg)
-        {
-        case GS_REG_TEX0_1: case GS_REG_TEX0_2: case GS_REG_CLAMP_1: case GS_REG_CLAMP_2:
-        case GS_REG_TEX1_1: case GS_REG_TEX1_2: case GS_REG_TEX2_1: case GS_REG_TEX2_2:
-        case GS_REG_XYOFFSET_1: case GS_REG_XYOFFSET_2: case GS_REG_TEXCLUT: case GS_REG_SCANMSK:
-        case GS_REG_MIPTBP1_1: case GS_REG_MIPTBP1_2: case GS_REG_MIPTBP2_1: case GS_REG_MIPTBP2_2:
-        case GS_REG_TEXA: case GS_REG_FOGCOL: case GS_REG_TEXFLUSH:
-        case GS_REG_SCISSOR_1: case GS_REG_SCISSOR_2: case GS_REG_ALPHA_1: case GS_REG_ALPHA_2:
-        case GS_REG_DIMX: case GS_REG_DTHE: case GS_REG_COLCLAMP: case GS_REG_TEST_1: case GS_REG_TEST_2:
-        case GS_REG_PABE: case GS_REG_FBA_1: case GS_REG_FBA_2: case GS_REG_FRAME_1: case GS_REG_FRAME_2:
-        case GS_REG_ZBUF_1: case GS_REG_ZBUF_2:
-            return true;
-        default:
-            return false;
-        }
-    }
-
-    bool isClutRegister(uint8_t reg)
-    {
-        return reg == GS_REG_TEX0_1 || reg == GS_REG_TEX0_2 || reg == GS_REG_TEX2_1 || reg == GS_REG_TEX2_2;
-    }
-
-    // The registers GS::m_textureStateWrites counts.
-    bool isTextureRegister(uint8_t reg)
-    {
-        return isClutRegister(reg) || reg == GS_REG_TEX1_1 || reg == GS_REG_TEX1_2 || reg == GS_REG_CLAMP_1 ||
-               reg == GS_REG_CLAMP_2 || reg == GS_REG_MIPTBP1_1 || reg == GS_REG_MIPTBP1_2 ||
-               reg == GS_REG_MIPTBP2_1 || reg == GS_REG_MIPTBP2_2;
-    }
-
-    // A TEX0/TEX2 value whose write loads the CLUT whatever was loaded before
-    // (an indexed format with CLD 1-3); CLD 4 and 5 load only when CBP
-    // differs from the address the last load recorded.
-    bool alwaysLoadsClut(uint64_t value)
-    {
-        const uint32_t psm = static_cast<uint32_t>((value >> 20) & 0x3Fu), cld = static_cast<uint32_t>((value >> 61) & 7u);
-        const bool indexed = psm == GS_PSM_T8 || psm == GS_PSM_T4 || psm == GS_PSM_T8H || psm == GS_PSM_T4HL ||
-                             psm == GS_PSM_T4HH;
-        return indexed && cld >= 1u && cld <= 3u;
-    }
+    // The state-block register classes (runtime/gs/gs_material.h).
+    using gs_material::isStateRegister;
+    using gs_material::isClutRegister;
+    using gs_material::isTextureRegister;
+    using gs_material::alwaysLoadsClut;
 
     bool sameTex0(const GSTex0Reg &a, const GSTex0Reg &b)
     {
@@ -157,6 +263,65 @@ namespace
                a.xyoffset.ofx == b.xyoffset.ofx && a.xyoffset.ofy == b.xyoffset.ofy && a.zbuf.zbp == b.zbuf.zbp &&
                a.zbuf.psm == b.zbuf.psm && a.zbuf.zmask == b.zbuf.zmask && a.tex1 == b.tex1 && a.miptbp1 == b.miptbp1 &&
                a.miptbp2 == b.miptbp2 && a.clamp == b.clamp && a.alpha == b.alpha && a.test == b.test && a.fba == b.fba;
+    }
+
+    bool samePrim(const GSPrimReg &a, const GSPrimReg &b)
+    {
+        return a.type == b.type && a.iip == b.iip && a.tme == b.tme && a.fge == b.fge && a.abe == b.abe &&
+               a.aa1 == b.aa1 && a.fst == b.fst && a.ctxt == b.ctxt && a.fix == b.fix;
+    }
+
+    [[maybe_unused]] bool sameDrawState(const GSDrawState &a, const GSDrawState &b)
+    {
+        return sameContext(a.context, b.context) && samePrim(a.prim, b.prim) && a.texa.ta0 == b.texa.ta0 &&
+               a.texa.aem == b.texa.aem && a.texa.ta1 == b.texa.ta1 && a.texclut.cbw == b.texclut.cbw &&
+               a.texclut.cou == b.texclut.cou && a.texclut.cov == b.texclut.cov && a.pabe == b.pabe &&
+               a.scanmsk == b.scanmsk && a.dimx == b.dimx && a.dthe == b.dthe && a.colclamp == b.colclamp &&
+               a.fogR == b.fogR && a.fogG == b.fogG && a.fogB == b.fogB && a.textureWidth == b.textureWidth &&
+               a.textureHeight == b.textureHeight && a.linearFilter == b.linearFilter;
+    }
+
+    // Floats by their bits (a NaN from a packet's ST or Q is a value too).
+    [[maybe_unused]] bool sameBits(float a, float b)
+    {
+        return std::memcmp(&a, &b, sizeof(float)) == 0;
+    }
+
+    // Two saved front-end states alike (TS_GS_BULK_SELFCHECK): everything a
+    // packet moves but a stream's last copied unit (scratch once used) and
+    // the state-block repeat bookkeeping (a repeat writes nothing).
+    [[maybe_unused]] bool sameCheckState(const GS::CheckState &a, const GS::CheckState &b)
+    {
+        for (size_t i = 0; i < a.gifStreams.size(); ++i)
+        {
+            const auto &x = a.gifStreams[i];
+            const auto &y = b.gifStreams[i];
+            if (x.unitBytes != y.unitBytes || x.remaining != y.remaining || x.regIndex != y.regIndex ||
+                x.nreg != y.nreg || x.padding != y.padding || x.endPadding != y.endPadding || x.format != y.format ||
+                x.registers != y.registers || !sameBits(x.q, y.q) || x.image != y.image)
+                return false;
+        }
+        if (!sameContext(a.ctx[0], b.ctx[0]) || !sameContext(a.ctx[1], b.ctx[1]) || !samePrim(a.prim, b.prim) ||
+            !samePrim(a.primRegister, b.primRegister) || !samePrim(a.prmodeRegister, b.prmodeRegister))
+            return false;
+        if (a.curR != b.curR || a.curG != b.curG || a.curB != b.curB || a.curA != b.curA || !sameBits(a.curQ, b.curQ) ||
+            !sameBits(a.curS, b.curS) || !sameBits(a.curT, b.curT) || a.curU != b.curU || a.curV != b.curV || a.curFog != b.curFog ||
+            a.fogR != b.fogR || a.fogG != b.fogG || a.fogB != b.fogB || a.prmodecont != b.prmodecont ||
+            a.pabe != b.pabe || a.scanmsk != b.scanmsk || a.dimx != b.dimx || a.dthe != b.dthe ||
+            a.colclamp != b.colclamp || a.texa.ta0 != b.texa.ta0 || a.texa.aem != b.texa.aem ||
+            a.texa.ta1 != b.texa.ta1 || a.texclut.cbw != b.texclut.cbw || a.texclut.cou != b.texclut.cou ||
+            a.texclut.cov != b.texclut.cov || a.vtxCount != b.vtxCount || a.vtxIndex != b.vtxIndex ||
+            a.drawCounter != b.drawCounter || a.lastPerspectiveDraw != b.lastPerspectiveDraw)
+            return false;
+        for (size_t i = 0; i < sizeof(a.vtxQueue) / sizeof(a.vtxQueue[0]); ++i)
+        {
+            Fnv fa, fb;
+            hashVertex(fa, a.vtxQueue[i]);
+            hashVertex(fb, b.vtxQueue[i]);
+            if (fa.h != fb.h)
+                return false;
+        }
+        return true;
     }
 
     std::atomic<uint32_t> s_debugGifPacketCount{0};
@@ -193,6 +358,7 @@ void GS::reset()
     std::memset(m_ctx, 0, sizeof(m_ctx));
     m_gifStreams = {};
     m_lastStateBlock = 0; // the backend's CLUT is reset below
+    m_rawValid[0] = m_rawValid[1] = 0u; // the state serial moves below (bumpStateSerial)
     m_hostPresentationSequence.fetch_add(1, std::memory_order_release);
     m_prim = {};
     m_primRegister = {};
@@ -256,6 +422,7 @@ void GS::reset()
         m_ctx[i].scissor = {0, 639, 0, 447};
         m_ctx[i].xyoffset = {0, 0};
     }
+    bumpStateSerial();
 }
 
 GSContext &GS::activeContext()
@@ -750,10 +917,9 @@ bool GS::copyLatchedHostPresentationFrame(std::vector<uint8_t> &outPixels,
     return true;
 }
 
-void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId path)
-{
-    std::lock_guard lock(m_stateMutex);
 #if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+namespace
+{
     // The kick histogram (runtime/ps2_measure.h): a PATH1 packet (an
     // XGKICK) by the primitives it drew and what it wrote, counted when the
     // outermost one ends.
@@ -783,13 +949,33 @@ void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId pat
             if (g_measure.xyz3Writes)
                 ++g_measure.kickKinds[3];
         }
-    } measureKick(path);
+    };
+}
 #endif
+
+void GS::processGIFPacket(const uint8_t *data, uint32_t sizeBytes, GifPathId path)
+{
+    std::lock_guard lock(m_stateMutex);
+#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+    MeasureKick measureKick(path);
+#endif
+#if TS_GS_BULK && TS_GS_BULK_ALL_PATH1
+    if (path == GifPathId::Path1)
+    {
+        bulkPath1Unlocked(data, sizeBytes);
+        return;
+    }
+#endif
+    processGIFStreamUnlocked(data, sizeBytes, path, true);
+}
+
+void GS::processGIFStreamUnlocked(const uint8_t *data, uint32_t sizeBytes, GifPathId path, bool nativeImage)
+{
     const auto index = static_cast<unsigned>(path);
     if (!data || sizeBytes == 0 || !m_backend || index < 1 || index > 3)
         return;
     auto &stream = m_gifStreams[index - 1];
-    if (!stream.remaining && !stream.padding && !stream.unitBytes &&
+    if (nativeImage && !stream.remaining && !stream.padding && !stream.unitBytes &&
         tryProcessNativeImageUploadPacket(data, sizeBytes))
         return;
     uint32_t offset = 0;
@@ -1249,6 +1435,9 @@ void GS::writeRegisterUnlocked(uint8_t regAddr, uint64_t value)
                         << std::endl);
         }
     });
+
+    if (kDrawStateRegisters.bits[regAddr])
+        noteStateWrite(regAddr, value);
 
     switch (regAddr)
     {
@@ -1740,8 +1929,8 @@ void GS::submitStrip(uint32_t primRegister, const GSVertex *vertices, uint32_t c
     writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
     if (m_backend && count >= 3u)
     {
-        const GSPrimitiveBatch batch = buildDrawBatch(0);
-        if (m_backend->SubmitStrip(batch.state, vertices, count))
+        // The state by reference (the cached one: no copy per strip).
+        if (m_backend->SubmitStrip(drawStateUnlocked(), vertices, count))
         {
             m_vtxCount = 0;
             return;
@@ -1767,8 +1956,8 @@ bool GS::beginXfRun(uint32_t primRegister, const GSXfConstants &constants, GSXfC
     cursor.inPlaceTaken = 0u;
     if (m_backend)
     {
-        const GSPrimitiveBatch batch = buildDrawBatch(0);
-        if (m_backend->BeginXfRun(batch.state, constants, cursor))
+        // The state by reference (the cached one: no copy per run).
+        if (m_backend->BeginXfRun(drawStateUnlocked(), constants, cursor))
         {
             m_vtxCount = 0; // as a PACKED packet with PRE set leaves the vertex queue
             return true;
@@ -1784,30 +1973,407 @@ void GS::endXfRun(GSXfCursor &cursor)
     m_stateMutex.unlock();
 }
 
-// ---- Push B/C front-end API (gs_frontend.h; B-GS replaces these bodies).
-GSDrawState GS::drawState() const
+// ---- Push B/C front-end API (gs_frontend.h; src/xbox/PUSH-BC-PLAN.md
+// sections 3.2, 3.5 and 5.4).
+const GS::Stats &GS::stats()
 {
-    return buildDrawBatch(0).state;
+    return s_gsStats;
+}
+
+void GS::notePrimNoDraw(uint32_t prim)
+{
+    (void)prim;
+    ++s_gsStats.primsNoDraw;
+}
+
+void GS::bumpStateSerial()
+{
+    if (++m_stateSerialCounter == 0u)
+        m_stateSerialCounter = 1u;
+    m_stateSerial = m_stateSerialCounter;
+    ++s_gsStats.serialBumps;
+}
+
+void GS::noteStateWrite(uint8_t regAddr, uint64_t value)
+{
+    uint64_t &valid = m_rawValid[regAddr >> 6];
+    const uint64_t bit = 1ull << (regAddr & 63u);
+    if ((valid & bit) != 0u && m_rawReg[regAddr] == value)
+        return; // the same value again: the same state
+    m_rawReg[regAddr] = value;
+    valid |= bit;
+    // TEX0 and TEX2 of a context write the same TEX0 fields: after one, the
+    // other's last value no longer says what the fields hold.
+    switch (regAddr)
+    {
+    case GS_REG_TEX0_1: m_rawValid[GS_REG_TEX2_1 >> 6] &= ~(1ull << (GS_REG_TEX2_1 & 63u)); break;
+    case GS_REG_TEX0_2: m_rawValid[GS_REG_TEX2_2 >> 6] &= ~(1ull << (GS_REG_TEX2_2 & 63u)); break;
+    case GS_REG_TEX2_1: m_rawValid[GS_REG_TEX0_1 >> 6] &= ~(1ull << (GS_REG_TEX0_1 & 63u)); break;
+    case GS_REG_TEX2_2: m_rawValid[GS_REG_TEX0_2 >> 6] &= ~(1ull << (GS_REG_TEX0_2 & 63u)); break;
+    default: break;
+    }
+    bumpStateSerial();
+}
+
+void GS::buildDrawState(GSDrawState &out) const
+{
+    out.context = m_ctx[m_prim.ctxt ? 1 : 0];
+    out.prim = m_prim;
+    out.texa = m_texa;
+    out.texclut = m_texclut;
+    out.pabe = m_pabe;
+    out.scanmsk = m_scanmsk;
+    out.dimx = m_dimx;
+    out.dthe = m_dthe;
+    out.colclamp = m_colclamp;
+    out.fogR = m_fogR;
+    out.fogG = m_fogG;
+    out.fogB = m_fogB;
+    out.textureWidth = static_cast<uint16_t>(1u << std::min<uint32_t>(out.context.tex0.tw, 10u));
+    out.textureHeight = static_cast<uint16_t>(1u << std::min<uint32_t>(out.context.tex0.th, 10u));
+    const uint64_t tex1 = out.context.tex1;
+    const uint8_t mmag = static_cast<uint8_t>((tex1 >> 5u) & 0x1u);
+    const uint8_t mmin = static_cast<uint8_t>((tex1 >> 6u) & 0x7u);
+    out.linearFilter = mmag != 0u || mmin == 1u || (mmin & 0x4u) != 0u;
+#if TS_GS_DRAWSTATE_CACHE
+    out.serial = m_stateSerial;
+#else
+    out.serial = 0u; // not tracked (the old path)
+#endif
+}
+
+const GSDrawState &GS::drawState() const
+{
+    std::lock_guard lock(m_stateMutex);
+    return drawStateUnlocked();
+}
+
+const GSDrawState &GS::drawStateUnlocked() const
+{
+#if TS_GS_DRAWSTATE_CACHE
+    if (m_drawStateCacheSerial == m_stateSerial)
+    {
+        ++s_gsStats.drawStateHits;
+#if TS_GS_STATE_SELFCHECK
+        GSDrawState fresh;
+        buildDrawState(fresh);
+        ++s_gsStats.stateChecks;
+        if (!sameDrawState(fresh, m_drawStateCache))
+        {
+            if (++s_gsStats.stateDiffs <= 8u)
+                std::cout << "[TS:gscheck] drawState " << s_gsStats.stateChecks << ": cached state at serial "
+                          << m_stateSerial << " differs from a fresh build (hash " << std::hex
+                          << hashDrawState(m_drawStateCache) << " vs " << hashDrawState(fresh) << std::dec << ")"
+                          << std::endl;
+            m_drawStateCache = fresh; // the fresh one is used
+        }
+#endif
+        return m_drawStateCache;
+    }
+    ++s_gsStats.drawStateBuilds;
+    buildDrawState(m_drawStateCache);
+    m_drawStateCacheSerial = m_stateSerial;
+    return m_drawStateCache;
+#else
+    ++s_gsStats.drawStateBuilds;
+    buildDrawState(m_drawStateCache);
+    return m_drawStateCache;
+#endif
+}
+
+// ---- Widescreen and display-source tests, pure (adjustWidescreenHud and
+// updatePreferredDisplaySourceForDraw keep the decisions; the bulk paths ask
+// before they hand primitives on whole).
+bool GS::widescreenActive() const
+{
+    return hostSettings().widescreen && !gsSplitScreen();
+}
+
+bool GS::widescreenOverlayState(const GSDrawState &state)
+{
+    const GSContext &ctx = state.context;
+    const uint32_t ztst = static_cast<uint32_t>((ctx.test >> 17) & 3u);
+    return ztst == 1u && ctx.zbuf.zmask && !(state.prim.tme && !state.prim.fst);
+}
+
+bool GS::displayCopyState(const GSDrawState &state)
+{
+    const GSContext &ctx = state.context;
+    const uint8_t alphaMode = static_cast<uint8_t>(ctx.alpha & 0xFFu);
+    const uint8_t alphaFix = static_cast<uint8_t>((ctx.alpha >> 32u) & 0xFFu);
+    return state.prim.type == GS_PRIM_SPRITE && state.prim.tme && state.prim.abe && state.prim.fst &&
+           state.prim.ctxt && ctx.frame.fbp != ctx.tex0.tbp0 && alphaMode == 0x64u &&
+           (alphaFix == 0x60u || alphaFix == 0x80u);
+}
+
+bool GS::displayCopySprite(const GSDrawState &state, const GSVertex &v0, const GSVertex &v1)
+{
+    if (!displayCopyState(state))
+        return false;
+    const GSContext &ctx = state.context;
+    int x0 = static_cast<int>(v0.x) - (ctx.xyoffset.ofx >> 4);
+    int y0 = static_cast<int>(v0.y) - (ctx.xyoffset.ofy >> 4);
+    int x1 = static_cast<int>(v1.x) - (ctx.xyoffset.ofx >> 4);
+    int y1 = static_cast<int>(v1.y) - (ctx.xyoffset.ofy >> 4);
+    if (x0 > x1)
+        std::swap(x0, x1);
+    if (y0 > y1)
+        std::swap(y0, y1);
+    const int xEnd = x0 + std::max(1, x1 - x0) - 1;
+    const int yEnd = y0 + std::max(1, y1 - y0) - 1;
+    return x0 <= 0 && y0 <= 0 && xEnd >= 639 && yEnd >= 447;
+}
+
+// ---- Primitives handed on whole (submitPrimitives, the GIF bulk path's
+// vertex tags). The vertex queue moves exactly as vertexKick moves it; the
+// primitives a kick would draw are gathered into a run and given to the
+// backend's SubmitPrimitives in one call, or, when it declines, drawn one
+// by one as vertexKick draws them.
+namespace
+{
+    constexpr uint32_t kRunVertices = 64u; // per SubmitPrimitives call (strips chunk with an overlap)
+
+    int verticesPerPrimitive(GSPrimType type)
+    {
+        switch (type)
+        {
+        case GS_PRIM_POINT: return 1;
+        case GS_PRIM_LINE: case GS_PRIM_LINESTRIP: case GS_PRIM_SPRITE: return 2;
+        case GS_PRIM_TRIANGLE: case GS_PRIM_TRISTRIP: case GS_PRIM_TRIFAN: return 3;
+        default: return 0;
+        }
+    }
+    bool stripType(GSPrimType type) { return type == GS_PRIM_TRISTRIP || type == GS_PRIM_LINESTRIP; }
+}
+
+struct GS::PrimitiveRun
+{
+    GSPrimType type = GS_PRIM_POINT;
+    int needed = 0;
+    uint32_t prim = 0;  // the PRIM register value handed to the backend
+    bool take = false;  // the backend may take runs (else every kick draws at once)
+    bool joined = false; // the last kick drew: a strip or fan run goes on from it
+    uint32_t count = 0;
+    GSVertex vertices[kRunVertices + 2u];
+
+    uint32_t primitives() const
+    {
+        if (count < static_cast<uint32_t>(needed))
+            return 0u;
+        if (type == GS_PRIM_TRIFAN)
+            return count - 2u;
+        if (stripType(type))
+            return count - static_cast<uint32_t>(needed - 1);
+        return count / static_cast<uint32_t>(needed);
+    }
+    // The vertices of primitive i, as the queue held them when it drew.
+    void primitive(uint32_t i, GSVertex *out) const
+    {
+        if (type == GS_PRIM_TRIFAN)
+        {
+            out[0] = vertices[0];
+            out[1] = vertices[i + 1u];
+            out[2] = vertices[i + 2u];
+        }
+        else if (stripType(type))
+        {
+            for (int k = 0; k < needed; ++k)
+                out[k] = vertices[i + static_cast<uint32_t>(k)];
+        }
+        else
+        {
+            for (int k = 0; k < needed; ++k)
+                out[k] = vertices[i * static_cast<uint32_t>(needed) + static_cast<uint32_t>(k)];
+        }
+    }
+};
+
+void GS::flushPrimitiveRun(PrimitiveRun &run)
+{
+    const uint32_t prims = run.primitives();
+    if (prims == 0u)
+    {
+        run.count = 0;
+        return;
+    }
+    const GSDrawState &state = drawStateUnlocked();
+    const int needed = run.needed;
+    if (m_backend->SubmitPrimitives(state, run.prim, run.vertices, run.count))
+    {
+        ++s_gsStats.submitPrimitivesTaken;
+        s_gsStats.bulkVertices += run.count;
+        // What the kicks' draws would have left: the draw counter (the
+        // widescreen gameplay test) and the display-source heuristic's reset.
+        // (Overlay states and display copies never come here: takeRun.)
+        const uint32_t ztst = static_cast<uint32_t>((state.context.test >> 17) & 3u);
+        m_drawCounter += prims;
+        if (state.prim.tme && !state.prim.fst && ztst >= 2u)
+            m_lastPerspectiveDraw = m_drawCounter;
+        if (m_hasPreferredDisplaySource && state.context.frame.fbp == m_preferredDisplayDestFbp)
+            m_hasPreferredDisplaySource = false;
+    }
+    else
+    {
+        ++s_gsStats.bulkDeclined;
+        for (uint32_t i = 0; i < prims; ++i)
+        {
+            GSPrimitiveBatch batch{};
+            batch.vertexCount = static_cast<uint8_t>(std::min(needed, 3));
+            GSVertex v[3];
+            run.primitive(i, v);
+            for (int k = 0; k < batch.vertexCount; ++k)
+                batch.vertices[static_cast<size_t>(k)] = v[k];
+            batch.state = state;
+            adjustWidescreenHud(batch);
+            updatePreferredDisplaySourceForDraw(batch);
+            m_backend->Submit(batch);
+            recordDrawDebugEventUnlocked(needed);
+        }
+    }
+    // A strip or fan longer than one call goes on in the next with its
+    // overlap (the last two vertices; a fan's centre and its last).
+    if (run.type == GS_PRIM_TRIFAN)
+    {
+        run.vertices[1] = run.vertices[run.count - 1u];
+        run.count = 2u;
+    }
+    else if (stripType(run.type))
+    {
+        const uint32_t keep = static_cast<uint32_t>(needed - 1);
+        for (uint32_t k = 0; k < keep; ++k)
+            run.vertices[k] = run.vertices[run.count - keep + k];
+        run.count = keep;
+    }
+    else
+        run.count = 0u;
+}
+
+// vertexKick with the draw gathered into the run (run.take) instead of done.
+void GS::vertexKickRun(bool drawing, PrimitiveRun &run)
+{
+    if (!run.take)
+    {
+        vertexKick(drawing);
+        return;
+    }
+    ++m_vtxCount;
+    ++m_vtxIndex;
+    const int needed = run.needed;
+    if (needed == 0 || m_vtxCount < needed)
+        return;
+    if (drawing && m_backend)
+    {
+        TS_MEASURE(++g_measure.prims);
+        TS_MEASURE(g_measure.primsTextured += m_prim.tme ? 1u : 0u);
+        const bool chained = run.type == GS_PRIM_TRIFAN || stripType(run.type);
+        if (chained && run.joined && run.count >= static_cast<uint32_t>(needed - 1))
+            run.vertices[run.count++] = m_vtxQueue[needed - 1];
+        else
+        {
+            if (chained || run.count + static_cast<uint32_t>(needed) > kRunVertices)
+            {
+                flushPrimitiveRun(run);
+                run.count = 0u;
+            }
+            for (int k = 0; k < needed; ++k)
+                run.vertices[run.count++] = m_vtxQueue[k];
+        }
+        run.joined = true;
+        if (run.count >= kRunVertices)
+            flushPrimitiveRun(run);
+    }
+    else
+    {
+        // A kick that does not draw (XYZ3, ADC) breaks a strip or fan run.
+        if (run.joined)
+            flushPrimitiveRun(run);
+        run.count = 0u;
+        run.joined = false;
+    }
+    switch (m_prim.type)
+    {
+    case GS_PRIM_LINE:
+    case GS_PRIM_TRIANGLE:
+    case GS_PRIM_SPRITE:
+    case GS_PRIM_POINT:
+        m_vtxCount = 0;
+        break;
+    case GS_PRIM_LINESTRIP:
+        m_vtxQueue[0] = m_vtxQueue[1];
+        m_vtxCount = 1;
+        break;
+    case GS_PRIM_TRISTRIP:
+        m_vtxQueue[0] = m_vtxQueue[1];
+        m_vtxQueue[1] = m_vtxQueue[2];
+        m_vtxCount = 2;
+        break;
+    case GS_PRIM_TRIFAN:
+        m_vtxQueue[1] = m_vtxQueue[2];
+        m_vtxCount = 2;
+        break;
+    default:
+        m_vtxCount = 0;
+        break;
+    }
+}
+
+// Whether a run of the current state may go to the backend whole: it says
+// it takes them, and no draw of the state would be narrowed for widescreen,
+// be a display copy, or be recorded for a debugger.
+bool GS::takeRun() const
+{
+    if (!m_backend || (m_backend->DrawPaths() & kGSDrawPathSubmitPrimitives) == 0u || !m_debugHistoryPaused)
+        return false;
+    const GSDrawState &state = drawStateUnlocked();
+    if (widescreenActive() && widescreenOverlayState(state))
+        return false;
+    return !displayCopyState(state);
+}
+
+void GS::beginPrimitiveRun(PrimitiveRun &run, uint32_t primRegister) const
+{
+    run.type = m_prim.type;
+    run.needed = verticesPerPrimitive(m_prim.type);
+    run.prim = primRegister & 0x7FFu;
+    run.count = 0;
+    run.joined = false;
+    run.take = run.needed != 0 && takeRun();
+}
+
+void GS::submitPrimitivesUnlocked(uint32_t primRegister, const GSVertex *vertices, uint32_t count)
+{
+    writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
+    ++s_gsStats.submitPrimitives;
+    if (!m_backend || count == 0u)
+        return;
+    PrimitiveRun run;
+    beginPrimitiveRun(run, primRegister);
+    for (uint32_t i = 0; i < count; ++i)
+    {
+        m_vtxQueue[m_vtxCount % kMaxVerts] = vertices[i];
+        vertexKickRun(true, run);
+    }
+    if (run.take)
+        flushPrimitiveRun(run);
+    // The colour, texture coordinates and fog a packet of these vertices
+    // would have left current.
+    const GSVertex &last = vertices[count - 1u];
+    m_curR = last.r;
+    m_curG = last.g;
+    m_curB = last.b;
+    m_curA = last.a;
+    m_curQ = last.q;
+    m_curS = last.s;
+    m_curT = last.t;
+    m_curU = last.u;
+    m_curV = last.v;
+    m_curFog = last.fog;
 }
 
 void GS::submitPrimitives(uint32_t primRegister, const GSVertex *vertices, uint32_t count)
 {
     std::lock_guard lock(m_stateMutex);
-    writeRegisterUnlocked(GS_REG_PRIM, primRegister & 0x7FFu);
-    if (m_backend && count != 0u)
-    {
-        const GSPrimitiveBatch batch = buildDrawBatch(0);
-        if (m_backend->SubmitPrimitives(batch.state, primRegister & 0x7FFu, vertices, count))
-        {
-            m_vtxCount = 0;
-            return;
-        }
-    }
-    for (uint32_t i = 0; i < count; ++i)
-    {
-        m_vtxQueue[m_vtxCount % kMaxVerts] = vertices[i];
-        vertexKick(true);
-    }
+    submitPrimitivesUnlocked(primRegister, vertices, count);
 }
 
 bool GS::decodePackedVertex(uint8_t regDesc, uint64_t lo, uint64_t hi, GSVertex &out) const
@@ -1843,10 +2409,366 @@ bool GS::decodePackedVertex(uint8_t regDesc, uint64_t lo, uint64_t hi, GSVertex 
     return (regDesc == 0x04 || regDesc == 0x05) && ((hi >> 47) & 1u) == 0u;
 }
 
+// ---- The GIF bulk path (Tier 0's front half).
+namespace
+{
+    // A PACKED register descriptor a vertex tag may carry for the bulk
+    // route: vertex attributes, the vertex registers and NOP (none of them
+    // changes drawing state or reaches the backend but by a kick).
+    bool bulkVertexDescriptor(uint8_t reg)
+    {
+        switch (reg)
+        {
+        case 0x01: case 0x02: case 0x03: case 0x04: case 0x05: case 0x0A: case 0x0C: case 0x0D: case 0x0F:
+            return true;
+        default:
+            return false;
+        }
+    }
+}
+
+// The PATH1 stream's fields as the stream leaves them after a whole PACKED
+// tag (the next tag sets them again; the self-checks compare them).
+void GS::endBulkTag(uint64_t hi, uint32_t nreg, bool wroteRegisters)
+{
+    GifStreamState &stream = m_gifStreams[0];
+    stream.format = GIF_FMT_PACKED;
+    stream.nreg = nreg;
+    stream.registers = hi;
+    stream.regIndex = 0;
+    stream.endPadding = 0;
+    stream.q = wroteRegisters ? m_curQ : 1.0f;
+}
+
+void GS::bulkRegisterTag(uint64_t lo, uint64_t hi, const uint8_t *payload, uint32_t nloop, uint32_t nreg)
+{
+    if ((lo >> 46) & 1u)
+        writeRegisterUnlocked(GS_REG_PRIM, (lo >> 47) & 0x7FFu);
+    const uint32_t writes = nloop * nreg;
+    if (writes != 0u)
+        m_curQ = 1.0f; // each tag's registers start from Q 1.0
+    for (uint32_t i = 0, r = 0; i < writes; ++i)
+    {
+        writeRegisterPacked(static_cast<uint8_t>((hi >> (4u * r)) & 15u), loadLE64(payload + i * 16u),
+                            loadLE64(payload + i * 16u + 8u));
+        if (++r == nreg)
+            r = 0;
+    }
+    endBulkTag(hi, nreg, writes != 0u);
+}
+
+bool GS::bulkVertexTag(uint64_t lo, uint64_t hi, const uint8_t *payload, uint32_t nloop, uint32_t nreg)
+{
+    if (((lo >> 46) & 1u) == 0u)
+        return false; // no PRE: the tag goes on from earlier vertices
+    for (uint32_t r = 0; r < nreg; ++r)
+        if (!bulkVertexDescriptor(static_cast<uint8_t>((hi >> (4u * r)) & 15u)))
+            return false;
+    const uint32_t primRegister = static_cast<uint32_t>((lo >> 47) & 0x7FFu);
+    writeRegisterUnlocked(GS_REG_PRIM, primRegister);
+    const uint32_t writes = nloop * nreg;
+    if (writes == 0u)
+    {
+        endBulkTag(hi, nreg, false);
+        return true;
+    }
+    m_curQ = 1.0f;
+    PrimitiveRun run;
+    beginPrimitiveRun(run, primRegister);
+    for (uint32_t i = 0, r = 0; i < writes; ++i)
+    {
+        const uint8_t reg = static_cast<uint8_t>((hi >> (4u * r)) & 15u);
+        const uint64_t qlo = loadLE64(payload + i * 16u), qhi = loadLE64(payload + i * 16u + 8u);
+        if (++r == nreg)
+            r = 0;
+        if (reg == 0x04 || reg == 0x05 || reg == 0x0C || reg == 0x0D)
+        {
+            GSVertex &vtx = m_vtxQueue[m_vtxCount % kMaxVerts];
+            const bool kick = decodePackedVertex(reg, qlo, qhi, vtx);
+            vertexKickRun(kick, run);
+        }
+        else
+            writeRegisterPacked(reg, qlo, qhi);
+    }
+    if (run.take)
+    {
+        ++s_gsStats.bulkSubmits;
+        flushPrimitiveRun(run);
+    }
+    endBulkTag(hi, nreg, true);
+    return true;
+}
+
+void GS::bulkStateTag(const uint8_t *data, uint32_t tagBytes)
+{
+    const uint64_t lo = loadLE64(data), hi = loadLE64(data + 8u);
+    const uint32_t nloop = static_cast<uint32_t>(lo & 0x7FFFu);
+    uint32_t nreg = static_cast<uint32_t>((lo >> 60) & 15u);
+    if (nreg == 0u)
+        nreg = 16u;
+    GSStateBlock block;
+    bool textureOnly = false;
+    if (!gs_material::decodeStateBlock(data, tagBytes, block, &textureOnly))
+    {
+        bulkRegisterTag(lo, hi, data + 16u, nloop, nreg);
+        return;
+    }
+    block.serial = 0u; // an environment block never repeats
+#if TS_GS_MATERIAL_TABLE
+    // A texture block is a material: found again by content, its id the
+    // serial a repeat is recognised by (the native draw path's ids too).
+    if (textureOnly && !m_bulkChecking)
+        if (const GSMaterial *m = gsMaterialTable().findBlock(block, true, true))
+            block.serial = m->id;
+#endif
+    applyStateBlockUnlocked(block, false);
+    endBulkTag(hi, nreg, true);
+}
+
+void GS::bulkPath1Unlocked(const uint8_t *data, uint32_t sizeBytes)
+{
+    if (!data || sizeBytes == 0u || !m_backend)
+        return;
+    const GifStreamState &stream = m_gifStreams[0];
+    if (stream.remaining || stream.padding || stream.unitBytes)
+    {
+        // PATH1 inside a tag: the stream goes on with it.
+        ++s_gsStats.bulkFallbackPackets;
+        processGIFStreamUnlocked(data, sizeBytes, GifPathId::Path1, false);
+        return;
+    }
+    if (tryProcessNativeImageUploadPacket(data, sizeBytes))
+        return;
+    ++s_gsStats.bulkPackets;
+    uint32_t offset = 0;
+    while (sizeBytes - offset >= 16u)
+    {
+        const uint8_t *tag = data + offset;
+        const uint64_t lo = loadLE64(tag), hi = loadLE64(tag + 8u);
+        if (((lo >> 58) & 3u) != GIF_FMT_PACKED)
+            break;
+        const uint32_t nloop = static_cast<uint32_t>(lo & 0x7FFFu);
+        uint32_t nreg = static_cast<uint32_t>((lo >> 60) & 15u);
+        if (nreg == 0u)
+            nreg = 16u;
+        const uint32_t payload = nloop * nreg * 16u;
+        if (payload > sizeBytes - offset - 16u)
+            break; // cut by the packet's end: the stream takes it from here
+        if (!m_debugHistoryPaused)
+            recordGifTagDebugEventUnlocked(sizeBytes, nloop, GIF_FMT_PACKED, nreg);
+        ++s_gsStats.bulkTags;
+        bool adOnly = ((lo >> 46) & 1u) == 0u;
+        for (uint32_t r = 0; adOnly && r < nreg; ++r)
+            adOnly = ((hi >> (4u * r)) & 15u) == 0x0Eu;
+        if (adOnly && nloop * nreg <= GSStateBlock::kMaxWrites && nloop != 0u)
+        {
+            ++s_gsStats.bulkStateTags;
+            bulkStateTag(tag, 16u + payload);
+        }
+        else if (bulkVertexTag(lo, hi, tag + 16u, nloop, nreg))
+            ++s_gsStats.bulkVertexTags;
+        else
+            bulkRegisterTag(lo, hi, tag + 16u, nloop, nreg);
+        offset += 16u + payload;
+    }
+    if (offset < sizeBytes)
+    {
+        ++s_gsStats.bulkFallbackTags;
+        processGIFStreamUnlocked(data + offset, sizeBytes - offset, GifPathId::Path1, false);
+    }
+}
+
 void GS::processPath1Bulk(const uint8_t *data, uint32_t sizeBytes)
 {
+#if TS_GS_BULK
+    std::lock_guard lock(m_stateMutex);
+#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
+    MeasureKick measureKick(GifPathId::Path1);
+#endif
+#if TS_GS_BULK_SELFCHECK
+    bulkSelfCheck(data, sizeBytes);
+#endif
+    bulkPath1Unlocked(data, sizeBytes);
+#else
     processGIFPacket(data, sizeBytes, GifPathId::Path1);
+#endif
 }
+
+#if TS_GS_BULK_SELFCHECK
+namespace
+{
+    // A backend that draws nothing and keeps a hash of every call (the
+    // order, the draw states, the vertices), SubmitPrimitives expanded into
+    // the per-primitive Submit records it stands for.
+    class RecordingBackend final : public GSRasterBackend
+    {
+    public:
+        explicit RecordingBackend(bool takesPrimitives) : m_takes(takesPrimitives) {}
+        Fnv hash;
+        uint32_t calls = 0;
+
+        uint32_t DrawPaths() const override { return m_takes ? kGSDrawPathSubmitPrimitives : 0u; }
+        void Initialize(uint8_t *, uint32_t) override {}
+        void Reset() override { note(1); }
+        void Submit(const GSPrimitiveBatch &batch) override
+        {
+            note(2);
+            hash.word(hashDrawState(batch.state));
+            hash.word(batch.vertexCount);
+            for (uint32_t i = 0; i < batch.vertexCount; ++i)
+                hashVertex(hash, batch.vertices[i]);
+        }
+        bool SubmitPrimitives(const GSDrawState &state, uint32_t prim, const GSVertex *v, uint32_t n) override
+        {
+            if (!m_takes)
+                return false;
+            const GSPrimType type = static_cast<GSPrimType>(prim & 7u);
+            const int needed = verticesPerPrimitive(type);
+            if (needed == 0)
+                return true;
+            const uint32_t per = static_cast<uint32_t>(std::min(needed, 3));
+            auto one = [&](const GSVertex &a, const GSVertex &b, const GSVertex &c) {
+                note(2);
+                hash.word(hashDrawState(state));
+                hash.word(per);
+                const GSVertex *w[3] = {&a, &b, &c};
+                for (uint32_t k = 0; k < per; ++k)
+                    hashVertex(hash, *w[k]);
+            };
+            if (type == GS_PRIM_TRIFAN)
+                for (uint32_t i = 2; i < n; ++i)
+                    one(v[0], v[i - 1u], v[i]);
+            else if (type == GS_PRIM_TRISTRIP)
+                for (uint32_t i = 2; i < n; ++i)
+                    one(v[i - 2u], v[i - 1u], v[i]);
+            else if (type == GS_PRIM_LINESTRIP)
+                for (uint32_t i = 1; i < n; ++i)
+                    one(v[i - 1u], v[i], v[i]);
+            else
+                for (uint32_t i = 0; i + static_cast<uint32_t>(needed) <= n; i += static_cast<uint32_t>(needed))
+                    one(v[i], v[i + (needed > 1 ? 1u : 0u)], v[i + (needed > 2 ? 2u : 0u)]);
+            return true;
+        }
+        void LoadClut(const GSTex0Reg &t, const GSTexClutReg &c) override
+        {
+            note(3);
+            hash.word(t.tbp0); hash.word(t.psm); hash.word(t.cbp); hash.word(t.cpsm); hash.word(t.csm);
+            hash.word(t.csa); hash.word(t.cld);
+            hash.word(c.cbw | (c.cou << 8) | (static_cast<uint32_t>(c.cov) << 16));
+        }
+        void BeginTransfer(const GSTransferCommand &c) override
+        {
+            note(4);
+            hash.word(c.bitbltbuf.dbp); hash.word(c.bitbltbuf.dbw); hash.word(c.bitbltbuf.dpsm);
+            hash.word(c.trxpos.dsax | (static_cast<uint32_t>(c.trxpos.dsay) << 16));
+            hash.word(c.trxreg.rrw | (static_cast<uint32_t>(c.trxreg.rrh) << 16)); hash.word(c.direction);
+        }
+        void UploadImage(const uint8_t *data, uint32_t bytes) override
+        {
+            note(5);
+            hash.word(bytes);
+            for (uint32_t i = 0; i < bytes; ++i)
+                hash.word(data[i]);
+        }
+        void Flush() override { note(6); }
+        void TextureFlush() override { note(7); }
+        void Sync(GSSyncReason reason) override { note(8); hash.word(static_cast<uint32_t>(reason)); }
+        PresentationFrame Present(const GSPresentationRequest &) override { note(9); return {}; }
+        bool ClearFramebuffer(const GSContext &, uint32_t) override { note(10); return false; }
+        uint32_t ConsumeLocalToHostBytes(uint8_t *, uint32_t) override { return 0u; }
+        uint32_t ReadVram(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) const override { return 0u; }
+        void WriteVram(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) override { note(11); }
+        void SnapshotVram(std::vector<uint8_t> &out) const override { out.clear(); }
+        GSTransferSnapshot GetTransferSnapshot() const override { return {}; }
+
+    private:
+        void note(uint32_t kind)
+        {
+            ++calls;
+            hash.word(kind);
+        }
+        bool m_takes;
+    };
+}
+
+// The front end's own state beyond CheckState that a packet's draws move.
+struct GS::BulkCheckExtra
+{
+    uint64_t hudRunDraw = 0;
+    float hudRunY0 = 0.0f, hudRunY1 = 0.0f, hudRunX1 = 0.0f, hudRunAnchor = 0.0f;
+    GSFrameReg preferredFrame{};
+    uint32_t preferredDestFbp = 0;
+    bool hasPreferred = false;
+};
+
+bool GS::sameBulkCheckExtra(const BulkCheckExtra &a, const BulkCheckExtra &b)
+{
+    return a.hudRunDraw == b.hudRunDraw && a.hudRunY0 == b.hudRunY0 && a.hudRunY1 == b.hudRunY1 &&
+           a.hudRunX1 == b.hudRunX1 && a.hudRunAnchor == b.hudRunAnchor && a.hasPreferred == b.hasPreferred &&
+           (!a.hasPreferred || (a.preferredDestFbp == b.preferredDestFbp && a.preferredFrame.fbp == b.preferredFrame.fbp &&
+                                a.preferredFrame.fbw == b.preferredFrame.fbw && a.preferredFrame.psm == b.preferredFrame.psm));
+}
+
+void GS::bulkSelfCheck(const uint8_t *data, uint32_t sizeBytes)
+{
+    static uint32_t s_seen = 0;
+    if (m_bulkChecking || !m_backend || s_gsStats.bulkChecks >= static_cast<uint32_t>(TS_GS_BULK_SELFCHECK_PACKETS) ||
+        (s_seen++ % static_cast<uint32_t>(TS_GS_BULK_SELFCHECK_EVERY)) != 0u)
+        return;
+    m_bulkChecking = true;
+    ++s_gsStats.bulkChecks;
+    auto saveExtra = [this](BulkCheckExtra &e) {
+        e.hudRunDraw = m_hudRunDraw; e.hudRunY0 = m_hudRunY0; e.hudRunY1 = m_hudRunY1; e.hudRunX1 = m_hudRunX1;
+        e.hudRunAnchor = m_hudRunAnchor; e.preferredFrame = m_preferredDisplaySourceFrame;
+        e.preferredDestFbp = m_preferredDisplayDestFbp; e.hasPreferred = m_hasPreferredDisplaySource;
+    };
+    auto restoreExtra = [this](const BulkCheckExtra &e) {
+        m_hudRunDraw = e.hudRunDraw; m_hudRunY0 = e.hudRunY0; m_hudRunY1 = e.hudRunY1; m_hudRunX1 = e.hudRunX1;
+        m_hudRunAnchor = e.hudRunAnchor; m_preferredDisplaySourceFrame = e.preferredFrame;
+        m_preferredDisplayDestFbp = e.preferredDestFbp; m_hasPreferredDisplaySource = e.hasPreferred;
+    };
+    static CheckState s_start, s_stream, s_bulk; // (fixed storage: the GIF streams' image vectors stay empty for PACKED)
+    BulkCheckExtra start, streamExtra, bulkExtra;
+    saveCheckState(s_start);
+    saveExtra(start);
+    std::unique_ptr<GSRasterBackend> real;
+    // The per-register stream into one recorder (it declines SubmitPrimitives).
+    {
+        auto recorder = std::make_unique<RecordingBackend>(false);
+        RecordingBackend *rec = recorder.get();
+        real = swapBackendForCheck(std::move(recorder));
+        processGIFStreamUnlocked(data, sizeBytes, GifPathId::Path1, true);
+        saveCheckState(s_stream);
+        saveExtra(streamExtra);
+        const uint32_t streamHash = rec->hash.h, streamCalls = rec->calls;
+        restoreCheckState(s_start);
+        restoreExtra(start);
+        // The bulk path into another (it takes SubmitPrimitives).
+        auto bulkRecorder = std::make_unique<RecordingBackend>(true);
+        RecordingBackend *brec = bulkRecorder.get();
+        std::unique_ptr<GSRasterBackend> first = swapBackendForCheck(std::move(bulkRecorder));
+        bulkPath1Unlocked(data, sizeBytes);
+        saveCheckState(s_bulk);
+        saveExtra(bulkExtra);
+        const uint32_t bulkHash = brec->hash.h, bulkCalls = brec->calls;
+        (void)first;
+        const char *what = nullptr;
+        if (streamHash != bulkHash || streamCalls != bulkCalls)
+            what = "backend calls";
+        else if (!sameCheckState(s_stream, s_bulk))
+            what = "end state";
+        else if (!sameBulkCheckExtra(streamExtra, bulkExtra))
+            what = "draw bookkeeping";
+        if (what && ++s_gsStats.bulkDiffs <= 8u)
+            std::cout << "[TS:gscheck] bulk packet " << s_gsStats.bulkChecks << " (" << sizeBytes << " bytes): " << what
+                      << " differ (calls " << streamCalls << " vs " << bulkCalls << ")" << std::endl;
+    }
+    restoreCheckState(s_start);
+    restoreExtra(start);
+    swapBackendForCheck(std::move(real));
+    m_bulkChecking = false;
+}
+#endif
 
 void GS::saveCheckState(CheckState &out) const
 {
@@ -1928,6 +2850,9 @@ void GS::restoreCheckState(const CheckState &state)
     m_vtxIndex = state.vtxIndex;
     m_drawCounter = state.drawCounter;
     m_lastPerspectiveDraw = state.lastPerspectiveDraw;
+    // The shadow no longer says what the registers hold: a new state.
+    m_rawValid[0] = m_rawValid[1] = 0u;
+    bumpStateSerial();
 }
 
 std::unique_ptr<GSRasterBackend> GS::swapBackendForCheck(std::unique_ptr<GSRasterBackend> backend)
@@ -1941,45 +2866,7 @@ std::unique_ptr<GSRasterBackend> GS::swapBackendForCheck(std::unique_ptr<GSRaste
 
 bool GS::decodeStateBlock(const uint8_t *data, uint32_t sizeBytes, StateBlock &out)
 {
-    if (!data || sizeBytes < 32u || (sizeBytes & 15u) != 0u)
-        return false;
-    const uint64_t lo = loadLE64(data), hi = loadLE64(data + 8u);
-    const uint32_t nloop = static_cast<uint32_t>(lo & 0x7FFFu);
-    const uint32_t nreg = ((lo >> 60u) & 0xFu) ? static_cast<uint32_t>((lo >> 60u) & 0xFu) : 16u;
-    if (((lo >> 58u) & 3u) != GIF_FMT_PACKED || ((lo >> 46u) & 1u) != 0u || nloop == 0u)
-        return false;
-    for (uint32_t i = 0; i < nreg; ++i)
-        if (((hi >> (i * 4u)) & 0xFu) != 0xEu)
-            return false;
-    const uint32_t writes = nloop * nreg;
-    if (writes > StateBlock::kMaxWrites || 16u + writes * 16u != sizeBytes)
-        return false;
-    out.count = writes;
-    out.nloop = nloop;
-    out.nreg = nreg;
-    out.flushes = false;
-    out.idempotent = true;
-    uint32_t clutWrites = 0;
-    bool textureOnly = true;
-    for (uint32_t i = 0; i < writes; ++i)
-    {
-        const uint8_t *qword = data + 16u + i * 16u;
-        const uint8_t reg = qword[8]; // A+D: the address is the high half's low byte
-        if (!isStateRegister(reg))
-            return false;
-        out.regs[i] = reg;
-        out.values[i] = loadLE64(qword);
-        if (reg == GS_REG_TEXFLUSH)
-            out.flushes = true;
-        else if (!isTextureRegister(reg))
-            textureOnly = false;
-        // Written again, a CLD 1-3 load loads again, and a second CLUT write
-        // loads over the first one's CBP.
-        if (isClutRegister(reg) && (++clutWrites > 1u || alwaysLoadsClut(out.values[i])))
-            out.idempotent = false;
-    }
-    out.repeatable = out.idempotent && textureOnly;
-    return true;
+    return gs_material::decodeStateBlock(data, sizeBytes, out);
 }
 
 GS::StateBlockResult GS::applyStateBlock(const StateBlock &block)
@@ -1988,27 +2875,85 @@ GS::StateBlockResult GS::applyStateBlock(const StateBlock &block)
     const GifStreamState &path1 = m_gifStreams[0];
     if (!m_backend || block.count == 0u || path1.remaining || path1.padding || path1.unitBytes)
         return StateBlockResult::NotApplied;
+    return applyStateBlockUnlocked(block, true);
+}
+
+// applyStateBlock's body (the PATH1 stream is between tags). recordTag: the
+// debugger's tag event is this block's (the bulk path records the packet's).
+GS::StateBlockResult GS::applyStateBlockUnlocked(const StateBlock &block, bool recordTag)
+{
     // Each PACKED register write starts from the tag's Q (1.0).
     m_curQ = 1.0f;
+    StateBlockResult result = StateBlockResult::Applied;
     if (block.repeatable && block.serial != 0u && block.serial == m_lastStateBlock &&
-        m_textureStateWrites == m_lastStateBlockWrites && m_debugHistoryPaused)
+        m_textureStateWrites == m_lastStateBlockWrites && m_debugHistoryPaused && !m_bulkChecking)
     {
         if (block.flushes)
             m_backend->TextureFlush();
-        return StateBlockResult::Repeated;
+        result = StateBlockResult::Repeated;
+        ++s_gsStats.blockRepeats;
     }
-    if (!m_debugHistoryPaused)
-        recordGifTagDebugEventUnlocked(16u + block.count * 16u, block.nloop, GIF_FMT_PACKED, block.nreg);
-    for (uint32_t i = 0; i < block.count; ++i)
-        writeRegisterUnlocked(block.regs[i], block.values[i]);
-    m_lastStateBlock = block.serial;
-    m_lastStateBlockWrites = m_textureStateWrites;
-    return StateBlockResult::Applied;
+    else
+    {
+        if (recordTag && !m_debugHistoryPaused)
+            recordGifTagDebugEventUnlocked(16u + block.count * 16u, block.nloop, GIF_FMT_PACKED, block.nreg);
+        for (uint32_t i = 0; i < block.count; ++i)
+            writeRegisterUnlocked(block.regs[i], block.values[i]);
+        m_lastStateBlock = block.serial;
+        m_lastStateBlockWrites = m_textureStateWrites;
+    }
+#if TS_GS_STATE_SELFCHECK
+    // One commit in TS_GS_STATE_SELFCHECK_EVERY of an idempotent block: the
+    // block processed again as a PATH1 packet must change nothing.
+    static uint32_t s_commits = 0;
+    if (block.idempotent && !m_bulkChecking &&
+        (s_commits++ % static_cast<uint32_t>(TS_GS_STATE_SELFCHECK_EVERY)) == 0u)
+    {
+        uint8_t bytes[16u + GSStateBlock::kMaxWrites * 16u];
+        const uint32_t size = gs_material::encodeStateBlock(block, bytes, sizeof(bytes));
+        ++s_gsStats.materialChecks;
+        m_bulkChecking = true; // (the packet goes per register, not into these checks again)
+        const uint32_t lastBlock = m_lastStateBlock, lastWrites = m_lastStateBlockWrites;
+        const GifStreamState path1 = m_gifStreams[0]; // (between tags: no image bytes held)
+        const bool same = size != 0u && checkStateBlockUnlocked(bytes, size);
+        m_gifStreams[0] = path1;
+        m_lastStateBlock = lastBlock;
+        m_lastStateBlockWrites = lastWrites;
+        m_bulkChecking = false;
+        if (!same && ++s_gsStats.materialDiffs <= 8u)
+            std::cout << "[TS:gscheck] state block " << block.serial << " ("
+                      << (result == StateBlockResult::Repeated ? "repeated" : "applied")
+                      << "): processed again as a packet it changed the GS state" << std::endl;
+    }
+#endif
+    return result;
+}
+
+GS::StateBlockResult GS::applyMaterial(uint32_t materialId)
+{
+    std::lock_guard lock(m_stateMutex);
+    const GifStreamState &path1 = m_gifStreams[0];
+    const GSMaterial *material = gsMaterialTable().entry(materialId);
+    if (!material)
+    {
+        ++s_gsStats.materialMissing;
+        return StateBlockResult::NotApplied;
+    }
+    if (!m_backend || material->block.count == 0u || path1.remaining || path1.padding || path1.unitBytes)
+        return StateBlockResult::NotApplied;
+    const StateBlockResult result = applyStateBlockUnlocked(material->block, true);
+    ++(result == StateBlockResult::Repeated ? s_gsStats.materialRepeated : s_gsStats.materialApplied);
+    return result;
 }
 
 bool GS::checkStateBlock(const uint8_t *data, uint32_t sizeBytes)
 {
     std::lock_guard lock(m_stateMutex);
+    return checkStateBlockUnlocked(data, sizeBytes);
+}
+
+bool GS::checkStateBlockUnlocked(const uint8_t *data, uint32_t sizeBytes)
+{
     if (!m_backend)
         return true;
     const GSContext ctx0 = m_ctx[0], ctx1 = m_ctx[1];
@@ -2020,7 +2965,7 @@ bool GS::checkStateBlock(const uint8_t *data, uint32_t sizeBytes)
     const float q = m_curQ;
     const uint64_t clut = m_backend->DebugClutState();
     const uint32_t textureWrites = m_textureStateWrites;
-    processGIFPacket(data, sizeBytes, GifPathId::Path1);
+    processGIFStreamUnlocked(data, sizeBytes, GifPathId::Path1, true);
     const bool same = sameContext(ctx0, m_ctx[0]) && sameContext(ctx1, m_ctx[1]) && texa.ta0 == m_texa.ta0 &&
                       texa.aem == m_texa.aem && texa.ta1 == m_texa.ta1 && texclut.cbw == m_texclut.cbw &&
                       texclut.cou == m_texclut.cou && texclut.cov == m_texclut.cov && scanmsk == m_scanmsk &&
@@ -2086,6 +3031,7 @@ void GS::setRasterBackend(std::unique_ptr<GSRasterBackend> backend)
     m_backend = std::move(backend);
     m_backend->Initialize(m_localMemoryStorage, m_localMemorySize);
     m_lastStateBlock = 0; // a new CLUT
+    bumpStateSerial();    // what a backend keeps by serial is the old one's
 }
 
 uint32_t GS::ReadVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y) const
@@ -2179,24 +3125,7 @@ GSPrimitiveBatch GS::buildDrawBatch(int vertexCount) const
     batch.vertexCount = static_cast<uint8_t>(std::min(vertexCount, 3));
     for (int i = 0; i < batch.vertexCount; ++i)
         batch.vertices[static_cast<size_t>(i)] = m_vtxQueue[i];
-    batch.state.context = m_ctx[m_prim.ctxt ? 1 : 0];
-    batch.state.prim = m_prim;
-    batch.state.texa = m_texa;
-    batch.state.texclut = m_texclut;
-    batch.state.pabe = m_pabe;
-    batch.state.scanmsk = m_scanmsk;
-    batch.state.dimx = m_dimx;
-    batch.state.dthe = m_dthe;
-    batch.state.colclamp = m_colclamp;
-    batch.state.fogR = m_fogR;
-    batch.state.fogG = m_fogG;
-    batch.state.fogB = m_fogB;
-    batch.state.textureWidth = static_cast<uint16_t>(1u << std::min<uint32_t>(batch.state.context.tex0.tw, 10u));
-    batch.state.textureHeight = static_cast<uint16_t>(1u << std::min<uint32_t>(batch.state.context.tex0.th, 10u));
-    const uint64_t tex1 = batch.state.context.tex1;
-    const uint8_t mmag = static_cast<uint8_t>((tex1 >> 5u) & 0x1u);
-    const uint8_t mmin = static_cast<uint8_t>((tex1 >> 6u) & 0x7u);
-    batch.state.linearFilter = mmag != 0u || mmin == 1u || (mmin & 0x4u) != 0u;
+    batch.state = drawStateUnlocked();
     return batch;
 }
 
@@ -2208,24 +3137,7 @@ void GS::updatePreferredDisplaySourceForDraw(const GSPrimitiveBatch &batch)
         m_hasPreferredDisplaySource = false;
     if (state.prim.type != GS_PRIM_SPRITE || batch.vertexCount < 2u)
         return;
-
-    const GSVertex &v0 = batch.vertices[0];
-    const GSVertex &v1 = batch.vertices[1];
-    int x0 = static_cast<int>(v0.x) - (ctx.xyoffset.ofx >> 4);
-    int y0 = static_cast<int>(v0.y) - (ctx.xyoffset.ofy >> 4);
-    int x1 = static_cast<int>(v1.x) - (ctx.xyoffset.ofx >> 4);
-    int y1 = static_cast<int>(v1.y) - (ctx.xyoffset.ofy >> 4);
-    if (x0 > x1) std::swap(x0, x1);
-    if (y0 > y1) std::swap(y0, y1);
-    const int xEnd = x0 + std::max(1, x1 - x0) - 1;
-    const int yEnd = y0 + std::max(1, y1 - y0) - 1;
-    const uint8_t alphaMode = static_cast<uint8_t>(ctx.alpha & 0xFFu);
-    const uint8_t alphaFix = static_cast<uint8_t>((ctx.alpha >> 32u) & 0xFFu);
-    const bool displayCopy = state.prim.tme && state.prim.abe && state.prim.fst && state.prim.ctxt &&
-                             ctx.frame.fbp != ctx.tex0.tbp0 && alphaMode == 0x64u &&
-                             (alphaFix == 0x60u || alphaFix == 0x80u) &&
-                             x0 <= 0 && y0 <= 0 && xEnd >= 639 && yEnd >= 447;
-    if (displayCopy)
+    if (displayCopySprite(state, batch.vertices[0], batch.vertices[1]))
     {
         m_preferredDisplaySourceFrame = {ctx.tex0.tbp0, ctx.tex0.tbw, ctx.tex0.psm, 0u};
         m_preferredDisplayDestFbp = ctx.frame.fbp;

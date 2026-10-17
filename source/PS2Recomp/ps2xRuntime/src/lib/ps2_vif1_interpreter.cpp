@@ -1,6 +1,7 @@
 // Based on Blackline Interactive implementation
 #include "runtime/ps2_memory.h"
 #include "runtime/ps2_vu1_watch.h"
+#include "runtime/ps2_vif1_tokens.h" // TS_NATIVE_RECORDS, TS_VU1_DEBT_SITES: the spine's tokens and debt sites
 #include <algorithm>
 #include <cstring>
 
@@ -314,6 +315,17 @@ void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
     g_vif1LastConsumed = 0;
     if (sizeBytes == 0u)
         return;
+#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS && TS_VU1_DEBT_SITES
+    // D2: a stream the debt map knows nothing of reads and writes VU1
+    // memory as it likes: every owed row is settled first (not in a dry
+    // decode, whose state is put back).
+    if (!g_vif1DryDecode)
+    {
+        const Vif1RecordHooks &hooks = vif1RecordHooks();
+        if (hooks.debtBeforeProgram)
+            hooks.debtBeforeProgram(hooks.owner, UINT32_MAX, 0u);
+    }
+#endif
 
     uint32_t pos = 0;
 
@@ -1242,7 +1254,7 @@ bool PS2Memory::vif1Unpack(uint32_t cmd, Reader &in, Vif1UnpackCounts &counts, b
 
     const uint32_t sourceBytes = sourceVectorCount * bytesPerVector;
     const uint32_t totalBytes = (sourceBytes + 3u) & ~3u;
-    if (totalBytes > in.left())
+    if (!in.has(totalBytes)) // (a chain token ahead counted at its expanded size)
     {
 #if TS_RENDER_COUNTERS >= 2
         if (!chainEnd) // counted when it is read anew
@@ -1267,6 +1279,20 @@ bool PS2Memory::vif1Unpack(uint32_t cmd, Reader &in, Vif1UnpackCounts &counts, b
     // (The span needs a division; nothing to note without watched rows.)
     if (g_vu1WatchedRows.ranges != 0u)
         g_vu1WatchedRows.note(vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl));
+#if TS_NATIVE_RECORDS && TS_VU1_DEBT_SITES
+    // D2: rows owed by a record are settled before a write that leaves
+    // lanes of them as they were (masked, MODE != 0, V2/V3 formats, a
+    // write cycle that skips rows); a full-lane write (S or V4, every row
+    // of its span) clears them.
+    if (!g_vif1DryDecode)
+    {
+        const Vif1RecordHooks &hooks = vif1RecordHooks();
+        if (hooks.debtBeforeWrite)
+            hooks.debtBeforeWrite(hooks.owner, vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl),
+                                  (opcode & 0x10u) == 0u && (vif1_regs.mode & 3u) == 0u && (vn == 3u || vn == 0u) &&
+                                      cl == wl);
+    }
+#endif
     UnpackCursor cursor{vuAddr, 0u, cl, wl};
     const bool maskEnable = (opcode & 0x10u) != 0u;
     const bool zeroExtend = (imm & 0x4000u) != 0u;
@@ -1346,7 +1372,7 @@ bool PS2Memory::vif1Stxx(uint32_t cmd, Reader &in)
     const uint8_t opcode = (cmd >> 24) & 0x7F;
     if (opcode == VIF_STMASK)
         return in.word(vif1_regs.mask);
-    if (in.left() < 16u)
+    if (!in.has(16u))
         return false;
     uint8_t split[16]; // STROW/STCOL data split between pieces
     std::memcpy(opcode == VIF_STROW ? vif1_regs.row : vif1_regs.col, in.take(16u, split), 16u);
@@ -1544,6 +1570,16 @@ void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count)
 void PS2Memory::processVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes)
 {
     decodeVIF1Pieces(pieces, count, bytes, true);
+#if TS_NATIVE_RECORDS && TS_VU1_DEBT_SITES
+    // D2: the list's end: every owed row settled, so VU1 memory is exact at
+    // every frame boundary (not in a dry decode, whose state is put back).
+    if (!g_vif1DryDecode)
+    {
+        const Vif1RecordHooks &hooks = vif1RecordHooks();
+        if (hooks.listEnd)
+            hooks.listEnd(hooks.owner);
+    }
+#endif
 }
 
 // Part of a chain, more to come (chainEnd false): such a command is left
@@ -1557,6 +1593,78 @@ uint32_t PS2Memory::processVIF1PiecesAhead(const Vif1Piece *pieces, size_t count
 {
     return decodeVIF1Pieces(pieces, count, bytes, false);
 }
+
+#if TS_NATIVE_RECORDS
+namespace
+{
+    // A token at a command boundary (src/xbox/PUSH-BC-PLAN.md D1): the
+    // executor runs it (its kind's: the records engine's chain record, a
+    // list token's native), or asks for its expansion (T0: the chain's own
+    // pieces are decoded in its place). A dry decode (a self-check) expands
+    // every chain token and runs nothing. What can be neither run nor
+    // expanded is read as its 16 bytes, four NOPs: counted (tokBad when
+    // the executor rejected it).
+    __attribute__((noinline)) void vif1RunToken(PS2Memory &memory, Vif1PieceReader &in, const Vif1TokenEntry *entry)
+    {
+        const bool dry = g_vif1DryDecode;
+        if (!dry)
+            ++g_vif1Tokens.executed;
+        Vif1ExecResult result = Vif1ExecResult::Expand;
+        const Vif1RecordHooks &hooks = PS2Memory::vif1RecordHooks();
+        if (!dry && hooks.execute)
+            result = hooks.execute(hooks.owner, memory, entry->token, false);
+        if (result == Vif1ExecResult::Done)
+        {
+            ++g_renderCounters.tokRun;
+            return;
+        }
+        if (result == Vif1ExecResult::Expand && in.expandToken(entry))
+        {
+            ++g_renderCounters.tokExpand;
+            return;
+        }
+        if (result == Vif1ExecResult::Rejected)
+            ++g_renderCounters.tokBad;
+        else
+            ++g_renderCounters.tokNops;
+        in.readTokenAsNops(entry);
+    }
+
+    // The bytes a decode of part of a chain hands back (chainEnd false),
+    // measured in the batch's own pieces: a token piece counts its 16
+    // bytes there, whatever its expansion holds. header: the cut command's
+    // VIFcode bytes, already read (0: nothing was cut). The command's
+    // start: cmdLeft bytes were left before its VIFcode, cmdExpansions the
+    // reader's expansions then, cmdInExpansion whether its VIFcode lay in
+    // an expanded chain.
+    uint32_t vif1Carry(const Vif1PieceReader &in, uint32_t header, uint32_t cmdLeft, uint32_t cmdExpansions,
+                       bool cmdInExpansion)
+    {
+        if (header != 0u)
+        {
+            // Its VIFcode in a chain's expansion: the batch cannot carry
+            // it (a chain that does not end on a command boundary).
+            if (cmdInExpansion)
+            {
+                ++g_renderCounters.tokMidBad;
+                return in.mainLeft();
+            }
+            // Its data ran into a token (tokmid): carried from its VIFcode,
+            // the token piece with it, and expanded again when it is read anew.
+            if (in.expansions() != cmdExpansions)
+                return cmdLeft;
+            return in.left() + header;
+        }
+        if (in.expanding())
+        {
+            if (in.left() != in.mainLeft())
+                ++g_renderCounters.tokMidBad; // pending IMAGE data cut inside an expansion
+            return in.mainLeft();
+        }
+        return in.left();
+    }
+}
+#endif
 
 uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes, bool chainEnd)
 {
@@ -1589,10 +1697,19 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
     };
 #endif
     uint32_t carry = 0; // chainEnd false: bytes left for the next call
+#if TS_NATIVE_RECORDS
+    // Where the command being decoded started (vif1Carry).
+    uint32_t cmdLeft = 0, cmdExpansions = 0;
+    bool cmdInExpansion = false;
+#endif
     // A command that does not fit: its VIFcode (header bytes, already read) and the rest.
     auto leave = [&](uint32_t header)
     {
+#if TS_NATIVE_RECORDS
+        carry = chainEnd ? 0u : vif1Carry(in, header, cmdLeft, cmdExpansions, cmdInExpansion);
+#else
         carry = chainEnd ? 0u : in.left() + header;
+#endif
         // Its VIFcode is read anew with the rest: counted then (render counters 2).
         if (!chainEnd && header != 0u)
             TS_RENDER_COUNT2(--commands);
@@ -1632,6 +1749,17 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             continue;
         }
 
+#if TS_NATIVE_RECORDS
+        // A command boundary: a token piece next is run here (D1).
+        if (const Vif1TokenEntry *entry = in.tokenAhead())
+        {
+            vif1RunToken(*this, in, entry);
+            continue;
+        }
+        cmdLeft = in.left();
+        cmdExpansions = in.expansions();
+        cmdInExpansion = in.expanding();
+#endif
         uint32_t cmd;
         if (!in.word(cmd))
         {
@@ -1696,6 +1824,17 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
         }
         else if (opcode == VIF_MSCAL || opcode == VIF_MSCALF || opcode == VIF_MSCNT)
         {
+#if TS_NATIVE_RECORDS && TS_VU1_DEBT_SITES
+            // D2: a program no record runs reads its window of VU1 memory
+            // (MSCNT: an unknown pc, everything settled).
+            if (!g_vif1DryDecode)
+            {
+                const Vif1RecordHooks &hooks = vif1RecordHooks();
+                if (hooks.debtBeforeProgram)
+                    hooks.debtBeforeProgram(hooks.owner, opcode == VIF_MSCNT ? UINT32_MAX : (uint32_t)imm * 8u,
+                                            vif1_regs.tops & 0x3FFu);
+            }
+#endif
             vif1Mscal(cmd);
             continue;
         }
@@ -1713,7 +1852,7 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             const uint32_t destAddr = (uint32_t)imm * 8u;
             const uint32_t instructionCount = (num == 0u) ? 256u : static_cast<uint32_t>(num);
             const uint32_t mpgBytes = instructionCount * 8u;
-            if (!chainEnd && mpgBytes > in.left())
+            if (!chainEnd && !in.has(mpgBytes))
             {
                 leave(4u);
                 break;
@@ -1724,14 +1863,14 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
                 uint32_t copyBytes = mpgBytes;
                 if (destAddr + copyBytes > PS2_VU1_CODE_SIZE)
                     copyBytes = PS2_VU1_CODE_SIZE - destAddr;
-                if (copyBytes <= in.left())
+                if (in.has(copyBytes))
                 {
                     in.read(m_vu1Code + destAddr, copyBytes);
                     copied = copyBytes;
                     markVU1CodeModified();
                 }
             }
-            if (mpgBytes - copied > in.left())
+            if (!in.has(mpgBytes - copied))
                 break;
             in.skip(mpgBytes - copied);
             continue;
@@ -1741,7 +1880,9 @@ uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint
             uint32_t qwCount = imm;
             if (qwCount == 0)
                 qwCount = 65536;
-            const uint32_t availableQw = in.left() / 16u;
+            uint32_t availableQw = in.left() / 16u;
+            if (qwCount > availableQw)
+                availableQw = in.leftExpanded() / 16u; // (a chain token ahead at its expanded size)
             const bool truncated = qwCount > availableQw;
             if (truncated && !chainEnd)
             {

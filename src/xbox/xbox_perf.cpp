@@ -27,6 +27,7 @@
 // an EE wait inside a bracket is taken off twice; there are none in a busy
 // stretch.)
 #include "xbox_perf.h"
+#include "xbox_platform.h" // xboxPlatformStart (B-PLATFORM)
 #include "xbox_log.h"
 #include "runtime/gs/gs_backend.h"
 #include "runtime/gs/gs_frontend.h"
@@ -1042,6 +1043,11 @@ void xboxPerfReport(const XboxPerfInputs &in)
         line.perFrame("sys", now.syscalls - was.syscalls, f);
         line.perFrame("rpc", now.rpcs - was.rpcs, f);
         line.perFrame("vif1", now.vif1Chains - was.vif1Chains, f);
+        // B-SCHED totals since boot: countdown differences (TS_EE_COUNTDOWN_CHECK,
+        // must stay 0), no-yield regions / deferred transfers, frozen slow
+        // checkpoints (EeClockFreeze), events posted from other threads.
+        line.add(" cdiff=%u ny=%u/%u frozen=%u remote=%u", now.ee.cdiff, now.ee.noYieldRegions, now.ee.noYieldDeferred,
+                 now.ee.frozenCheckpoints, now.ee.remoteEvents);
         line.write();
     }
 
@@ -1214,6 +1220,7 @@ void xboxInstallBackend(GS &gs, std::unique_ptr<GSRasterBackend> backend)
     backend = xboxDetWrapBackend(std::move(backend));
     GS::setSingleOwner(TS_GS_LOCK_ELIDE != 0);
     gs.setRasterBackend(std::move(backend));
+    xboxPlatformStart(); // B-PLATFORM: [TS:plat] and the platform self-tests (xbox_platform.h)
     char text[200];
     int n = std::snprintf(text, sizeof(text),
                           "[TS:perf] draw paths: tier0=%d inplace=%d nativerun=%d (backend has %s%s%s) lockelide=%d det=%d\n",

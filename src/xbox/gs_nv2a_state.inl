@@ -3,6 +3,18 @@
     // palettes, texture encoding, the draw key (blendState, clipFor, keyFor)
     // and applyState. Part of struct GSNv2aBackend::Impl in
     // gs_nv2a_backend.cpp (one translation unit; included once, there).
+    //
+    // Switches (B-GS, src/xbox/mk/b_gs.mk):
+    //   TS_NV2A_KEY_CACHE 1      keyFor gives the last key again for the same
+    //                            state serial, texture and frame mapping (0:
+    //                            every key built, as before)
+    //   TS_NV2A_KEY_SELFCHECK 1  every key given again also built and compared
+#ifndef TS_NV2A_KEY_CACHE
+#define TS_NV2A_KEY_CACHE 1
+#endif
+#ifndef TS_NV2A_KEY_SELFCHECK
+#define TS_NV2A_KEY_SELFCHECK 0
+#endif
 
     // The draw paths this half implements (GSNv2aBackend::DrawPaths):
     // kGSDrawPathNativeRun once phase 2 lands (TS_GS_NATIVE_RUN).
@@ -1745,11 +1757,69 @@
         (void)blendFactor;
     }
 
+    // The draw key of a state and texture. TS_NV2A_KEY_CACHE (B-GS, M4.1
+    // phase 1): the key last built is kept with what it was built from (the
+    // front end's state serial, GSDrawState::serial: one serial, one state;
+    // the texture and the fields of it the key reads; the frame mapping the
+    // window clip reads), and given again while they are the same: a run
+    // of draws of one state and texture builds its key once. A state with
+    // serial 0 (not from the front end's cached drawState) is always built.
+    // TS_NV2A_KEY_SELFCHECK: every key given again is built afresh too and
+    // compared (keydiff=, nv2aLookupStats; the fresh one is used).
+    struct KeyMemo
+    {
+        uint32_t serial = 0; // 0: none
+        const Texture *texture = nullptr;
+        bool unitAlpha = false, forceLinear = false;
+        uint32_t levels = 0, fbw = 0, height = 0;
+        DrawKey key{};
+    } keyMemo;
+
     DrawKey keyFor(const GSDrawState &state, const Texture *tex)
     {
 #if TS_MEASURE_PUSHBC
         MeasureTimer measureKey(g_measure.keyForCycles, g_measure.keyFors);
 #endif
+#if TS_NV2A_KEY_CACHE
+        const KeyMemo &m = keyMemo;
+        if (state.serial != 0u && m.serial == state.serial && m.texture == tex && m.fbw == frameFbw &&
+            m.height == frameHeight &&
+            (!tex || (m.unitAlpha == tex->unitAlpha && m.forceLinear == tex->forceLinear && m.levels == tex->levels)))
+        {
+            ++s_lookupStats.keyHits;
+#if TS_NV2A_KEY_SELFCHECK
+            const DrawKey fresh = buildKey(state, tex);
+            ++s_lookupStats.keyChecks;
+            if (!(fresh == m.key))
+            {
+                if (++s_lookupStats.keyDiffs <= 8u)
+                    std::cout << "[TS:nv2a] key check " << s_lookupStats.keyChecks << ": the key kept at serial "
+                              << state.serial << " differs from a fresh one" << std::endl;
+                keyMemo.key = fresh;
+            }
+#endif
+            return m.key;
+        }
+        const DrawKey k = buildKey(state, tex);
+        if (state.serial != 0u)
+        {
+            keyMemo.serial = state.serial;
+            keyMemo.texture = tex;
+            keyMemo.unitAlpha = tex && tex->unitAlpha;
+            keyMemo.forceLinear = tex && tex->forceLinear;
+            keyMemo.levels = tex ? tex->levels : 0u;
+            keyMemo.fbw = frameFbw;
+            keyMemo.height = frameHeight;
+            keyMemo.key = k;
+        }
+        return k;
+#else
+        return buildKey(state, tex);
+#endif
+    }
+
+    DrawKey buildKey(const GSDrawState &state, const Texture *tex)
+    {
         DrawKey k;
         k.texture = tex;
         k.program = tex ? pixelProgramFor(state, tex->unitAlpha) : 0;

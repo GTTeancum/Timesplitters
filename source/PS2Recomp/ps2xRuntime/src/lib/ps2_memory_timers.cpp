@@ -4,6 +4,7 @@
 // off the next timer interrupt is. The arithmetic is the one ps2_memory.cpp
 // had, unchanged.
 #include "runtime/ps2_memory.h"
+#include "runtime/ps2_platform_selftest.h" // TS_TIMER_CUE_CHECK's counter
 
 #include <algorithm>
 #include <array>
@@ -83,12 +84,69 @@ namespace
         clockRemainder = (carried & kMask) * kClockHz + remainder % kClockHz;
         return (eeCycles >> kShift) + (carried >> kShift);
     }
+
+    // TS_TIMER_DIVL 1 (default; src/xbox/PUSH-BC-PLAN.md M3.4a, B-PLATFORM):
+    // the HBLANK timer's (eeCycles * 15734 + remainder) / kEeClockHz and the
+    // cycles-to-next-interrupt divisions are one `divl` each (64-bit
+    // dividend, 32-bit divisor, the quotient known to fit 32 bits) instead
+    // of __aulldiv / __aullrem library calls. Same quotients and remainders.
+    // 0: the 64-bit operators, as before.
+#ifndef TS_TIMER_DIVL
+#define TS_TIMER_DIVL 1
+#endif
+#if TS_TIMER_DIVL && defined(__i386__)
+    // n / d and n % d; the caller guarantees n < d * 2^32 (quotient fits).
+    inline uint32_t divl(uint64_t n, uint32_t d, uint32_t &remainder)
+    {
+        uint32_t quotient, rest;
+        __asm__("divl %4" : "=a"(quotient), "=d"(rest) : "a"(static_cast<uint32_t>(n)),
+                "d"(static_cast<uint32_t>(n >> 32)), "rm"(d) : "cc");
+        remainder = rest;
+        return quotient;
+    }
+#define PS2X_TIMER_DIVL 1
+    // The general HBLANK form, for a span of a second or more (a catch-up):
+    // out of line, or the compiler hoists its 64-bit divisions into every
+    // call of advanceEeTimers.
+    __attribute__((noinline)) uint64_t hblankTicksGeneral(uint64_t eeCycles, uint64_t &clockRemainder)
+    {
+        const uint64_t clockHz = kEeTimerClockHz[3];
+        const uint64_t wholeSeconds = eeCycles / kEeClockHz;
+        const uint64_t remainingCycles = eeCycles % kEeClockHz;
+        const uint64_t scaled = remainingCycles * clockHz + clockRemainder;
+        clockRemainder = scaled % kEeClockHz;
+        return wholeSeconds * clockHz + scaled / kEeClockHz;
+    }
+#else
+#define PS2X_TIMER_DIVL 0
+#endif
+
+    // TS_TIMER_CUE_MASK 1 (default; M3.4a, B-PLATFORM): the timers whose
+    // mode has CUE (count enable) set, one bit each, kept beside the timer
+    // state, so advanceEeTimers and cyclesUntilNextEeTimerInterrupt visit
+    // only those (the game counts with one or two of the four) and return
+    // at once when none counts. Only a mode write or a reset changes CUE
+    // (the advance sets EQUF/OVFF only). A file static rather than a
+    // PS2Memory member (ps2_memory.h is a frozen interface): the Xbox has
+    // one PS2Memory. Same results; 0: every timer's mode tested, as before.
+#ifndef TS_TIMER_CUE_MASK
+#define TS_TIMER_CUE_MASK 1
+#endif
+#if TS_TIMER_CUE_MASK
+#define PS2X_TIMER_CUE_MASK 1
+    uint32_t s_eeTimerCueMask = 0u;
+#else
+#define PS2X_TIMER_CUE_MASK 0
+#endif
 #endif
 }
 
 void PS2Memory::resetEeTimers() noexcept
 {
     m_eeTimers = {};
+#if PS2X_TIMER_CUE_MASK
+    s_eeTimerCueMask = 0u;
+#endif
 }
 
 bool PS2Memory::readEeTimerRegister(uint32_t address, uint32_t &value) const noexcept
@@ -142,6 +200,12 @@ bool PS2Memory::writeEeTimerRegister(uint32_t address, uint32_t value, bool &res
         {
             timer.clockRemainder = 0u;
         }
+#if PS2X_TIMER_CUE_MASK
+        if ((timer.mode & kEeTimerModeCue) != 0u)
+            s_eeTimerCueMask |= 1u << timerIndex;
+        else
+            s_eeTimerCueMask &= ~(1u << timerIndex);
+#endif
         break;
     }
     case kEeTimerCompareOffset:
@@ -171,9 +235,31 @@ uint32_t PS2Memory::advanceEeTimers(uint64_t eeCycles) noexcept
         gifStatIt->second &= ~kGifFqcMask;
 
     uint32_t interruptMask = 0u;
+#if PS2X_TIMER_CUE_MASK && TS_TIMER_CUE_CHECK
+    {
+        // SC-E: the mask against the modes ([TS:plat] cue=, must stay 0).
+        uint32_t modes = 0u;
+        for (size_t index = 0; index < m_eeTimers.size(); ++index)
+            if ((m_eeTimers[index].mode & kEeTimerModeCue) != 0u)
+                modes |= 1u << index;
+        if (modes != s_eeTimerCueMask)
+        {
+            ++g_ps2xEeTimerCueMiss;
+            s_eeTimerCueMask = modes;
+        }
+    }
+#endif
+#if PS2X_TIMER_CUE_MASK
+    // Only the counting timers, lowest first (the order of the loop below).
+    for (uint32_t pending = s_eeTimerCueMask; pending != 0u; pending &= pending - 1u)
+    {
+        const size_t index = static_cast<size_t>(__builtin_ctz(pending));
+        EeTimer &timer = m_eeTimers[index];
+#else
     for (size_t index = 0; index < m_eeTimers.size(); ++index)
     {
         EeTimer &timer = m_eeTimers[index];
+#endif
         if ((timer.mode & kEeTimerModeCue) == 0u)
         {
             continue;
@@ -195,12 +281,27 @@ uint32_t PS2Memory::advanceEeTimers(uint64_t eeCycles) noexcept
         default:
         {
             // HBLANK is not a power-of-two fraction of the EE clock.
+#if PS2X_TIMER_DIVL
+            if (eeCycles < kEeClockHz) // (always: a device batch; else the general form)
+            {
+                // < kEeClockHz * 15735 < kEeClockHz * 2^32: the quotient fits.
+                const uint64_t scaled = eeCycles * kEeTimerClockHz[3] + timer.clockRemainder;
+                uint32_t rest = 0u;
+                ticks = divl(scaled, static_cast<uint32_t>(kEeClockHz), rest);
+                timer.clockRemainder = rest;
+                break;
+            }
+#endif
+#if PS2X_TIMER_DIVL
+            ticks = hblankTicksGeneral(eeCycles, timer.clockRemainder); // (out of line: kept out of the batch path)
+#else
             const uint64_t clockHz = kEeTimerClockHz[3];
             const uint64_t wholeSeconds = eeCycles / kEeClockHz;
             const uint64_t remainingCycles = eeCycles % kEeClockHz;
             const uint64_t scaled = remainingCycles * clockHz + timer.clockRemainder;
             ticks = wholeSeconds * clockHz + scaled / kEeClockHz;
             timer.clockRemainder = scaled % kEeClockHz;
+#endif
             break;
         }
         }
@@ -231,9 +332,21 @@ uint32_t PS2Memory::advanceEeTimers(uint64_t eeCycles) noexcept
             if (compareReached)
             {
                 const uint64_t remaining = ticks - compareDistance;
+#if PS2X_TIMER_DIVL
+                uint32_t wrapped = static_cast<uint32_t>(remaining & 0xFFFFu);
+                if (compare != 0u)
+                {
+                    if ((remaining >> 32) < compare) // the quotient fits: one divl
+                        (void)divl(remaining, compare, wrapped);
+                    else
+                        wrapped = static_cast<uint32_t>(remaining % compare);
+                }
+                timer.count = wrapped;
+#else
                 timer.count = compare == 0u
                                   ? static_cast<uint32_t>(remaining & 0xFFFFu)
                                   : static_cast<uint32_t>(remaining % compare);
+#endif
             }
             else
             {
@@ -263,8 +376,14 @@ uint32_t PS2Memory::advanceEeTimers(uint64_t eeCycles) noexcept
 uint64_t PS2Memory::cyclesUntilNextEeTimerInterrupt() const noexcept
 {
     uint64_t nearest = std::numeric_limits<uint64_t>::max();
+#if PS2X_TIMER_CUE_MASK
+    for (uint32_t pending = s_eeTimerCueMask; pending != 0u; pending &= pending - 1u)
+    {
+        const EeTimer &timer = m_eeTimers[static_cast<size_t>(__builtin_ctz(pending))];
+#else
     for (const EeTimer &timer : m_eeTimers)
     {
+#endif
         if ((timer.mode & kEeTimerModeCue) == 0u)
         {
             continue;
@@ -296,8 +415,71 @@ uint64_t PS2Memory::cyclesUntilNextEeTimerInterrupt() const noexcept
 
         const uint64_t clockHz = kEeTimerClockHz[timer.mode & kEeTimerModeClksMask];
         const uint64_t numerator = eventTicks * kEeClockHz - timer.clockRemainder;
+#if PS2X_TIMER_DIVL
+        // eventTicks <= 0x10000, so (numerator + clockHz - 1) / clockHz is at
+        // most 0x10000 * 512 + 1 for the bus clocks and 0x10000 * 18744 for
+        // HBLANK: the quotient fits.
+        uint32_t unused = 0u;
+        const uint64_t cycles = divl(numerator + clockHz - 1u, static_cast<uint32_t>(clockHz), unused);
+#else
         const uint64_t cycles = (numerator + clockHz - 1u) / clockHz;
+#endif
         nearest = std::min(nearest, std::max<uint64_t>(1u, cycles));
     }
     return nearest;
+}
+
+#include "runtime/ps2_platform_selftest.h"
+
+// The boot self-test of the fast timer arithmetic (runtime/
+// ps2_platform_selftest.h): each divl form against the operator form.
+uint32_t ps2xEeTimerSelfTest(uint32_t cases)
+{
+#if defined(PLATFORM_XBOX) && PS2X_TIMER_DIVL
+    uint32_t bad = 0u;
+    uint64_t x = 0x2545F4914F6CDD1Dull;
+    auto next = [&x]() {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        return x;
+    };
+    for (uint32_t i = 0; i < cases; ++i)
+    {
+        // HBLANK ticks for a span under a second.
+        const uint64_t span = next() % kEeClockHz;
+        const uint64_t remainder = next() % kEeClockHz;
+        uint32_t rest = 0u;
+        const uint64_t ticks = divl(span * kEeTimerClockHz[3] + remainder, static_cast<uint32_t>(kEeClockHz), rest);
+        uint64_t generalRemainder = remainder;
+        const uint64_t generalTicks = hblankTicksGeneral(span, generalRemainder);
+        if (ticks != generalTicks || rest != generalRemainder)
+            ++bad;
+
+        // Cycles to the next interrupt, every clock mode.
+        const uint64_t eventTicks = 1u + next() % 0x10000u;
+        const uint32_t mode = static_cast<uint32_t>(next() & 3u);
+        const uint64_t clockHz = kEeTimerClockHz[mode];
+        const uint64_t clockRemainder = next() % clockHz; // what the advance leaves behind (< clockHz for HBLANK, bounded likewise here)
+        const uint64_t numerator = eventTicks * kEeClockHz - clockRemainder;
+        uint32_t unused = 0u;
+        if (divl(numerator + clockHz - 1u, static_cast<uint32_t>(clockHz), unused) != (numerator + clockHz - 1u) / clockHz)
+            ++bad;
+
+        // The zero-return wrap.
+        const uint64_t remaining = next() % (1ull << 40);
+        const uint32_t compare = 1u + static_cast<uint32_t>(next() % 0xFFFFu);
+        uint32_t wrapped = 0u;
+        if ((remaining >> 32) < compare) // the guard advanceEeTimers applies
+        {
+            (void)divl(remaining, compare, wrapped);
+            if (wrapped != remaining % compare)
+                ++bad;
+        }
+    }
+    return bad;
+#else
+    (void)cases;
+    return 0u;
+#endif
 }

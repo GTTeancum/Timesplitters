@@ -9,7 +9,11 @@
     // one PROGRAM_START write. Loaded once, with the first frame's setup
     // (nothing else touches the GPU's program memory, the literals or the
     // semaphore context).
-    uint32_t programStart[5] = {};
+    // By vertex mode: 0 pass-through, 1-4 the transform programs, 5-8 the
+    // same for in-place strips (5-7: modes 1-3's programs; 8: the skin
+    // program that reads the bone index in place, with TS_NATIVE_INPLACE,
+    // else mode 4's).
+    uint32_t programStart[9] = {};
     bool programsLoaded = false;
     uint64_t waitCycles = 0, readbackCycles = 0;
 
@@ -21,9 +25,9 @@
         p = push1(p, NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
         p = push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, 0);
         uint32_t slot = 0;
-        for (int m = 0; m < 5; ++m)
+        for (uint32_t m = 0; m < kVertexProgramCount; ++m)
         {
-            programStart[m] = slot;
+            programStart[m < 5u ? m : 8u] = slot; // (the sixth: the skin-in-place program)
             const VertexProgram &vp = kVertexPrograms[m];
             for (uint32_t i = 0; i < vp.count; i += 4)
             {
@@ -33,6 +37,11 @@
             }
             slot += vp.count / 4;
         }
+        programStart[5] = programStart[1];
+        programStart[6] = programStart[2];
+        programStart[7] = programStart[3];
+        if (kVertexProgramCount <= 5u)
+            programStart[8] = programStart[4];
         p = push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
         // Fences go through their own DMA object (pushFence).
         p = push1(p, NV097_SET_CONTEXT_DMA_SEMAPHORE, kFenceDma);
@@ -45,12 +54,15 @@
         return p;
     }
 
-    // Vertex array formats for a vertex mode (0: GpuVertex, else GSXfVertex).
+    // Vertex array formats for a vertex mode (0: GpuVertex, 1-4: GSXfVertex;
+    // 5-8, in place: every array off here, each strip sets its own).
     uint32_t *setAttributes(uint32_t *p, uint32_t mode)
     {
         p = pushMethod(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
         for (int i = 0; i < 16; ++i)
             *p++ = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F; // size 0: disabled
+        if (mode >= 5u)
+            return p;
         struct Attribute
         {
             uint32_t index, type, components, offset;
@@ -477,10 +489,163 @@
     }
 
     // The draw paths this half implements (GSNv2aBackend::DrawPaths):
-    // kGSDrawPathXfInPlace once M8 lands (TS_NATIVE_INPLACE).
-    static constexpr uint32_t kXfDrawPaths = 0u;
+    // kGSDrawPathXfInPlace with M8 (TS_NATIVE_INPLACE).
+    static constexpr uint32_t kXfDrawPaths = TS_NATIVE_INPLACE ? kGSDrawPathXfInPlace : 0u;
 
-    // In-place fetch of a run's prepared strips (GSRasterBackend::XfInPlace,
-    // M8). Not implemented yet: nothing, and cursor.inPlaceTaken stays 0, so
-    // the caller writes the records into the ring as before.
-    void xfInPlace(GSXfCursor &, const GSXfInPlaceStrip *, uint32_t /*count*/) {}
+    // ---------------------------------------------- in-place fetch (M8)
+    // A run's strips drawn by the GPU from guest RAM where the game keeps
+    // them (runtime/gs/gs_xf_inplace.h; prepared by project/game/
+    // ts_inplace.cpp): vertex modes 5-8, the transform programs of modes
+    // 1-4 (8: the skin program reading the bone index in place), each
+    // strip's arrays pointed at its guest elements (physical offsets,
+    // pbkit's DMA object 3), drawn as one triangle strip (DRAW_ARRAYS in
+    // 256-vertex pieces overlapping by two, or its ARRAY_ELEMENT16 index
+    // list with an odd tail in ARRAY_ELEMENT32: probe T5c). Only gouraud
+    // runs (a direct cursor): a flat run's triangles need their last vertex
+    // first, which the ring's layout gives and a strip in place cannot.
+    // The ring's records the run wrote before go first (their batch is
+    // flushed); the ring continues in a fresh batch after.
+    //
+    // Coherency (plan section 3.3 item 4): a new stamp (a hooked writer
+    // touched guest RAM) breaks the vertex cache before the next in-place
+    // strip; with inPlaceFlushPending (Case C: the GPU does not snoop the
+    // CPU cache) a WBINVD goes first. inPlaceFence: the fence after the last
+    // in-place strips, which nv2aInPlaceBeforeWrite waits for.
+    uint32_t inPlaceStamp = 0, inPlaceFence = 0;
+    bool inPlaceStampValid = false, inPlaceFlushPending = false, inPlaceUnfenced = false;
+
+    // The format of one in-place array (attribute attr) and where it is.
+    uint32_t *setInPlaceArray(uint32_t *p, uint32_t attr, const GSXfInPlaceArray &a)
+    {
+        uint32_t type = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, components = 0u;
+        switch (a.format)
+        {
+        case GSXfInPlaceFormat::F32: components = a.components; break;
+        case GSXfInPlaceFormat::UbRgba: type = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_OGL; components = 4u; break;
+        case GSXfInPlaceFormat::S16: type = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_S32K; components = a.components; break;
+        default: break; // off: size 0
+        }
+        p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4u * attr, type | (components << 4) | (uint32_t(a.stride) << 8));
+        if (components)
+            p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4u * attr, a.physical);
+        return p;
+    }
+
+    void xfInPlace(GSXfCursor &xc, const GSXfInPlaceStrip *strips, uint32_t count)
+    {
+        xc.inPlaceTaken = 0u;
+        // (Compiled whatever the switch says; off, the caller never gets here.)
+        if (!TS_NATIVE_INPLACE || count == 0u || !xc.direct || runKey.vertexMode == 0u || runKey.vertexMode > 4u)
+            return;
+        const uint32_t mode = runKey.vertexMode + 4u;
+        // The run's ring records so far, as their own batch, first.
+        takeXfCursor(xc);
+        flushBatch();
+        DrawKey key = runKey;
+        key.vertexMode = mode;
+        uint32_t *p = openCursor();
+        if (!(stateValid && applied == key))
+            p = applyState(p, key); // the in-place program, the constants, every array off
+        uint32_t taken = 0;
+        for (; taken < count; ++taken)
+        {
+            const GSXfInPlaceStrip &s = strips[taken];
+            const uint32_t n = s.indices ? s.indexCount : s.count;
+            if (s.mode != mode || n < 3u)
+                break; // the rest is the ring's
+            if (inPlaceFlushPending)
+            {
+                // Case C: dirty CPU lines of the arrays reach RAM before the
+                // GPU reads them.
+                __asm__ __volatile__("wbinvd" ::: "memory");
+                inPlaceFlushPending = false;
+                ++g_nv2aTextureStats.inPlaceFlushes;
+            }
+            if (!inPlaceStampValid || s.stamp != inPlaceStamp)
+            {
+                p = push1(p, NV097_BREAK_VERTEX_BUFFER_CACHE, 0u);
+                inPlaceStamp = s.stamp;
+                inPlaceStampValid = true;
+                ++g_nv2aTextureStats.inPlaceBreaks;
+            }
+            p = setInPlaceArray(p, 0u, s.position);
+            p = setInPlaceArray(p, 2u, s.normal);
+            p = setInPlaceArray(p, 3u, s.colour);
+            p = setInPlaceArray(p, 9u, s.texture);
+            p = setInPlaceArray(p, 10u, s.bone);
+            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
+            if (s.indices)
+            {
+                // Index pairs, at most 2,047 words a header; an odd count
+                // ends with one ARRAY_ELEMENT32.
+                const uint32_t pairs = n / 2u;
+                for (uint32_t j = 0; j < pairs;)
+                {
+                    const uint32_t c = std::min<uint32_t>(pairs - j, 2047u);
+                    p = pushMethod(p, 0x40000000u | NV097_ARRAY_ELEMENT16, c);
+                    for (uint32_t e = 0; e < c; ++e, ++j)
+                        *p++ = uint32_t(s.indices[2u * j]) | (uint32_t(s.indices[2u * j + 1u]) << 16);
+                }
+                if (n & 1u)
+                    p = push1(p, 0x40000000u | NV097_ARRAY_ELEMENT32, s.indices[n - 1u]);
+            }
+            else
+                for (uint32_t first = 0;;)
+                {
+                    const uint32_t c = std::min<uint32_t>(n - first, 256u);
+                    p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((c - 1u) << 24) | first);
+                    if (first + c >= n)
+                        break;
+                    first += c - 2u;
+                }
+            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+            ++g_nv2aTextureStats.inPlaceStrips;
+            g_nv2aTextureStats.inPlaceVertices += n;
+            if (size_t(p - openBlock) >= kBlockDwords)
+            {
+                cursor = p;
+                closeBlock();
+                p = openCursor();
+            }
+        }
+        cursor = p;
+        if (taken)
+        {
+            // applied holds the in-place mode: the ring's next batch sets
+            // its own arrays again.
+            inPlaceUnfenced = true;
+            screenGpuNewer = true;
+        }
+        xc.inPlaceTaken = taken;
+        openXfCursor(xc); // the ring continues: a fresh batch, no join
+    }
+
+    // nv2aInPlaceBeforeWrite: the in-place draws pushed so far are fenced,
+    // handed to the GPU and waited for.
+    void inPlaceBarrier()
+    {
+        if (!inPlaceUnfenced)
+            return;
+        inPlaceUnfenced = false;
+        flushBatch();
+        inPlaceFence = ++fenceSerial;
+        cursor = pushFence(openCursor(), inPlaceFence);
+        closeBlock();
+        if (int32_t(*fence - inPlaceFence) < 0)
+        {
+            ++g_nv2aTextureStats.inPlaceBarrierWaits;
+            const uint64_t start = cycles();
+            // An idle GPU has passed every fence.
+            while (int32_t(*fence - inPlaceFence) < 0 && pb_busy())
+            {
+            }
+            waitCycles += cycles() - start;
+            g_nv2aTextureStats.kcycWait = uint32_t(waitCycles / 1000u);
+        }
+    }
+    // nv2aInPlaceAfterWrite.
+    void inPlaceAfterWrite(bool flushCache)
+    {
+        inPlaceStampValid = false; // the next in-place strip breaks the vertex cache
+        inPlaceFlushPending = inPlaceFlushPending || flushCache;
+    }

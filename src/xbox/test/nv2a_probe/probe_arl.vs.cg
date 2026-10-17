@@ -1,0 +1,23 @@
+// nv2a_probe T10c: relative constant addressing (ARL), as the skin-in-place
+// program picks bone rows by an index read from the game's own arrays. The
+// vertex colour's red channel holds a palette index (0..7, as a byte, so
+// red = index / 255); the program colours the vertex with pal[index]. The
+// scale (255) and the rounding (0.5) come from sel, a constant, so the
+// program needs no literals of its own.
+struct vIn {
+    float4 pos : POSITION;
+    float4 col : DIFFUSE;
+};
+
+struct vOut {
+    float4 pos : POSITION;
+    float4 col : COLOR0;
+};
+
+vOut main(vIn I, uniform float4 pal[8] : C0, uniform float4 sel : C8)
+{
+    vOut o;
+    o.pos = I.pos;
+    o.col = pal[I.col.x * sel.x + sel.y];
+    return o;
+}

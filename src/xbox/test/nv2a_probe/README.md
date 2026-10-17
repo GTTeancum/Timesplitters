@@ -1,4 +1,4 @@
-# nv2a_probe: console tests T1-T8 (REWRITE-PLAN.md M0.7)
+# nv2a_probe: console tests T1-T8 (REWRITE-PLAN.md M0.7) and T9-T11 (PUSH-BC-PLAN.md 5.9)
 
 A small standalone nxdk program (pbkit, no game code) that answers the
 hardware questions gating M5's flat-shading path and all of M8 (the NV2A
@@ -227,6 +227,52 @@ times as much GPU work as CPU time, which must come out late.
 - `settleMax`: the longest wait at a frame's start. `flipWaits`: retries of
   `pb_finished` (all back buffers waiting for a vblank).
 
+**T9** (QUADS; gates C-EMIT's optional sprites-as-quads). Sixteen sprites of
+odd sizes at quarter-pixel positions, one colour each (the game's sprites),
+drawn as QUADS and as the renderer's two triangles (corners 0 1 2 and 0 2
+3); every pixel of a 256x192 area compared.
+- PASS (`0 px differ`): sprites may go to the GPU as one quad of four
+  vertices instead of six.
+- FAIL: keep the triangle pairs.
+- ERR: fewer than 100 pixels drawn (the control drew nothing).
+- The gradient numbers (one colour per corner) and `diagonal` say which
+  diagonal the hardware splits a quad on; informational, since the game's
+  sprites never have corner colours that differ.
+
+**T10a** (UB_OGL; M8 colours in place). A colour array holding the bytes
+10 80 F0 FF (the guest's R G B A order) read as UB_OGL.
+- PASS (`px=FF1080F0`): byte 0 is red; the guest's colours need no swizzle.
+- FAIL: the line gives the pixel; M8 needs a swizzle in the program.
+- ERR: the UB_D3D control did not give FFF08010.
+
+**T10b** (F3 at stride 16; M8 positions in place). Positions as three
+floats in 16-byte rows with a NaN in the fourth word.
+- PASS: drawn where the F4 control is; the guest's rows can be fetched as
+  they are (w comes out 1).
+- FAIL: not drawn; ERR: the control failed.
+
+**T10c** (ARL; the skin-in-place program). A second program
+(probe_arl.vs.cg) colours each of four triangles with `pal[index]`, the
+index read from the vertex colour's red byte.
+- PASS (`4 of 4`): constant indexing by an attribute value works on the
+  console.
+- FAIL: fewer; ERR: the GPU stopped.
+
+**T11a INFO** (post-transform reuse). GPU time per triangle of 512 mesh
+strips as DRAW_ARRAYS of expanded vertices (no reuse), as one
+ARRAY_ELEMENT16 triangle list over the strips' own vertices, and as AE16
+strips. AE16-list near AE16-strips: the post-transform cache reuses
+vertices; near DA-list: every index costs a full transform.
+
+**T11b** (aliasing across in-place batches). Two consecutive AE16 batches
+with the same indices at different array offsets, overlapping (+1 vertex)
+and disjoint (+10), eight trials each; BREAK_VERTEX_BUFFER_CACHE between
+them is the control.
+- PASS: every second batch drew its own vertices; no break is needed.
+- FAIL (`stale=` above 0): transformed vertices survived the offset change;
+  M8 pushes BREAK_VERTEX_BUFFER_CACHE at every array-offset change.
+- ERR: the control failed or batch one did not draw.
+
 **T6a** (PROBE_PAGED bit 0; page-table DMA object, the fallback for T1). A
 DMA object with 16 page-table entries in reverse page order (one vertex
 straddles a page boundary) in pbkit's instance memory, tried with pbkit's
@@ -264,4 +310,7 @@ ERR or a GPU timeout means that target cannot fetch vertices.
   - BREAK_VERTEX_BUFFER_CACHE: not needed if T3a and T3b pass;
   - draw form: T5c (index lists) and T5d (costs);
   - fence depth: T7 (the pipeline part), with M0.6's real GPU time per frame.
+- C-EMIT's sprites as QUADS: T9.
+- M8's in-place formats and program: T10a-c; its index lists: T11a (cost)
+  and T11b (a BREAK at each offset change or not).
 - Today's renderer: T5a FAIL is a bug in the 256-vertex list chunks.

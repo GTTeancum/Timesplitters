@@ -214,6 +214,13 @@ public:
     // Swaps the raster backend for a check and hands the old one back
     // (no flush, sync or memory hand-over: the check restores it at once).
     std::unique_ptr<GSRasterBackend> swapBackendForCheck(std::unique_ptr<GSRasterBackend> backend);
+    // An outside self-check (TS_NATIVE_EMIT_SELFCHECK) is running packets
+    // into its recording backend: the front end's own sampled checks
+    // (TS_GS_BULK_SELFCHECK, TS_GS_STATE_SELFCHECK's commit re-check) stay
+    // out of it. They sample by counters the outside check cannot save, and
+    // the commit re-check writes its block again (LoadClut, TextureFlush),
+    // so one run of the packet would carry calls the other does not.
+    void setOuterCheck(bool on);
     // A primitive the native path recognised and drew nothing for (the
     // texture-kick strip): statistics only.
     void notePrimNoDraw(uint32_t prim);
@@ -404,6 +411,7 @@ private:
     mutable GSDrawState m_drawStateCache{};
     mutable uint32_t m_drawStateCacheSerial = 0;
     bool m_bulkChecking = false; // TS_GS_BULK_SELFCHECK: inside a check (no nested check)
+    bool m_outerCheck = false;   // setOuterCheck: no sampled check of the front end's own
     std::atomic<HostPresentationMode> m_hostPresentationMode{HostPresentationMode::VSync};
     std::atomic<uint64_t> m_hostPresentationSequence{0};
     uint8_t *m_localMemoryStorage = nullptr;

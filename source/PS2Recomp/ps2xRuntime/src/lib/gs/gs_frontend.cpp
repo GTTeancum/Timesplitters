@@ -2712,7 +2712,8 @@ bool GS::sameBulkCheckExtra(const BulkCheckExtra &a, const BulkCheckExtra &b)
 void GS::bulkSelfCheck(const uint8_t *data, uint32_t sizeBytes)
 {
     static uint32_t s_seen = 0;
-    if (m_bulkChecking || !m_backend || s_gsStats.bulkChecks >= static_cast<uint32_t>(TS_GS_BULK_SELFCHECK_PACKETS) ||
+    if (m_bulkChecking || m_outerCheck || !m_backend ||
+        s_gsStats.bulkChecks >= static_cast<uint32_t>(TS_GS_BULK_SELFCHECK_PACKETS) ||
         (s_seen++ % static_cast<uint32_t>(TS_GS_BULK_SELFCHECK_EVERY)) != 0u)
         return;
     m_bulkChecking = true;
@@ -2855,6 +2856,12 @@ void GS::restoreCheckState(const CheckState &state)
     bumpStateSerial();
 }
 
+void GS::setOuterCheck(bool on)
+{
+    std::lock_guard lock(m_stateMutex);
+    m_outerCheck = on;
+}
+
 std::unique_ptr<GSRasterBackend> GS::swapBackendForCheck(std::unique_ptr<GSRasterBackend> backend)
 {
     std::lock_guard lock(m_stateMutex);
@@ -2906,7 +2913,7 @@ GS::StateBlockResult GS::applyStateBlockUnlocked(const StateBlock &block, bool r
     // One commit in TS_GS_STATE_SELFCHECK_EVERY of an idempotent block: the
     // block processed again as a PATH1 packet must change nothing.
     static uint32_t s_commits = 0;
-    if (block.idempotent && !m_bulkChecking &&
+    if (block.idempotent && !m_bulkChecking && !m_outerCheck &&
         (s_commits++ % static_cast<uint32_t>(TS_GS_STATE_SELFCHECK_EVERY)) == 0u)
     {
         uint8_t bytes[16u + GSStateBlock::kMaxWrites * 16u];

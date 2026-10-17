@@ -325,6 +325,10 @@ namespace
         std::memcpy(s_check.vu, vu, PS2_VU1_DATA_SIZE);
         gs->saveCheckState(s_check.gs);
         std::unique_ptr<GSRasterBackend> real = gs->swapBackendForCheck(std::move(s_recorder));
+        // The front end's own sampled checks would fall in one run and not
+        // the other (TS_GS_STATE_SELFCHECK's commit re-check writes its block
+        // again into the recorder): off while both runs go.
+        gs->setOuterCheck(true);
         auto restore = [&] {
             memory.vif1_regs = s_check.vif;
             std::memcpy(vu, s_check.vu, PS2_VU1_DATA_SIZE);
@@ -348,6 +352,7 @@ namespace
         const bool vifSame = std::memcmp(&oldVif, &memory.vif1_regs, sizeof(VIFRegisters)) == 0;
         const bool vuSame = hashBytes(vu, PS2_VU1_DATA_SIZE) == oldVu;
         restore();
+        gs->setOuterCheck(false);
         s_recorder = gs->swapBackendForCheck(std::move(real));
         ++g_tsEmitStats.checked;
         if (!(traceSame && vifSame && vuSame) && ++g_tsEmitStats.diffs <= 8u)

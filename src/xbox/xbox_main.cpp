@@ -257,6 +257,27 @@ namespace
         std::cout << "[TS:xbox] memcpy 16 MB: " << copyMs << " ms" << std::endl;
     }
 
+    // Quick reboot into the dashboard with a launch-data page saying so (the
+    // user's Perfect Dark X port does the same). The page is written back
+    // to RAM before the reboot: on real hardware stale cache lines of it
+    // crash the firmware (xemu hides that).
+    void returnToDashboard()
+    {
+        constexpr ULONG kPage = 0x1000;
+        if (!LaunchDataPage)
+            LaunchDataPage = static_cast<PLAUNCH_DATA_PAGE>(MmAllocateContiguousMemory(kPage));
+        if (!LaunchDataPage)
+            HalReturnToFirmware(HalRebootRoutine);
+        MmPersistContiguousMemory(LaunchDataPage, kPage, TRUE);
+        std::memset(LaunchDataPage, 0, kPage);
+        LaunchDataPage->Header.dwLaunchDataType = LDT_LAUNCH_DASHBOARD;
+        LaunchDataPage->Header.dwTitleId = CURRENT_XBE_HEADER->CertificateHeader->TitleID;
+        LaunchDataPage->Header.dwFlags = 0;
+        __asm__ __volatile__("sfence" ::: "memory");
+        __asm__ __volatile__("wbinvd" ::: "memory");
+        HalReturnToFirmware(HalQuickRebootRoutine);
+    }
+
     void halt(const char *message)
     {
         std::cerr << "[TS:xbox] " << message << std::endl;
@@ -367,6 +388,9 @@ int main()
     xboxLogToScreen(false);
     rt.run();
     std::cout << "[TS:xbox] stopped" << std::endl;
+    // The game ended on its own (Exit Game: on a PS2 it goes back to the
+    // console's browser): back to the dashboard.
+    returnToDashboard();
     halt("game stopped");
     return 0;
 }

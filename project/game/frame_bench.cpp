@@ -5,7 +5,14 @@
 //
 // usage: timesplitters_frame_bench dump.bin [iterations=20] [frame.png]
 // TS_GS_THREAD=1 rasterizes on a worker thread; TS_VU1_INTERPRET=1 disables
-// the recompiled microprograms.
+// the recompiled microprograms. TS_BENCH_TRACE=1 records instead of
+// drawing (src/xbox/PUSH-BC-PLAN.md section 5.10, C-EMIT): the GS front end
+// draws into ts_gif_trace.h's recording backend, and each list's GS-level
+// trace (a hash of every primitive in canonical form, with counts) is
+// printed, so two dumps or two builds of the emitters can be compared
+// draw for draw (no picture, no vram hash, the times are the front end's
+// and the VU's alone).
+#include "ts_gif_trace.h"
 #include "runtime/ps2_memory.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/gs/gs_frontend.h"
@@ -90,7 +97,14 @@ static int benchMain(int argc, char **argv)
         }
         GS gs;
         gs.init(mem.getGSVRAM(), PS2_GS_VRAM_SIZE, &mem.gs());
-        if (const char *thread = std::getenv("TS_GS_THREAD"); thread && *thread == '1')
+        ts_gif_trace::RecordingBackend *recorder = nullptr;
+        if (const char *trace = std::getenv("TS_BENCH_TRACE"); trace && *trace == '1')
+        {
+            auto backend = std::make_unique<ts_gif_trace::RecordingBackend>();
+            recorder = backend.get();
+            gs.setRasterBackend(std::move(backend));
+        }
+        else if (const char *thread = std::getenv("TS_GS_THREAD"); thread && *thread == '1')
             gs.setRasterBackend(std::make_unique<GSThreadedBackend>());
         GifArbiter arbiter;
         arbiter.setProcessPathPacketFn([&](GifPathId path, const uint8_t *data, uint32_t size) {
@@ -122,13 +136,25 @@ static int benchMain(int argc, char **argv)
                 if (start >= PS2_RAM_SIZE - 16 || (start & 15))
                     throw std::runtime_error("invalid display list pointer");
                 const uint64_t cyclesBefore = vu.state().cycles;
+                if (recorder)
+                    recorder->reset();
                 const auto t0 = std::chrono::steady_clock::now();
                 mem.writeIORegister(0x10009030, start);
                 mem.writeIORegister(0x10009000, 0x185);
                 mem.processPendingTransfers();
                 gs.refreshDisplaySnapshot(); // waits for a threaded backend to finish
                 const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-                if (iteration == iterations)
+                if (iteration == iterations && recorder)
+                {
+                    recorder->finish();
+                    const ts_gif_trace::Trace &t = recorder->trace;
+                    std::cout << "[TS:frame-bench] list=" << list << " trace=" << std::hex << t.hash << std::dec
+                              << " prims=" << t.prims << " vertices=" << t.vertices << " cluts=" << t.cluts
+                              << " transfers=" << t.transfers << " imageBytes=" << t.imageBytes
+                              << " flushes=" << t.flushes << " texFlushes=" << t.texFlushes << " clears=" << t.clears
+                              << " syncs=" << t.syncs << '\n';
+                }
+                else if (iteration == iterations)
                 {
                     uint32_t size = 0;
                     const uint8_t *bytes = gs.lockDisplaySnapshot(size);
@@ -150,7 +176,7 @@ static int benchMain(int argc, char **argv)
             std::cout << "[TS:frame-bench] list=" << list << " best_ms=" << best[list]
                       << " mean_ms=" << total[list] / iterations << " vu_cycles=" << vuCycles[list] << '\n';
 
-        if (argc > 3)
+        if (argc > 3 && !recorder) // (a recording draws no picture)
         {
             // Present exactly as the game window would.
             const uint64_t sequence = gs.hostPresentationSequence();

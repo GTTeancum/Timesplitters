@@ -6,6 +6,12 @@
 //   XF_LIT   four directional lights: colour = min(vertex * lights, 127)
 //   XF_ENV   sphere-map texture coordinates from the rotated normal
 //   XF_SKIN  per-vertex bone (0..2): matrices and light rows chosen by index
+//   XF_SKIN_INPLACE (with XF_SKIN; src/xbox/PUSH-BC-PLAN.md M8, mode 8): the
+//            bone index read as the game keeps it (TEXCOORD1's x, a 16-bit
+//            integer fetched in place), not bone * 4 in TEXCOORD0's w:
+//            b = min(index, 2) * 4, as the ring's decode makes it
+//            (vu1_native_xf.h). 2 and 4 are made from k[33].z (0.5), so the
+//            program needs no literal beyond the others' c[34].
 //
 // Constants (row vectors, as the VU1 program keeps them):
 //   k[0..11]   MVP rows, bones 0..2      k[12..23]  light direction rows
@@ -16,6 +22,9 @@ struct vIn {
     float4 nrm : NORMAL;
     float4 col : DIFFUSE;
     float4 tex : TEXCOORD0; // s, t, q divisor, bone * 4
+#if defined(XF_SKIN_INPLACE)
+    float4 bone : TEXCOORD1; // the bone index (x)
+#endif
 };
 
 struct vOut {
@@ -27,7 +36,11 @@ struct vOut {
 vOut main(vIn I, uniform float4 k[34] : C0)
 {
     vOut o;
-#if defined(XF_SKIN)
+#if defined(XF_SKIN_INPLACE)
+    float one = k[33].z + k[33].z;
+    float two = one + one;
+    float b = min(I.bone.x, two) * (two + two);
+#elif defined(XF_SKIN)
     float b = I.tex.w;
 #else
     const int b = 0;

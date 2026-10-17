@@ -27,12 +27,20 @@
 // an EE wait inside a bracket is taken off twice; there are none in a busy
 // stretch.)
 #include "xbox_perf.h"
-#if TS_PERF
+#include "xbox_platform.h" // xboxPlatformStart (B-PLATFORM)
 #include "xbox_log.h"
-#include "gs_nv2a_backend.h"
-#include "runtime/ee_scheduler.h"
 #include "runtime/gs/gs_backend.h"
 #include "runtime/gs/gs_frontend.h"
+#include "runtime/ps2_det.h"
+#include "runtime/ps2_host_lock.h"
+#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: its init, frame and phase hooks
+
+#include <cstdio>
+#include <memory>
+
+#if TS_PERF
+#include "gs_nv2a_backend.h"
+#include "runtime/ee_scheduler.h"
 #include "runtime/gs/ps2_gif_arbiter.h"
 #include "runtime/ps2_io_stats.h"
 #include "runtime/ps2_memory.h"
@@ -46,7 +54,6 @@
 
 #include <atomic>
 #include <cstdarg>
-#include <cstdio>
 #include <cstring>
 
 extern uint32_t g_audioMixKcyc; // xbox_raylib.cpp: the audio feeder's mixing, thousands of cycles (cumulative)
@@ -81,40 +88,16 @@ namespace
     bool g_idleCounted = false; // its KernelTime advanced in the start-up check
 
     // ------------------------------------------------------------ the log
-    struct Line
+    using Line = XboxReportLine; // xbox_perf.h: shared with the report-line registry
+
+    // The report-line registry (xboxRegisterReportLine).
+    struct ReportLine
     {
-        char text[400];
-        int n = 0;
-        explicit Line(const char *tag) { add("%s", tag); }
-        void add(const char *format, ...)
-        {
-            if (n >= int(sizeof(text)) - 2)
-                return;
-            va_list args;
-            va_start(args, format);
-            const int m = std::vsnprintf(text + n, sizeof(text) - size_t(n) - 1, format, args);
-            va_end(args);
-            if (m > 0)
-                n += m < int(sizeof(text)) - n - 2 ? m : int(sizeof(text)) - n - 2;
-        }
-        // Microseconds as milliseconds with two decimals (pdclib's printf
-        // has no %f).
-        void ms(const char *name, uint64_t us)
-        {
-            add(" %s=%u.%02u", name, unsigned(us / 1000u), unsigned(us % 1000u / 10u));
-        }
-        // A count per frame with one decimal.
-        void perFrame(const char *name, uint64_t count, uint32_t frames)
-        {
-            const uint64_t tenths = count * 10u / (frames ? frames : 1u);
-            add(" %s=%u.%u", name, unsigned(tenths / 10u), unsigned(tenths % 10u));
-        }
-        void write()
-        {
-            text[n++] = '\n';
-            xboxLogWrite(text, unsigned(n));
-        }
+        const char *tag;
+        void (*fn)(XboxReportLine &);
     };
+    ReportLine g_reportLines[kPerfReportLines];
+    uint32_t g_reportLineCount = 0;
 
     // ---------------------------------------------------------- frame times
     constexpr uint32_t kBins = 128; // 1 ms each; the last also holds longer frames
@@ -247,6 +230,11 @@ namespace
         uint64_t player[4] = {}, view[4] = {}; // lvTickPlayer / lvGfx by call within the frame
         uint64_t kickNativeKcyc = 0, kickGpuWaitKcyc = 0, kickReadbackKcyc = 0;
         uint32_t lost = 0; // brackets opened again before they closed
+#if TS_PERF_SUBBRACKETS
+        // The sub-brackets by the player whose lvTickPlayer call they fell in
+        // (animMtxTick: the last player's).
+        uint64_t sub[kPerfPhaseCount - kPerfMainPhases][4] = {};
+#endif
     };
     PhaseTotals g_phases;
     uint32_t g_playerCall = 0, g_viewCall = 0;
@@ -611,6 +599,24 @@ namespace
             Timed t(kBeXfer);
             return m_inner->ConsumeLocalToHostBytes(dst, maxBytes);
         }
+        // Push B/C paths (gs_backend.h): forwarded like the rest, so a
+        // timed backend keeps them.
+        uint32_t DrawPaths() const override { return m_inner->DrawPaths(); }
+        bool SubmitPrimitives(const GSDrawState &state, uint32_t prim, const GSVertex *vertices, uint32_t count) override
+        {
+            Timed t(kBePrim);
+            return m_inner->SubmitPrimitives(state, prim, vertices, count);
+        }
+        void XfInPlace(GSXfCursor &cursor, const GSXfInPlaceStrip *strips, uint32_t count) override
+        {
+            Timed t(kBeXf);
+            m_inner->XfInPlace(cursor, strips, count);
+        }
+        GSNativeRunResult BeginNativeRun(const GSNativeRun &run, GSXfCursor &cursor) override
+        {
+            Timed t(kBeXf);
+            return m_inner->BeginNativeRun(run, cursor);
+        }
         uint32_t ReadVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_t y) const override
         {
             Timed t(kBeOther);
@@ -674,10 +680,12 @@ void xboxPerfInit()
 #if TS_PMC
     pmcInit();
 #endif
+    TS_MEASURE(xboxMeasureInit()); // the measurement build's once-only probes and its report lines
 }
 
 void xboxPerfGameFrame()
 {
+    TS_MEASURE(xboxMeasureFrame());
     const uint64_t now = rdtsc();
     const int64_t waited = ps2x::schedulerWaitProbe().waitedMicroseconds.load(std::memory_order_relaxed);
     if (g_lastFrameTsc)
@@ -703,6 +711,7 @@ void xboxPerfPhaseOpen(uint32_t phase)
         ++g_phases.lost;
     if (phase == kPerfGameTick)
         g_playerCall = g_viewCall = 0;
+    TS_MEASURE(xboxMeasurePhase(phase, true));
     o.open = true;
     if (phase == kPerfKick)
     {
@@ -721,6 +730,7 @@ void xboxPerfPhaseClose(uint32_t phase)
     OpenPhase &o = g_open[phase];
     if (!o.open)
         return;
+    TS_MEASURE(xboxMeasurePhase(phase, false));
     const Clocks now = clocksNow();
     o.open = false;
     const uint64_t span = now.tsc - o.at.tsc;
@@ -735,6 +745,10 @@ void xboxPerfPhaseClose(uint32_t phase)
         g_phases.player[g_playerCall < 3u ? g_playerCall++ : 3u] += cycles;
     else if (phase == kPerfGfx)
         g_phases.view[g_viewCall < 3u ? g_viewCall++ : 3u] += cycles;
+#if TS_PERF_SUBBRACKETS
+    else if (phase >= kPerfMainPhases)
+        g_phases.sub[phase - kPerfMainPhases][g_playerCall < 3u ? g_playerCall : 3u] += cycles;
+#endif
     else if (phase == kPerfKick)
     {
         g_phases.kickNativeKcyc += uint32_t(g_nv2aTextureStats.kcycNative - o.nativeKcyc);
@@ -907,8 +921,8 @@ void xboxPerfReport(const XboxPerfInputs &in)
         uint64_t total = 0;
         Line line("[TS:phase]");
         line.add(" f=%u", frames);
-        const char *const names[kPerfPhaseCount] = {"tick", "before", "player", "after", "gfx", "kick"};
-        for (uint32_t p = 0; p < kPerfPhaseCount; ++p)
+        const char *const names[kPerfMainPhases] = {"tick", "before", "player", "after", "gfx", "kick"};
+        for (uint32_t p = 0; p < kPerfMainPhases; ++p)
         {
             const uint64_t cycles = a.cycles[p] - b.cycles[p];
             total += cycles;
@@ -939,6 +953,29 @@ void xboxPerfReport(const XboxPerfInputs &in)
         line.add(" lost=%u", a.lost - b.lost);
         line.write();
     }
+#if TS_PERF_SUBBRACKETS
+    // [TS:sub] (TS_PERF_SUBBRACKETS): the sub-brackets inside the tick
+    // phases, ms a frame (inclusive: their time is in their phase too) with
+    // calls a frame, then each by the player it fell in.
+    {
+        const PhaseTotals &a = now.phases, &b = was.phases;
+        Line line("[TS:sub]");
+        line.add(" f=%u", frames);
+        const char *const names[kPerfPhaseCount - kPerfMainPhases] = {"animmtx", "playertick", "portaltick", "camtick"};
+        for (uint32_t p = kPerfMainPhases; p < kPerfPhaseCount; ++p)
+        {
+            line.ms(names[p - kPerfMainPhases], usOf(a.cycles[p] - b.cycles[p]) / f);
+            line.perFrame("n", a.calls[p] - b.calls[p], f);
+            line.add(" pp");
+            for (uint32_t i = 0; i < 4; ++i)
+            {
+                const uint64_t us = usOf(a.sub[p - kPerfMainPhases][i] - b.sub[p - kPerfMainPhases][i]) / f;
+                line.add("%s%u.%02u", i ? "/" : "=", unsigned(us / 1000u), unsigned(us % 1000u / 10u));
+            }
+        }
+        line.write();
+    }
+#endif
 #endif
 
 #if TS_PERF_BACKEND
@@ -1006,6 +1043,11 @@ void xboxPerfReport(const XboxPerfInputs &in)
         line.perFrame("sys", now.syscalls - was.syscalls, f);
         line.perFrame("rpc", now.rpcs - was.rpcs, f);
         line.perFrame("vif1", now.vif1Chains - was.vif1Chains, f);
+        // B-SCHED totals since boot: countdown differences (TS_EE_COUNTDOWN_CHECK,
+        // must stay 0), no-yield regions / deferred transfers, frozen slow
+        // checkpoints (EeClockFreeze), events posted from other threads.
+        line.add(" cdiff=%u ny=%u/%u frozen=%u remote=%u", now.ee.cdiff, now.ee.noYieldRegions, now.ee.noYieldDeferred,
+                 now.ee.frozenCheckpoints, now.ee.remoteEvents);
         line.write();
     }
 
@@ -1105,7 +1147,23 @@ void xboxPerfReport(const XboxPerfInputs &in)
         line.write();
     }
 
+    // The registered lines (xboxRegisterReportLine), in registration order.
+    for (uint32_t i = 0; i < g_reportLineCount; ++i)
+    {
+        Line line(g_reportLines[i].tag);
+        g_reportLines[i].fn(line);
+        line.write();
+    }
+
     g_last = now;
+}
+
+bool xboxRegisterReportLine(const char *tag, void (*fn)(XboxReportLine &line))
+{
+    if (!tag || !fn || g_reportLineCount >= kPerfReportLines)
+        return false;
+    g_reportLines[g_reportLineCount++] = {tag, fn};
+    return true;
 }
 
 std::unique_ptr<GSRasterBackend> xboxPerfWrapBackend(std::unique_ptr<GSRasterBackend> backend)
@@ -1116,6 +1174,18 @@ std::unique_ptr<GSRasterBackend> xboxPerfWrapBackend(std::unique_ptr<GSRasterBac
 #endif
     return backend;
 }
+
+#if TS_PERF_BACKEND
+uint64_t xboxPerfKickCycles(bool gif)
+{
+    if (gif)
+        return g_beKick.gif[0] + g_beKick.gif[1];
+    uint64_t total = 0;
+    for (uint32_t g = 0; g < kBackendGroups; ++g)
+        total += g_beKick.group[g];
+    return total;
+}
+#endif
 
 void xboxPerfWrapGif(GifArbiter &arbiter, GS &gs)
 {
@@ -1141,3 +1211,34 @@ void xboxPerfWrapGif(GifArbiter &arbiter, GS &gs)
 #endif
 }
 #endif // TS_PERF
+
+void xboxInstallBackend(GS &gs, std::unique_ptr<GSRasterBackend> backend)
+{
+    const uint32_t paths = backend ? backend->DrawPaths() : 0u;
+    // Timing first, so the det wrapper's hashes see what the renderer gets.
+    backend = xboxPerfWrapBackend(std::move(backend));
+    backend = xboxDetWrapBackend(std::move(backend));
+    GS::setSingleOwner(TS_GS_LOCK_ELIDE != 0);
+    gs.setRasterBackend(std::move(backend));
+    xboxPlatformStart(); // B-PLATFORM: [TS:plat] and the platform self-tests (xbox_platform.h)
+    char text[200];
+    int n = std::snprintf(text, sizeof(text),
+                          "[TS:perf] draw paths: tier0=%d inplace=%d nativerun=%d (backend has %s%s%s) lockelide=%d det=%d\n",
+                          TS_NATIVE_EMIT_TIER0, TS_NATIVE_INPLACE, TS_GS_NATIVE_RUN,
+                          (paths & kGSDrawPathSubmitPrimitives) ? "prims " : "",
+                          (paths & kGSDrawPathXfInPlace) ? "inplace " : "",
+                          (paths & kGSDrawPathNativeRun) ? "nativerun" : "", TS_GS_LOCK_ELIDE, TS_DET);
+    xboxLogWrite(text, unsigned(n > 0 ? n : 0));
+    // A switched-on path without a backend behind it would run the old
+    // path and report the new one: refused at start-up, not found in a
+    // console session.
+    const uint32_t needed = (TS_NATIVE_EMIT_TIER0 ? kGSDrawPathSubmitPrimitives : 0u) |
+                            (TS_NATIVE_INPLACE ? kGSDrawPathXfInPlace : 0u) | (TS_GS_NATIVE_RUN ? kGSDrawPathNativeRun : 0u);
+    if ((paths & needed) != needed)
+    {
+        n = std::snprintf(text, sizeof(text), "[TS:perf] FATAL: a draw path is on that the backend lacks (needed %x, has %x)\n",
+                          needed, paths);
+        xboxLogWrite(text, unsigned(n > 0 ? n : 0));
+        __builtin_trap();
+    }
+}

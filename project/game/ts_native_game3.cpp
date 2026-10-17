@@ -50,6 +50,33 @@
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
 #include "runtime/ee_scheduler.h"
+// TS_NATIVE_CALL_SLOTS 1 (B-CODEGEN, src/xbox/PUSH-BC-PLAN.md M3.2, switched
+// on through src/xbox/mk/b_codegen.mk): guestCall goes through the compact
+// function table's slots (PS2X_GUEST_CALL, ps2_native_call_xbox.h) instead
+// of dispatchGuestBranch. 0 (default): as before.
+#ifndef TS_NATIVE_CALL_SLOTS
+#define TS_NATIVE_CALL_SLOTS 0
+#endif
+#if TS_NATIVE_CALL_SLOTS
+#include "ps2_native_call_xbox.h"
+#endif
+// TS_NATIVE_TRANSCRIBED_{ANIM,LIGHT,COLLISION,PORTAL} 0 (B-LOGIC, src/xbox/
+// PUSH-BC-PLAN.md section 3.6 item 6, through src/xbox/mk/b_logic.mk): drops
+// this file's transcriptions of that module (their bodies, table entries and
+// self-test setups) once the idiomatic module replaces them; the translated
+// originals stay the fallback. 1 (default): everything built, as before.
+#ifndef TS_NATIVE_TRANSCRIBED_ANIM
+#define TS_NATIVE_TRANSCRIBED_ANIM 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_LIGHT
+#define TS_NATIVE_TRANSCRIBED_LIGHT 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_COLLISION
+#define TS_NATIVE_TRANSCRIBED_COLLISION 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_PORTAL
+#define TS_NATIVE_TRANSCRIBED_PORTAL 1
+#endif
 #include "ts_native_math.h"
 #include "ts_native_selftest.h"
 
@@ -249,9 +276,13 @@ namespace
     // native function returns at once.
     TS_INL bool guestCall(G_ARGS, uint32_t target, uint32_t source, uint32_t next)
     {
+#if TS_NATIVE_CALL_SLOTS
+        return PS2X_GUEST_CALL(rdram, ctx, runtime, target, source, next);
+#else
         SET_GPR_U32(ctx, 31, next);
         return runtime->dispatchGuestBranch(rdram, ctx, target, source, next, PS2Runtime::GuestBranchKind::DirectCall,
                                             "JAL");
+#endif
     }
 
     // A backward branch's scheduler checkpoint: pc is the branch target,
@@ -846,6 +877,7 @@ namespace
         return;
     }
 
+#if TS_NATIVE_TRANSCRIBED_ANIM
     // ---- animUpdate (0x212cf8)
     //
     // animUpdate(skeleton): when the skeleton is on screen and its
@@ -978,6 +1010,7 @@ namespace
         return;
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_ANIM
     // ---- chrPropTick (0x26ddc0)
     //
     // chrPropTick(chr): a character's per-frame update: its hit flash, its
@@ -2049,6 +2082,7 @@ namespace
         return;
     }
 
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- bgPortalCalcOutCode (0x257e38)
     //
     // bgPortalCalcOutCode(vertex): a transformed portal vertex's out-code
@@ -2151,6 +2185,7 @@ namespace
         return;
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- matrixVecMulAligned (0x2b54c8)
     //
     // matrixVecMulAligned(m, v): v.xyz = m * (v.xyz, vf0.w) in place, in
@@ -6813,9 +6848,13 @@ namespace
     // In the order of their share of a busy match frame.
     const NativeEntry kNativeGame3[] = {
         {"decalDraw", 0x2A5B20u, &decalDraw_0x2a5b20, &nativeDecalDraw, &setupDecalDraw, true, TS_EXTRA(kDecalExtra)},
+#if TS_NATIVE_TRANSCRIBED_ANIM
         {"animUpdate", 0x212CF8u, &animUpdate_0x212cf8, &nativeAnimUpdate, &setupAnimUpdate, true, TS_EXTRA(kErrnoExtra)},
+#endif // TS_NATIVE_TRANSCRIBED_ANIM
         {"chrPropTick", 0x26DDC0u, &chrPropTick_0x26ddc0, &nativeChrPropTick, &setupChrPropTick, true, TS_EXTRA(kChrExtra)},
+#if TS_NATIVE_TRANSCRIBED_PORTAL
         {"bgPortalCalcOutCode", 0x257E38u, &bgPortalCalcOutCode_0x257e38, &nativeBgPortalCalcOutCode, &setupPortalCalcOutCode, true, TS_EXTRA(kErrnoExtra)},
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
         {"matrixVecMulAligned", 0x2B54C8u, &matrixVecMulAligned_0x2b54c8, &nativeMatrixVecMulAligned, &setupMatrixVecMulAligned, true, nullptr, 0u},
         {"bulletGetClosest", 0x28D100u, &bulletGetClosest_0x28d100, &nativeBulletGetClosest, &setupBulletGetClosest, true, TS_EXTRA(kErrnoExtra)},
         {"propCalcRooms", 0x269B30u, &propCalcRooms_0x269b30, &nativePropCalcRooms, &setupPropCalcRooms, true, TS_EXTRA(kRoomsExtra)},

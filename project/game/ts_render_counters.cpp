@@ -1,6 +1,7 @@
 // Render-origin counters (rewrite plan M0.3; runtime/ps2_render_counters.h):
 // the game functions that write the data partGfx's display lists point at,
-// counted through their function-table entries, and the [TS:render] line.
+// counted through the game-function hook registry (ts_game_hooks.h), and
+// the [TS:render] line.
 //
 // One line every status interval (the Xbox status hook, every 3 s), each
 // count the change since the line before:
@@ -31,9 +32,25 @@
 //          destination (format vn<<2|vl in hex: c V4-32, 8 V3-32, 4 V2-32,
 //          e V4-8, d V4-16, 5 V2-16, ...; destination 0 rows 0-23 of the
 //          batch, 1 rows 24-215, 2 rows 216 up, 3 absolute), msk masked ones
+// Once the records engine has registered a chain or the spine made a splice
+// or token (src/xbox/PUSH-BC-PLAN.md D1, 3.1), a [TS:rec] line:
+//   lvl    the knob `records` (0 walk, 1 splice, 2 token->T0, 3 token->R1)
+//   reg    chains registered (dlPopDmaTag), full: refused (registry full)
+//   bld    descriptors built; unspl: chains the walker must take itself,
+//          unrec: R1 cannot replay (spliced); arena: admissions refused for
+//          want of arena room; aud/stale: audits / found stale (rebuilt)
+//   spl    CALLs spliced; tok: replaced by a chain token, list: in-list
+//          tokens; ringfull: chain tokens spliced instead
+//   run    tokens run by their executor, exp: expanded, nops: read as NOPs;
+//          r1/t0: chain tokens by replay / by expansion
+//   then, from boot (each must stay 0): tokmid (a data read crossing into a
+//   token: bad/all), tokstale, drop, bad; TS_VIF_SELFCHECK splicediff=,
+//   TS_NATIVE_RECORD_SELFCHECK recdiff= (differing/checked)
 #if defined(PLATFORM_XBOX)
 #include "game_overrides.h"
 #include "ps2_runtime.h"
+#include "ts_game_hooks.h"
+#include "ts_knobs.h" // the records level for [TS:rec]
 #include "../../src/xbox/gs_nv2a_backend.h" // game frames
 #include "../../src/xbox/xbox_log.h"
 
@@ -49,46 +66,39 @@ namespace
     //   obPrecalcDbufGfxData (0x25fc90): an instance's double-buffered chains
     //   obInstLight (0x2a7ab0): builds them at the instance's first relight
     //   vtxlistcolour (0x2a7a50): rewrites their colours (roomlightTick)
-    // Each one's table entry counts the call, then runs what the entry held
-    // before (the original, or an override applied ahead of this one). A
-    // resume inside the function goes through the entry of its resume
-    // address, not this one: a call is counted once.
+    // Each one's hook registry entry (ts_game_hooks.cpp wraps the table
+    // entry) counts the call before the function runs. A resume inside the
+    // function goes through the entry of its resume address, not the
+    // wrapper: a call is counted once.
     struct Writer
     {
-        uint32_t address;
+        TsGameFn fn;
         uint32_t RenderCounters::*counter;
     };
     constexpr Writer kWriters[4] = {
-        {0x2A7A50u, &RenderCounters::vtxlistcolour},
-        {0x2A7AB0u, &RenderCounters::obInstLight},
-        {0x25FC90u, &RenderCounters::obPrecalcDbufGfxData},
-        {0x25F408u, &RenderCounters::partPrecalcDmaData},
+        {TsGameFn::vtxlistcolour, &RenderCounters::vtxlistcolour},
+        {TsGameFn::obInstLight, &RenderCounters::obInstLight},
+        {TsGameFn::obPrecalcDbufGfxData, &RenderCounters::obPrecalcDbufGfxData},
+        {TsGameFn::partPrecalcDmaData, &RenderCounters::partPrecalcDmaData},
     };
-    PS2Runtime::RecompiledFunction s_writers[4];
 
     template <int Index>
-    void counted(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    void counted(void *, uint8_t *, R5900Context *, PS2Runtime *)
     {
         ++(g_renderCounters.*kWriters[Index].counter);
-        s_writers[Index](rdram, ctx, runtime);
     }
-    constexpr PS2Runtime::RecompiledFunction kCounted[4] = {&counted<0>, &counted<1>, &counted<2>, &counted<3>};
+    constexpr TsGameHookFn kCounted[4] = {&counted<0>, &counted<1>, &counted<2>, &counted<3>};
 
     void registerRenderCounters(PS2Runtime &runtime)
     {
-#if TS_RENDER_COUNTERS >= 1
-        for (int i = 0; i < 4; ++i)
-        {
-            if (!runtime.hasFunction(kWriters[i].address))
-                continue;
-            const PS2Runtime::RecompiledFunction current = runtime.lookupFunction(kWriters[i].address);
-            if (current == kCounted[i])
-                continue; // applied before (the game loaded again)
-            s_writers[i] = current;
-            runtime.replaceFunction(kWriters[i].address, kCounted[i]);
-        }
-#else
         (void)runtime;
+#if TS_RENDER_COUNTERS >= 1
+        static bool registered = false; // the registry keeps the callbacks across game loads
+        if (registered)
+            return;
+        registered = true;
+        for (int i = 0; i < 4; ++i)
+            tsGameHookOn(kWriters[i].fn, TsHookPhase::Before, kCounted[i]);
 #endif
     }
 
@@ -190,12 +200,32 @@ void renderCountersReport()
     line.add(" msk=%u", d.unpackMasked);
     line.write();
 #endif
+    // The spine's splices and tokens and the records engine, once there is
+    // anything to say (records 0: never).
+    if (total.recRegistered | total.splices | total.tokChain | total.tokList | total.tokStale | total.tokMid)
+    {
+        uint32_t level = 0;
+        tsKnobGet("records", level);
+        line.add("[TS:rec] lvl=%u reg=%u full=%u bld=%u unspl=%u unrec=%u arena=%u aud=%u stale=%u spl=%u tok=%u "
+                 "list=%u ringfull=%u run=%u exp=%u nops=%u r1=%u t0=%u",
+                 level, d.recRegistered, d.recRegFull, d.recBuilds, d.recUnspliceable, d.recUnrecordable,
+                 d.recArenaFull, d.recAudits, d.recStale, d.splices, d.tokChain, d.tokList, d.tokRingFull, d.tokRun,
+                 d.tokExpand, d.tokNops, d.recR1, d.recT0);
+        // The check counters, from boot (each must stay 0).
+        line.add(" | tokmid=%u/%u tokstale=%u drop=%u bad=%u", total.tokMidBad, total.tokMid, total.tokStale,
+                 total.tokDrop, total.tokBad);
+        if (total.spliceChecked)
+            line.add(" splicediff=%u/%u", total.spliceDiff, total.spliceChecked);
+        if (total.recChecked)
+            line.add(" recdiff=%u/%u", total.recDiff, total.recChecked);
+        line.write();
+    }
 #endif
 }
 
-// Its own game override, applied with the others when the game loads, so
-// the counting entries need no line elsewhere. (The link puts
-// ts_overrides.cpp's first; in the other order an override of one of these
-// functions there would replace its counting entry: no count, same game.)
+// Its own game override, applied with the others when the game loads: the
+// counting callbacks join the hook registry, whose wrappers ts_overrides.cpp
+// installs after the natives (any order between the two is fine: the
+// registry is consulted when a hooked function runs).
 PS2_REGISTER_GAME_OVERRIDE("TimeSplitters render counters", "SLUS_200.90", 0u, 0u, registerRenderCounters)
 #endif

@@ -1,5 +1,7 @@
 #include "ps2_runtime.h"
 #include "runtime/ps2_io_stats.h"
+#include "runtime/ps2_host_time.h" // the guest's view of the host clock (pinned in det mode)
+#include "runtime/ps2_det.h"       // detTrace (no-ops unless TS_DET)
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_host_settings.h"
@@ -1723,7 +1725,86 @@ bool __attribute__((fastcall)) ps2xDirectCall(uint8_t *rdram, R5900Context *ctx,
     PS2X_CALL_ENTRY(*entry, target, resume, return false);
     return true;
 }
+
+// The post-call cases other than "back at resume" (PS2X_CALL_RETURN_SLOW,
+// ps2_direct_call_xbox.h): the three tests the inline form used to make.
+bool __attribute__((fastcall)) ps2xCallReturnSlow(R5900Context *ctx, PS2Runtime *runtime, uint32_t target,
+                                                  uint32_t resume)
+{
+    if (runtime->isStopRequested() || ctx->pc == 0u)
+        return false;
+    if (ctx->pc == target)
+    {
+        ctx->pc = resume;
+        return true;
+    }
+    return false;
+}
 #endif
+
+// ---- The host clock as the guest sees it (runtime/ps2_host_time.h).
+namespace
+{
+    std::time_t s_hostTimePin = 0;
+    uint32_t s_hostTimePinnedReads = 0, s_hostTimeRealReads = 0;
+}
+
+std::time_t ps2xHostTime()
+{
+    if (s_hostTimePin != 0)
+    {
+        ++s_hostTimePinnedReads;
+        return s_hostTimePin;
+    }
+    return std::time(nullptr);
+}
+
+std::time_t ps2xHostFileTime(std::filesystem::file_time_type value)
+{
+    if (s_hostTimePin != 0)
+    {
+        ++s_hostTimePinnedReads;
+        return s_hostTimePin;
+    }
+    const auto systemValue = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+        value - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
+    return std::chrono::system_clock::to_time_t(systemValue);
+}
+
+int ps2xHostTimezoneMinutes(int computed)
+{
+    if (s_hostTimePin != 0)
+    {
+        ++s_hostTimePinnedReads;
+        return 0;
+    }
+    return computed;
+}
+
+void ps2xPinHostTime(std::time_t instant)
+{
+    s_hostTimePin = instant;
+}
+
+bool ps2xHostTimePinned()
+{
+    return s_hostTimePin != 0;
+}
+
+uint32_t ps2xHostTimePinnedReads()
+{
+    return s_hostTimePinnedReads;
+}
+
+uint32_t ps2xHostTimeRealReads()
+{
+    return s_hostTimeRealReads;
+}
+
+void ps2xHostTimeNoteRealRead()
+{
+    ++s_hostTimeRealReads;
+}
 
 void PS2Runtime::SignalException(R5900Context *ctx, PS2Exception exception)
 {
@@ -1785,6 +1866,7 @@ void PS2Runtime::handleSyscall(uint8_t *rdram, R5900Context *ctx, uint32_t encod
 
     ps2x::guestCallProbe().lastSyscall.store(syscallId, std::memory_order_relaxed);
     ps2x::guestCallProbe().syscalls.fetch_add(1, std::memory_order_relaxed);
+    detTrace(7u /* kDetTraceSyscall, EeScheduler.cpp */, syscallId, ctx->pc);
     if (ps2_syscalls::dispatchNumericSyscall(syscallId, rdram, ctx, this))
     {
         return;

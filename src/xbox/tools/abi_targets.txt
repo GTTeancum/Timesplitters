@@ -1,0 +1,27 @@
+# The functions whose observed-register sets abi_audit.py writes into
+# project/game/native/ts_abi_observed.h (B-LOGIC; src/xbox/PUSH-BC-PLAN.md
+# section 3.6 item 5). One hex address per line: every native registered
+# with Contract::Abi and every leaf_whitelist.txt entry. Others may be
+# added for information (sqrtf, newrnd: the cases section 3.6 names).
+
+# M7.1, x87 doubles (project/game/native/ts_fp_x87.cpp)
+0x2E3180 dpadd
+0x2E31D8 dpsub
+0x2E3240 dpmul
+0x2E34E8 dpdiv
+0x2E3768 dpcmp
+0x2E4608 fptodp
+0x2E3A10 dptofp
+0x2E3870 dptoli
+0x2D9510 __ieee754_sqrt
+0x2D6BA8 atan
+0x2D84B0 __ieee754_atan2
+
+# Leaf cores (project/game/native/ts_leaf.h, src/xbox/tools/leaf_whitelist.txt)
+0x2DC5A0 fabsf
+0x284E38 anglediff
+0x2E4648 __muldi3
+
+# For information: the cases the plan names
+0x2D8398 sqrtf
+0x2B68D0 newrnd

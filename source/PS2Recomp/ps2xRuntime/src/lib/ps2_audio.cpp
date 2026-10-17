@@ -94,16 +94,28 @@ namespace
 {
     std::atomic<Spu2 *> g_outputSpu{nullptr};
     std::atomic<Ps2Music *> g_outputMusic{nullptr};
+}
+
+// The output stream's mix (runtime/ps2_spu2.h): the SPU2, then the music
+// added with its own clamp (a separate pass: folding it into the SPU2's
+// sums would clamp once where the model clamps twice).
+void ps2AudioMixOutput(int16_t *out, unsigned frames)
+{
+    Spu2 *spu = g_outputSpu.load(std::memory_order_acquire);
+    if (spu)
+        spu->mix(out, frames);
+    else
+        std::memset(out, 0, size_t(frames) * 4u);
+    if (Ps2Music *music = g_outputMusic.load(std::memory_order_acquire))
+        music->mix(out, frames);
+}
+
+namespace
+{
 
     void spu2StreamCallback(void *buffer, unsigned int frames)
     {
-        Spu2 *spu = g_outputSpu.load(std::memory_order_acquire);
-        if (spu)
-            spu->mix(static_cast<int16_t *>(buffer), frames);
-        else
-            std::memset(buffer, 0, size_t(frames) * 4u);
-        if (Ps2Music *music = g_outputMusic.load(std::memory_order_acquire))
-            music->mix(static_cast<int16_t *>(buffer), frames);
+        ps2AudioMixOutput(static_cast<int16_t *>(buffer), frames);
         // TS_SPU2_RAW=<file>: also record the output (raw 48 kHz stereo s16).
         static FILE *raw = [] {
             const char *path = std::getenv("TS_SPU2_RAW");
@@ -407,6 +419,12 @@ bool PS2AudioBackend::writeSpuMemory(uint32_t byteAddress, const void* source, s
 {
     if (size > SpuRamBytes || (size && !source)) return false;
     std::lock_guard<std::mutex> lock(m_mutex);
+#if TS_SPU2_SELFCHECK
+    // The mix's lock too: the self-check's two mixes must read the same RAM.
+    std::unique_lock<std::mutex> mixLock;
+    if (m_impl->spu)
+        mixLock = std::unique_lock<std::mutex>(m_impl->spu->mixLock());
+#endif
     const uint32_t start = byteAddress & (SpuRamBytes - 2u);
     const size_t first = std::min(size, static_cast<size_t>(SpuRamBytes - start));
     if (first) std::memcpy(m_impl->spuRam.data()+start, source, first);

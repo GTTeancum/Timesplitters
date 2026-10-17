@@ -46,6 +46,33 @@
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
 #include "runtime/ee_scheduler.h"
+// TS_NATIVE_CALL_SLOTS 1 (B-CODEGEN, src/xbox/PUSH-BC-PLAN.md M3.2, switched
+// on through src/xbox/mk/b_codegen.mk): guestCall goes through the compact
+// function table's slots (PS2X_GUEST_CALL, ps2_native_call_xbox.h) instead
+// of dispatchGuestBranch. 0 (default): as before.
+#ifndef TS_NATIVE_CALL_SLOTS
+#define TS_NATIVE_CALL_SLOTS 0
+#endif
+#if TS_NATIVE_CALL_SLOTS
+#include "ps2_native_call_xbox.h"
+#endif
+// TS_NATIVE_TRANSCRIBED_{ANIM,LIGHT,COLLISION,PORTAL} 0 (B-LOGIC, src/xbox/
+// PUSH-BC-PLAN.md section 3.6 item 6, through src/xbox/mk/b_logic.mk): drops
+// this file's transcriptions of that module (their bodies, table entries and
+// self-test setups) once the idiomatic module replaces them; the translated
+// originals stay the fallback. 1 (default): everything built, as before.
+#ifndef TS_NATIVE_TRANSCRIBED_ANIM
+#define TS_NATIVE_TRANSCRIBED_ANIM 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_LIGHT
+#define TS_NATIVE_TRANSCRIBED_LIGHT 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_COLLISION
+#define TS_NATIVE_TRANSCRIBED_COLLISION 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_PORTAL
+#define TS_NATIVE_TRANSCRIBED_PORTAL 1
+#endif
 #include "ts_native_math.h"
 #include "ts_native_selftest.h"
 
@@ -245,9 +272,13 @@ namespace
     // native function returns at once.
     TS_INL bool guestCall(G_ARGS, uint32_t target, uint32_t source, uint32_t next)
     {
+#if TS_NATIVE_CALL_SLOTS
+        return PS2X_GUEST_CALL(rdram, ctx, runtime, target, source, next);
+#else
         SET_GPR_U32(ctx, 31, next);
         return runtime->dispatchGuestBranch(rdram, ctx, target, source, next, PS2Runtime::GuestBranchKind::DirectCall,
                                             "JAL");
+#endif
     }
 
     // A backward branch's scheduler checkpoint: pc is the branch target,
@@ -271,6 +302,7 @@ namespace
 #define LOAD_F(n) r.f##n = ctx->f[n]
 #define STORE_F(n) ctx->f[n] = r.f##n
 
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- bgPortalCalcPos (0x258108)
     //
     // bgPortalCalcPos(room, matrix): the screen rectangles of the room's
@@ -767,6 +799,8 @@ namespace
         return;
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     // ---- bgBulletGetClosest (0x25bc88)
     //
     // bgBulletGetClosest(chr, from, &distance): the closest bullet light
@@ -1179,6 +1213,8 @@ namespace
         return;
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_ANIM
     // ---- animMtxTick (0x273bb0)
     //
     // animMtxTick(obj): the per-frame matrices of an animated object, by
@@ -1865,6 +1901,7 @@ namespace
         return;
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_ANIM
     // ---- rotateChr (0x2bc5d0)
     //
     // rotateChr: a character's facing turned towards its target, in the
@@ -2900,6 +2937,7 @@ namespace
         return;
     }
 
+#if TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- moveTest (0x27d0c0)
     //
     // moveTest: a move tested against the walls, floors and props of the
@@ -3754,6 +3792,8 @@ namespace
 
     void nativeMoveTest(G_ARGS) { nativeMoveTestLevel(G_PASS, 0u); }
 
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     // ---- obinstCalcAmbientLight (0x25aae0)
     //
     // obinstCalcAmbientLight: an object instance's ambient light from its
@@ -5169,6 +5209,7 @@ namespace
         return;
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
     // ---- calMatrices (0x212e08)
     //
     // calMatrices: a skeleton's bone matrices for the frame from its
@@ -10595,15 +10636,25 @@ namespace
     const NativeEntry kNativeGame2[] = {
         {"partGfx", 0x260AE0u, &partGfx_0x260ae0, &nativePartGfx, &setupPartGfx, true, kPartGfxExtra,
          sizeof(kPartGfxExtra) / sizeof(kPartGfxExtra[0])},
+#if TS_NATIVE_TRANSCRIBED_ANIM
         {"animMtxTick", 0x273BB0u, &animMtxTick_0x273bb0, &nativeAnimMtxTick, &setupAnimMtxTick, true, kErrnoExtra, 1u},
+#endif // TS_NATIVE_TRANSCRIBED_ANIM
         {"calMatrices", 0x212E08u, &calMatrices_0x212e08, &nativeCalMatrices, &setupCalMatrices, true, kErrnoExtra, 1u},
+#if TS_NATIVE_TRANSCRIBED_COLLISION
         {"moveTest", 0x27D0C0u, &moveTest_0x27d0c0, &nativeMoveTest, &setupMoveTest, true, kMoveExtra, 2u},
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
         {"rotateChr", 0x2BC5D0u, &rotateChr_0x2bc5d0, &nativeRotateChr, &setupRotateChr, true, kErrnoExtra, 1u},
+#if TS_NATIVE_TRANSCRIBED_LIGHT
         {"obinstCalcAmbientLight", 0x25AAE0u, &obinstCalcAmbientLight_0x25aae0, &nativeObinstCalcAmbientLight, &setupAmbientLight, true, kErrnoExtra, 1u},
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_LIGHT
         {"bgBulletGetClosest", 0x25BC88u, &bgBulletGetClosest_0x25bc88, &nativeBgBulletGetClosest, &setupBulletGetClosest, true,
          kBulletExtra, 2u},
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_PORTAL
         {"bgPortalCalcPos", 0x258108u, &bgPortalCalcPos_0x258108, &nativeBgPortalCalcPos, &setupPortalCalcPos, true,
          kPortalPosExtra, 2u},
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
     };
     constexpr uint32_t kNativeGame2Count = sizeof(kNativeGame2) / sizeof(kNativeGame2[0]);
 

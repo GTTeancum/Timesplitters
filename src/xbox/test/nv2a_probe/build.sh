@@ -23,7 +23,7 @@ fi
 mkdir -p "$out"
 # nxdk's Makefile builds next to its sources: build from copies (-p keeps
 # their times, so make rebuilds only what changed).
-cp -p "$src/Makefile" "$src/nv2a_probe.c" "$src/probe_vs.vs.cg" "$src/probe_ps.ps.cg" "$out/"
+cp -p "$src/Makefile" "$src/nv2a_probe.c" "$src/probe_vs.vs.cg" "$src/probe_ps.ps.cg" "$src/probe_arl.vs.cg" "$out/"
 # nxdk's libraries and tools are used as they are: -o stops make from
 # rebuilding any of them inside $NXDK_DIR, which other projects share.
 keep=()

@@ -29,6 +29,34 @@
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
 #include "runtime/ee_scheduler.h"
+#include "runtime/ee_checkpoint_clock.h"
+// TS_NATIVE_CALL_SLOTS 1 (B-CODEGEN, src/xbox/PUSH-BC-PLAN.md M3.2, switched
+// on through src/xbox/mk/b_codegen.mk): lightCall goes through the compact
+// function table's slots (PS2X_GUEST_CALL, ps2_native_call_xbox.h) instead
+// of dispatchGuestBranch. 0 (default): as before.
+#ifndef TS_NATIVE_CALL_SLOTS
+#define TS_NATIVE_CALL_SLOTS 0
+#endif
+#if TS_NATIVE_CALL_SLOTS
+#include "ps2_native_call_xbox.h"
+#endif
+// TS_NATIVE_TRANSCRIBED_{ANIM,LIGHT,COLLISION,PORTAL} 0 (B-LOGIC, src/xbox/
+// PUSH-BC-PLAN.md section 3.6 item 6, through src/xbox/mk/b_logic.mk): drops
+// this file's transcriptions of that module (their bodies, table entries and
+// self-test setups) once the idiomatic module replaces them; the translated
+// originals stay the fallback. 1 (default): everything built, as before.
+#ifndef TS_NATIVE_TRANSCRIBED_ANIM
+#define TS_NATIVE_TRANSCRIBED_ANIM 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_LIGHT
+#define TS_NATIVE_TRANSCRIBED_LIGHT 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_COLLISION
+#define TS_NATIVE_TRANSCRIBED_COLLISION 1
+#endif
+#ifndef TS_NATIVE_TRANSCRIBED_PORTAL
+#define TS_NATIVE_TRANSCRIBED_PORTAL 1
+#endif
 
 #include <chrono>
 #include <cstddef>
@@ -1156,11 +1184,91 @@ namespace
     TS_ALWAYS_INLINE bool lightCall(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t target,
                                     uint32_t source, uint32_t next)
     {
+#if TS_NATIVE_CALL_SLOTS
+        return PS2X_GUEST_CALL(rdram, ctx, runtime, target, source, next);
+#else
         SET_GPR_U32(ctx, 31, next);
         return runtime->dispatchGuestBranch(rdram, ctx, target, source, next, PS2Runtime::GuestBranchKind::DirectCall,
                                             "JAL");
+#endif
     }
 
+    // TS_NATIVE_DIRECT_LEAF 1 (B-LOGIC, M7.1 direct leaf calls inside the
+    // natives; src/xbox/PUSH-BC-PLAN.md section 3.6 item 4, through
+    // src/xbox/mk/b_logic.mk): the lighting update's calls to sqrtf,
+    // sceVu0MulMatrix, sceVu0TransposeMatrix and matrixVecRotAligned (the
+    // twelve leaf call sites) call this file's natives
+    // directly when the function table holds them (registerTsNativeMath
+    // notes that after the self-test), skipping the dispatcher: the same
+    // registers, memory and return protocol (a native that stops early
+    // leaves pc where dispatchGuestBranch would), without the dispatch's
+    // checkpoint charge. Timing only; 0 (default): every call dispatched as
+    // before. A later override of one of these three entries is not seen
+    // by the lighting update while this is on.
+#ifndef TS_NATIVE_DIRECT_LEAF
+#define TS_NATIVE_DIRECT_LEAF 0
+#endif
+#if TS_NATIVE_DIRECT_LEAF
+    bool g_directSqrtf = false, g_directMulMatrix = false, g_directTranspose = false, g_directVecRot = false;
+#endif
+
+    TS_ALWAYS_INLINE bool lightLeaf(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t target,
+                                    uint32_t source, uint32_t next)
+    {
+#if TS_NATIVE_DIRECT_LEAF
+        PS2Runtime::RecompiledFunction native = nullptr;
+        if (target == 0x2D8398u && g_directSqrtf)
+            native = &nativeSqrtf;
+        else if (target == 0x2D5E98u && g_directMulMatrix)
+            native = &nativeVu0MulMatrix;
+        else if (target == 0x2D5F60u && g_directTranspose)
+            native = &nativeVu0TransposeMatrix;
+        else if (target == 0x2B5638u && g_directVecRot)
+            native = &nativeMatrixVecRotAligned;
+        if (native != nullptr)
+        {
+            // dispatchGuestBranch's protocol, without its checkpoint charge.
+            SET_GPR_U32(ctx, 31, next);
+            ctx->pc = target;
+            native(rdram, ctx, runtime);
+            if (runtime->isStopRequested() || ctx->pc == 0u)
+                return false;
+            if (ctx->pc == target)
+                ctx->pc = next;
+            return ctx->pc == next;
+        }
+#endif
+        return lightCall(rdram, ctx, runtime, target, source, next);
+    }
+
+    // (divS, conditionBit, cvtSW, lightCall and lightLeaf above serve every transcription here.)
+
+    // TS_NATIVE_NOYIELD 1 (B-LOGIC, M7.0; src/xbox/PUSH-BC-PLAN.md section
+    // 3.6 item 3, through src/xbox/mk/b_logic.mk): the native lighting
+    // update runs as one no-yield region (B-SCHED's ps2xNoYieldEnter/Leave):
+    // its callees (bglightGet, the bullet and ambient lookups, sqrtf, the
+    // VU0 matrices) charge their cycles but never come due inside it, so the
+    // native finishes instead of handing the rest of the call to the
+    // translated original at the next call return. Every callee is pure
+    // (src/xbox/tools/purity_audit.py: obInstLightUpdate and all below it),
+    // so no blocking call can happen inside the region. Timing only: a due
+    // event waits for the region's end. 0 (default): as before.
+#ifndef TS_NATIVE_NOYIELD
+#define TS_NATIVE_NOYIELD 0
+#endif
+#if TS_NATIVE_NOYIELD
+    struct NativeNoYield
+    {
+        explicit NativeNoYield(uint16_t tag) : m_tag(tag) { ps2xNoYieldEnter(tag); }
+        ~NativeNoYield() { ps2xNoYieldLeave(m_tag); }
+        NativeNoYield(const NativeNoYield &) = delete;
+        NativeNoYield &operator=(const NativeNoYield &) = delete;
+        uint16_t m_tag;
+    };
+    constexpr uint16_t kNoYieldLight = 0x7401u; // the region's tag in B-SCHED's counters
+#endif
+
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     void nativeObInstLightUpdate(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         const uint32_t gp = GPR_U32(ctx, 28);
@@ -1170,6 +1278,9 @@ namespace
             obInstLightUpdate_0x25c160(rdram, ctx, runtime);
             return;
         }
+#if TS_NATIVE_NOYIELD
+        const NativeNoYield region(kNoYieldLight);
+#endif
 
         uint64_t at, v0, v1, a0, a1, a2, s0, s1, s2, s3, s4, s5, s6, s7, fp;
         float f0, f1, f2, f3, f4, f5, f6, f7, f8, f9, f10, f11, f12, f13, f14, f15, f16, f17, f20;
@@ -1407,7 +1518,7 @@ namespace
         ctx->fcr31 = fcr31;
         if ((fcr31 & 0x800000u) == 0u)
         {
-            if (!lightCall(rdram, ctx, runtime, 0x2D8398u, 0x25C784u, 0x25C78Cu))
+            if (!lightLeaf(rdram, ctx, runtime, 0x2D8398u, 0x25C784u, 0x25C78Cu))
                 return;
             // 0x25c78c
             a1 = sext32(READ32(frame + 0x1F0u));
@@ -1689,7 +1800,7 @@ namespace
         ctx->fcr31 = fcr31;
         if ((fcr31 & 0x800000u) == 0u)
         {
-            if (!lightCall(rdram, ctx, runtime, 0x2D8398u, 0x25CA48u, 0x25CA50u))
+            if (!lightLeaf(rdram, ctx, runtime, 0x2D8398u, 0x25CA48u, 0x25CA50u))
                 return;
             // 0x25ca50
             a2 = sext32(READ32(frame + 0x1F4u));
@@ -2005,7 +2116,7 @@ namespace
         ctx->f[10] = f10;
         if ((fcr31 & 0x800000u) == 0u)
         {
-            if (!lightCall(rdram, ctx, runtime, 0x2D8398u, 0x25CD84u, 0x25CD8Cu))
+            if (!lightLeaf(rdram, ctx, runtime, 0x2D8398u, 0x25CD84u, 0x25CD8Cu))
                 return;
             // 0x25cd8c
             f8 = floatOf(READ32(frame + 0x30u));
@@ -2052,7 +2163,7 @@ namespace
         ctx->fcr31 = fcr31;
         if ((fcr31 & 0x800000u) == 0u)
         {
-            if (!lightCall(rdram, ctx, runtime, 0x2D8398u, 0x25CE00u, 0x25CE08u))
+            if (!lightLeaf(rdram, ctx, runtime, 0x2D8398u, 0x25CE00u, 0x25CE08u))
                 return;
             // 0x25ce08
             f10 = floatOf(READ32(frame + 0x40u));
@@ -2096,7 +2207,7 @@ namespace
         ctx->fcr31 = fcr31;
         if ((fcr31 & 0x800000u) == 0u)
         {
-            if (!lightCall(rdram, ctx, runtime, 0x2D8398u, 0x25CE74u, 0x25CE7Cu))
+            if (!lightLeaf(rdram, ctx, runtime, 0x2D8398u, 0x25CE74u, 0x25CE7Cu))
                 return;
             // 0x25ce7c
             f0 = ctx->f[0];
@@ -2216,7 +2327,7 @@ namespace
                     SET_GPR_U64(ctx, 5, a1);
                     SET_GPR_U64(ctx, 4, s6);
                     SET_GPR_U64(ctx, 6, s7);
-                    if (!lightCall(rdram, ctx, runtime, 0x2D5E98u, 0x25CF74u, 0x25CF7Cu))
+                    if (!lightLeaf(rdram, ctx, runtime, 0x2D5E98u, 0x25CF74u, 0x25CF7Cu))
                         return;
                     // 0x25cf7c
                     a2 = sext32(READ32(object + 4u));
@@ -2224,7 +2335,7 @@ namespace
                     SET_GPR_U64(ctx, 5, s6);
                     a2 = sext32(lo32(a2) + lo32(s2));
                     SET_GPR_U64(ctx, 6, a2);
-                    if (!lightCall(rdram, ctx, runtime, 0x2D5E98u, 0x25CF88u, 0x25CF90u))
+                    if (!lightLeaf(rdram, ctx, runtime, 0x2D5E98u, 0x25CF88u, 0x25CF90u))
                         return;
                     // 0x25cf90
                     SET_GPR_U64(ctx, 5, s0);
@@ -2236,27 +2347,27 @@ namespace
                     SET_GPR_U64(ctx, 6, a2);
                     SET_GPR_U64(ctx, 4, s0);
                     SET_GPR_U64(ctx, 5, s7);
-                    if (!lightCall(rdram, ctx, runtime, 0x2D5E98u, 0x25CFA0u, 0x25CFA8u))
+                    if (!lightLeaf(rdram, ctx, runtime, 0x2D5E98u, 0x25CFA0u, 0x25CFA8u))
                         return;
                     // 0x25cfa8
                     SET_GPR_U64(ctx, 5, s0);
                 }
                 // 0x25cfac: sceVu0TransposeMatrix(s1, s0)
                 SET_GPR_U64(ctx, 4, s1);
-                if (!lightCall(rdram, ctx, runtime, 0x2D5F60u, 0x25CFACu, 0x25CFB4u))
+                if (!lightLeaf(rdram, ctx, runtime, 0x2D5F60u, 0x25CFACu, 0x25CFB4u))
                     return;
                 // 0x25cfb4: matrixVecRotAligned(s1, direction) three times.
                 SET_GPR_U64(ctx, 4, s1);
                 SET_GPR_U64(ctx, 5, sext32(frame + 0x1B0u));
-                if (!lightCall(rdram, ctx, runtime, 0x2B5638u, 0x25CFB8u, 0x25CFC0u))
+                if (!lightLeaf(rdram, ctx, runtime, 0x2B5638u, 0x25CFB8u, 0x25CFC0u))
                     return;
                 SET_GPR_U64(ctx, 4, s1);
                 SET_GPR_U64(ctx, 5, sext32(frame + 0x1C0u));
-                if (!lightCall(rdram, ctx, runtime, 0x2B5638u, 0x25CFC4u, 0x25CFCCu))
+                if (!lightLeaf(rdram, ctx, runtime, 0x2B5638u, 0x25CFC4u, 0x25CFCCu))
                     return;
                 SET_GPR_U64(ctx, 4, s1);
                 SET_GPR_U64(ctx, 5, sext32(frame + 0x1E0u));
-                if (!lightCall(rdram, ctx, runtime, 0x2B5638u, 0x25CFD0u, 0x25CFD8u))
+                if (!lightLeaf(rdram, ctx, runtime, 0x2B5638u, 0x25CFD0u, 0x25CFD8u))
                     return;
             }
             // 0x25cfd8: the three directions as the rows of this matrix's
@@ -2391,6 +2502,8 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     // ---- bglightGet (0x25a7d0)
     //
     // bglightGet(inst, position, &first, &second): the two nearest lights of
@@ -2733,6 +2846,8 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- hittestLineTri (0x209818)
     //
     // hittestLineTri(p, dir, v0, v1, v2, hit, normal): where the ray from p
@@ -2958,6 +3073,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
     // ---- quaternionToMatrix (0x2b3f90)
     //
     // quaternionToMatrix(m, q): the rotation matrix of a quaternion, scaled
@@ -3042,6 +3158,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- bgPortalBackFaceTest (0x257860)
     //
     // bgPortalBackFaceTest(room, position, portal): 1 when the position is
@@ -3095,6 +3212,7 @@ namespace
         returnToCaller(ctx);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
     // ---- The boot-time differential test
     //
     // Each case: a random context and random guest scratch memory; the
@@ -3310,6 +3428,7 @@ namespace
         std::memcpy(rdram + kLibVersion, &version, sizeof(version));
     }
 
+#if TS_NATIVE_TRANSCRIBED_LIGHT
     // ---- The lighting tests' inputs
 
     // The level's lights and bglightGet's globals: a light table of
@@ -3403,7 +3522,9 @@ namespace
         SET_GPR_U64(ctx, 4, high | object);
     }
 
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
     // hittestLineTri(p, dir, v0, v1, v2, hit, normal): the two results are wanted or not.
+#if TS_NATIVE_TRANSCRIBED_COLLISION
     void setupHittest(TestRng &rng, R5900Context &c, uint8_t *rdram)
     {
         R5900Context *ctx = &c;
@@ -3416,8 +3537,10 @@ namespace
                 SET_GPR_U64(ctx, reg, 0u);
         }
     }
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
 
     // bgPortalBackFaceTest(room, position, portal): the portal's room is this one half the time.
+#if TS_NATIVE_TRANSCRIBED_PORTAL
     void setupPortal(TestRng &rng, R5900Context &c, uint8_t *rdram)
     {
         R5900Context *ctx = &c;
@@ -3426,6 +3549,7 @@ namespace
         if ((rng.next() & 1u) != 0u)
             SET_GPR_U64(ctx, 4, sext32(readTestWord(rdram, GPR_U32(ctx, 6))));
     }
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
 
     // Stands in for bgBulletGetClosest and obinstCalcAmbientLight in the
     // lighting test (they read the level's bullets and geometry). It is a
@@ -3506,15 +3630,23 @@ namespace
         {"sinf", 0x2D7398u, &sinf_0x2d7398, &nativeSinf, &setupAngle, true},
         {"cosf", 0x2D71C8u, &cosf_0x2d71c8, &nativeCosf, &setupAngle, true},
         {"sqrtf", 0x2D8398u, &sqrtf_0x2d8398, &nativeSqrtf, &setupSqrt, true},
+#if TS_NATIVE_TRANSCRIBED_COLLISION
         {"hittestLineTri", 0x209818u, &hittestLineTri_0x209818, &nativeHittestLineTri, &setupHittest, true},
+#endif // TS_NATIVE_TRANSCRIBED_COLLISION
         {"quaternionToMatrix", 0x2B3F90u, &quaternionToMatrix_0x2b3f90, &nativeQuaternionToMatrix, &setupTwoOperands,
          true},
+#if TS_NATIVE_TRANSCRIBED_PORTAL
         {"bgPortalBackFaceTest", 0x257860u, &bgPortalBackFaceTest_0x257860, &nativeBgPortalBackFaceTest, &setupPortal,
          true},
+#endif // TS_NATIVE_TRANSCRIBED_PORTAL
+#if TS_NATIVE_TRANSCRIBED_LIGHT
         {"bglightGet", 0x25A7D0u, &bglightGet_0x25a7d0, &nativeBglightGet, &setupBglightGet, true, false, kLightStatic,
          kLightStaticBytes},
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
+#if TS_NATIVE_TRANSCRIBED_LIGHT
         {"obInstLightUpdate", 0x25C160u, &obInstLightUpdate_0x25c160, &nativeObInstLightUpdate, &setupLightUpdate, true,
          true, kLightStatic, kLightStaticBytes},
+#endif // TS_NATIVE_TRANSCRIBED_LIGHT
     };
     constexpr uint32_t kNativeMathCount = sizeof(kNativeMath) / sizeof(kNativeMath[0]);
 
@@ -3664,33 +3796,9 @@ namespace
 
     // The originals' loops and calls run scheduler checkpoints. Before the
     // game starts none may come due or charge cycles (that would run the
-    // IOP and the EE timers): the fast path's bound is lifted for the test
-    // and the clock put back afterwards. The base class is protected; a
-    // C-style cast is the one conversion that may name it.
-    class ClockHold
-    {
-    public:
-        explicit ClockHold(PS2Runtime &runtime)
-            : m_clock((EeCheckpointClock &)runtime.eeScheduler()), m_cycle(m_clock.m_eeCycle),
-              m_fastUntil(m_clock.m_fastUntil),
-              m_pending(m_clock.m_checkpointPending.exchange(false, std::memory_order_acq_rel))
-        {
-            m_clock.m_fastUntil = UINT64_MAX;
-        }
-
-        ~ClockHold()
-        {
-            m_clock.m_eeCycle = m_cycle;
-            m_clock.m_fastUntil = m_fastUntil;
-            if (m_pending)
-                m_clock.m_checkpointPending.store(true, std::memory_order_release);
-        }
-
-    private:
-        EeCheckpointClock &m_clock;
-        uint64_t m_cycle, m_fastUntil;
-        bool m_pending;
-    };
+    // IOP and the EE timers): the clock is frozen for the test
+    // (runtime/ee_checkpoint_clock.h, the one copy for every self-test).
+    using ClockHold = EeClockFreeze;
 
     struct TestOutcome
     {
@@ -3881,5 +3989,13 @@ void registerTsNativeMath(PS2Runtime &runtime)
     selfTest(runtime);
 #endif
     g_tsNativeMath.native = kNativeMathCount - g_tsNativeMath.failed;
+#if TS_NATIVE_DIRECT_LEAF
+    // The leaves the lighting update may call directly: those the table
+    // holds natively now (the self-test puts a failing one back).
+    g_directSqrtf = runtime.lookupFunction(0x2D8398u) == &nativeSqrtf;
+    g_directMulMatrix = runtime.lookupFunction(0x2D5E98u) == &nativeVu0MulMatrix;
+    g_directTranspose = runtime.lookupFunction(0x2D5F60u) == &nativeVu0TransposeMatrix;
+    g_directVecRot = runtime.lookupFunction(0x2B5638u) == &nativeMatrixVecRotAligned;
+#endif
 }
 #endif

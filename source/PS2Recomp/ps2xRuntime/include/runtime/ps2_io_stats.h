@@ -138,6 +138,13 @@ namespace ps2x
         uint32_t catchUps = 0;         // wall-clock catch-ups (expired deadlines, timed-out waits)
         uint64_t catchUpCycles = 0;    // the EE cycles they charged
         uint64_t eeCycle = 0;          // the EE cycle count at the last dispatcher pass
+        // B-SCHED (src/xbox/PUSH-BC-PLAN.md 5.1):
+        uint32_t cdiff = 0;            // TS_EE_COUNTDOWN_CHECK: slow checkpoints where the countdown clock and the 64-bit clock differed (must stay 0)
+        uint32_t noYieldRegions = 0;   // no-yield regions entered (ps2xNoYieldEnter)
+        uint32_t noYieldDeferred = 0;  // transfers / due checkpoints deferred to a region's Leave
+        uint32_t remoteEvents = 0;     // postEvent calls from threads other than the executor (det mode: must stay 0)
+        uint32_t pinnedIdle = 0;       // det mode: idle waits charged straight to the next deadline (no host wait)
+        uint32_t frozenCheckpoints = 0; // slow checkpoints answered "not due" under an EeClockFreeze
     };
     inline EeProtocolStats g_eeProtocolStats;
 }

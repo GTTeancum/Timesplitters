@@ -7,8 +7,18 @@
 #include <cstring>
 #include <cstdio>
 
+// TS_SPU2_VOICE_MAJOR 1 (src/xbox/PUSH-BC-PLAN.md section 3.5 item 8, M4.3):
+// mix() runs voice by voice over chunks of frames (mixVoiceMajor), bit-exact
+// with the frame-major mix; 0: frame by frame (mixFrameMajor), as before.
+#ifndef TS_SPU2_VOICE_MAJOR
+#define TS_SPU2_VOICE_MAJOR 1
+#endif
+// (TS_SPU2_SELFCHECK: runtime/ps2_spu2.h.)
+
+
 #if defined(PLATFORM_XBOX)
 unsigned long long g_spu2VoiceSamples = 0;
+unsigned g_spu2Checks = 0, g_spu2Diffs = 0;
 #endif
 
 namespace
@@ -238,9 +248,9 @@ int16_t Spu2::tickVoice(Core &core, unsigned index, Voice &v)
     return out;
 }
 
-void Spu2::mix(int16_t *out, unsigned frames)
+// The reference mix: every frame, every playing voice of core 0 then core 1.
+void Spu2::mixFrameMajor(int16_t *out, unsigned frames)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
 #if defined(PLATFORM_XBOX)
     unsigned voiceSamples = 0;
 #endif
@@ -282,6 +292,185 @@ void Spu2::mix(int16_t *out, unsigned frames)
     }
 #if defined(PLATFORM_XBOX)
     g_spu2VoiceSamples += voiceSamples;
+#endif
+}
+
+// The voice-major mix: each playing voice runs through a chunk of frames on
+// its own (its envelope, pitch counter and block decode stay in registers
+// and cache), adding into the core's dry sums; then the cores' master
+// volumes and clamps run frame by frame. Exact: a voice's state depends on
+// nothing but itself and the sound RAM (which a mix does not write), the dry
+// sums are plain integer sums (the order of adding does not matter, and 24
+// voices of at most 0x7FFF fit), and the shared state a voice touches is
+// only ORed (ENDX, the IRQ flags) or its own bit of `playing`.
+void Spu2::mixVoiceMajor(int16_t *out, unsigned frames)
+{
+    constexpr unsigned kChunk = 256;
+    static int32_t s_dry[2][2][kChunk]; // core, left/right (the mix holds m_mutex)
+#if defined(PLATFORM_XBOX)
+    unsigned voiceSamples = 0;
+#endif
+    for (unsigned base = 0; base < frames; base += kChunk)
+    {
+        const unsigned n = std::min(kChunk, frames - base);
+        for (unsigned c = 0; c < 2; ++c)
+        {
+            Core &core = m_cores[c];
+            int32_t *const dryL = s_dry[c][0], *const dryR = s_dry[c][1];
+            std::fill(dryL, dryL + n, 0);
+            std::fill(dryR, dryR + n, 0);
+            for (uint32_t playing = core.playing; playing != 0u; playing &= playing - 1u)
+            {
+                const unsigned i = static_cast<unsigned>(std::countr_zero(playing));
+                const uint32_t bit = 1u << i;
+                Voice &v = core.voices[i];
+                const bool left = (core.vmixL & bit) != 0u, right = (core.vmixR & bit) != 0u;
+                for (unsigned f = 0; f < n; ++f)
+                {
+#if defined(PLATFORM_XBOX)
+                    ++voiceSamples;
+#endif
+                    v.volL.tick();
+                    v.volR.tick();
+                    const int32_t s = tickVoice(core, i, v);
+                    if (left)
+                        dryL[f] += (s * v.volL.current) >> 15;
+                    if (right)
+                        dryR[f] += (s * v.volR.current) >> 15;
+                    if (v.phase == Phase::Off)
+                    {
+                        // Stopped this tick: silent from the next frame on.
+                        core.playing &= ~bit;
+                        break;
+                    }
+                }
+            }
+        }
+        Core &core0 = m_cores[0], &core1 = m_cores[1];
+        for (unsigned f = 0; f < n; ++f)
+        {
+            core0.mvolL.tick();
+            core0.mvolR.tick();
+            const int32_t outL0 = (clamp16(s_dry[0][0][f]) * core0.mvolL.current) >> 15;
+            const int32_t outR0 = (clamp16(s_dry[0][1][f]) * core0.mvolR.current) >> 15;
+            core1.mvolL.tick();
+            core1.mvolR.tick();
+            // Core 0's output feeds core 1's input.
+            const int32_t outL = (clamp16(s_dry[1][0][f] + outL0) * core1.mvolL.current) >> 15;
+            const int32_t outR = (clamp16(s_dry[1][1][f] + outR0) * core1.mvolR.current) >> 15;
+            out[(base + f) * 2] = clamp16(outL);
+            out[(base + f) * 2 + 1] = clamp16(outR);
+        }
+    }
+#if defined(PLATFORM_XBOX)
+    g_spu2VoiceSamples += voiceSamples;
+#endif
+}
+
+struct Spu2::MixState
+{
+    std::array<Core, 2> cores;
+    uint16_t irqInfo = 0;
+    bool irqPending = false;
+};
+
+void Spu2::saveMixState(MixState &out) const
+{
+    out.cores = m_cores;
+    out.irqInfo = m_irqInfo;
+    out.irqPending = m_irqPending.load(std::memory_order_relaxed);
+}
+
+void Spu2::restoreMixState(const MixState &state)
+{
+    m_cores = state.cores;
+    m_irqInfo = state.irqInfo;
+    m_irqPending.store(state.irqPending, std::memory_order_relaxed);
+}
+
+// Everything a mix moves, field by field (padding aside).
+bool Spu2::sameMixState(const MixState &a, const MixState &b)
+{
+    auto sameEnvelope = [](const Envelope &x, const Envelope &y) { return x.level == y.level && x.counter == y.counter; };
+    auto sameVolume = [&](const Volume &x, const Volume &y) {
+        return x.reg == y.reg && x.current == y.current && sameEnvelope(x.sweep, y.sweep);
+    };
+    if (a.irqInfo != b.irqInfo || a.irqPending != b.irqPending)
+        return false;
+    for (unsigned c = 0; c < 2; ++c)
+    {
+        const Core &x = a.cores[c], &y = b.cores[c];
+        if (x.playing != y.playing || x.endx != y.endx || !sameVolume(x.mvolL, y.mvolL) ||
+            !sameVolume(x.mvolR, y.mvolR))
+            return false;
+        for (unsigned i = 0; i < 24; ++i)
+        {
+            const Voice &v = x.voices[i], &w = y.voices[i];
+            if (!sameVolume(v.volL, w.volL) || !sameVolume(v.volR, w.volR) || v.pitch != w.pitch ||
+                v.adsr1 != w.adsr1 || v.adsr2 != w.adsr2 || v.ssa != w.ssa || v.lsa != w.lsa || v.nax != w.nax ||
+                v.customLoop != w.customLoop || v.phase != w.phase || !sameEnvelope(v.env, w.env) ||
+                v.counter != w.counter || v.prev1 != w.prev1 || v.prev2 != w.prev2 || v.samples != w.samples ||
+                v.blockFlags != w.blockFlags || v.blockAddr != w.blockAddr || v.index != w.index)
+                return false;
+        }
+    }
+    return true;
+}
+
+void Spu2::mixReference(int16_t *out, unsigned frames)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    mixFrameMajor(out, frames);
+}
+
+void Spu2::mix(int16_t *out, unsigned frames)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+#if TS_SPU2_VOICE_MAJOR
+#if TS_SPU2_SELFCHECK
+    // One mix in TS_SPU2_SELFCHECK_EVERY: the frame-major reference first,
+    // from the same state, then the voice-major mix from that state again;
+    // output and end state must agree to the bit. (Fixed storage.)
+    static uint32_t s_mixes = 0;
+    constexpr unsigned kCheckFrames = 4096;
+    if (frames <= kCheckFrames && (s_mixes++ % static_cast<uint32_t>(TS_SPU2_SELFCHECK_EVERY)) == 0u)
+    {
+        static MixState s_start, s_reference, s_voiceMajor;
+        static int16_t s_referenceOut[kCheckFrames * 2];
+#if defined(PLATFORM_XBOX)
+        const unsigned long long samples = g_spu2VoiceSamples;
+#endif
+        saveMixState(s_start);
+        mixFrameMajor(s_referenceOut, frames);
+        saveMixState(s_reference);
+        restoreMixState(s_start);
+#if defined(PLATFORM_XBOX)
+        g_spu2VoiceSamples = samples;
+#endif
+        mixVoiceMajor(out, frames);
+        saveMixState(s_voiceMajor);
+        const bool same = std::memcmp(out, s_referenceOut, frames * 4u) == 0 && sameMixState(s_reference, s_voiceMajor);
+#if defined(PLATFORM_XBOX)
+        ++g_spu2Checks;
+        if (!same)
+            ++g_spu2Diffs;
+#endif
+        if (!same)
+        {
+            // The reference is what plays.
+            std::memcpy(out, s_referenceOut, frames * 4u);
+            restoreMixState(s_reference);
+            static unsigned s_logged = 0;
+            if (s_logged++ < 8u)
+                std::fprintf(stderr, "[TS:spu2check] mix %u (%u frames): voice-major differs from frame-major\n",
+                             s_mixes, frames);
+        }
+        return;
+    }
+#endif
+    mixVoiceMajor(out, frames);
+#else
+    mixFrameMajor(out, frames);
 #endif
 }
 
@@ -463,19 +652,11 @@ void Spu2::checkIrq(uint32_t byteAddress, uint32_t bytes)
         if (irq - byteAddress < bytes)
         {
             m_irqInfo |= static_cast<uint16_t>(4u << c);
-            m_irqPending = true;
+            m_irqPending.store(true, std::memory_order_release);
             if (spu2Trace())
                 std::fprintf(stderr, "[TS:spu2] irq core=%u at=%06x\n", c, irq);
         }
     }
-}
-
-bool Spu2::takeIrq()
-{
-    std::lock_guard<std::mutex> lock(m_mutex);
-    const bool pending = m_irqPending;
-    m_irqPending = false;
-    return pending;
 }
 
 void Spu2::dmaWrite(unsigned core, const uint8_t *data, uint32_t bytes)

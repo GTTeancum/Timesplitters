@@ -15,7 +15,7 @@
 #include "xbox_hwprof.h"
 #include "xbox_perf.h"
 #include "gs_nv2a_backend.h"
-#include "runtime/ps2_vu1.h"
+#include "runtime/ps2_det.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_spu2.h"
 
@@ -36,10 +36,17 @@
 #include "runtime/ps2_io_stats.h"
 #include "ps2_runtime_macros.h"
 #include "../../project/game/ts_native_math.h"
+#include "../../project/game/ts_game_hooks.h" // hooksmissing= in the status block
 
 void xboxSetFrameHook(void (*hook)());
 void xboxLastBlit(int &width, int &height, int &litPercent);
 #include <iostream>
+
+// Early platform set-up, right after the video mode and before anything
+// else takes memory (src/xbox/PUSH-BC-PLAN.md section 3.3 item 1: M8's P1
+// contiguous RDRAM reservation). A weak no-op here; C-XF's
+// xbox_guest_ram.cpp defines the real one.
+__attribute__((weak)) void xboxEarlyPlatformInit() {}
 
 extern uint32_t g_audioBuffers, g_audioMixKcyc; // xbox_raylib.cpp
 
@@ -149,7 +156,8 @@ namespace
                   << calls.lastRpcNumber.load() << std::dec << " sched it=" << g_eeSchedulerStats.loopIterations
                   << "/unw=" << g_eeSchedulerStats.unwinds << " mathdiff=" << g_tsNativeMath.mismatches << "("
                   << (g_tsNativeMath.firstFailed ? g_tsNativeMath.firstFailed : "-") << ") nan="
-                  << g_tsNativeMath.nanPayloads << " native=" << g_tsNativeMath.native << std::endl;
+                  << g_tsNativeMath.nanPayloads << " native=" << g_tsNativeMath.native
+                  << " hooksmissing=" << tsGameHooksMissing() << std::endl;
         if (const R5900Context *ctx = g_rt->eeScheduler().currentContext())
         {
             static uint32_t samples[8];
@@ -260,6 +268,7 @@ int main()
     // Until the runtime draws its first frame, log lines are also printed on
     // screen, so a stall during start-up is visible.
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
+    xboxEarlyPlatformInit();
     xboxLogInit();
     xboxLogToScreen(true);
     if (nxMountDrive('E', "\\Device\\Harddisk0\\Partition1\\"))
@@ -280,10 +289,11 @@ int main()
     logMemory("runtime constructed");
     // The screen is drawn by the NV2A (gs_nv2a_backend.cpp), installed
     // before the runtime sets up GS memory; without it, the software renderer.
-    // (TS_PERF_BACKEND: inside a timing wrapper, xbox_perf.cpp.)
+    // (xboxInstallBackend, xbox_perf.cpp: the timing wrapper with
+    // TS_PERF_BACKEND, the det wrapper with TS_DET, single-owner locking.)
     if (std::unique_ptr<GSNv2aBackend> gpu = GSNv2aBackend::Create())
     {
-        rt.gs().setRasterBackend(xboxPerfWrapBackend(std::move(gpu)));
+        xboxInstallBackend(rt.gs(), std::move(gpu));
         hwprofGpuReady();
         std::cout << "[TS:xbox] drawing on the NV2A" << std::endl;
     }
@@ -332,6 +342,10 @@ int main()
         else
             std::cout << "[TS:xbox] autoplay.pad: " << error << std::endl;
     }
+
+    // Deterministic mode (runtime/ps2_det.h): pinned host inputs, hashes,
+    // the det memory-card root. Nothing unless built with TS_DET.
+    xboxDetSetup();
 
     rt.gs().setHostPresentationMode(GS::HostPresentationMode::Signal);
     rt.setHostAspectRatio(4.0f / 3.0f);

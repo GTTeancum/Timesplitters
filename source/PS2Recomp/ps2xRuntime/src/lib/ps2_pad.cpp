@@ -56,6 +56,13 @@ constexpr int16_t XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE = 8689;
 
 namespace
 {
+    // "knob <name> <value>" script lines go here (setScriptKnobHandler), with
+    // the names of the loaded script's knob lines (a Knob frame's waitAddress
+    // indexes them; one script at a time, so file storage keeps ScriptFrame
+    // and PSPadBackend the size they were).
+    PSPadBackend::ScriptKnobHandler s_scriptKnobHandler = nullptr;
+    std::vector<std::string> s_scriptKnobNames;
+
     constexpr uint8_t kPadAnalogMarker = 0x73;
     constexpr uint8_t kPadStickCenter = 0x80;
 
@@ -267,6 +274,7 @@ namespace
 bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
 {
     std::vector<ScriptFrame> frames;
+    std::vector<std::string> knobNames; // the knob lines' names, in order
     std::istringstream input(text);
     std::string line;
     size_t lineNumber = 0;
@@ -357,7 +365,10 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
             // (blocks do not nest).
             const bool lineRepeat = marker == "repeat";
             const bool lineEnd = marker == "end";
-            const bool lineControl = lineWaitU32 || lineRepeat || lineEnd;
+            // "knob <name> <value>": a runtime knob set when the script
+            // reaches the line (setScriptKnobHandler).
+            const bool lineKnob = marker == "knob";
+            const bool lineControl = lineWaitU32 || lineRepeat || lineEnd || lineKnob;
             if (lineControl && moreLanes)
             {
                 PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": '|' is only allowed on frame lines"));
@@ -441,6 +452,28 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
                 continue;
             }
 
+            if (lineKnob)
+            {
+                std::string nameText;
+                std::string valueText;
+                if (!(tokens >> nameText >> valueText))
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": expected knob name value"));
+                }
+                std::string extra;
+                if (tokens >> extra)
+                {
+                    PS2X_THROW(std::runtime_error("line " + std::to_string(lineNumber) + ": too many fields"));
+                }
+                ScriptFrame frame{};
+                frame.kind = ScriptFrame::Kind::Knob;
+                frame.waitAddress = static_cast<uint32_t>(knobNames.size());
+                knobNames.push_back(nameText);
+                frame.waitValue = parseU32Value(valueText, lineNumber, "knob");
+                frames.push_back(frame);
+                continue;
+            }
+
             std::string secondsText;
             if (timed)
             {
@@ -508,6 +541,8 @@ bool PSPadBackend::loadScriptText(const std::string &text, std::string *error)
     // Kept for the whole run: no spare capacity.
     frames.shrink_to_fit();
     m_script = std::move(frames);
+    knobNames.shrink_to_fit();
+    s_scriptKnobNames = std::move(knobNames);
     m_scriptIndex = 0;
     m_scriptFrameRead = 0;
     m_scriptReadCount = 0;
@@ -553,9 +588,15 @@ void PSPadBackend::setScriptU32Reader(std::function<uint32_t(uint32_t)> reader)
     m_scriptU32Reader = std::move(reader);
 }
 
+void PSPadBackend::setScriptKnobHandler(ScriptKnobHandler handler)
+{
+    s_scriptKnobHandler = handler;
+}
+
 void PSPadBackend::clearScript()
 {
     m_script.clear();
+    s_scriptKnobNames.clear();
     m_scriptIndex = 0;
     m_scriptFrameRead = 0;
     m_scriptReadCount = 0;
@@ -706,6 +747,15 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
                     control.reads = control.waitValue;
                     ++m_scriptIndex;
                 }
+                m_scriptFrameRead = 0;
+                continue;
+            }
+            if (control.kind == ScriptFrame::Kind::Knob)
+            {
+                // Set once, when the script reaches the line; no read of its own.
+                if (s_scriptKnobHandler && control.waitAddress < s_scriptKnobNames.size())
+                    s_scriptKnobHandler(s_scriptKnobNames[control.waitAddress].c_str(), control.waitValue);
+                ++m_scriptIndex;
                 m_scriptFrameRead = 0;
                 continue;
             }

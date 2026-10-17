@@ -10,13 +10,20 @@
 
 #if defined(PLATFORM_XBOX)
 #include "../../src/xbox/gs_nv2a_backend.h" // status counters
-#include "../../src/xbox/xbox_perf.h"       // frame times, phase brackets
+#include "../../src/xbox/xbox_perf.h"       // frame times, phase brackets, registerTsPacing
 #include "runtime/ee_scheduler.h"
+#include "runtime/ps2_det.h"     // xboxDetFrame at the frame boundary
+#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: its game-function hooks
+#include "native/ts_native_idiom.h"
+#include "ts_game_hooks.h"
+#include "ts_knobs.h"
+#include "ts_native_dl.h"
 #include "ts_native_fp.h"
 #include "ts_native_game.h"
 #include "ts_native_game2.h"
 #include "ts_native_game3.h"
 #include "ts_native_math.h"
+#include "ts_record_desc.h"
 #endif
 
 #include <algorithm>
@@ -833,6 +840,26 @@ namespace
         WRITE32(kFrameSlots + READ32(gp - kGpDrawSlot) * kFrameSlotBytes + 8u, 2u); // no second draw
         ++g_nv2aTextureStats.gameFrames;
         xboxPerfGameFrame(); // the frame-time histogram
+        tsKnobApplyFrame();  // knobs change here, at the frame boundary, on the game's thread (ts_knobs.h)
+#if TS_DET
+        {
+            // The det exclusions of src/xbox/PUSH-BC-PLAN.md D4: the two
+            // display-list buffers (gp-0x6CF0[0..1]; static and adjacent, so
+            // their distance is a buffer's size) and the game's list
+            // high-water mark (gp-0x6CA0). In-list tokens change only these.
+            // Re-registering the same range is free (xboxDetExclude dedups).
+            const uint32_t list0 = READ32(gp - 0x6CF0u) & 0x01FFFFFFu;
+            const uint32_t list1 = READ32(gp - 0x6CF0u + 4u) & 0x01FFFFFFu;
+            const uint32_t listBytes = list1 > list0 ? list1 - list0 : list0 - list1;
+            if (list0 != 0u && list1 != 0u && listBytes != 0u && listBytes <= 0x00400000u)
+            {
+                xboxDetExclude(list0, listBytes, 0u);
+                xboxDetExclude(list1, listBytes, 0u);
+            }
+            xboxDetExclude(gp - 0x6CA0u, 4u, 0u);
+        }
+#endif
+        xboxDetFrame();      // TS_DET: the frame's hashes (runtime/ps2_det.h; nothing otherwise, whatever TS_PERF says)
         const uint32_t next = 1u - READ32(gp - 0x4CDCu);
         WRITE32(gp - 0x4CDCu, next);
         SET_GPR_S32(ctx, 2, static_cast<int32_t>(next));
@@ -868,74 +895,151 @@ namespace
     // address: that address's own table entry (a resume label of the
     // caller) is wrapped too and closes the bracket. Both wrappers call the
     // entry they replaced with the same arguments: the game runs as before.
+    //
+    // A bracket may name several return addresses (animMtxTick is called
+    // from four places in lvTickAfter), and two brackets may share one (a
+    // tail-called function returns where its caller would): each distinct
+    // return address gets one resume wrapper, which closes every bracket
+    // that names it. The sub-brackets (TS_PERF_SUBBRACKETS, src/xbox/
+    // PUSH-BC-PLAN.md section 3.6 item 10) come first in the table, so a
+    // shared address is wrapped by them and the phase bracket after finds
+    // the wrapper there.
+    //
+    // Only calls through the function table can be bracketed. camTick is
+    // not: lvTickPlayer reaches it by a tail jump (0x226614) that the
+    // recompiler turned into a direct host call (lvTickPlayer_0x2265a8.cpp:
+    // camTick_0x27e320(...); return;), which no table wrapper sees, and
+    // its one JAL (0x2266C4) has no resume label. [TS:sub] camtick stays 0
+    // (a replaceFunction override of camTick would be bypassed the same
+    // way). animMtxTick is bracketed but lvTickAfter does not call it in
+    // an arcade match (the character screens do): 0 there is the figure.
+    constexpr uint32_t kBracketRets = 4;
     struct PerfBracket
     {
-        uint32_t function; // the bracketed function
-        uint32_t caller;   // the function that calls it
-        uint32_t ret;      // the call's return address in the caller
+        uint32_t function;          // the bracketed function
+        uint32_t caller;            // the function that calls it
+        uint32_t ret[kBracketRets]; // the calls' return addresses in the caller (0: unused)
         uint32_t phase;
-        PS2Runtime::RecompiledFunction original, resumeOriginal;
+        PS2Runtime::RecompiledFunction original;
     };
     PerfBracket g_perfBrackets[] = {
-        {0x21EEB8u, 0x200638u, 0x2006C4u, kPerfGameTick},   // gameTick
-        {0x2262C8u, 0x200638u, 0x2006CCu, kPerfTickBefore}, // lvTickBefore
-        {0x2265A8u, 0x200638u, 0x20074Cu, kPerfTickPlayer}, // lvTickPlayer, once per player
-        {0x2263A0u, 0x200638u, 0x200764u, kPerfTickAfter},  // lvTickAfter
-        {0x2266F8u, 0x200638u, 0x200A00u, kPerfGfx},        // lvGfx, once per viewport
-        {0x2CF4A0u, 0x200F20u, 0x201064u, kPerfKick},       // sceDmaSend (its other callers are not timed)
+#if TS_PERF_SUBBRACKETS
+        {0x273BB0u, 0x2263A0u, {0x2263FCu, 0x226448u, 0x2264D0u, 0x226524u}, kPerfSubAnimMtx}, // animMtxTick, from lvTickAfter
+        {0x281248u, 0x2265A8u, {0x2266BCu}, kPerfSubPlayerTick},                                 // playerTick, from lvTickPlayer
+        {0x2586C0u, 0x2265A8u, {0x2266DCu}, kPerfSubPortalTick},                                 // bgPortalTick, from lvTickPlayer
+        // (camTick: not reachable through the table, see above)
+#endif
+        {0x21EEB8u, 0x200638u, {0x2006C4u}, kPerfGameTick},   // gameTick
+        {0x2262C8u, 0x200638u, {0x2006CCu}, kPerfTickBefore}, // lvTickBefore
+        {0x2265A8u, 0x200638u, {0x20074Cu}, kPerfTickPlayer}, // lvTickPlayer, once per player
+        {0x2263A0u, 0x200638u, {0x200764u}, kPerfTickAfter},  // lvTickAfter
+        {0x2266F8u, 0x200638u, {0x200A00u}, kPerfGfx},        // lvGfx, once per viewport
+        {0x2CF4A0u, 0x200F20u, {0x201064u}, kPerfKick},       // sceDmaSend (its other callers are not timed)
     };
+    constexpr size_t kBracketCount = std::size(g_perfBrackets);
+
+    // One per distinct return address: the entry it replaced and the
+    // phases (a bit each) it closes.
+    struct ResumeSite
+    {
+        uint32_t ret = 0;
+        uint32_t phases = 0;
+        PS2Runtime::RecompiledFunction original = nullptr;
+    };
+    constexpr size_t kResumeSites = kBracketCount * kBracketRets;
+    ResumeSite g_resumeSites[kResumeSites];
 
     template <size_t I>
     void perfBracketEntry(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         const PerfBracket &b = g_perfBrackets[I];
-        const bool timed = GPR_U32(ctx, 31) == b.ret;
+        const uint32_t ra = GPR_U32(ctx, 31);
+        bool timed = false;
+        for (uint32_t ret : b.ret)
+            timed = timed || (ret != 0u && ra == ret);
         if (timed)
             xboxPerfPhaseOpen(b.phase);
         b.original(rdram, ctx, runtime);
         // Back at the call site (a native override may leave pc at its entry).
-        if (timed && (ctx->pc == b.ret || ctx->pc == b.function))
+        if (timed && (ctx->pc == ra || ctx->pc == b.function))
             xboxPerfPhaseClose(b.phase);
     }
 
-    template <size_t I>
+    template <size_t S>
     void perfBracketResume(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
-        const PerfBracket &b = g_perfBrackets[I];
-        xboxPerfPhaseClose(b.phase); // nothing when it is not open
-        b.resumeOriginal(rdram, ctx, runtime);
+        const ResumeSite &site = g_resumeSites[S];
+        for (uint32_t phase = 0; phase < kPerfPhaseCount; ++phase)
+            if (site.phases & (1u << phase))
+                xboxPerfPhaseClose(phase); // nothing when it is not open
+        site.original(rdram, ctx, runtime);
     }
 
     // After the natives: whatever each entry holds then is what is wrapped.
-    template <size_t... I>
-    void installPerfBrackets(PS2Runtime &runtime, std::index_sequence<I...>)
+    template <size_t... I, size_t... S>
+    void installPerfBrackets(PS2Runtime &runtime, std::index_sequence<I...>, std::index_sequence<S...>)
     {
         const PS2Runtime::RecompiledFunction entries[] = {&perfBracketEntry<I>...};
-        const PS2Runtime::RecompiledFunction resumes[] = {&perfBracketResume<I>...};
+        const PS2Runtime::RecompiledFunction resumes[] = {&perfBracketResume<S>...};
         unsigned installed = 0;
-        for (size_t i = 0; i < sizeof...(I); ++i)
+        size_t sites = 0;
+        // The resume site made for ret so far (sites: none yet).
+        const auto siteOf = [&](uint32_t ret) {
+            size_t s = 0;
+            while (s < sites && g_resumeSites[s].ret != ret)
+                ++s;
+            return s;
+        };
+        for (size_t i = 0; i < kBracketCount; ++i)
         {
             PerfBracket &b = g_perfBrackets[i];
-            bool usable = runtime.hasFunction(b.function) && runtime.hasFunction(b.caller) && runtime.hasFunction(b.ret);
+            bool usable = runtime.hasFunction(b.function) && runtime.hasFunction(b.caller);
+            for (uint32_t ret : b.ret)
+                usable = usable && (ret == 0u || runtime.hasFunction(ret));
             if (usable)
             {
                 b.original = runtime.lookupFunction(b.function);
-                b.resumeOriginal = runtime.lookupFunction(b.ret);
-                // The return address must be a resume label of the caller,
-                // and nothing is wrapped twice.
-                usable = b.resumeOriginal == runtime.lookupFunction(b.caller) && b.original != entries[i] &&
-                         b.resumeOriginal != resumes[i];
+                usable = b.original != entries[i]; // nothing is wrapped twice
+            }
+            // Every return address must be a resume label of the caller
+            // (its entry still the caller's), or already this pass's
+            // resume wrapper for it (a shared address).
+            for (uint32_t r = 0; usable && r < kBracketRets; ++r)
+            {
+                const uint32_t ret = b.ret[r];
+                if (ret == 0u || siteOf(ret) < sites)
+                    continue;
+                const PS2Runtime::RecompiledFunction current = runtime.lookupFunction(ret);
+                usable = current == runtime.lookupFunction(b.caller);
+                for (size_t k = 0; k < kResumeSites; ++k)
+                    usable = usable && current != resumes[k];
             }
             if (!usable)
             {
                 std::fprintf(stderr, "[TS:perf] %06x called from %06x: not timed\n", b.function, b.caller);
                 continue;
             }
+            // One site per distinct address: a bracket's second new address
+            // gets the next one (sites moved on when the first was made).
+            for (uint32_t r = 0; r < kBracketRets; ++r)
+            {
+                const uint32_t ret = b.ret[r];
+                if (ret == 0u)
+                    continue;
+                const size_t s = siteOf(ret);
+                if (s == sites)
+                {
+                    g_resumeSites[s] = {ret, 0u, runtime.lookupFunction(ret)};
+                    runtime.replaceFunction(ret, resumes[s]);
+                    ++sites;
+                }
+                g_resumeSites[s].phases |= 1u << b.phase;
+            }
             runtime.replaceFunction(b.function, entries[i]);
-            runtime.replaceFunction(b.ret, resumes[i]);
             ++installed;
         }
-        std::fprintf(stderr, "[TS:perf] phase brackets: %u of %u\n", installed, unsigned(sizeof...(I)));
+        std::fprintf(stderr, "[TS:perf] phase brackets: %u of %u (%u resume sites)\n", installed,
+                     unsigned(kBracketCount), unsigned(sites));
     }
 #endif
 #endif
@@ -951,9 +1055,20 @@ namespace
         registerTsNativeGame(runtime); // portals, floor height, slerp, acosf, display-list packets, ...
         registerTsNativeGame2(runtime); // partGfx, calMatrices, animMtxTick, rotateChr, moveTest, ambient light, ...
         registerTsNativeGame3(runtime); // decals, chrPropTick, setAnimation, particles, animUpdate, routes, ...
+        // The Push B/C modules (src/xbox/PUSH-BC-PLAN.md): each a stub in
+        // its owner's file until its track lands it.
+        registerTsNativeIdiom(runtime); // idiomatic game-logic modules (B-LOGIC, project/game/native)
+        registerTsNativeDl(runtime);    // display-list builders (C-EMIT)
+        registerTsRecords(runtime);     // native draw records (C-REC)
+        registerTsPacing(runtime);      // frame pacing (B-SCHED)
+        tsKnobsInstall();               // knob.* settings and the pad script's knob lines (ts_knobs.h)
 #if TS_PERF_DETAIL
-        installPerfBrackets(runtime, std::make_index_sequence<std::size(g_perfBrackets)>{});
+        installPerfBrackets(runtime, std::make_index_sequence<kBracketCount>{}, std::make_index_sequence<kResumeSites>{});
 #endif
+        // The game-function hook registry, after every native (its wrappers
+        // go over whatever the entries hold then; ts_game_hooks.h).
+        tsGameHooksInstall(runtime);
+        TS_MEASURE(xboxMeasureGameHooks()); // the measurement build's chain, level and memdb counts
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);

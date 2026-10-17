@@ -16,9 +16,32 @@
 
 #include "gs/ps2_gif_arbiter.h"
 #include "ps2_simd.h"
+#include "ps2_vif1_records.h"
 
 class GS;
 struct VU1State;
+
+// ---- Guest memory allocation (src/xbox/PUSH-BC-PLAN.md section 6, I-13;
+// B-PLATFORM may edit this block). The guest memories PS2Memory owns (RDRAM,
+// scratchpad, GS VRAM, VU0/VU1 code and data) come from ps2xHostAllocGuest
+// and go back through ps2xHostFreeGuest (source/PS2Recomp/ps2xRuntime/src/
+// lib/ps2_memory_alloc.cpp). RDRAM first asks the platform placement hook,
+// a weak default that declines (C-XF's M8 P1/P2 placement defines it).
+enum class Ps2GuestMemoryKind : uint8_t
+{
+    Rdram,
+    Scratchpad,
+    GsVram,
+    Vu0Code,
+    Vu0Data,
+    Vu1Code,
+    Vu1Data,
+};
+uint8_t *ps2xHostAllocGuest(Ps2GuestMemoryKind kind, size_t bytes); // never null on return: throws / fails as new[] does
+void ps2xHostFreeGuest(Ps2GuestMemoryKind kind, uint8_t *memory, size_t bytes);
+uint8_t *ps2xPlatformAllocRdram(size_t bytes);          // weak; null: no placement, the ordinary path
+bool ps2xPlatformFreeRdram(uint8_t *memory, size_t bytes); // weak; false: not placed, the ordinary path
+// ---- end of the guest memory allocation block
 
 // EE I/O register storage. Registers in 0x10000000-0x1000FFFF live in a flat
 // array so different registers can be read and written from different
@@ -421,11 +444,24 @@ public:
     bool writeIORegister(uint32_t address, uint32_t value);
     uint32_t readIORegister(uint32_t address);
 
+    // ---- EE timers (ps2_memory_timers.cpp; B-PLATFORM may edit this block
+    // and the EeTimer block below, src/xbox/PUSH-BC-PLAN.md section 5.3).
     // EE timers advance from the scheduler's emulated EE-cycle clock. The
     // returned mask uses bits 0..3 for newly raised TIM0..TIM3 interrupts.
     uint32_t advanceEeTimers(uint64_t eeCycles) noexcept;
     [[nodiscard]] uint64_t cyclesUntilNextEeTimerInterrupt() const noexcept;
     void resetEeTimers() noexcept;
+    // The timer registers' halves of readIORegister / writeIORegister: true
+    // when the address is a timer register (value / result filled).
+    bool readEeTimerRegister(uint32_t address, uint32_t &value) const noexcept;
+    bool writeEeTimerRegister(uint32_t address, uint32_t value, bool &result) noexcept;
+    // ---- end of the EE timer block
+
+    // ---- VIF1 record hooks (ps2_vif1_records.h; C-VIF). Kept in one
+    // place for the runtime's one PS2Memory (file storage, not a member:
+    // PS2Runtime's layout, which every compiled game file uses, stays).
+    void setVif1RecordHooks(const Vif1RecordHooks &hooks);
+    static const Vif1RecordHooks &vif1RecordHooks();
 
     using GifPacketCallback = std::function<void(const uint8_t *, uint32_t)>;
     void setGifPacketCallback(GifPacketCallback cb) { m_gifPacketCallback = std::move(cb); }
@@ -464,6 +500,70 @@ public:
         bool (*check)(void *owner, const Vu1MscalFast &fast) = nullptr;
     };
     void setVu1MscalFast(const Vu1MscalFast &fast) { m_vu1MscalFast = fast; }
+
+    // ---- VIF1 decoder helpers (src/xbox/PUSH-BC-PLAN.md W0-C; C-VIF). The
+    // bodies of decodeVIF1Pieces' UNPACK, MSCAL and STxx branches and of its
+    // immediate commands, which the decoder itself calls, so that a records
+    // engine (ps2_vif1_records.h) replaying a chain's commands cannot
+    // diverge from it. Each takes the VIFcode after the decoder's own
+    // bookkeeping on it (CODE and NUM set from it, STAT's INT bit when it
+    // carries one), with the reader (ps2_vif1_reader.h: a Vif1PieceReader
+    // or a Vif1SpanReader) just past the VIFcode.
+    // Vectors the UNPACKs wrote, by path (the decoder adds them to
+    // g_vif1StreamStats once per chain).
+    struct Vif1UnpackCounts
+    {
+        uint32_t fast = 0, slow = 0;
+    };
+    // UNPACK (opcode & 0x60 == 0x60): the vectors into VU1 data memory with
+    // the current CYCLE, MODE, MASK, ROW and COL, g_vu1WatchedRows told.
+    // False when its data is not all in the reader: nothing was consumed,
+    // and the caller leaves the command for the rest of the chain
+    // (chainEnd false) or drops it (true).
+    template <class Reader>
+    bool vif1Unpack(uint32_t cmd, Reader &in, Vif1UnpackCounts &counts, bool chainEnd);
+    // STMASK, STROW, STCOL: the register from the data after the VIFcode;
+    // false when it is short (nothing consumed).
+    template <class Reader>
+    bool vif1Stxx(uint32_t cmd, Reader &in);
+    // The commands with no data: NOP, STCYCL, OFFSET, BASE, ITOP, STMOD,
+    // MSKPATH3, MARK, FLUSHE/FLUSH/FLUSHA (any other opcode: nothing).
+    void vif1Immediate(uint32_t cmd);
+    // MSCAL, MSCALF or MSCNT: the register effect (vif1MscalState) and the
+    // program run: the native VU1 program through the fast path
+    // (vif1NativeEnter / Exit / Interpret below), else the callbacks.
+    void vif1Mscal(uint32_t cmd);
+    // The VIF1 register effect of an MSCAL, MSCALF or MSCNT alone: TOP and
+    // ITOP latched from TOPS and ITOPS (returned: the run's), TOPS swapped
+    // to the other buffer, DBF toggled.
+    void vif1MscalState(uint32_t &runTop, uint32_t &runItop);
+    // The MSCAL fast path (Vu1MscalFast) around a native VU1 program run, for
+    // a caller that runs the entry itself (a records engine's direct path):
+    //   enter      the native program to run (null: none, or the fast path
+    //              is off: the caller goes through vif1Mscal or the
+    //              callback), its lookups done, the VU1 D/T enables set from
+    //              FBRST and the counters counted;
+    //   exit       the program took the run: the VU1 state as execute()
+    //              leaves it (TOP, ITOP, no D/T stop);
+    //   interpret  the program declined the run: the exact translator runs
+    //              the entry (the fast path's `interpret`);
+    //   gs         the GS the native program draws into.
+    using Vu1NativeFn = bool (*)(uint32_t pc, uint8_t *vuData, uint32_t dataSize, uint32_t top, PS2Memory *memory, GS &gs);
+    Vu1NativeFn vif1NativeEnter(uint32_t startPC);
+    void vif1NativeExit(uint32_t runTop, uint32_t runItop);
+    void vif1Interpret(uint32_t startPC, uint32_t runTop, uint32_t runItop);
+    GS *vif1NativeGs() const { return m_vu1MscalFast.gs; }
+    // Whether an MSCAL now would run the native VU1 program through the
+    // fast path (the lookups done); false during a dry decode
+    // (vif1SelfCheck) and when there is no native program for the code.
+    bool vif1NativeActive();
+    // The bookkeeping of `count` MSCALs of the entry at startPC that a native
+    // replacement ran without the VIF (C-EMIT's Tier 1 ops): the register
+    // effect of each (vif1MscalState), the MSCAL counters, the VU1 state as
+    // after a native run, and CODE/NUM (and INT) from the VIFcode the
+    // replaced packet ended with.
+    void noteNativeMscal(uint32_t startPC, uint32_t count, uint32_t finalCode);
+    // ---- end of the VIF1 decoder helpers
 #endif
 
     // Asynchronous VIF1: forward VIF1 DMA (VIF decode, VU1 microprograms,
@@ -695,6 +795,7 @@ public:
     bool isScratchpad(uint32_t address) const;
     uint8_t *mapVuMemory(uint32_t physAddr, uint32_t size, uint32_t &offset, uint32_t &limit);
     const uint8_t *mapVuMemory(uint32_t physAddr, uint32_t size, uint32_t &offset, uint32_t &limit) const;
+    // ---- EE timer state (B-PLATFORM may edit; see the timer block above)
     struct EeTimer
     {
         uint32_t count = 0;
@@ -705,6 +806,12 @@ public:
     };
 
     std::array<EeTimer, 4> m_eeTimers{};
+    // ---- end of the EE timer state
+    // ---- Guest memory allocation (ps2_memory_alloc.cpp; B-PLATFORM may
+    // edit): the allocation and free halves of initialize / the destructor.
+    bool allocateGuestMemory(size_t ramSize);
+    void freeGuestMemory();
+    // ---- end of the guest memory allocation members
     bool tryProcessScratchpadDma(uint32_t channelBase, uint32_t chcr);
     void completeDmacChannel(uint32_t channelBase, uint32_t cause);
     void queueCompletedDmacCause(uint32_t cause);

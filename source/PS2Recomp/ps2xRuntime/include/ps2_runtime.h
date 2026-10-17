@@ -40,29 +40,161 @@ class EeScheduler;
 struct EeEvent;
 
 #if defined(PLATFORM_XBOX)
+// PS2X_EE_COUNTDOWN 1 (src/xbox/PUSH-BC-PLAN.md M3.1; B-SCHED): the
+// checkpoint fast path is a 32-bit countdown, `subl $n, g_ps2xEeBudget; jle
+// slow`, instead of the 64-bit add, the 64-bit compare against m_fastUntil
+// and the pending-flag load. The budget is the number of cycles the fast
+// path may still charge before the full checkpoint could have anything to
+// do: EeCheckpointClock::reloadBudget derives it from m_fastUntil whenever
+// that changes, and the executor zeroes it whenever it sets
+// m_checkpointPending. Only the executor writes the budget: another thread
+// that sets the flag leaves it alone, and the executor sees the flag at the
+// next slow checkpoint, at most one device batch (PS2X_DEVICE_CYCLE_BATCH
+// cycles, a few microseconds of guest time) later, so the cycles charged
+// stay exact. m_eeCycle
+// then lags the true clock by the cycles charged since the last reload;
+// syncCycle folds them in, and every reader of m_eeCycle goes through it.
+// 0 (the default until Train 2's gates pass: cdiff 0, det identical): the
+// 64-bit fast path, as before.
+//   TS_EE_COUNTDOWN_CHECK 1: the old 64-bit add is kept beside the
+//   countdown and compared at every slow checkpoint; a difference counts
+//   in ps2x::g_eeProtocolStats.cdiff ([TS:ee] cdiff=), which must stay 0.
+#ifndef PS2X_EE_COUNTDOWN
+#define PS2X_EE_COUNTDOWN 0
+#endif
+#ifndef TS_EE_COUNTDOWN_CHECK
+#define TS_EE_COUNTDOWN_CHECK 0
+#endif
+#if !PS2X_EE_COUNTDOWN && TS_EE_COUNTDOWN_CHECK
+#undef TS_EE_COUNTDOWN_CHECK // nothing to compare without the countdown
+#define TS_EE_COUNTDOWN_CHECK 0
+#endif
+#if PS2X_EE_COUNTDOWN
+extern int32_t g_ps2xEeBudget; // EeScheduler.cpp; the executor thread's alone
+#endif
+
 // The EE scheduler state a checkpoint reads in the common case. EeScheduler
 // derives from it (the members are its own), so generated code can charge
 // cycles and see that nothing is due without the scheduler header or a call.
 struct EeCheckpointClock
 {
+    // With PS2X_EE_COUNTDOWN: the cycle count as of the last syncCycle;
+    // the true clock is m_eeCycle + (m_budgetLoaded - g_ps2xEeBudget).
     uint64_t m_eeCycle = 0;
     // Below this cycle no deadline, time-slice end or device batch is
     // reached (EeScheduler::refreshFastUntil). 0 sends every checkpoint
     // down the full path.
     uint64_t m_fastUntil = 0;
     std::atomic<bool> m_checkpointPending{false};
+    // g_ps2xEeBudget as of the last syncCycle / reloadBudget.
+    int32_t m_budgetLoaded = 0;
+    // EeClockFreeze scopes open (runtime/ee_checkpoint_clock.h): while any
+    // is, the slow checkpoint re-arms the budget and answers "not due"
+    // without touching the devices.
+    uint32_t m_freezeDepth = 0;
+    // No-yield regions open (ps2xNoYieldEnter/Leave): inside one, cycles
+    // are charged but no checkpoint says "due" and no transfer leaves the
+    // running thread; a deferred one is taken at Leave.
+    uint32_t m_noYieldDepth = 0;
+    bool m_noYieldDeferred = false;
+#if TS_EE_COUNTDOWN_CHECK
+    uint64_t m_shadowCycle = 0; // the 64-bit add, kept for the comparison
+#endif
 
     // Charges the cycles. True when the full checkpoint would do nothing
     // more and answer "not due". Other host threads only ever set the
-    // pending flag, so it is read every time. A stop request needs no test
+    // pending flag, so it is seen every time (under the countdown: at the
+    // next slow checkpoint, within one device batch). A stop request needs no test
     // of its own (one load and branch less at every back-edge): requestStop
     // sets the pending flag right after the stop flag, and the flag is only
     // cleared with no stop seen (the dispatcher tests stop again before it
     // runs guest code).
     __attribute__((always_inline)) bool chargeCyclesFast(uint64_t elapsed) noexcept
     {
+#if PS2X_EE_COUNTDOWN
+#if TS_EE_COUNTDOWN_CHECK
+        m_shadowCycle += elapsed;
+#endif
+#if defined(__i386__)
+        // One read-modify-write and the flags it leaves: `subl $n, budget;
+        // jle slow` (left to itself the compiler loads, subtracts, stores
+        // and compares again).
+        bool notDue;
+        __asm__("subl %2, %0" : "+m"(g_ps2xEeBudget), "=@ccg"(notDue) : "ir"(static_cast<int32_t>(elapsed)) : "cc");
+        return notDue;
+#else
+        g_ps2xEeBudget -= static_cast<int32_t>(elapsed);
+        return g_ps2xEeBudget > 0;
+#endif
+#else
         m_eeCycle += elapsed;
         return m_eeCycle < m_fastUntil && !m_checkpointPending.load(std::memory_order_acquire);
+#endif
+    }
+
+    // Folds the cycles the fast path charged since the last call into
+    // m_eeCycle. Executor thread only.
+    __attribute__((always_inline)) void syncCycle() noexcept
+    {
+#if PS2X_EE_COUNTDOWN
+        const int32_t budget = g_ps2xEeBudget;
+        m_eeCycle += static_cast<uint32_t>(m_budgetLoaded - budget);
+        m_budgetLoaded = budget;
+#endif
+    }
+
+    // After syncCycle, m_fastUntil or m_checkpointPending changed: the
+    // cycles the fast path may charge before the next slow checkpoint.
+    // Executor thread only.
+    void reloadBudget() noexcept
+    {
+#if PS2X_EE_COUNTDOWN
+        uint64_t room = 0; // (unsigned: m_fastUntil may be UINT64_MAX, a lifted bound)
+        if (!m_checkpointPending.load(std::memory_order_acquire) && m_fastUntil > m_eeCycle)
+            room = m_fastUntil - m_eeCycle;
+        if (room > static_cast<uint64_t>(INT32_MAX))
+            room = INT32_MAX;
+        g_ps2xEeBudget = m_budgetLoaded = static_cast<int32_t>(room);
+#endif
+    }
+
+    // The true cycle count (syncs first). Executor thread only.
+    uint64_t cycleNow() noexcept
+    {
+        syncCycle();
+        return m_eeCycle;
+    }
+
+    // Sets the clock (a reset, EeClockFreeze putting it back).
+    void setCycle(uint64_t cycle) noexcept
+    {
+        syncCycle();
+        m_eeCycle = cycle;
+#if TS_EE_COUNTDOWN_CHECK
+        m_shadowCycle = cycle;
+#endif
+    }
+
+    // Sets the pending flag the executor's own way: the next checkpoint
+    // goes down the full path.
+    void setPendingLocal() noexcept
+    {
+        m_checkpointPending.store(true, std::memory_order_release);
+#if PS2X_EE_COUNTDOWN
+        syncCycle();
+        g_ps2xEeBudget = m_budgetLoaded = 0;
+#endif
+    }
+
+    // Sets it from another thread: the flag only. The budget is the
+    // executor's (a write here could race its read-modify-write and charge
+    // cycles nobody ran); it runs out at the next device batch boundary at
+    // the latest (refreshFastUntil bounds m_fastUntil by it), and the slow
+    // checkpoint then sees the flag. Remote events are not timed to the
+    // cycle anyway.
+    void setPendingRemote() noexcept
+    {
+        m_checkpointPending.store(true, std::memory_order_release);
     }
 };
 #endif
@@ -261,6 +393,19 @@ inline uint8_t ps2PathWatchExtractByteFromWrite(uint32_t writeAddr, uint32_t wat
     return static_cast<uint8_t>((valueHi >> ((byteIndex - 8u) * 8u)) & 0xFFu);
 }
 
+// PS2X_WRITE_JOURNAL 1 (B-LOGIC's lockstep harness, src/xbox/PUSH-BC-PLAN.md
+// section 3.6 item 1; switched on through its track's .mk): every guest
+// store made through the runtime's slow paths (ps2TraceGuestWrite below and
+// its scratchpad twin in ps2_guest_memory_xbox.cpp) and every idiomatic
+// native's store helper calls ps2xJournalTouch(addr, size), which
+// project/game/native/ts_lockstep.cpp defines. 0 (default): compiled out.
+#ifndef PS2X_WRITE_JOURNAL
+#define PS2X_WRITE_JOURNAL 0
+#endif
+#if PS2X_WRITE_JOURNAL
+void ps2xJournalTouch(uint32_t guestAddr, uint32_t size);
+#endif
+
 inline void ps2TraceGuestWrite(uint8_t *rdram,
                                uint32_t guestAddr,
                                uint32_t size,
@@ -270,13 +415,16 @@ inline void ps2TraceGuestWrite(uint8_t *rdram,
                                const R5900Context *ctx)
 {
     (void)rdram;
-    (void)guestAddr;
-    (void)size;
     (void)valueLo;
     (void)valueHi;
     (void)op;
     (void)ctx;
-    // TODO we dont need this anymore so on next release it will be deleted
+#if PS2X_WRITE_JOURNAL
+    ps2xJournalTouch(guestAddr, size);
+#else
+    (void)guestAddr;
+    (void)size;
+#endif
 }
 
 inline void ps2TraceGuestRangeWrite(uint8_t *rdram,

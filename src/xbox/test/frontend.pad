@@ -1,0 +1,83 @@
+# Front-end coverage run (src/xbox/PUSH-BC-PLAN.md section 5.10, C-EMIT):
+# the title, the front-end menus and their cartridge transitions, the
+# keyboard, a level load (the loading screen) and the first seconds of a
+# match: the drawing sources the arcade scripts pass through only briefly.
+# For TS_NATIVE_EMIT_SELFCHECK runs (emitdiff = 0) and screenshots with the
+# emitter knobs on and off (make AUTOPLAY=src/xbox/test/frontend.pad).
+#
+# The menu path is arcade-match.pad's with every idle stretched to at
+# least 60 reads, so each page's cartridge transition runs to its end and
+# the page is drawn settled before the next input.
+#
+# Format (ps2_pad.cpp):
+#   <reads> <buttons> [lx ly rx ry]
+#   wait_u32 <guest-address> <comparison> <value>
+
+# Title: the attract fade-in, then the press-start page held.
+200 none
+60 none
+2 start
+60 none
+2 cross
+60 none
+2 cross
+60 none
+2 cross
+60 none
+2 cross
+60 none
+2 up
+60 none
+2 cross
+60 none
+2 cross
+60 none
+2 cross
+60 none
+2 cross
+wait_u32 0x00352db4 == 1
+4 up
+60 none
+4 up
+60 none
+4 cross
+80 none
+
+4 cross
+60 none
+4 down
+60 none
+4 down
+60 none
+4 down
+60 none
+4 down
+60 none
+4 right
+60 none
+4 right
+60 none
+4 right
+60 none
+4 cross
+100 none
+4 cross
+100 none
+
+
+4 cross
+100 none
+4 cross
+100 none
+
+
+4 cross
+100 none
+4 cross
+100 none
+4 cross
+200 none
+4 cross
+# Loading screen, then the level running.
+wait_u32 0x003ae764 == 1
+600 none

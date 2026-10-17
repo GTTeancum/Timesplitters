@@ -70,10 +70,37 @@ struct RenderCounters
     uint32_t flatRuns = 0;         // ... flat shaded: laid out as triangle lists
     uint32_t mergedRuns = 0;       // ... joined to the batch a run before left open
     uint32_t declinedRuns = 0;     // ... refused by the renderer (CPU path instead)
+    // The VIF/DMA spine's tokens and splices (src/xbox/PUSH-BC-PLAN.md D1;
+    // runtime/ps2_vif1_tokens.h), counted whatever TS_RENDER_COUNTERS says
+    // (a few per CALL; the check counters must stay 0).
+    uint32_t splices = 0;          // CALLs to registered chains spliced (their cached pieces appended)
+    uint32_t tokChain = 0;         // ... replaced by a chain token
+    uint32_t tokList = 0;          // in-list token tags admitted (a token piece each)
+    uint32_t tokRingFull = 0;      // chain tokens spliced instead: the ring was full
+    uint32_t tokRun = 0;           // tokens the decoder ran (the executor said done)
+    uint32_t tokExpand = 0;        // ... expanded into their pieces (T0, or a dry decode)
+    uint32_t tokNops = 0;          // ... read as four NOPs (no executor, nothing to expand)
+    uint32_t tokMid = 0;           // a data read crossed into a token piece (tokmid)
+    uint32_t tokMidBad = 0;        // ... that could not be expanded, or a carry inside an expansion (must stay 0)
+    uint32_t tokStale = 0;         // token tags the run table refused (must stay 0)
+    uint32_t tokDrop = 0;          // tokens taken and never consumed by the decoder (must stay 0)
+    uint32_t tokBad = 0;           // tokens the executor rejected (must stay 0)
+    uint32_t spliceChecked = 0, spliceDiff = 0; // TS_VIF_SELFCHECK: admitted chains walked again / differing
+    // The records engine (project/game/ts_record_cache.cpp).
+    uint32_t recRegistered = 0;    // chains registered (dlPopDmaTag)
+    uint32_t recRegFull = 0;       // ... refused: the registry was full
+    uint32_t recBuilds = 0;        // descriptors built
+    uint32_t recUnspliceable = 0;  // ... of chains the walk must take itself (a tag the splice cannot reproduce)
+    uint32_t recUnrecordable = 0;  // ... of chains R1 cannot replay (run as T0)
+    uint32_t recArenaFull = 0;     // admissions refused: no arena room until the next drain
+    uint32_t recAudits = 0, recStale = 0; // fingerprint audits / of them stale (rebuilt)
+    uint32_t recR1 = 0, recT0 = 0; // chain tokens run by replay / by expansion
+    uint32_t recChecked = 0, recDiff = 0; // TS_NATIVE_RECORD_SELFCHECK: R1 against T0 / differing (must stay 0)
 };
 extern RenderCounters g_renderCounters; // ps2_vif1_interpreter.cpp
 
-// One [TS:render] line (two with TS_RENDER_COUNTERS 2) with the changes
+// One [TS:render] line (two with TS_RENDER_COUNTERS 2; a [TS:rec] line once
+// the spine has made a splice or a token) with the changes
 // since the last call (the Xbox status hook; ts_render_counters.cpp).
 void renderCountersReport();
 

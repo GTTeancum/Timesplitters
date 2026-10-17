@@ -276,7 +276,24 @@ struct EeSchedulerStats
     unsigned loopIterations = 0, unwinds = 0;
 };
 extern EeSchedulerStats g_eeSchedulerStats;
+
+// TS_SNAPSHOT_ON_DEMAND 1 (src/xbox/PUSH-BC-PLAN.md M3.3, B-SCHED): the
+// kernel snapshot (publishSnapshot: every thread copied into vectors) is
+// built only when something asked for it since the last one (snapshot()
+// arms the next publish and returns the last one built), instead of at
+// every wait, wake and 4,096th dispatch. 0: at every call, as before.
+#ifndef TS_SNAPSHOT_ON_DEMAND
+#define TS_SNAPSHOT_ON_DEMAND 1
 #endif
+#endif
+
+// A VBlankStart observer (the det harness's cheap per-vblank hashes; B-SCHED
+// M0.8): called on the executor thread after the vblank's own work.
+using EeVblankStartHook = void (*)(void *user, uint64_t vsyncTick);
+
+class EeScheduler;
+// The one EE scheduler (constructed with the runtime), or null before it.
+EeScheduler *ps2xEeSchedulerInstance() noexcept;
 
 class EeScheduler
 #if defined(PLATFORM_XBOX)
@@ -396,6 +413,47 @@ public:
     [[nodiscard]] EeKernelSnapshot snapshot() const;
     void publishSnapshot();
 
+    // ---- B-SCHED hooks (src/xbox/PUSH-BC-PLAN.md section 5.1)
+    // The current EE cycle (the countdown's lag folded in). Executor only.
+    [[nodiscard]] uint64_t cycleNow() noexcept
+    {
+#if defined(PLATFORM_XBOX)
+        return EeCheckpointClock::cycleNow();
+#else
+        return m_eeCycle;
+#endif
+    }
+    // Every kernel thread (the invocation threads too, id < 0), for the
+    // det harness's context stream. Executor only.
+    template <class F>
+    void forEachThread(F &&fn) const
+    {
+        for (const auto &[id, item] : m_threads)
+            fn(item);
+    }
+    // The runtime this scheduler belongs to (the det harness's streams).
+    [[nodiscard]] PS2Runtime &runtime() noexcept { return m_runtime; }
+    // The VBlankStart count so far.
+    [[nodiscard]] uint64_t vsyncTick() const noexcept { return m_vsyncTick; }
+    // One VBlankStart observer (null clears it).
+    void setVblankStartHook(EeVblankStartHook hook, void *user) noexcept
+    {
+        m_vblankHook = hook;
+        m_vblankHookUser = user;
+    }
+#if defined(PLATFORM_XBOX)
+    // No-yield regions (runtime/ee_checkpoint_clock.h, M7.0): see
+    // EeCheckpointClock::m_noYieldDepth.
+    void noYieldEnter(uint16_t tag) noexcept;
+    void noYieldLeave(uint16_t tag) noexcept;
+    [[nodiscard]] bool inNoYield() const noexcept { return m_noYieldDepth != 0u; }
+#if defined(PS2X_DEVICE_CYCLE_BATCH)
+    // EeClockFreeze saves and restores the device-batch carry with the clock.
+    [[nodiscard]] uint64_t deviceBatchStart() const noexcept { return m_deviceBatchStart; }
+    void setDeviceBatchStart(uint64_t cycle) noexcept { m_deviceBatchStart = cycle; }
+#endif
+#endif
+
 private:
     [[noreturn]] void transferToDispatcher();
 
@@ -444,10 +502,31 @@ private:
     void assertExecutor() const;
     [[nodiscard]] bool checkpointDecision() noexcept;
     void accountDeviceCycles(uint64_t elapsed) noexcept;
+    // m_eeCycle, read: on the Xbox the countdown's lag is folded in first
+    // (EeCheckpointClock::syncCycle); every reader goes through here.
+    [[nodiscard]] uint64_t eeCycle() noexcept
+    {
+#if defined(PLATFORM_XBOX)
+        syncCycle();
+#endif
+        return m_eeCycle;
+    }
+    // The executor's own "something is due" flag (and the budget zeroed).
+    void setPending() noexcept
+    {
+#if defined(PLATFORM_XBOX)
+        setPendingLocal();
+#else
+        m_checkpointPending.store(true, std::memory_order_release);
+#endif
+    }
 #if defined(PLATFORM_XBOX)
     void refreshFastUntil() noexcept;
     void refreshDeadlineCache();
-    [[nodiscard]] bool deadlineMayBeDue() const noexcept;
+    [[nodiscard]] bool deadlineMayBeDue() noexcept;
+    // Det mode (EeTimePolicy::Pinned, runtime/ee_checkpoint_clock.h): no
+    // host time anywhere; deadlines fall due by EE cycle alone.
+    [[nodiscard]] static bool pinned() noexcept;
 #endif
     [[nodiscard]] int allocateThreadId();
     GuestThread &acquireInvocationThread();
@@ -547,4 +626,7 @@ private:
     mutable std::mutex m_snapshotMutex;
     EeKernelSnapshot m_snapshot;
     uint64_t m_snapshotSequence = 0;
+    mutable std::atomic<bool> m_snapshotWanted{true}; // TS_SNAPSHOT_ON_DEMAND: a reader asked since the last publish
+    EeVblankStartHook m_vblankHook = nullptr;
+    void *m_vblankHookUser = nullptr;
 };

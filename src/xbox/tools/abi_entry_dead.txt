@@ -1,0 +1,13 @@
+# Entry reads abi_audit.py does not count (B-LOGIC; src/xbox/PUSH-BC-PLAN.md
+# section 3.6 item 5): registers a function reads before writing whose old
+# value reaches nothing but that same register's own (free) final value.
+# Each line: <hex address> <register>... # the reason, checked by hand
+# against the listing and the transcription in project/game/ts_native_fp.cpp.
+# A wrong line here makes a native's free set too large: keep it short.
+
+# __pack_d builds the double in $a2 as a union: and/or with masks that
+# together replace all 64 bits of the result in $v0 (packD, ts_native_fp.cpp).
+0x2E2D70 a2
+# __pack_f likewise builds the float in $a2's low word ($f0 takes the low 32
+# bits; the upper half reaches only $a2 itself).
+0x2E3A68 a2

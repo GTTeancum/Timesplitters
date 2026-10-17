@@ -8,8 +8,11 @@
 //   - gamepads and the audio stream go through nxdk's SDL2;
 //   - keyboard queries report nothing pressed.
 #include "raylib.h"
+#include "runtime/ps2_det.h"
 #include "runtime/ps2_music.h"
+#include "runtime/ps2_spu2.h"
 #include "xbox_log.h"
+#include "xbox_perf.h"
 
 #include <SDL.h>
 #include <hal/audio.h>
@@ -184,7 +187,9 @@ namespace
                 const uint64_t start = __builtin_ia32_rdtsc();
                 {
                     std::lock_guard<std::mutex> guard(g_audio.lock);
-                    if (g_audio.playing && g_audio.callback)
+                    // TS_DET (runtime/ps2_det.h): the det harness mixes the
+                    // pcm stream itself; the feeder plays silence.
+                    if (g_audio.playing && g_audio.callback && !xboxDetSilentAudio())
                         g_audio.callback(mixInto, kAudioFrames);
                     else
                         std::memset(mixInto, 0, kAudioFrames * 4u);
@@ -245,6 +250,24 @@ namespace
 // disc). About 47 buffers a second means sound plays; at 733 MHz, mix Kcyc
 // per second / 7330 is the feeder's percentage of the CPU.
 uint32_t g_audioBuffers = 0, g_audioMixKcyc = 0, g_audioMusicKcyc = 0, g_audioDiscKcyc = 0;
+
+// [TS:audio] (the report-line registry, xbox_perf.h; written on the status
+// hook's thread, never from the TIME_CRITICAL feeder): the feeder's figures
+// above, the music loader's (its reads' time in Kcyc, ranges it read ahead,
+// ranges the mix had to read itself) and the audio self-checks' counters
+// (TS_SPU2_SELFCHECK spu2diff, TS_MUSIC_SELFCHECK musicdiff; 0/0 when off).
+namespace
+{
+    void audioReportLine(XboxReportLine &line)
+    {
+        line.add(" buf=%u mix=%uK music=%uK disc=%uK loader=%uK ahead=%u sync=%u spu2check=%u spu2diff=%u musiccheck=%u "
+                 "musicdiff=%u",
+                 unsigned(g_audioBuffers), unsigned(g_audioMixKcyc), unsigned(g_audioMusicKcyc),
+                 unsigned(g_audioDiscKcyc), unsigned(g_musicLoaderCycles / 1000u), g_musicLoaderReads,
+                 g_musicSyncReads, g_spu2Checks, g_spu2Diffs, g_musicChecks, g_musicDiffs);
+    }
+    [[maybe_unused]] const bool g_audioLineRegistered = xboxRegisterReportLine("[TS:audio]", &audioReportLine);
+}
 
 // ------------------------------------------------------------------ window
 void InitWindow(int, int, const char *)

@@ -1,5 +1,6 @@
 #include "Common.h"
 #include "MemoryCard.h"
+#include "runtime/ps2_host_time.h" // entry times as the guest sees them (pinned in det mode)
 
 namespace ps2_stubs
 {
@@ -269,9 +270,7 @@ namespace ps2_stubs
 
         std::time_t fileTimeToTimeTMc(std::filesystem::file_time_type value)
         {
-            const auto systemTime = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-                value - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
-            return std::chrono::system_clock::to_time_t(systemTime);
+            return ps2xHostFileTime(value);
         }
 
         void writeMcCString(uint8_t *rdram, uint32_t addr, const std::string &value)
@@ -799,7 +798,7 @@ namespace ps2_stubs
                     if (std::filesystem::exists(hostDir, ec) && !ec &&
                         std::filesystem::is_directory(hostDir, ec))
                     {
-                        const std::time_t now = std::time(nullptr);
+                        const std::time_t now = ps2xHostTime();
                         auto appendSpecial = [&](const std::string &name)
                         {
                             if (!wildcardMatch(pattern, name))

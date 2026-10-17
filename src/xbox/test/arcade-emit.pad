@@ -1,0 +1,118 @@
+# Emitter coverage run (src/xbox/PUSH-BC-PLAN.md section 5.10, C-EMIT):
+# the 1P arcade match of arcade-match.pad (Tomb deathmatch, bots), then
+# input that makes the non-model drawing sources work: firing and moving
+# (muzzle flashes, bullets, impacts, explosions, pickups, the HUD and its
+# hit flashes), the pause menu opened and walked (in-match menuGfx, text,
+# fills, fades), and the match resumed. For TS_NATIVE_EMIT_SELFCHECK runs
+# (emitdiff = 0) and the [TS:emit] fields of [TS:render]
+# (make AUTOPLAY=src/xbox/test/arcade-emit.pad).
+#
+# Unverified until the test session: the read counts of the in-match part
+# are first guesses (screenshots at the marked reads confirm what is on
+# screen).
+#
+# Format (ps2_pad.cpp):
+#   <reads> <buttons> [lx ly rx ry]
+#   wait_u32 <guest-address> <comparison> <value>
+#   repeat <n> ... end
+# In a match the left stick moves (ly 0 forward, lx strafes), the right
+# stick turns (rx), R1 fires, cross respawns.
+
+40 none
+2 start
+8 none
+2 cross
+10 none
+2 cross
+12 none
+2 cross
+6 none
+2 cross
+4 none
+2 up
+2 none
+2 cross
+10 none
+2 cross
+20 none
+2 cross
+20 none
+2 cross
+wait_u32 0x00352db4 == 1
+4 up
+6 none
+4 up
+6 none
+4 cross
+80 none
+
+4 cross
+6 none
+4 down
+6 none
+4 down
+6 none
+4 down
+6 none
+4 down
+6 none
+4 right
+6 none
+4 right
+6 none
+4 right
+6 none
+4 cross
+100 none
+4 cross
+100 none
+
+
+4 cross
+100 none
+4 cross
+100 none
+
+
+4 cross
+100 none
+4 cross
+100 none
+4 cross
+200 none
+4 cross
+# The level is loaded and running (one local player).
+wait_u32 0x003ae764 == 1
+60 none
+
+# Fire while moving and turning: 8 reads firing, 16 not, alternating turn
+# directions, about 1,700 reads.
+repeat 24
+8  r1+cross 128 0 192 128
+16 none 128 0 192 128
+8  r1+cross 64 32 128 128
+16 none 64 32 128 128
+8  r1+cross 128 0 64 128
+16 none 128 0 64 128
+end
+
+# The pause menu: open, walk down and up, close.
+2 start
+60 none
+2 down
+20 none
+2 down
+20 none
+2 up
+20 none
+2 up
+20 none
+2 start
+60 none
+
+# More firing standing still, turning (impacts and explosions at range).
+repeat 12
+8  r1 128 128 160 128
+16 none 128 128 160 128
+end
+600 none

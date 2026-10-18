@@ -58,6 +58,8 @@ widescreen while playing).
   is narrowed back to 4:3 proportions and pinned to the left margin, right
   margin or centre (GS::adjustWidescreenHud: overlay primitives with no
   depth test/write, flat or pixel-addressed texture, entirely on screen).
+  Primitives as wide as the frame (the loading screen's and the pause
+  menu's dimming) are backdrops and stay stretched to 16:9.
   Menus keep the stretched full-screen layout.
 - Texture replacement (GPU renderer): every texture decoded from GS memory
   is identified by a 64-bit FNV hash of its decoded RGBA pixels and size,

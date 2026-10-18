@@ -675,18 +675,13 @@ namespace ps2x::iop::detail
             return address;
         }
 
-#if defined(PLATFORM_XBOX)
         // First fit from the heap's base: a freed block is used again. The
         // search started at the highest end so far (m_heapCursor), so the
         // heap only ever moved up: every allocation after a free (thread
         // stacks, module buffers) took new IOP RAM, and new host pages with
         // it, until the heap ran out and IOP CreateThread and AllocSysMemory
         // failed. The real IOP's allocator reuses freed memory too.
-        // (Xbox only on this branch; the PC keeps master's allocator.)
         uint32_t candidate = alignUp(HeapBase, alignment);
-#else
-        uint32_t candidate = alignUp(m_heapCursor, alignment);
-#endif
         for (;;)
         {
             bool overlap = false;
@@ -706,7 +701,7 @@ namespace ps2x::iop::detail
             return 0u;
         m_allocations.push_back({candidate, size});
         markOwned(candidate, size);
-        m_heapCursor = std::max(m_heapCursor, candidate + size); // Xbox: the high-water mark (no longer where a search starts)
+        m_heapCursor = std::max(m_heapCursor, candidate + size); // the high-water mark (no longer where a search starts)
         return candidate;
     }
 
@@ -733,7 +728,6 @@ namespace ps2x::iop::detail
 
     uint32_t IopMemory::maxFreeMemory() const
     {
-#if defined(PLATFORM_XBOX)
         // The largest free block of the heap (allocations reuse the gaps).
         uint32_t largest = 0u;
         uint32_t start = HeapBase;
@@ -757,9 +751,6 @@ namespace ps2x::iop::detail
             start = std::max(start, nextEnd);
         }
         return largest;
-#else
-        return m_heapCursor < HeapLimit ? HeapLimit - m_heapCursor : 0u;
-#endif
     }
 
     std::optional<IopMemory::Allocation> IopMemory::allocationContaining(uint32_t address) const

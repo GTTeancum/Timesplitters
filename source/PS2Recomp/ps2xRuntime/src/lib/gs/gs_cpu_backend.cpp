@@ -1555,18 +1555,20 @@ namespace
         std::vector<uint32_t>().swap(entry.texels);
     }
 }
-#define TS_RELEASE_DECODED(entry) releaseDecodedTexels(entry)
-#else
-#define TS_RELEASE_DECODED(entry) ((void)0)
 #endif
 
 void GSCpuBackend::InvalidateAllDecoded()
 {
+#if defined(PLATFORM_XBOX)
     for (DecodedTexture &entry : m_decoded)
     {
         entry.valid = false;
-        TS_RELEASE_DECODED(entry);
+        releaseDecodedTexels(entry);
     }
+#else
+    for (DecodedTexture &entry : m_decoded)
+        entry.valid = false;
+#endif
     m_decodedTexels = 0;
 }
 
@@ -1580,7 +1582,9 @@ void GSCpuBackend::InvalidateDecoded(uint64_t begin, uint64_t end)
         {
             entry.valid = false;
             m_decodedTexels -= entry.texels.size();
-            TS_RELEASE_DECODED(entry);
+#if defined(PLATFORM_XBOX)
+            releaseDecodedTexels(entry);
+#endif
         }
 }
 
@@ -1650,7 +1654,9 @@ const uint32_t *GSCpuBackend::FindOrDecodeTexture(const GSDrawState &state)
         {
             oldest->valid = false;
             m_decodedTexels -= oldest->texels.size();
-            TS_RELEASE_DECODED(*oldest);
+#if defined(PLATFORM_XBOX)
+            releaseDecodedTexels(*oldest);
+#endif
         }
         return oldest;
     };

@@ -675,7 +675,13 @@ namespace ps2x::iop::detail
             return address;
         }
 
-        uint32_t candidate = alignUp(m_heapCursor, alignment);
+        // First fit from the heap's base: a freed block is used again. The
+        // search started at the highest end so far (m_heapCursor), so the
+        // heap only ever moved up: every allocation after a free (thread
+        // stacks, module buffers) took new IOP RAM, and new host pages with
+        // it, until the heap ran out and IOP CreateThread and AllocSysMemory
+        // failed. The real IOP's allocator reuses freed memory too.
+        uint32_t candidate = alignUp(HeapBase, alignment);
         for (;;)
         {
             bool overlap = false;
@@ -695,7 +701,7 @@ namespace ps2x::iop::detail
             return 0u;
         m_allocations.push_back({candidate, size});
         markOwned(candidate, size);
-        m_heapCursor = std::max(m_heapCursor, candidate + size);
+        m_heapCursor = std::max(m_heapCursor, candidate + size); // the high-water mark (no longer where a search starts)
         return candidate;
     }
 
@@ -722,7 +728,29 @@ namespace ps2x::iop::detail
 
     uint32_t IopMemory::maxFreeMemory() const
     {
-        return m_heapCursor < HeapLimit ? HeapLimit - m_heapCursor : 0u;
+        // The largest free block of the heap (allocations reuse the gaps).
+        uint32_t largest = 0u;
+        uint32_t start = HeapBase;
+        for (;;)
+        {
+            // The next block at or above `start` that lies in the heap.
+            uint32_t nextBegin = HeapLimit, nextEnd = HeapLimit;
+            for (const auto &block : m_allocations)
+            {
+                const uint32_t end = block.address + block.size;
+                if (end > start && block.address < nextBegin && block.address < HeapLimit)
+                {
+                    nextBegin = std::max(block.address, start);
+                    nextEnd = std::min(end, HeapLimit);
+                }
+            }
+            if (nextBegin > start)
+                largest = std::max(largest, nextBegin - start);
+            if (nextBegin >= HeapLimit)
+                break;
+            start = std::max(start, nextEnd);
+        }
+        return largest;
     }
 
     std::optional<IopMemory::Allocation> IopMemory::allocationContaining(uint32_t address) const

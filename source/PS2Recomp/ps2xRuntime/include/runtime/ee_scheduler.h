@@ -356,6 +356,7 @@ public:
     [[noreturn]] void invokeCurrentSequence(std::vector<GuestInvocation> invocations);
     [[nodiscard]] bool hasInvocation(GuestInvocationKind kind, uint64_t tag) const;
     [[nodiscard]] uint32_t invocationStackTop();
+    void releaseInvocationStacks(int threadId);
 
     int addIrqHandler(bool dmac,
                       uint32_t cause,
@@ -537,6 +538,9 @@ private:
     uint32_t m_gsVSyncCallbackGp = 0;
     uint32_t m_gsVSyncCallbackSp = 0;
     std::unordered_map<uint64_t, uint32_t> m_invocationStackTops;
+    // Invocation stacks of deleted threads, for the next (thread, depth)
+    // that needs one (all are kInvocationStackSize).
+    std::vector<uint32_t> m_freeInvocationStacks;
     std::atomic<uint64_t> m_nextDeadlineCycle{0};
 #if defined(PLATFORM_XBOX)
     // Performance-counter value below which no entry of m_deadlines is due

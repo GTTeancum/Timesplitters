@@ -11,6 +11,8 @@
 #include <string>
 
 #include <hal/debug.h>
+#define NOMINMAX
+#include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
 
 namespace
@@ -18,6 +20,16 @@ namespace
     std::mutex g_logMutex;
     FILE *g_logFile = nullptr;
     bool g_toScreen = false;
+    // The log file on the hard disk is emptied at each boot but grew without
+    // limit while the console ran (about 1.4 MB an hour of status lines in
+    // the attract demo, more with memory-card lines). Past kLogFileLimit it
+    // is renamed to timesplitters.old.log (replacing the last one) and a new
+    // file started: at most twice the limit on the disk, the newest lines
+    // always kept.
+    constexpr size_t kLogFileLimit = 8u * 1024u * 1024u;
+    std::string g_logPath;
+    size_t g_logFileBytes = 0;
+    void rotateLogFile();
 
     // The last lines logged, drawn over each frame (xboxLogDrawOverlay).
     constexpr int kOverlayLines = 200;
@@ -34,7 +46,11 @@ namespace
     int g_recentNext = 0;
     std::string g_status;
 
-    // Line-buffered: DbgPrint gets whole lines.
+    // Line-buffered: DbgPrint gets whole lines. Several threads write
+    // std::cout (the presenting thread's status lines, the game thread's
+    // runtime and memory-card lines, the renderer): the line being built is
+    // guarded by the buffer's own lock, or two writers could grow the same
+    // string at once and corrupt the heap. (xboxLogWrite has g_logMutex.)
     class LogBuf : public std::streambuf
     {
     protected:
@@ -42,30 +58,38 @@ namespace
         {
             if (ch == traits_type::eof())
                 return 0;
-            line_.push_back(static_cast<char>(ch));
-            if (ch == '\n')
-                flushLine();
+            std::lock_guard<std::mutex> lock(mutex_);
+            put(static_cast<char>(ch));
             return ch;
         }
         std::streamsize xsputn(const char *s, std::streamsize n) override
         {
+            std::lock_guard<std::mutex> lock(mutex_);
             for (std::streamsize i = 0; i < n; ++i)
-                overflow(static_cast<unsigned char>(s[i]));
+                put(s[i]);
             return n;
         }
         int sync() override
         {
+            std::lock_guard<std::mutex> lock(mutex_);
             flushLine();
             return 0;
         }
 
     private:
+        void put(char ch)
+        {
+            line_.push_back(ch);
+            if (ch == '\n')
+                flushLine();
+        }
         void flushLine()
         {
             if (!line_.empty())
                 xboxLogWrite(line_.data(), static_cast<unsigned>(line_.size()));
             line_.clear();
         }
+        std::mutex mutex_; // an SRW lock: no kernel object
         std::string line_;
     };
 
@@ -123,8 +147,38 @@ void xboxLogWrite(const char *text, unsigned length)
         debugPrint("%.*s", static_cast<int>(length), text);
     if (g_logFile)
     {
-        std::fwrite(text, 1, length, g_logFile);
-        std::fflush(g_logFile);
+        if (g_logFileBytes + length > kLogFileLimit)
+            rotateLogFile();
+        if (g_logFile)
+        {
+            std::fwrite(text, 1, length, g_logFile);
+            std::fflush(g_logFile);
+            g_logFileBytes += length;
+        }
+    }
+}
+
+namespace
+{
+    // The log file is full (kLogFileLimit): it becomes the .old file and a
+    // new one starts. Under g_logMutex.
+    void rotateLogFile()
+    {
+        std::fclose(g_logFile);
+        g_logFile = nullptr;
+        g_logFileBytes = 0;
+        std::string old = g_logPath;
+        const size_t dot = old.rfind('.');
+        old.insert(dot == std::string::npos ? old.size() : dot, ".old");
+        DeleteFileA(old.c_str());
+        MoveFileA(g_logPath.c_str(), old.c_str());
+        g_logFile = std::fopen(g_logPath.c_str(), "w");
+        if (g_logFile)
+        {
+            static const char kNote[] = "[TS:log] log file continued; the lines before are in the .old file\n";
+            std::fwrite(kNote, 1, sizeof(kNote) - 1u, g_logFile);
+            g_logFileBytes = sizeof(kNote) - 1u;
+        }
     }
 }
 
@@ -132,7 +186,11 @@ void xboxLogOpenFile(const char *path)
 {
     std::lock_guard<std::mutex> lock(g_logMutex);
     if (!g_logFile)
+    {
+        g_logPath = path;
         g_logFile = std::fopen(path, "w");
+        g_logFileBytes = 0;
+    }
 }
 
 void xboxLogToScreen(bool enabled)

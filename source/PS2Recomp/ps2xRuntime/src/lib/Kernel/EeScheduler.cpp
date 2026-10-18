@@ -1948,6 +1948,32 @@ void EeScheduler::processPendingEvents()
             dispatchIrq(false, 9u + timer);
         }
     }
+#if defined(PLATFORM_XBOX)
+    // The events queued so far, taken off the queue one at a time. Swapping
+    // the queue out (below) left it with no block, so the next event
+    // allocated a new 4 KB one and the swapped-out queue freed the old: an
+    // allocation and a free per batch of events (every vblank at least), on
+    // a console where any failed allocation stops the game. The queue now
+    // keeps its block. Events posted while these run wait for the next
+    // round, as before.
+    size_t eventCount = 0;
+    {
+        std::lock_guard lock(m_eventMutex);
+        eventCount = m_events.size();
+    }
+    for (; eventCount != 0u; --eventCount)
+    {
+        EeEvent event;
+        {
+            std::lock_guard lock(m_eventMutex);
+            if (m_events.empty())
+                break;
+            event = m_events.front();
+            m_events.pop_front();
+        }
+        processEvent(event);
+    }
+#else
     std::deque<EeEvent> pending;
     {
         std::lock_guard lock(m_eventMutex);
@@ -1957,6 +1983,7 @@ void EeScheduler::processPendingEvents()
     {
         processEvent(event);
     }
+#endif
 
     {
         std::lock_guard lock(m_eventMutex);

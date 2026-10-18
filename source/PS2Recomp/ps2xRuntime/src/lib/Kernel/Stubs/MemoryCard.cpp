@@ -663,7 +663,7 @@ namespace ps2_stubs
             setMcCommandResultLocked(kMcCmdChdir, result);
         }
 
-        RUNTIME_LOG("[MC] Chdir port=" << port << " '" << requestedDir
+        RUNTIME_LOG_CAPPED("[MC] Chdir port=" << port << " '" << requestedDir
                                        << "' -> result=" << result << " cwd='" << currentDir << "'" << kMcLogEnd);
         writeMcCString(rdram, currentDirAddr, currentDir);
         setReturnS32(ctx, 0);
@@ -974,7 +974,7 @@ namespace ps2_stubs
 
             setMcCommandResultLocked(kMcCmdGetDir, result);
         }
-        RUNTIME_LOG("[MC] GetDir port=" << port << " '" << rawPath
+        RUNTIME_LOG_CAPPED("[MC] GetDir port=" << port << " '" << rawPath
                                         << "' maxent=" << maxEntries << " -> result=" << result << kMcLogEnd);
         setReturnS32(ctx, 0);
     }
@@ -1037,7 +1037,7 @@ namespace ps2_stubs
             }
         }
 
-        RUNTIME_LOG("[MC] GetInfo port=" << port << " type=" << cardType
+        RUNTIME_LOG_CAPPED("[MC] GetInfo port=" << port << " type=" << cardType
                                          << " free=" << freeBlocks << " format=" << format
                                          << " result=" << result << kMcLogEnd);
         setReturnS32(ctx, 0);
@@ -1118,7 +1118,7 @@ namespace ps2_stubs
             setMcCommandPathLocked(port, slot, 0u, path, guestPath, hostPath);
             setMcCommandResultLocked(kMcCmdMkdir, result);
         }
-        RUNTIME_LOG("[MC] Mkdir port=" << port << " slot=" << slot
+        RUNTIME_LOG_CAPPED("[MC] Mkdir port=" << port << " slot=" << slot
                                        << " raw='" << path << "' guest='" << guestPath
                                        << "' host='" << hostPath.string() << "' -> result=" << result << kMcLogEnd);
         setReturnS32(ctx, 0);
@@ -1190,7 +1190,7 @@ namespace ps2_stubs
             setMcCommandPathLocked(port, slot, flags, path, guestPath, hostPath);
             setMcCommandResultLocked(kMcCmdOpen, result);
         }
-        RUNTIME_LOG("[MC] Open port=" << port << " slot=" << slot
+        RUNTIME_LOG_CAPPED("[MC] Open port=" << port << " slot=" << slot
                                       << " flags=0x" << std::hex << flags << std::dec
                                       << " raw='" << path << "' guest='" << guestPath
                                       << "' host='" << hostPath.string() << "'"
@@ -1371,7 +1371,7 @@ namespace ps2_stubs
             return;
         }
 
-        RUNTIME_LOG("[MC] Sync cmd=" << cmd << " result=" << result << kMcLogEnd);
+        RUNTIME_LOG_CAPPED("[MC] Sync cmd=" << cmd << " result=" << result << kMcLogEnd);
 
         if (cmdPtr != 0u)
         {

@@ -3,6 +3,18 @@
 #include "runtime/ps2_io_stats.h"
 #include <cctype>
 
+#if defined(PLATFORM_XBOX)
+namespace ps2x
+{
+    // The Xbox platform layer (src/xbox/xbox_disc.cpp): byteCount bytes of
+    // host file `path` from offsetBytes into dst (zeros past its end),
+    // through a handle kept open, so a read allocates nothing. False: the
+    // read failed after a second try (logged there, never silently; dst
+    // zeroed).
+    bool xboxReadHostFile(const char *path, uint64_t offsetBytes, uint8_t *dst, size_t byteCount);
+}
+#endif
+
 namespace
 {
     constexpr uint32_t kCdSectorSize = 2048;
@@ -183,6 +195,37 @@ namespace
         return PS2Runtime::getIoPaths().cdImage;
     }
 
+#if defined(PLATFORM_XBOX)
+    bool tryGetCdImageTotalSectors(uint64_t &totalSectorsOut)
+    {
+#if defined(PLATFORM_XBOX)
+        // Every sector read asks: the configured path itself, not a copy.
+        const std::filesystem::path &imagePath = PS2Runtime::getIoPaths().cdImage;
+#else
+        const std::filesystem::path imagePath = getCdImagePath();
+#endif
+        if (imagePath.empty())
+        {
+            return false;
+        }
+
+        if (!g_cdImageSizeValid || g_cdImageSizePath != imagePath)
+        {
+            std::error_code ec;
+            g_cdImageSizeBytes = static_cast<uint64_t>(std::filesystem::file_size(imagePath, ec));
+            g_cdImageSizePath = imagePath;
+            g_cdImageSizeValid = !ec;
+        }
+        if (!g_cdImageSizeValid)
+        {
+            return false;
+        }
+
+        totalSectorsOut = g_cdImageSizeBytes / static_cast<uint64_t>(kCdSectorSize);
+        return true;
+    }
+#endif
+
     uint32_t sectorsForBytes(uint64_t byteCount)
     {
         const uint64_t sectors = (byteCount + (kCdSectorSize - 1)) / kCdSectorSize;
@@ -300,6 +343,7 @@ namespace
         }
     }
 
+#if !defined(PLATFORM_XBOX)
     // ---- The disc, laid out from the loose game folder (no disc image) ----
     // TimeSplitters finds its files itself: it reads 11 sectors from LBN 16
     // (the volume descriptor and the directories after it, kept in RAM by
@@ -678,6 +722,7 @@ namespace
         g_looseDisc = std::move(disc);
         return g_looseDisc;
     }
+#endif
 
     bool registerCdFile(const std::string &ps2Path, CdFileEntry &entryOut)
     {
@@ -746,6 +791,12 @@ namespace
         CdFileEntry entry;
         entry.hostPath = path;
         entry.sizeBytes = static_cast<uint32_t>(std::min<uint64_t>(sizeBytes, 0xFFFFFFFFu));
+#if defined(PLATFORM_XBOX)
+        entry.baseLbn = g_nextPseudoLbn;
+        entry.sectors = sectorsForBytes(sizeBytes);
+
+        g_nextPseudoLbn += entry.sectors + 1;
+#else
         entry.sectors = sectorsForBytes(sizeBytes);
 
         // A file of the game folder keeps the LBN the disc layout gives it
@@ -761,6 +812,7 @@ namespace
             entry.baseLbn = g_nextPseudoLbn;
             g_nextPseudoLbn += entry.sectors + 1;
         }
+#endif
         g_cdFilesByKey.emplace(key, entry);
         entryOut = entry;
         g_lastCdError = 0;
@@ -781,6 +833,20 @@ namespace
         }
 
         ps2x::IoReadTimer timer(byteCount);
+#if defined(PLATFORM_XBOX)
+        // Every sector the game reads came through a std::ifstream opened
+        // for it: per read, about 5 KB of heap and a kernel file object
+        // allocated and freed, and (with nxdk's fclose) a kernel lock left
+        // behind, which ran the console out of memory after 74 minutes.
+        // The Xbox keeps the file open instead (xbox_disc.cpp).
+        if (!ps2x::xboxReadHostFile(path.c_str(), offsetBytes, dst, byteCount))
+        {
+            g_lastCdError = -1;
+            return false;
+        }
+        g_lastCdError = 0;
+        return true;
+#else
         std::memset(dst, 0, byteCount);
         std::ifstream file(path, std::ios::binary);
         if (!file.is_open())
@@ -799,8 +865,10 @@ namespace
         file.read(reinterpret_cast<char *>(dst), static_cast<std::streamsize>(byteCount));
         g_lastCdError = 0;
         return true;
+#endif
     }
 
+#if !defined(PLATFORM_XBOX)
     // `sectors` sectors from `lbn` of the disc laid out from the game folder
     // (byteCount bytes, which may end inside the last sector): metadata
     // sectors, file data (zeros after a file's end) and zeros between.
@@ -855,7 +923,54 @@ namespace
         g_lastCdError = 0;
         return true;
     }
+#endif
 
+#if defined(PLATFORM_XBOX)
+    bool readCdSectors(uint32_t lbn, uint32_t sectors, uint8_t *dst, size_t byteCount)
+    {
+        for (const auto &[key, entry] : g_cdFilesByKey)
+        {
+            const uint32_t endLbn = entry.baseLbn + entry.sectors;
+            if (lbn < entry.baseLbn || lbn >= endLbn)
+            {
+                continue;
+            }
+
+            const uint64_t relativeLbn = static_cast<uint64_t>(lbn - entry.baseLbn);
+            const uint64_t offset = relativeLbn * kCdSectorSize;
+            return readHostRange(entry.hostPath, offset, dst, byteCount);
+        }
+
+#if defined(PLATFORM_XBOX)
+        const std::filesystem::path &cdImage = PS2Runtime::getIoPaths().cdImage;
+#else
+        const std::filesystem::path cdImage = getCdImagePath();
+#endif
+        if (!cdImage.empty())
+        {
+            uint64_t totalSectors = 0;
+            if (tryGetCdImageTotalSectors(totalSectors))
+            {
+                const uint64_t start = static_cast<uint64_t>(lbn);
+                const uint64_t end = start + static_cast<uint64_t>(sectors);
+                if (start >= totalSectors || end > totalSectors)
+                {
+                    g_lastCdError = -1;
+                    return false;
+                }
+            }
+
+            const uint64_t offset = static_cast<uint64_t>(lbn) * kCdSectorSize;
+            return readHostRange(cdImage, offset, dst, byteCount);
+        }
+
+        std::cerr << "sceCdRead unresolved LBN 0x" << std::hex << lbn
+                  << " sectors=" << std::dec << sectors
+                  << " (no mapped file and no configured CD image)" << std::endl;
+        g_lastCdError = -1;
+        return false;
+    }
+#else
     bool readCdSectors(uint32_t lbn, uint32_t sectors, uint8_t *dst, size_t byteCount)
     {
         // Every sector of the game folder's disc (descriptors, directories,
@@ -881,7 +996,29 @@ namespace
 
         return readLooseDiscSectors(lbn, sectors, dst, byteCount);
     }
+#endif
 
+#if defined(PLATFORM_XBOX)
+    bool isResolvableCdLbn(uint32_t lbn)
+    {
+        for (const auto &[key, entry] : g_cdFilesByKey)
+        {
+            const uint32_t endLbn = entry.baseLbn + entry.sectors;
+            if (lbn >= entry.baseLbn && lbn < endLbn)
+            {
+                return true;
+            }
+        }
+
+        uint64_t totalSectors = 0;
+        if (tryGetCdImageTotalSectors(totalSectors))
+        {
+            return static_cast<uint64_t>(lbn) < totalSectors;
+        }
+
+        return false;
+    }
+#else
     bool isResolvableCdLbn(uint32_t lbn)
     {
         for (const auto &[key, entry] : g_cdFilesByKey)
@@ -895,6 +1032,7 @@ namespace
 
         return lbn < ensureLooseDisc().volumeSectors;
     }
+#endif
 
     bool findRegisteredCdFileForLbn(uint32_t lbn, CdFileEntry &entryOut)
     {

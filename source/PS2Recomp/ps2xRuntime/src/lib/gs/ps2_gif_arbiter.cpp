@@ -32,6 +32,21 @@ void GifArbiter::submit(GifPathId pathId, const uint8_t *data, uint32_t sizeByte
     m_queue.push_back(std::move(pkt));
 }
 
+#if defined(PLATFORM_XBOX)
+void GifArbiter::submitOwned(GifPathId pathId, std::vector<uint8_t> &&data, bool path2DirectHl)
+{
+    if (data.empty() || (!m_processFn && !m_processPathFn))
+        return;
+
+    GifArbiterPacket pkt;
+    pkt.pathId = pathId;
+    pkt.path2DirectHl = (pathId == GifPathId::Path2) && path2DirectHl;
+    pkt.path3Image = (pathId == GifPathId::Path3) && isImagePacket(data.data(), static_cast<uint32_t>(data.size()));
+    pkt.data = std::move(data);
+    m_queue.push_back(std::move(pkt));
+}
+#endif
+
 void GifArbiter::processDirect(GifPathId pathId, const uint8_t *data, uint32_t sizeBytes)
 {
     if (!data || sizeBytes == 0)

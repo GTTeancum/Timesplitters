@@ -2,6 +2,7 @@
 #define PS2_LOG_H
 
 #include <algorithm>
+#include <cstdint>
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -79,6 +80,13 @@ inline bool is_runtime_log_paused()
 
 inline void append_runtime_log_text(const std::string &text)
 {
+#if defined(PLATFORM_XBOX)
+    // The in-memory copy is for the PC's debug panel (ps2_debug_panel.cpp),
+    // which the Xbox does not have: there it was up to 4,096 strings (about
+    // 0.6 MB) nothing read. The line still goes to the log.
+    (void)text;
+    return;
+#endif
     if (text.empty())
     {
         return;
@@ -135,6 +143,23 @@ inline void clear_runtime_log_entries()
     } while (0)
 #else
 #define RUNTIME_LOG(x) do {} while(0)
+#endif
+
+// RUNTIME_LOG for a line logged on every call of something the game may call
+// without end (memory-card commands, interrupt-mask calls). On the Xbox, where
+// the log is a file on a small disk and a debugger link, each call site logs
+// its first 32 calls and then every 1,024th; elsewhere it is RUNTIME_LOG.
+#if defined(PLATFORM_XBOX)
+#define RUNTIME_LOG_CAPPED(x)                                                                                           \
+    do                                                                                                                  \
+    {                                                                                                                   \
+        static uint32_t _ps2_runtime_log_calls = 0;                                                                     \
+        const uint32_t _ps2_runtime_log_call = _ps2_runtime_log_calls++;                                                \
+        if (_ps2_runtime_log_call < 32u || _ps2_runtime_log_call % 1024u == 0u)                                        \
+            RUNTIME_LOG(x);                                                                                             \
+    } while (0)
+#else
+#define RUNTIME_LOG_CAPPED(x) RUNTIME_LOG(x)
 #endif
 
 #if AGRESSIVE_LOGS

@@ -1099,6 +1099,14 @@ void GS::processGIFStreamUnlocked(const uint8_t *data, uint32_t sizeBytes, GifPa
                 // Do not expose partial CT24 pixels when DMA splits a GIF IMAGE.
                 processImageData(stream.image.data(), static_cast<uint32_t>(stream.image.size()));
                 stream.image.clear();
+#if defined(PLATFORM_XBOX)
+                // Xbox: a large gathered image gives its memory back (each
+                // of the three paths kept the largest split image of the
+                // session); the VIF1 interpreter's block buffer keeps 64 KB
+                // by the same rule.
+                if (stream.image.capacity() > 64u * 1024u)
+                    std::vector<uint8_t>().swap(stream.image);
+#endif
             }
             continue;
         }

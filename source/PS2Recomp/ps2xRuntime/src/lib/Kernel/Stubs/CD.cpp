@@ -304,6 +304,22 @@ namespace ps2_stubs
                 }
 
                 static uint32_t unresolvedLogCount = 0;
+#if defined(PLATFORM_XBOX)
+                // A sector the disc has whose read failed (the console's
+                // disc reader, src/xbox/xbox_disc.cpp, logged why) is not an
+                // unknown request; and a read the game keeps retrying stays
+                // in the log (every 1,000th after the first 32).
+                if (unresolvedLogCount < 32 || unresolvedLogCount % 1000u == 0u)
+                {
+                    std::cerr << (isResolvableCdLbn(a0) ? "[sceCdRead] read failed" : "[sceCdRead] unresolved request")
+                              << " (" << unresolvedLogCount + 1u << ") pc=0x" << std::hex << ctx->pc
+                              << " ra=0x" << getRegU32(ctx, 31)
+                              << " a0=0x" << a0
+                              << " a1=0x" << a1
+                              << " a2=0x" << a2 << std::dec << std::endl;
+                }
+                ++unresolvedLogCount;
+#else
                 if (unresolvedLogCount < 32)
                 {
                     std::cerr << "[sceCdRead] unresolved request pc=0x" << std::hex << ctx->pc
@@ -313,6 +329,7 @@ namespace ps2_stubs
                               << " a2=0x" << a2 << std::dec << std::endl;
                     ++unresolvedLogCount;
                 }
+#endif
             }
         }
 

@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <threads.h>
@@ -120,4 +121,52 @@ extern "C" size_t fread(void *__restrict ptr, size_t size, size_t nmemb, struct 
     }
     mtx_unlock(&stream->mtx);
     return done / size;
+}
+
+// fclose, replacing nxdk's: that one never destroys the stream's lock, a
+// kernel mutant fopen creates (mtx_init -> NtCreateMutant), so every
+// fopen/fclose pair left a mutant and its handle behind: 64 bytes of kernel
+// pool and a handle-table slot each. Every disc read opened the disc image
+// afresh (std::ifstream, readHostRange in the runtime's CD stubs; now kept
+// open, xbox_disc.cpp), 13 reads a second in the title's attract demo, and
+// after 74 minutes 60,000 mutants held 4 MB of the 64 MB console: no memory
+// left to open the next file, and the game sat on its loading screen. Every
+// other fopen/fclose (std::ifstream and std::ofstream included: libc++'s
+// filebuf closes with fclose) goes through here too: the VFS, the IOP's
+// host files, the memory card, the music. The same steps as nxdk's fclose
+// (pdclib functions/stdio/fclose.c), then mtx_destroy as fopen's own error
+// path does. stdin/stdout/stderr (_PDCLIB_STATIC) keep theirs: the C
+// library's exit destroys those.
+extern "C" int _PDCLIB_getstream(struct _PDCLIB_file_t *stream);
+extern "C" int _PDCLIB_close(_PDCLIB_fd_t fd);
+
+extern "C" int fclose(struct _PDCLIB_file_t *stream)
+{
+    mtx_lock(&stream->mtx);
+    // Off the list of open files.
+    if (_PDCLIB_getstream(stream))
+    {
+        mtx_unlock(&stream->mtx);
+        return EOF;
+    }
+    if ((stream->status & _PDCLIB_FWRITE) && _PDCLIB_flushbuffer(stream) == EOF)
+    {
+        // As nxdk's: the stream stays allocated (but off the list).
+        mtx_unlock(&stream->mtx);
+        return EOF;
+    }
+    _PDCLIB_close(stream->handle);
+    if (stream->status & _PDCLIB_DELONCLOSE)
+        remove(stream->filename);
+    if (stream->status & _PDCLIB_FREEBUFFER)
+        free(stream->buffer);
+    if (stream->status & _PDCLIB_FREENAME)
+        free(stream->filename);
+    mtx_unlock(&stream->mtx);
+    if (!(stream->status & _PDCLIB_STATIC))
+    {
+        mtx_destroy(&stream->mtx);
+        free(stream);
+    }
+    return 0;
 }

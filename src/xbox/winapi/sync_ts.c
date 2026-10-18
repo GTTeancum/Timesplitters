@@ -536,9 +536,18 @@ VOID WakeAllConditionVariable (PCONDITION_VARIABLE ConditionVariable)
 
 VOID UninitializeConditionVariable (PCONDITION_VARIABLE ConditionVariable)
 {
+    //TS: libc++ destroys every std::condition_variable through here
+    //    (src/xbox/compat/xbox_prelude.h), never-used ones too: those have no
+    //    events yet (their handles are still 0 from libc++'s static
+    //    initializer), so only the events of one that was initialized close.
+    if (((ULONG_PTR)ConditionVariable->initOnce.Ptr & INITONCE_MASK) == INITONCE_DONE) {
+        for (int i = 0; i < 2; ++i) {
+            HANDLE handle = ConditionVariable->eventHandles[i];
+            if (handle != NULL && handle != INVALID_HANDLE_VALUE)
+                NtClose(handle);
+        }
+    }
     ConditionVariable->initOnce.Ptr = (PVOID)INITONCE_DONE;
-    NtClose(ConditionVariable->eventHandles[0]);
-    NtClose(ConditionVariable->eventHandles[1]);
     ConditionVariable->eventHandles[0] = INVALID_HANDLE_VALUE;
     ConditionVariable->eventHandles[1] = INVALID_HANDLE_VALUE;
 }

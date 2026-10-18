@@ -1542,10 +1542,31 @@ uint64_t GSCpuBackend::ClutContentHash()
     return m_clutHash;
 }
 
+#if defined(PLATFORM_XBOX)
+namespace
+{
+    // Xbox: a decoded texture dropped from the cache gives its memory back.
+    // The budget counts only valid entries, and a dropped slot kept its
+    // texels' capacity: up to 128 slots of up to 256 KB, far past the 4 MB
+    // the budget means, on a 64 MB console.
+    template <typename Entry>
+    void releaseDecodedTexels(Entry &entry)
+    {
+        std::vector<uint32_t>().swap(entry.texels);
+    }
+}
+#define TS_RELEASE_DECODED(entry) releaseDecodedTexels(entry)
+#else
+#define TS_RELEASE_DECODED(entry) ((void)0)
+#endif
+
 void GSCpuBackend::InvalidateAllDecoded()
 {
     for (DecodedTexture &entry : m_decoded)
+    {
         entry.valid = false;
+        TS_RELEASE_DECODED(entry);
+    }
     m_decodedTexels = 0;
 }
 
@@ -1559,6 +1580,7 @@ void GSCpuBackend::InvalidateDecoded(uint64_t begin, uint64_t end)
         {
             entry.valid = false;
             m_decodedTexels -= entry.texels.size();
+            TS_RELEASE_DECODED(entry);
         }
 }
 
@@ -1628,6 +1650,7 @@ const uint32_t *GSCpuBackend::FindOrDecodeTexture(const GSDrawState &state)
         {
             oldest->valid = false;
             m_decodedTexels -= oldest->texels.size();
+            TS_RELEASE_DECODED(*oldest);
         }
         return oldest;
     };
@@ -2310,10 +2333,23 @@ void GSCpuBackend::PerformLocalToLocalTransfer()
     m_transferState.direction = 3u;
 }
 
+#if defined(PLATFORM_XBOX)
+namespace
+{
+    // Xbox: the local-to-host buffer keeps at most 64 KB between transfers
+    // (it kept the capacity of the largest read-back of the session).
+    constexpr size_t kLocalToHostKeep = 64u * 1024u;
+}
+#endif
+
 void GSCpuBackend::PerformLocalToHostTransfer()
 {
     m_localToHostBuffer.clear();
     m_localToHostReadPos = 0u;
+#if defined(PLATFORM_XBOX)
+    if (m_localToHostBuffer.capacity() > kLocalToHostKeep)
+        std::vector<uint8_t>().swap(m_localToHostBuffer);
+#endif
     if (!m_vram)
         return;
 
@@ -2413,6 +2449,14 @@ uint32_t GSCpuBackend::ConsumeLocalToHostBytes(uint8_t *dst, uint32_t maxBytes)
     std::memcpy(dst, m_localToHostBuffer.data() + m_localToHostReadPos, count);
     m_localToHostReadPos += count;
     m_transferState.localToHostPendingBytes = m_localToHostBuffer.size() - m_localToHostReadPos;
+#if defined(PLATFORM_XBOX)
+    // All read: a large buffer goes (nothing pending either way).
+    if (m_localToHostReadPos >= m_localToHostBuffer.size() && m_localToHostBuffer.capacity() > kLocalToHostKeep)
+    {
+        std::vector<uint8_t>().swap(m_localToHostBuffer);
+        m_localToHostReadPos = 0u;
+    }
+#endif
     return static_cast<uint32_t>(count);
 }
 

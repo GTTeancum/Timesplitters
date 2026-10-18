@@ -13,6 +13,7 @@
 // is drawn when it has the texture, else the decode is encoded here.
 #include "runtime/gs/gs_cpu_backend.h"
 
+#include <atomic>
 #include <iosfwd>
 #include <memory>
 
@@ -67,9 +68,9 @@ struct GSNv2aTextureStats
     uint32_t packHits = 0, packMisses = 0, packWaits = 0, packNoRoom = 0, packBusy = 0;
     uint32_t packLoads = 0, packEvictions = 0, packMostVictims = 0, packLoadMs = 0, packLongestMs = 0;
     uint32_t packPoolBytes = 0;
-    // The runtime path's texture budget now: 1024 KB, or 512 KB while the
-    // pack carries the world textures.
-    uint32_t textureBudgetKB = 1024;
+    // The runtime path's texture budget now, in whole pages of GPU memory:
+    // 1536 KB, or 768 KB while the pack carries the world textures.
+    uint32_t textureBudgetKB = 1536;
     // Native draw runs (project/game/vu1_native_ts.cpp): render-state blocks
     // repeated (nothing to apply), found in the material table, decoded
     // afresh; transform-constant rebuilds; texture lookups answered by the
@@ -95,8 +96,17 @@ struct GSNv2aTextureStats
     // before an in-place draw (Case C), writer barriers that had to wait for
     // the GPU.
     uint32_t inPlaceStrips = 0, inPlaceVertices = 0, inPlaceBreaks = 0, inPlaceFlushes = 0, inPlaceBarrierWaits = 0;
+    // Texture records dropped by the record limit (trimRecords), and GPU
+    // allocations that failed and were tried again after dropping what the
+    // last two frames did not draw (both cumulative).
+    uint32_t recordTrims = 0, allocRetries = 0;
 };
 extern GSNv2aTextureStats g_nv2aTextureStats;
+
+// Requests to give memory back (xboxReleaseMemory, xbox_memory.cpp: a disc
+// read failed): the renderer drops its runtime-path textures at its next
+// frame's start.
+extern std::atomic<uint32_t> g_nv2aReleaseRequests;
 
 // Texture, CLUT and constant lookups (cumulative), for the [TS:tex] log line.
 struct GSNv2aLookupStats

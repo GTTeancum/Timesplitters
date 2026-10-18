@@ -2108,9 +2108,16 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     };
 #endif
 #endif
+                    // Xbox: sized ahead by at most 64 KB, not by the largest
+                    // chain of the session (over a megabyte): after one such
+                    // chain every kick, however small, asked for that much
+                    // in one block, at load time when memory is lowest.
+                    // Bigger chains grow by a quarter (appendData).
                     if (!recordSegments)
-#endif
+                        chainBuf.reserve(std::min<size_t>(s_lastChainBytes, 64u * 1024u) + 4096u);
+#else
                     chainBuf.reserve(s_lastChainBytes + 4096u);
+#endif
 
                     auto appendData = [&](uint32_t srcAddr, uint32_t qwCount)
                     {
@@ -3131,8 +3138,30 @@ void PS2Memory::processPendingTransfers()
         {
             m_seenGifCopy = true;
             m_gifCopyCount.fetch_add(1, std::memory_order_relaxed);
+#if defined(PLATFORM_XBOX)
+            // Xbox: the chain's buffer is handed on as it is (moved), not
+            // copied a second time: the arbiter, or the masked PATH3 queue,
+            // owns it and frees it when it drains. The same steps as
+            // submitGifPacket(Path3, ..., drainImmediately false).
+            if (p.chainData.size() < 16u)
+                recycleChainBuffer(p.chainData);
+            else if (m_path3Masked)
+                m_path3MaskedFifo.push_back(std::move(p.chainData));
+            else
+            {
+                flushMaskedPath3Packets(false);
+                if (onVif1Worker())
+                    gsStageWaitEmpty();
+                if (m_gifArbiter)
+                    m_gifArbiter->submitOwned(GifPathId::Path3, std::move(p.chainData));
+                else if (m_gifPacketCallback)
+                    m_gifPacketCallback(p.chainData.data(), static_cast<uint32_t>(p.chainData.size()));
+                recycleChainBuffer(p.chainData);
+            }
+#else
             submitGifPacket(GifPathId::Path3, p.chainData.data(), static_cast<uint32_t>(p.chainData.size()), false);
             recycleChainBuffer(p.chainData);
+#endif
         }
         else if (p.qwc > 0)
         {

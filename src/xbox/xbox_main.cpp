@@ -96,7 +96,8 @@ namespace
         MM_STATISTICS stats{};
         stats.Length = sizeof(stats);
         MmQueryStatistics(&stats);
-        out << "t=" << int(now) << "s free=" << stats.AvailablePages * 4u << "K vsync=" << g_rt->eeScheduler().currentVSyncTick()
+        out << "t=" << int(now) << "s free=" << stats.AvailablePages * 4u << "K pool=" << stats.PoolPagesCommitted * 4u
+            << "K vsync=" << g_rt->eeScheduler().currentVSyncTick()
                   << " ee=" << snap.eeCycle / 1000000u << "M rd=" << ps2x::ioStats().bytes.load() / 1024u << "KB cp=" << ps2x::copyStats().reads.load() << "/"
                   << ps2x::copyStats().bytes.load() / 1024u << "KB"; // guest memcpy is not timed on the Xbox
         const ps2x::SchedulerWaitProbe &wait = ps2x::schedulerWaitProbe();
@@ -184,9 +185,18 @@ namespace
 #if !TS_PERF
         // One short timing line in the log file too: on real hardware there is
         // no debugger reading the status block, the log is copied off the disk.
+        // Free memory and what usually moves it: the kernel's pool (file
+        // and other kernel objects), the heap and other virtual memory, and
+        // the renderer's texture cache (records / KB of GPU pages; records
+        // dropped by its record limit, GPU allocations retried after giving
+        // memory back). Flat over hours.
         std::cout << "[TS:perf] t=" << int(now) << " vsync=" << g_rt->eeScheduler().currentVSyncTick()
                   << " game=" << g_nv2aTextureStats.gameFrames << " idle=" << wait.waitedMicroseconds.load() / 1000
-                  << "ms reads=" << g_rt->padBackend().scriptReadCount() << std::endl;
+                  << "ms reads=" << g_rt->padBackend().scriptReadCount() << " free=" << stats.AvailablePages * 4u
+                  << "K pool=" << stats.PoolPagesCommitted * 4u << "K vm=" << stats.VirtualMemoryBytesCommitted / 1024u
+                  << "K tex=" << g_nv2aTextureStats.resident << "/" << g_nv2aTextureStats.residentBytes / 1024u << "K"
+                  << " trim=" << g_nv2aTextureStats.recordTrims << " retry=" << g_nv2aTextureStats.allocRetries
+                  << std::endl;
 #else
         // A few short timing lines in the log file too ([TS:perf] and the
         // rest, xbox_perf.cpp): on real hardware there is no debugger

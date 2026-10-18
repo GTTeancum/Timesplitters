@@ -787,6 +787,7 @@ int EeScheduler::deleteThread(int id, uint32_t &ownedStack)
     {
         ownedStack = it->second.stack;
     }
+    releaseInvocationStacks(id);
     m_threads.erase(it);
     publishSnapshot();
     return KE_OK;
@@ -835,6 +836,7 @@ int EeScheduler::startThread(int id, uint32_t arg, const R5900Context &caller, b
     m_currentThreadId = 0;
     if (deleteThreadRecord && id != kMainThreadId)
     {
+        releaseInvocationStacks(id);
         m_threads.erase(id);
     }
     if (ownedStack != 0u)
@@ -864,8 +866,11 @@ int EeScheduler::terminateThread(int id, uint32_t &ownedStack, bool interruptSaf
     }
     if (target->ownsStack)
     {
+        // The stack is freed by the caller: a later StartThread allocates
+        // a new one rather than running on freed guest heap.
         ownedStack = target->stack;
         target->ownsStack = false;
+        target->stack = 0u;
     }
     makeDormant(*target);
     (void)interruptSafe;
@@ -1509,13 +1514,45 @@ uint32_t EeScheduler::invocationStackTop()
         return existing->second;
     }
     constexpr uint32_t kInvocationStackSize = 0x4000u;
-    const uint32_t top = m_runtime.reserveAsyncCallbackStack(kInvocationStackSize, 16u);
+    uint32_t top = 0u;
+    if (!m_freeInvocationStacks.empty())
+    {
+        top = m_freeInvocationStacks.back();
+        m_freeInvocationStacks.pop_back();
+    }
+    else
+    {
+        top = m_runtime.reserveAsyncCallbackStack(kInvocationStackSize, 16u);
+    }
     if (top == 0u)
     {
         PS2X_THROW(std::runtime_error("EE invocation stack space exhausted"));
     }
     m_invocationStackTops.emplace(key, top);
     return top;
+}
+
+// A deleted thread's invocation stacks go back for reuse. The callback arena
+// they come from (512 KB, 32 stacks) is never given back, and thread ids go
+// round 2..255 as threads are created and deleted, so a game that kept
+// making short-lived threads which took an interrupt or callback stopped
+// with "EE invocation stack space exhausted" after 32 of them. Nothing runs
+// on the stacks once the thread record is gone (its pending invocations go
+// with it).
+void EeScheduler::releaseInvocationStacks(int threadId)
+{
+    for (auto it = m_invocationStackTops.begin(); it != m_invocationStackTops.end();)
+    {
+        if (static_cast<uint32_t>(it->first >> 32u) == static_cast<uint32_t>(threadId))
+        {
+            m_freeInvocationStacks.push_back(it->second);
+            it = m_invocationStackTops.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }
 
 int EeScheduler::addIrqHandler(bool dmac,
@@ -2167,6 +2204,32 @@ void EeScheduler::processPendingEvents()
             dispatchIrq(false, 9u + timer);
         }
     }
+#if defined(PLATFORM_XBOX)
+    // The events queued so far, taken off the queue one at a time. Swapping
+    // the queue out (below) left it with no block, so the next event
+    // allocated a new 4 KB one and the swapped-out queue freed the old: an
+    // allocation and a free per batch of events (every vblank at least), on
+    // a console where any failed allocation stops the game. The queue now
+    // keeps its block. Events posted while these run wait for the next
+    // round, as before.
+    size_t eventCount = 0;
+    {
+        std::lock_guard lock(m_eventMutex);
+        eventCount = m_events.size();
+    }
+    for (; eventCount != 0u; --eventCount)
+    {
+        EeEvent event;
+        {
+            std::lock_guard lock(m_eventMutex);
+            if (m_events.empty())
+                break;
+            event = m_events.front();
+            m_events.pop_front();
+        }
+        processEvent(event);
+    }
+#else
     std::deque<EeEvent> pending;
     {
         std::lock_guard lock(m_eventMutex);
@@ -2176,6 +2239,7 @@ void EeScheduler::processPendingEvents()
     {
         processEvent(event);
     }
+#endif
 
     {
         std::lock_guard lock(m_eventMutex);

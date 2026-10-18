@@ -140,7 +140,28 @@ namespace
     constexpr uint32_t kScreenWidth = 640u, kScreenHeight = 480u;
     constexpr uint32_t kDisplayRows = 448u; // the game's displayed frame height
     constexpr uint32_t kMaxVertices = 8192u;             // per batch run (288 KB)
-    constexpr size_t kTextureBudget = 1024u * 1024u;     // decoded textures kept on the GPU
+    // The runtime path's texture cache (textures decoded at run time and kept on
+    // the GPU; least recently drawn out first, gs_nv2a_state.inl) is counted in
+    // the memory its textures really take. GPU memory comes from
+    // MmAllocateContiguousMemoryEx in whole 4 KB pages, so a 32 x 32 DXT1
+    // texture (512 bytes of texels) costs a page; the budget used to count
+    // texels only, and so did not bound the memory. 1.5 MB of pages holds
+    // roughly what the old 1 MB of texels held, rounding included. With the pack
+    // pool (1.25 MB, fixed) and the dropped and one-frame textures waiting for
+    // the GPU (kRetiredLimit, 768 KB of pages) the renderer's textures take at
+    // most about 3.5 MB of the 64 MB console, where about 5 MB is free once a
+    // level has loaded. A level's world textures are the pack's (one match:
+    // about 1.14 MB); the runtime path draws under 256 KB of texels a frame
+    // while the pack carries the world (kPackTrialBytes), so even the lower
+    // budget below is about three frames of it: no thrash.
+    constexpr size_t kGpuPageBytes = 4096u;
+    constexpr size_t kTextureBudget = 1536u * 1024u;
+    // Records in the cache (pack copies included; they cost the byte budget
+    // nothing): past kRecordLimit, the least recently drawn of those the
+    // last two frames did not draw go, down to kRecordTrimTo (trimRecords).
+    // Below the texture index's own limit (kIndexFull, 768), so lookups stay
+    // on the index.
+    constexpr size_t kRecordLimit = 512u, kRecordTrimTo = 448u;
     // pbkit's push buffer (pb_size; pb_init allocates 8 KB more). A heavy
     // match frame writes about 280 KB: it fits whole, so the GPU is not
     // drained mid-frame to restart the buffer (openCursor).
@@ -165,8 +186,10 @@ namespace
     // (a pack whose keys do not match, or a full pool, leaves the world on
     // the runtime path, which the lower budget would turn into one-frame
     // textures and GPU waits). One frame over three quarters of it restores
-    // the full budget at once.
-    constexpr size_t kTextureBudgetWithPack = 512u * 1024u;
+    // the full budget at once. The trial counts a frame's texels
+    // (kPackTrialBytes, as before); the budget counts pages (kTextureBudget).
+    constexpr size_t kTextureBudgetWithPack = 768u * 1024u;
+    constexpr size_t kPackTrialBytes = 512u * 1024u;
     constexpr uint32_t kPackTrialFrames = 300u;
     // A pack texture that found no room in the pool is drawn through the
     // runtime path; it tries the pool again after this many frames (by then
@@ -519,6 +542,7 @@ extern "C" volatile uint32_t g_tsScanoutGuardHits = 0;     // frames whose targe
 extern "C" volatile uint32_t g_tsScanoutGuardWaitMs = 0;   // time those frames waited for it to leave
 extern "C" volatile uint32_t g_tsScanoutGuardTimeouts = 0; // waits given up (drew into the screen)
 GSNv2aTextureStats g_nv2aTextureStats{};
+std::atomic<uint32_t> g_nv2aReleaseRequests{0};
 namespace
 {
     GSNv2aLookupStats s_lookupStats{};
@@ -821,6 +845,7 @@ struct GSNv2aBackend::Impl
             waitCycles += cycles() - start;
             g_nv2aTextureStats.kcycWait = uint32_t(waitCycles / 1000u);
         }
+        trimRecords();
         freeRetired();
 #if TS_NV2A_MP_TEXTURE_BUDGET
         if (splitScreen && textureBytes > effectiveBudget())
@@ -828,6 +853,33 @@ struct GSNv2aBackend::Impl
 #endif
     }
 
+
+    // A request to give memory back (g_nv2aReleaseRequests, from
+    // xboxReleaseMemory): every texture of the runtime path goes, freed at
+    // once with the GPU idle (here at a frame's start, before anything of it
+    // is pushed); what the game draws next is decoded again. Pack records
+    // stay: the pool is the pack's.
+    uint32_t releaseSeen = 0;
+    void releaseIfAsked()
+    {
+        const uint32_t requests = g_nv2aReleaseRequests.load(std::memory_order_relaxed);
+        if (requests == releaseSeen)
+            return;
+        releaseSeen = requests;
+        const size_t before = textureBytes;
+        while (pb_busy())
+        {
+        }
+        for (auto it = textures.begin(); it != textures.end();)
+        {
+            const auto next = std::next(it);
+            if (!it->pooled)
+                retireTexture(it);
+            it = next;
+        }
+        freeRetired();
+        std::cout << "[TS:mem] low memory: texture cache emptied (" << before / 1024u << " KB)" << std::endl;
+    }
 
     // pb_finished hands out the next of the three buffers without checking
     // the screen: with frames queued, or one shown late, that can be the
@@ -884,6 +936,7 @@ struct GSNv2aBackend::Impl
 #endif
         gpuRows = 0;
         settleFrame();
+        releaseIfAsked();
 #if TS_DIAG
         diagFlipWait();
 #endif

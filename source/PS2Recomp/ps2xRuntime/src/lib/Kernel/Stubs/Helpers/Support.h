@@ -3,6 +3,18 @@
 #include "runtime/ps2_io_stats.h"
 #include <cctype>
 
+#if defined(PLATFORM_XBOX)
+namespace ps2x
+{
+    // The Xbox platform layer (src/xbox/xbox_disc.cpp): byteCount bytes of
+    // host file `path` from offsetBytes into dst (zeros past its end),
+    // through a handle kept open, so a read allocates nothing. False: the
+    // read failed after a second try (logged there, never silently; dst
+    // zeroed).
+    bool xboxReadHostFile(const char *path, uint64_t offsetBytes, uint8_t *dst, size_t byteCount);
+}
+#endif
+
 namespace
 {
     constexpr uint32_t kCdSectorSize = 2048;
@@ -185,7 +197,12 @@ namespace
 
     bool tryGetCdImageTotalSectors(uint64_t &totalSectorsOut)
     {
+#if defined(PLATFORM_XBOX)
+        // Every sector read asks: the configured path itself, not a copy.
+        const std::filesystem::path &imagePath = PS2Runtime::getIoPaths().cdImage;
+#else
         const std::filesystem::path imagePath = getCdImagePath();
+#endif
         if (imagePath.empty())
         {
             return false;
@@ -415,6 +432,20 @@ namespace
         }
 
         ps2x::IoReadTimer timer(byteCount);
+#if defined(PLATFORM_XBOX)
+        // Every sector the game reads came through a std::ifstream opened
+        // for it: per read, about 5 KB of heap and a kernel file object
+        // allocated and freed, and (with nxdk's fclose) a kernel lock left
+        // behind, which ran the console out of memory after 74 minutes.
+        // The Xbox keeps the file open instead (xbox_disc.cpp).
+        if (!ps2x::xboxReadHostFile(path.c_str(), offsetBytes, dst, byteCount))
+        {
+            g_lastCdError = -1;
+            return false;
+        }
+        g_lastCdError = 0;
+        return true;
+#else
         std::memset(dst, 0, byteCount);
         std::ifstream file(path, std::ios::binary);
         if (!file.is_open())
@@ -433,6 +464,7 @@ namespace
         file.read(reinterpret_cast<char *>(dst), static_cast<std::streamsize>(byteCount));
         g_lastCdError = 0;
         return true;
+#endif
     }
 
     bool readCdSectors(uint32_t lbn, uint32_t sectors, uint8_t *dst, size_t byteCount)
@@ -450,7 +482,11 @@ namespace
             return readHostRange(entry.hostPath, offset, dst, byteCount);
         }
 
+#if defined(PLATFORM_XBOX)
+        const std::filesystem::path &cdImage = PS2Runtime::getIoPaths().cdImage;
+#else
         const std::filesystem::path cdImage = getCdImagePath();
+#endif
         if (!cdImage.empty())
         {
             uint64_t totalSectors = 0;

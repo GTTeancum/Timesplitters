@@ -3,6 +3,21 @@
 #pragma once
 
 #ifdef __cplusplus
+// std::condition_variable gives its kernel objects back when destroyed.
+// nxdk's condition variables create two kernel events on first use
+// (winapi/sync_ts.c), freed by UninitializeConditionVariable, which the
+// library's ~condition_variable calls (libc++ src/condition_variable_
+// destructor.cpp, thread_win32.cpp under NXDK). But libc++'s config makes
+// the destructor trivial for the Win32 thread API (__config,
+// _LIBCPP_HAS_TRIVIAL_CONDVAR_DESTRUCTION: "a nop on Windows"), so it was
+// never called and each destroyed condition variable left its two events
+// and handles behind. Every one in the game today lives for the whole
+// session; this keeps a future short-lived one from leaking. Undone before
+// any libc++ header declares the class: the out-of-line destructor is in
+// libc++.lib. (std::promise / std::future destroy their shared state inside
+// libc++.lib, built the old way: still not to be made per use.)
+#include <__config>
+#undef _LIBCPP_HAS_TRIVIAL_CONDVAR_DESTRUCTION
 #include <bit>
 #include <cstring>
 #include <ostream>

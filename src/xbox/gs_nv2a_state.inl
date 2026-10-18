@@ -49,6 +49,13 @@
         uint32_t packRetryFrame = 0;
         uint32_t indexTag = 0;    // its key's hash (textureIndex)
     };
+    // The contiguous memory a texture's texels take: whole pages (what
+    // MmAllocateContiguousMemoryEx gives); a pack copy takes none of its own.
+    // What the cache budget and the retired limit count.
+    static size_t gpuBytes(const Texture &t)
+    {
+        return t.pooled ? 0u : (t.bytes + kGpuPageBytes - 1u) & ~(kGpuPageBytes - 1u);
+    }
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
 #if TS_NV2A_MISS_KEYS_FIXED
     // Address/size keys of this and last frame's misses (statistics:
@@ -353,8 +360,9 @@
             textures.erase(it);
             return;
         }
-        textureBytes -= it->bytes;
-        retiredBytes += it->bytes;
+        const size_t bytes = gpuBytes(*it);
+        textureBytes -= bytes;
+        retiredBytes += bytes;
         retired.splice(retired.end(), textures, it);
         if (retiredBytes > retiredLimit())
         {
@@ -379,6 +387,53 @@
         stateValid = false; // a bound one-frame texture's address may be reused
         g_nv2aTextureStats.residentBytes = uint32_t(textureBytes);
         g_nv2aTextureStats.resident = uint32_t(textures.size());
+    }
+
+    // The records stay under kRecordLimit. The byte budget bounds the
+    // runtime path's memory, but a pack copy costs it nothing, and its
+    // record (and index slot) stayed until the pack happened to evict the
+    // entry, so records of keys the game no longer draws (an earlier level's
+    // addresses and palettes) could stay for good (the cache held 400
+    // records after 74 minutes of the title's attract demo), towards the
+    // index's limit, past which every lookup walks the whole list. Over the
+    // limit, the least recently drawn of the records the last two frames
+    // did not draw go, down to kRecordTrimTo; a key drawn again later is
+    // looked up afresh (decoded, and a pack copy found by its key again).
+    // At a frame's start with the last frame done on the GPU (settleFrame):
+    // the runtime path's memory among them is freed right after
+    // (freeRetired). Sorting relinks the list's nodes: the index's
+    // iterators and every pointer to a record stay valid.
+    void trimRecords()
+    {
+        if (textures.size() <= kRecordLimit)
+            return;
+        textures.sort([](const Texture &a, const Texture &b) { return a.lastUse < b.lastUse; });
+        for (auto it = textures.begin(); it != textures.end() && textures.size() > kRecordTrimTo;)
+        {
+            const auto next = std::next(it);
+            if (it->lastFrame + 1u < frameNumber)
+            {
+                retireTexture(it);
+                ++g_nv2aTextureStats.recordTrims;
+            }
+            it = next;
+        }
+    }
+
+    // Out of contiguous memory: every runtime-path texture the last two
+    // frames did not draw goes, and with the GPU idle the dropped and
+    // one-frame textures are freed at once (as past kRetiredLimit).
+    void releaseIdleTextures()
+    {
+        for (auto it = textures.begin(); it != textures.end();)
+        {
+            const auto next = std::next(it);
+            if (!it->pooled && it->lastFrame + 1u < frameNumber)
+                retireTexture(it);
+            it = next;
+        }
+        waitIdle();
+        freeRetired();
     }
 
     // Recent lookups by TEX0: the texture an address, format, TEXA and CLUT
@@ -826,7 +881,8 @@
         // and the newcomer lives in a one-frame slot (the retired list).
         // Pack textures cost the cache nothing and stay.
         bool cached = true;
-        while (textureBytes + t.bytes > effectiveBudget())
+        const size_t bytes = gpuBytes(t);
+        while (textureBytes + bytes > effectiveBudget())
         {
             auto oldest = textures.end();
             for (auto it = textures.begin(); it != textures.end(); ++it)
@@ -839,7 +895,7 @@
             }
             retireTexture(oldest);
         }
-        if (!cached && retiredBytes + t.bytes > retiredLimit())
+        if (!cached && retiredBytes + bytes > retiredLimit())
         {
             ++g_nv2aTextureStats.waitRetire;
             waitIdle();
@@ -847,7 +903,15 @@
         }
         t.texels = allocGpu(t.bytes);
         if (!t.texels)
-            return nullptr;
+        {
+            // No contiguous memory left: give back what the cache can and
+            // try once more (else the draw goes untextured, as before).
+            ++g_nv2aTextureStats.allocRetries;
+            releaseIdleTextures();
+            t.texels = allocGpu(t.bytes);
+            if (!t.texels)
+                return nullptr;
+        }
 #if TS_DIAG
         if (streamed)
             writeTexels(t, state, plan);
@@ -866,13 +930,13 @@
         g_nv2aTextureStats.fillBytes += uint32_t(t.bytes);
         if (cached)
         {
-            textureBytes += t.bytes;
+            textureBytes += bytes;
             Texture &added = addTexture(t);
             noteUse(added);
             return &added;
         }
         retired.push_back(t);
-        retiredBytes += t.bytes;
+        retiredBytes += bytes;
         noteUse(retired.back());
         return &retired.back();
     }
@@ -925,15 +989,16 @@
 
     // Once a frame: the loader's finished reads, the counters, and the
     // runtime path's budget (kTextureBudgetWithPack). frameTextureBytes is
-    // what the runtime path drew this frame (pack textures count nothing).
+    // what the runtime path drew this frame in texels (pack textures count
+    // nothing), against the trial's own measure (kPackTrialBytes).
     void packFrameEnd()
     {
         if (!pack.enabled())
             return;
         pack.poll();
         updatePackStats();
-        packQuietFrames = frameTextureBytes > kTextureBudgetWithPack / 2u ? 0u : std::min(packQuietFrames + 1u, kPackTrialFrames);
-        if (frameTextureBytes > kTextureBudgetWithPack * 3u / 4u)
+        packQuietFrames = frameTextureBytes > kPackTrialBytes / 2u ? 0u : std::min(packQuietFrames + 1u, kPackTrialFrames);
+        if (frameTextureBytes > kPackTrialBytes * 3u / 4u)
             textureBudget = kTextureBudget;
         else if (packQuietFrames >= kPackTrialFrames)
             textureBudget = kTextureBudgetWithPack;

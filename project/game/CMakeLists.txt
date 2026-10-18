@@ -13,7 +13,10 @@ if(MSVC)
 else()
     target_compile_options(ts_vu_generated PRIVATE -O2 -mavx2)
 endif()
-add_executable(timesplitters ${TS_GENERATED} $<TARGET_OBJECTS:ts_vu_generated> main.cpp ts_overrides.cpp)
+add_executable(timesplitters ${TS_GENERATED} $<TARGET_OBJECTS:ts_vu_generated> main.cpp ts_overrides.cpp disc_setup.cpp)
+# First-run disc unpacking (disc_setup.h) includes <windows.h>: kept out of
+# the precompiled runtime headers (raylib) and of unity batches.
+set_source_files_properties(disc_setup.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON SKIP_UNITY_BUILD_INCLUSION ON)
 target_link_libraries(timesplitters PRIVATE ps2_runtime)
 
 option(PS2X_VU_GAME_REFERENCE "Link reference VU objects for local game comparisons" OFF)

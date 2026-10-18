@@ -195,6 +195,7 @@ namespace
         return PS2Runtime::getIoPaths().cdImage;
     }
 
+#if defined(PLATFORM_XBOX)
     bool tryGetCdImageTotalSectors(uint64_t &totalSectorsOut)
     {
 #if defined(PLATFORM_XBOX)
@@ -223,6 +224,7 @@ namespace
         totalSectorsOut = g_cdImageSizeBytes / static_cast<uint64_t>(kCdSectorSize);
         return true;
     }
+#endif
 
     uint32_t sectorsForBytes(uint64_t byteCount)
     {
@@ -341,6 +343,387 @@ namespace
         }
     }
 
+#if !defined(PLATFORM_XBOX)
+    // ---- The disc, laid out from the loose game folder (no disc image) ----
+    // TimeSplitters finds its files itself: it reads 11 sectors from LBN 16
+    // (the volume descriptor and the directories after it, kept in RAM by
+    // GetRootDirDetails) and then reads each file at the LBN its directory
+    // record names. So the game folder is presented as an ISO 9660 volume:
+    // system area (zeros), volume descriptors, path tables, the directories
+    // (inside those 11 sectors), then each file's data, in that order. It
+    // is built from the folder as it is when the game first reads the disc,
+    // so files may be replaced or change size (mods).
+    constexpr uint32_t kLooseDiscPvdLbn = 16;
+    constexpr uint32_t kLooseDiscCachedEnd = 27; // the game keeps LBN 16..26
+
+    struct LooseDiscExtent
+    {
+        uint32_t lbn = 0;
+        uint32_t sectors = 0;
+        std::filesystem::path hostPath; // a file's data; empty for metadata
+        std::vector<uint8_t> bytes;     // metadata: sectors * 2048 bytes
+    };
+
+    struct LooseDisc
+    {
+        std::filesystem::path root;
+        bool built = false;
+        uint32_t volumeSectors = 0;
+        std::vector<LooseDiscExtent> extents; // ascending, non-overlapping
+        std::unordered_map<std::string, size_t> fileByHostKey;
+    };
+    LooseDisc g_looseDisc;
+
+    struct LooseDiscNode
+    {
+        std::filesystem::path hostPath;
+        std::string identifier;
+        bool directory = false;
+        size_t parent = 0;
+        uint32_t lbn = 0;
+        uint32_t size = 0;
+        uint32_t sectors = 0;
+        uint16_t number = 0; // path table number (directories)
+        std::vector<size_t> children;
+    };
+
+    std::string looseDiscHostKey(const std::filesystem::path &path)
+    {
+        return toLowerAscii(path.lexically_normal().generic_string());
+    }
+
+    void looseDiscPutLe16(uint8_t *p, uint16_t v)
+    {
+        p[0] = static_cast<uint8_t>(v);
+        p[1] = static_cast<uint8_t>(v >> 8);
+    }
+    void looseDiscPutBe16(uint8_t *p, uint16_t v)
+    {
+        p[0] = static_cast<uint8_t>(v >> 8);
+        p[1] = static_cast<uint8_t>(v);
+    }
+    void looseDiscPutLe32(uint8_t *p, uint32_t v)
+    {
+        for (int i = 0; i < 4; ++i)
+            p[i] = static_cast<uint8_t>(v >> (8 * i));
+    }
+    void looseDiscPutBe32(uint8_t *p, uint32_t v)
+    {
+        for (int i = 0; i < 4; ++i)
+            p[i] = static_cast<uint8_t>(v >> (8 * (3 - i)));
+    }
+    void looseDiscPutBoth16(uint8_t *p, uint16_t v)
+    {
+        looseDiscPutLe16(p, v);
+        looseDiscPutBe16(p + 2, v);
+    }
+    void looseDiscPutBoth32(uint8_t *p, uint32_t v)
+    {
+        looseDiscPutLe32(p, v);
+        looseDiscPutBe32(p + 4, v);
+    }
+
+    size_t looseDiscRecordSize(size_t identifierSize)
+    {
+        const size_t size = 33u + identifierSize;
+        return size + (size & 1u);
+    }
+
+    size_t looseDiscWriteRecord(uint8_t *dst, const LooseDiscNode &node, const std::string &identifier)
+    {
+        const size_t size = looseDiscRecordSize(identifier.size());
+        dst[0] = static_cast<uint8_t>(size);
+        looseDiscPutBoth32(dst + 2, node.lbn);
+        looseDiscPutBoth32(dst + 10, node.size);
+        const uint8_t date[7] = {100, 11, 13, 0, 0, 0, 0}; // 2000-11-13
+        std::memcpy(dst + 18, date, sizeof(date));
+        dst[25] = node.directory ? 2u : 0u;
+        looseDiscPutBoth16(dst + 28, 1);
+        dst[32] = static_cast<uint8_t>(identifier.size());
+        std::memcpy(dst + 33, identifier.data(), identifier.size());
+        return size;
+    }
+
+    // The name the disc's directory gives a host file or folder: upper case,
+    // and for a file a dot when it has none and the version ";1" (1 -> "1.;1",
+    // BG.PAK -> "BG.PAK;1"), which is what the game compares against.
+    std::string looseDiscIdentifier(const std::filesystem::path &path, bool directory)
+    {
+        std::string name = path.filename().string();
+        std::transform(name.begin(), name.end(), name.begin(),
+                       [](unsigned char c)
+                       { return static_cast<char>(std::toupper(c)); });
+        if (directory)
+            return name;
+        if (name.find('.') == std::string::npos)
+            name.push_back('.');
+        return name + ";1";
+    }
+
+    // Folders in the game folder that are not game files: the memory cards
+    // (mc0 and mc1 next to the game's ELF by default).
+    bool looseDiscSkipsDirectory(const std::filesystem::path &path, bool atRoot)
+    {
+        const std::string lower = toLowerAscii(path.filename().string());
+        if (atRoot && (lower == "mc0" || lower == "mc1"))
+            return true;
+        const std::filesystem::path &cards = PS2Runtime::getIoPaths().mcRoot;
+        std::error_code ec;
+        return !cards.empty() && std::filesystem::equivalent(path, cards, ec) && !ec;
+    }
+
+    void looseDiscAddDirectory(std::vector<LooseDiscNode> &nodes, size_t parent, int depth)
+    {
+        struct Entry
+        {
+            std::filesystem::path path;
+            bool directory;
+            uint64_t size;
+            std::string identifier;
+        };
+        std::vector<Entry> entries;
+        std::error_code ec;
+        for (std::filesystem::directory_iterator it(nodes[parent].hostPath, std::filesystem::directory_options::skip_permission_denied, ec), end;
+             !ec && it != end; it.increment(ec))
+        {
+            std::error_code typeEc;
+            if (it->is_symlink(typeEc))
+                continue;
+            const bool directory = it->is_directory(typeEc);
+            if (!directory && !it->is_regular_file(typeEc))
+                continue;
+            if (directory && (depth >= 7 || looseDiscSkipsDirectory(it->path(), parent == 0)))
+                continue;
+            const uint64_t size = directory ? 0u : it->file_size(typeEc);
+            if (typeEc || size > 0xFFFFFFFFull)
+            {
+                std::cerr << "[cd] left out of the disc (unreadable or over 4 GB): " << it->path().string() << std::endl;
+                continue;
+            }
+            std::string identifier = looseDiscIdentifier(it->path(), directory);
+            if (identifier.size() > 200u)
+            {
+                std::cerr << "[cd] left out of the disc (name too long): " << it->path().string() << std::endl;
+                continue;
+            }
+            entries.push_back({it->path(), directory, size, std::move(identifier)});
+        }
+        std::sort(entries.begin(), entries.end(), [](const Entry &a, const Entry &b)
+                  { return a.identifier < b.identifier; });
+
+        for (size_t i = 0; i < entries.size(); ++i)
+        {
+            if (i > 0 && entries[i].identifier == entries[i - 1].identifier)
+            {
+                std::cerr << "[cd] left out of the disc (same name as another file): " << entries[i].path.string() << std::endl;
+                continue;
+            }
+            LooseDiscNode node;
+            node.hostPath = entries[i].path;
+            node.identifier = entries[i].identifier;
+            node.directory = entries[i].directory;
+            node.parent = parent;
+            node.size = static_cast<uint32_t>(entries[i].size);
+            const size_t index = nodes.size();
+            nodes.push_back(std::move(node));
+            nodes[parent].children.push_back(index);
+            if (entries[i].directory)
+                looseDiscAddDirectory(nodes, index, depth + 1);
+        }
+    }
+
+    const LooseDisc &ensureLooseDisc()
+    {
+        const std::filesystem::path root = getCdRootPath();
+        if (g_looseDisc.built && g_looseDisc.root == root)
+            return g_looseDisc;
+
+        LooseDisc disc;
+        disc.root = root;
+        disc.built = true;
+
+        std::vector<LooseDiscNode> nodes(1);
+        nodes[0].hostPath = root;
+        nodes[0].directory = true;
+        std::error_code ec;
+        if (std::filesystem::is_directory(root, ec) && !ec)
+            looseDiscAddDirectory(nodes, 0, 0);
+
+        // Directories in path-table order (by level, then parent, then name).
+        std::vector<size_t> directories{0};
+        for (size_t i = 0; i < directories.size(); ++i)
+        {
+            nodes[directories[i]].number = static_cast<uint16_t>(i + 1u);
+            for (const size_t child : nodes[directories[i]].children)
+            {
+                if (nodes[child].directory)
+                    directories.push_back(child);
+            }
+        }
+
+        // Directory sizes: "." and ".." then the children, no record across
+        // a sector boundary.
+        for (const size_t index : directories)
+        {
+            LooseDiscNode &dir = nodes[index];
+            size_t offset = 0;
+            auto add = [&](size_t identifierSize)
+            {
+                const size_t size = looseDiscRecordSize(identifierSize);
+                if (offset % kCdSectorSize + size > kCdSectorSize)
+                    offset += kCdSectorSize - offset % kCdSectorSize;
+                offset += size;
+            };
+            add(1);
+            add(1);
+            for (const size_t child : dir.children)
+                add(nodes[child].identifier.size());
+            dir.sectors = sectorsForBytes(offset);
+            dir.size = dir.sectors * kCdSectorSize;
+        }
+
+        // Path table bytes (the L and M tables differ only in byte order).
+        size_t pathTableSize = 0;
+        for (const size_t index : directories)
+        {
+            const size_t identifierSize = index == 0 ? 1u : nodes[index].identifier.size();
+            pathTableSize += 8u + identifierSize + (identifierSize & 1u);
+        }
+        const uint32_t pathTableSectors = sectorsForBytes(pathTableSize);
+
+        uint32_t cursor = kLooseDiscPvdLbn + 2u; // descriptor, terminator
+        const uint32_t lPathTableLbn = cursor;
+        cursor += pathTableSectors;
+        const uint32_t mPathTableLbn = cursor;
+        cursor += pathTableSectors;
+        for (const size_t index : directories)
+        {
+            nodes[index].lbn = cursor;
+            cursor += nodes[index].sectors;
+        }
+        if (cursor > kLooseDiscCachedEnd)
+        {
+            std::cerr << "[cd] the game folder has too many files or folders: its directories end at LBN "
+                      << cursor << ", past the 11 sectors TimeSplitters reads (LBN 16..26)" << std::endl;
+        }
+        size_t fileCount = 0;
+        for (LooseDiscNode &node : nodes)
+        {
+            if (node.directory)
+                continue;
+            node.lbn = cursor;
+            node.sectors = static_cast<uint32_t>((static_cast<uint64_t>(node.size) + kCdSectorSize - 1u) / kCdSectorSize);
+            cursor += node.sectors;
+            ++fileCount;
+        }
+        disc.volumeSectors = std::max(cursor, kLooseDiscCachedEnd);
+
+        auto addMetadata = [&](uint32_t lbn, uint32_t sectors) -> std::vector<uint8_t> &
+        {
+            LooseDiscExtent extent;
+            extent.lbn = lbn;
+            extent.sectors = sectors;
+            extent.bytes.assign(static_cast<size_t>(sectors) * kCdSectorSize, 0u);
+            disc.extents.push_back(std::move(extent));
+            return disc.extents.back().bytes;
+        };
+
+        {
+            std::vector<uint8_t> &pvd = addMetadata(kLooseDiscPvdLbn, 1);
+            pvd[0] = 1;
+            std::memcpy(pvd.data() + 1, "CD001", 5);
+            pvd[6] = 1;
+            std::memset(pvd.data() + 8, ' ', 64);
+            std::memcpy(pvd.data() + 8, "PLAYSTATION", 11);
+            std::memcpy(pvd.data() + 40, "SLUS_20090", 10);
+            looseDiscPutBoth32(pvd.data() + 80, disc.volumeSectors);
+            looseDiscPutBoth16(pvd.data() + 120, 1);
+            looseDiscPutBoth16(pvd.data() + 124, 1);
+            looseDiscPutBoth16(pvd.data() + 128, static_cast<uint16_t>(kCdSectorSize));
+            looseDiscPutBoth32(pvd.data() + 132, static_cast<uint32_t>(pathTableSize));
+            looseDiscPutLe32(pvd.data() + 140, lPathTableLbn);
+            looseDiscPutBe32(pvd.data() + 148, mPathTableLbn);
+            looseDiscWriteRecord(pvd.data() + 156, nodes[0], std::string(1, '\0'));
+            std::memset(pvd.data() + 190, ' ', 623); // volume set .. bibliographic file ids
+            for (size_t date = 0; date < 4; ++date)
+                std::memset(pvd.data() + 813 + date * 17, '0', 16);
+            pvd[881] = 1;
+        }
+        {
+            std::vector<uint8_t> &terminator = addMetadata(kLooseDiscPvdLbn + 1u, 1);
+            terminator[0] = 255;
+            std::memcpy(terminator.data() + 1, "CD001", 5);
+            terminator[6] = 1;
+        }
+        for (int bigEndian = 0; bigEndian < 2; ++bigEndian)
+        {
+            std::vector<uint8_t> &table = addMetadata(bigEndian ? mPathTableLbn : lPathTableLbn, pathTableSectors);
+            size_t offset = 0;
+            for (const size_t index : directories)
+            {
+                const LooseDiscNode &dir = nodes[index];
+                const std::string identifier = index == 0 ? std::string(1, '\0') : dir.identifier;
+                const uint16_t parentNumber = index == 0 ? 1u : nodes[dir.parent].number;
+                table[offset] = static_cast<uint8_t>(identifier.size());
+                if (bigEndian)
+                {
+                    looseDiscPutBe32(table.data() + offset + 2, dir.lbn);
+                    looseDiscPutBe16(table.data() + offset + 6, parentNumber);
+                }
+                else
+                {
+                    looseDiscPutLe32(table.data() + offset + 2, dir.lbn);
+                    looseDiscPutLe16(table.data() + offset + 6, parentNumber);
+                }
+                std::memcpy(table.data() + offset + 8, identifier.data(), identifier.size());
+                offset += 8u + identifier.size() + (identifier.size() & 1u);
+            }
+        }
+        for (const size_t index : directories)
+        {
+            const LooseDiscNode &dir = nodes[index];
+            std::vector<uint8_t> &bytes = addMetadata(dir.lbn, dir.sectors);
+            size_t offset = 0;
+            auto add = [&](const LooseDiscNode &node, const std::string &identifier)
+            {
+                const size_t size = looseDiscRecordSize(identifier.size());
+                if (offset % kCdSectorSize + size > kCdSectorSize)
+                    offset += kCdSectorSize - offset % kCdSectorSize;
+                offset += looseDiscWriteRecord(bytes.data() + offset, node, identifier);
+            };
+            add(dir, std::string(1, '\0'));
+            add(nodes[dir.parent], std::string(1, '\1'));
+            for (const size_t child : dir.children)
+                add(nodes[child], nodes[child].identifier);
+        }
+        for (const LooseDiscNode &node : nodes)
+        {
+            if (node.directory || node.sectors == 0)
+                continue;
+            LooseDiscExtent extent;
+            extent.lbn = node.lbn;
+            extent.sectors = node.sectors;
+            extent.hostPath = node.hostPath;
+            disc.extents.push_back(std::move(extent));
+        }
+        std::sort(disc.extents.begin(), disc.extents.end(), [](const LooseDiscExtent &a, const LooseDiscExtent &b)
+                  { return a.lbn < b.lbn; });
+        for (size_t i = 0; i < disc.extents.size(); ++i)
+        {
+            if (!disc.extents[i].hostPath.empty())
+                disc.fileByHostKey.emplace(looseDiscHostKey(disc.extents[i].hostPath), i);
+        }
+
+        // sceCdSearchFile's own numbers for files it finds outside this
+        // layout stay clear of the disc.
+        g_nextPseudoLbn = std::max<uint32_t>(g_nextPseudoLbn, disc.volumeSectors + 16u);
+        std::cout << "[cd] disc built from the game folder " << root.string() << ": " << fileCount
+                  << " files, " << disc.volumeSectors << " sectors (no disc image)" << std::endl;
+        g_looseDisc = std::move(disc);
+        return g_looseDisc;
+    }
+#endif
+
     bool registerCdFile(const std::string &ps2Path, CdFileEntry &entryOut)
     {
         const std::string key = cdPathKey(ps2Path);
@@ -408,10 +791,28 @@ namespace
         CdFileEntry entry;
         entry.hostPath = path;
         entry.sizeBytes = static_cast<uint32_t>(std::min<uint64_t>(sizeBytes, 0xFFFFFFFFu));
+#if defined(PLATFORM_XBOX)
         entry.baseLbn = g_nextPseudoLbn;
         entry.sectors = sectorsForBytes(sizeBytes);
 
         g_nextPseudoLbn += entry.sectors + 1;
+#else
+        entry.sectors = sectorsForBytes(sizeBytes);
+
+        // A file of the game folder keeps the LBN the disc layout gives it
+        // (where the game's own directory search finds it too).
+        const LooseDisc &disc = ensureLooseDisc();
+        const auto onDisc = disc.fileByHostKey.find(looseDiscHostKey(path));
+        if (onDisc != disc.fileByHostKey.end())
+        {
+            entry.baseLbn = disc.extents[onDisc->second].lbn;
+        }
+        else
+        {
+            entry.baseLbn = g_nextPseudoLbn;
+            g_nextPseudoLbn += entry.sectors + 1;
+        }
+#endif
         g_cdFilesByKey.emplace(key, entry);
         entryOut = entry;
         g_lastCdError = 0;
@@ -467,6 +868,64 @@ namespace
 #endif
     }
 
+#if !defined(PLATFORM_XBOX)
+    // `sectors` sectors from `lbn` of the disc laid out from the game folder
+    // (byteCount bytes, which may end inside the last sector): metadata
+    // sectors, file data (zeros after a file's end) and zeros between.
+    bool readLooseDiscSectors(uint32_t lbn, uint32_t sectors, uint8_t *dst, size_t byteCount)
+    {
+        const LooseDisc &disc = ensureLooseDisc();
+        if (static_cast<uint64_t>(lbn) + sectors > disc.volumeSectors)
+        {
+            std::cerr << "sceCdRead unresolved LBN 0x" << std::hex << lbn
+                      << " sectors=" << std::dec << sectors
+                      << " (past the end of the game folder's disc, " << disc.volumeSectors << " sectors)" << std::endl;
+            g_lastCdError = -1;
+            return false;
+        }
+
+        std::memset(dst, 0, byteCount);
+        size_t done = 0;
+        uint32_t current = lbn;
+        while (done < byteCount)
+        {
+            auto next = std::upper_bound(disc.extents.begin(), disc.extents.end(), current,
+                                         [](uint32_t value, const LooseDiscExtent &extent)
+                                         { return value < extent.lbn; });
+            uint32_t runEnd = next == disc.extents.end() ? disc.volumeSectors : next->lbn;
+            const LooseDiscExtent *extent = nullptr;
+            if (next != disc.extents.begin())
+            {
+                const LooseDiscExtent &candidate = *std::prev(next);
+                if (current < candidate.lbn + candidate.sectors)
+                {
+                    extent = &candidate;
+                    runEnd = candidate.lbn + candidate.sectors;
+                }
+            }
+            const size_t runBytes = std::min<size_t>(static_cast<size_t>(runEnd - current) * kCdSectorSize, byteCount - done);
+            if (extent)
+            {
+                const uint64_t offset = static_cast<uint64_t>(current - extent->lbn) * kCdSectorSize;
+                if (extent->hostPath.empty())
+                {
+                    std::memcpy(dst + done, extent->bytes.data() + offset, runBytes);
+                }
+                else if (!readHostRange(extent->hostPath, offset, dst + done, runBytes))
+                {
+                    std::cerr << "sceCdRead could not read " << extent->hostPath.string() << std::endl;
+                    return false;
+                }
+            }
+            done += runBytes;
+            current = runEnd;
+        }
+        g_lastCdError = 0;
+        return true;
+    }
+#endif
+
+#if defined(PLATFORM_XBOX)
     bool readCdSectors(uint32_t lbn, uint32_t sectors, uint8_t *dst, size_t byteCount)
     {
         for (const auto &[key, entry] : g_cdFilesByKey)
@@ -511,7 +970,35 @@ namespace
         g_lastCdError = -1;
         return false;
     }
+#else
+    bool readCdSectors(uint32_t lbn, uint32_t sectors, uint8_t *dst, size_t byteCount)
+    {
+        // Every sector of the game folder's disc (descriptors, directories,
+        // files) comes from its layout; past it, files sceCdSearchFile
+        // found elsewhere.
+        if (lbn < ensureLooseDisc().volumeSectors)
+        {
+            return readLooseDiscSectors(lbn, sectors, dst, byteCount);
+        }
 
+        for (const auto &[key, entry] : g_cdFilesByKey)
+        {
+            const uint32_t endLbn = entry.baseLbn + entry.sectors;
+            if (lbn < entry.baseLbn || lbn >= endLbn)
+            {
+                continue;
+            }
+
+            const uint64_t relativeLbn = static_cast<uint64_t>(lbn - entry.baseLbn);
+            const uint64_t offset = relativeLbn * kCdSectorSize;
+            return readHostRange(entry.hostPath, offset, dst, byteCount);
+        }
+
+        return readLooseDiscSectors(lbn, sectors, dst, byteCount);
+    }
+#endif
+
+#if defined(PLATFORM_XBOX)
     bool isResolvableCdLbn(uint32_t lbn)
     {
         for (const auto &[key, entry] : g_cdFilesByKey)
@@ -531,6 +1018,21 @@ namespace
 
         return false;
     }
+#else
+    bool isResolvableCdLbn(uint32_t lbn)
+    {
+        for (const auto &[key, entry] : g_cdFilesByKey)
+        {
+            const uint32_t endLbn = entry.baseLbn + entry.sectors;
+            if (lbn >= entry.baseLbn && lbn < endLbn)
+            {
+                return true;
+            }
+        }
+
+        return lbn < ensureLooseDisc().volumeSectors;
+    }
+#endif
 
     bool findRegisteredCdFileForLbn(uint32_t lbn, CdFileEntry &entryOut)
     {

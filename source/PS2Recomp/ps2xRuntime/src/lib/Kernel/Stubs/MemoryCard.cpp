@@ -175,9 +175,6 @@ namespace ps2_stubs
             const std::string lower = toLowerAscii(name);
             return lower.size() > 4u && lower.compare(lower.size() - 4u, 4u, ".xbx") == 0;
         }
-#else
-        constexpr const char *kMcLogEnd = "";
-#endif
 
         // Before each read or write of a card file. nxdk's C library refuses
         // to write to a stream opened for update ("r+b": the game rewriting
@@ -187,17 +184,13 @@ namespace ps2_stubs
         // save failed: "Saving Game Status: Save failed.")
         void prepareMcStream(FILE *file)
         {
-#if defined(PLATFORM_XBOX)
             std::fseek(file, 0, SEEK_CUR);
-#else
-            (void)file;
-#endif
         }
 
-        // Empties a card's folder (format, unformat).
+        // Empties a card's folder (format, unformat), keeping the Xbox
+        // dashboard files.
         void clearMcRoot(const std::filesystem::path &root, std::error_code &ec)
         {
-#if defined(PLATFORM_XBOX)
             std::vector<std::filesystem::path> contents;
             for (const auto &entry : std::filesystem::directory_iterator(root, ec))
             {
@@ -210,12 +203,10 @@ namespace ps2_stubs
             {
                 std::filesystem::remove_all(path, ec);
             }
-#else
-            std::filesystem::remove_all(root, ec);
-#endif
             ec.clear();
             std::filesystem::create_directories(root, ec);
         }
+#endif
 
         std::vector<std::string> splitMcPathComponents(const std::string &value)
         {
@@ -663,8 +654,13 @@ namespace ps2_stubs
             setMcCommandResultLocked(kMcCmdChdir, result);
         }
 
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("[MC] Chdir port=" << port << " '" << requestedDir
                                        << "' -> result=" << result << " cwd='" << currentDir << "'" << kMcLogEnd);
+#else
+        RUNTIME_LOG("[MC] Chdir port=" << port << " '" << requestedDir
+                                       << "' -> result=" << result << " cwd='" << currentDir << "'");
+#endif
         writeMcCString(rdram, currentDirAddr, currentDir);
         setReturnS32(ctx, 0);
     }
@@ -974,8 +970,13 @@ namespace ps2_stubs
 
             setMcCommandResultLocked(kMcCmdGetDir, result);
         }
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("[MC] GetDir port=" << port << " '" << rawPath
                                         << "' maxent=" << maxEntries << " -> result=" << result << kMcLogEnd);
+#else
+        RUNTIME_LOG("[MC] GetDir port=" << port << " '" << rawPath
+                                        << "' maxent=" << maxEntries << " -> result=" << result);
+#endif
         setReturnS32(ctx, 0);
     }
 
@@ -1037,9 +1038,15 @@ namespace ps2_stubs
             }
         }
 
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("[MC] GetInfo port=" << port << " type=" << cardType
                                          << " free=" << freeBlocks << " format=" << format
                                          << " result=" << result << kMcLogEnd);
+#else
+        RUNTIME_LOG("[MC] GetInfo port=" << port << " type=" << cardType
+                                         << " free=" << freeBlocks << " format=" << format
+                                         << " result=" << result);
+#endif
         setReturnS32(ctx, 0);
     }
 
@@ -1118,9 +1125,15 @@ namespace ps2_stubs
             setMcCommandPathLocked(port, slot, 0u, path, guestPath, hostPath);
             setMcCommandResultLocked(kMcCmdMkdir, result);
         }
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("[MC] Mkdir port=" << port << " slot=" << slot
                                        << " raw='" << path << "' guest='" << guestPath
                                        << "' host='" << hostPath.string() << "' -> result=" << result << kMcLogEnd);
+#else
+        RUNTIME_LOG("[MC] Mkdir port=" << port << " slot=" << slot
+                                       << " raw='" << path << "' guest='" << guestPath
+                                       << "' host='" << hostPath.string() << "' -> result=" << result);
+#endif
         setReturnS32(ctx, 0);
     }
 
@@ -1190,6 +1203,7 @@ namespace ps2_stubs
             setMcCommandPathLocked(port, slot, flags, path, guestPath, hostPath);
             setMcCommandResultLocked(kMcCmdOpen, result);
         }
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("[MC] Open port=" << port << " slot=" << slot
                                       << " flags=0x" << std::hex << flags << std::dec
                                       << " raw='" << path << "' guest='" << guestPath
@@ -1197,6 +1211,15 @@ namespace ps2_stubs
                                       << " exists=" << (exists ? 1 : 0)
                                       << " parent_exists=" << (parentExists ? 1 : 0)
                                       << " -> result=" << result << kMcLogEnd);
+#else
+        RUNTIME_LOG("[MC] Open port=" << port << " slot=" << slot
+                                      << " flags=0x" << std::hex << flags << std::dec
+                                      << " raw='" << path << "' guest='" << guestPath
+                                      << "' host='" << hostPath.string() << "'"
+                                      << " exists=" << (exists ? 1 : 0)
+                                      << " parent_exists=" << (parentExists ? 1 : 0)
+                                      << " -> result=" << result);
+#endif
         setReturnS32(ctx, 0);
     }
 
@@ -1225,7 +1248,9 @@ namespace ps2_stubs
             }
             else
             {
+#if defined(PLATFORM_XBOX)
                 prepareMcStream(it->second.file);
+#endif
                 const size_t bytesRead = std::fread(dst, 1u, static_cast<size_t>(size), it->second.file);
                 result = std::ferror(it->second.file) ? kMcResultDeniedPermit : static_cast<int32_t>(bytesRead);
                 if (std::ferror(it->second.file))
@@ -1371,7 +1396,11 @@ namespace ps2_stubs
             return;
         }
 
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("[MC] Sync cmd=" << cmd << " result=" << result << kMcLogEnd);
+#else
+        RUNTIME_LOG("[MC] Sync cmd=" << cmd << " result=" << result);
+#endif
 
         if (cmdPtr != 0u)
         {
@@ -1457,7 +1486,9 @@ namespace ps2_stubs
             }
             else
             {
+#if defined(PLATFORM_XBOX)
                 prepareMcStream(it->second.file);
+#endif
                 const size_t bytesWritten = std::fwrite(src, 1u, static_cast<size_t>(size), it->second.file);
                 result = std::ferror(it->second.file) ? kMcResultDeniedPermit : static_cast<int32_t>(bytesWritten);
                 if (!std::ferror(it->second.file))

@@ -2,7 +2,9 @@
 #define PS2_LOG_H
 
 #include <algorithm>
+#if defined(PLATFORM_XBOX)
 #include <cstdint>
+#endif
 #include <deque>
 #include <filesystem>
 #include <fstream>
@@ -145,11 +147,11 @@ inline void clear_runtime_log_entries()
 #define RUNTIME_LOG(x) do {} while(0)
 #endif
 
+#if defined(PLATFORM_XBOX)
 // RUNTIME_LOG for a line logged on every call of something the game may call
 // without end (memory-card commands, interrupt-mask calls). On the Xbox, where
 // the log is a file on a small disk and a debugger link, each call site logs
-// its first 32 calls and then every 1,024th; elsewhere it is RUNTIME_LOG.
-#if defined(PLATFORM_XBOX)
+// its first 32 calls and then every 1,024th (the PC keeps RUNTIME_LOG there).
 #define RUNTIME_LOG_CAPPED(x)                                                                                           \
     do                                                                                                                  \
     {                                                                                                                   \
@@ -158,8 +160,6 @@ inline void clear_runtime_log_entries()
         if (_ps2_runtime_log_call < 32u || _ps2_runtime_log_call % 1024u == 0u)                                        \
             RUNTIME_LOG(x);                                                                                             \
     } while (0)
-#else
-#define RUNTIME_LOG_CAPPED(x) RUNTIME_LOG(x)
 #endif
 
 #if AGRESSIVE_LOGS

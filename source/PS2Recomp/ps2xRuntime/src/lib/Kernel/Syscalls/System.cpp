@@ -45,10 +45,17 @@ namespace ps2_syscalls
             imr = runtime->memory().gs().imr;
         }
 
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("PS2 GsGetIMR: Returning IMR=0x" << std::hex << imr
                                                      << " pc=0x" << ctx->pc
                                                      << " ra=0x" << getRegU32(ctx, 31)
                                                      << std::dec << std::endl);
+#else
+        RUNTIME_LOG("PS2 GsGetIMR: Returning IMR=0x" << std::hex << imr
+                                                     << " pc=0x" << ctx->pc
+                                                     << " ra=0x" << getRegU32(ctx, 31)
+                                                     << std::dec << std::endl);
+#endif
 
         setReturnU64(ctx, imr); // Return in $v0/$v1
     }
@@ -67,6 +74,7 @@ namespace ps2_syscalls
             oldImr = runtime->memory().gs().imr;
             runtime->memory().gs().imr = newImr;
         }
+#if defined(PLATFORM_XBOX)
         RUNTIME_LOG_CAPPED("PS2 GsPutIMR: " << " new=0x" << newImr
                                      << " a0_64=0x" << GPR_U64(ctx, 4)
                                      << " a0_32=0x" << getRegU32(ctx, 4)
@@ -74,6 +82,15 @@ namespace ps2_syscalls
                                      << " pc=0x" << ctx->pc
                                      << " ra=0x" << getRegU32(ctx, 31)
                                      << std::dec << std::endl);
+#else
+        RUNTIME_LOG("PS2 GsPutIMR: " << " new=0x" << newImr
+                                     << " a0_64=0x" << GPR_U64(ctx, 4)
+                                     << " a0_32=0x" << getRegU32(ctx, 4)
+                                     << " a1_32=0x" << getRegU32(ctx, 5)
+                                     << " pc=0x" << ctx->pc
+                                     << " ra=0x" << getRegU32(ctx, 31)
+                                     << std::dec << std::endl);
+#endif
         setReturnU64(ctx, oldImr);
     }
 

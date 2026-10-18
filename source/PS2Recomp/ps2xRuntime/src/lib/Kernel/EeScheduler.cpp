@@ -584,7 +584,9 @@ int EeScheduler::deleteThread(int id, uint32_t &ownedStack)
     {
         ownedStack = it->second.stack;
     }
+#if defined(PLATFORM_XBOX)
     releaseInvocationStacks(id);
+#endif
     m_threads.erase(it);
     publishSnapshot();
     return KE_OK;
@@ -633,7 +635,9 @@ int EeScheduler::startThread(int id, uint32_t arg, const R5900Context &caller, b
     m_currentThreadId = 0;
     if (deleteThreadRecord && id != kMainThreadId)
     {
+#if defined(PLATFORM_XBOX)
         releaseInvocationStacks(id);
+#endif
         m_threads.erase(id);
     }
     if (ownedStack != 0u)
@@ -664,10 +668,13 @@ int EeScheduler::terminateThread(int id, uint32_t &ownedStack, bool interruptSaf
     if (target->ownsStack)
     {
         // The stack is freed by the caller: a later StartThread allocates
-        // a new one rather than running on freed guest heap.
+        // a new one rather than running on freed guest heap (Xbox only on
+        // this branch; the PC keeps master's code).
         ownedStack = target->stack;
         target->ownsStack = false;
+#if defined(PLATFORM_XBOX)
         target->stack = 0u;
+#endif
     }
     makeDormant(*target);
     (void)interruptSafe;
@@ -1289,6 +1296,7 @@ uint32_t EeScheduler::invocationStackTop()
         return existing->second;
     }
     constexpr uint32_t kInvocationStackSize = 0x4000u;
+#if defined(PLATFORM_XBOX)
     uint32_t top = 0u;
     if (!m_freeInvocationStacks.empty())
     {
@@ -1299,6 +1307,9 @@ uint32_t EeScheduler::invocationStackTop()
     {
         top = m_runtime.reserveAsyncCallbackStack(kInvocationStackSize, 16u);
     }
+#else
+    const uint32_t top = m_runtime.reserveAsyncCallbackStack(kInvocationStackSize, 16u);
+#endif
     if (top == 0u)
     {
         PS2X_THROW(std::runtime_error("EE invocation stack space exhausted"));
@@ -1307,6 +1318,7 @@ uint32_t EeScheduler::invocationStackTop()
     return top;
 }
 
+#if defined(PLATFORM_XBOX)
 // A deleted thread's invocation stacks go back for reuse. The callback arena
 // they come from (512 KB, 32 stacks) is never given back, and thread ids go
 // round 2..255 as threads are created and deleted, so a game that kept
@@ -1329,6 +1341,7 @@ void EeScheduler::releaseInvocationStacks(int threadId)
         }
     }
 }
+#endif
 
 int EeScheduler::addIrqHandler(bool dmac,
                                uint32_t cause,

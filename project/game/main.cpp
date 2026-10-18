@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include "disc_setup.h"
 #include "native_self_test.h"
 #include "native_mc_test.h"
 #include "native_image_test.h"
@@ -21,14 +22,17 @@
 #include "../../source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.h"
 
 // Started without arguments (double-clicked): play from the folder the
-// executable is in - its game data, disc image, timesplitters.ini and memory
-// cards - with no time limit.
+// executable is in - its loose game files (project\game-data in the
+// development checkout, game-data in a player's install, unpacked there from
+// a disc dump on the first start: disc_setup.h), timesplitters.ini and
+// memory cards - with no time limit. Empty when the game cannot start.
 static std::vector<std::string> defaultArguments(const char *argv0) {
     std::error_code ec;
     const std::filesystem::path dir = std::filesystem::absolute(argv0, ec).parent_path();
     std::filesystem::current_path(dir, ec);
-    return {argv0, (dir / "project" / "game-data" / "SLUS_200.90").string(), "0",
-            (dir / "project" / "disc" / "TimeSplitters.iso").string()};
+    const std::filesystem::path gameData = tsFindOrExtractGameData(dir);
+    if (gameData.empty()) return {};
+    return {argv0, (gameData / "SLUS_200.90").string(), "0"};
 }
 
 int main(int argc, char** argv) {
@@ -37,11 +41,13 @@ int main(int argc, char** argv) {
     std::vector<char *> defaultArgv;
     if (argc == 1) {
         defaults = defaultArguments(argv[0]);
+        if (defaults.empty()) return 5;
         for (auto &a : defaults) defaultArgv.push_back(a.data());
         argc = static_cast<int>(defaultArgv.size());
         argv = defaultArgv.data();
     }
-    if (argc < 2 || argc > 4) {std::cerr << "Usage: timesplitters SLUS_200.90 [seconds=15, 0=no limit] [data-sector.iso]\n";return 2;}
+    if (argc < 2 || argc > 4) {std::cerr << "Usage: timesplitters SLUS_200.90 [seconds=15, 0=no limit]\n"
+                                              "(it reads the game files in SLUS_200.90's folder; a disc image after the seconds is not used)\n";return 2;}
     try {
         if(argc==3 && std::string(argv[1])=="--self-test") return nativeSelfTest(argv[2]);
         if(argc==3 && std::string(argv[1])=="--mc-self-test") return nativeMcTest(argv[2]);
@@ -73,7 +79,11 @@ int main(int argc, char** argv) {
             PS2Runtime::setIoPaths(paths);
             std::cout<<"[TS:card-root] "<<paths.mcRoot.string()<<'\n';
         }
-        if (argc >= 4) {auto paths=PS2Runtime::getIoPaths();paths.cdImage=std::filesystem::absolute(argv[3]);PS2Runtime::setIoPaths(paths);}
+        // The game reads only the loose files in the ELF's folder (the disc it
+        // sees is laid out from them); a disc image named here, as older
+        // command lines do, is not used.
+        if (argc >= 4) std::cout<<"[TS:disc] not using the disc image "<<argv[3]<<"; the game reads the files in "
+                                <<PS2Runtime::getIoPaths().cdRoot.string()<<'\n';
         std::atomic<bool> done=false, limit=false;
         auto readU32 = [&](uint32_t addr) {
             uint32_t value = 0;

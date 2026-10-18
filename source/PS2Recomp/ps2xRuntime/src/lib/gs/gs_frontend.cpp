@@ -3328,8 +3328,9 @@ void GS::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_
 // at 16:9, which would stretch 2D overlays sideways. During gameplay (a
 // perspective-textured, depth-tested draw was seen recently), overlay
 // primitives - no depth test or write, flat or pixel-addressed texture,
-// entirely on screen - are narrowed back to their 4:3 width, pinned to the
-// left margin, the right margin or the centre by where they sit.
+// entirely on screen and (PC) narrower than the frame - are narrowed back to
+// their 4:3 width, pinned to the left margin, the right margin or the centre
+// by where they sit.
 // Not on a split screen (gsSplitScreen, runtime/gs/gs_backend.h): widescreen
 // is off then, and the anchors are one full-screen view's edges.
 namespace
@@ -3368,6 +3369,15 @@ void GS::adjustWidescreenHud(GSPrimitiveBatch &batch)
     }
     if (x0 < 0.0f || x1 > width || y0 < 0.0f || y1 > height)
         return; // full-screen effects reach past the edges
+#if !defined(PLATFORM_XBOX)
+    // Others end exactly at the edges: the loading screen's blue dimming
+    // (guiLoadingGfx, dlFillRectangle(0, 0, 639, 223)) and the pause menu's
+    // over a one-player window (main_pageGfx). Something as wide as the frame
+    // is a backdrop, not HUD, and keeps the full 16:9 width; narrowed, it was
+    // pinned to the left margin and covered only 3/4 of the screen.
+    if (x0 <= 1.0f && x1 >= width - 1.0f)
+        return;
+#endif
     // Text is drawn a glyph at a time. A primitive that continues the row the
     // previous overlay draw started (same line, just to its right) shares that
     // row's anchor; otherwise it starts a new row, pinned to a margin only when

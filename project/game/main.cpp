@@ -39,6 +39,9 @@ int main(int argc, char** argv) {
     std::cout << std::unitbuf; std::cerr << std::unitbuf;
     std::vector<std::string> defaults;
     std::vector<char *> defaultArgv;
+    // Prepare Xbox Files (disc_setup.h): the "Prepare Xbox Files" launcher
+    // starts the game program with this; the game itself does not start.
+    if (argc >= 2 && std::string(argv[1]) == "--prepare-xbox") return tsPrepareXboxFiles(argc, argv);
     if (argc == 1) {
         defaults = defaultArguments(argv[0]);
         if (defaults.empty()) return 5;

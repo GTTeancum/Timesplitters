@@ -373,7 +373,11 @@ namespace
             defaults.elfDirectory = ec ? std::filesystem::path(".") : cwd.lexically_normal();
             defaults.hostRoot = defaults.elfDirectory;
             defaults.cdRoot = defaults.elfDirectory;
-            defaults.mcRoot = defaults.elfDirectory / "mc0";
+            // No memory card location until the game's ELF (or an explicit
+            // setIoPaths) says where the cards live: they belong next to the
+            // ELF, never in the working directory. Card code that runs
+            // earlier (the IOP's MCSERV resets when PS2Runtime is built) finds
+            // no card root and creates nothing.
             return defaults;
         }();
 
@@ -1238,7 +1242,7 @@ void PS2Runtime::setIoPaths(const IoPaths &paths)
     {
         normalized.cdRoot = normalized.elfDirectory;
     }
-    if (normalized.mcRoot.empty())
+    if (normalized.mcRoot.empty() && !normalized.elfPath.empty())
     {
         normalized.mcRoot = normalized.elfDirectory / "mc0";
     }
@@ -1255,7 +1259,7 @@ void PS2Runtime::configureIoPathsFromElf(const std::string &elfPath)
         paths.elfDirectory = paths.elfPath.parent_path();
     }
 
-    if (!paths.elfDirectory.empty())
+    if (!paths.elfPath.empty() && !paths.elfDirectory.empty())
     {
         paths.hostRoot = paths.elfDirectory;
         paths.cdRoot = paths.elfDirectory;

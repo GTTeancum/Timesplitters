@@ -120,20 +120,12 @@ namespace ps2_stubs
 
         std::filesystem::path getMcRootPath(int32_t port)
         {
-            const PS2Runtime::IoPaths &paths = PS2Runtime::getIoPaths();
-            std::filesystem::path root = paths.mcRoot;
+            // Empty until the ELF's folder (or setIoPaths) gives the cards a
+            // home; never the working directory.
+            std::filesystem::path root = PS2Runtime::getIoPaths().mcRoot;
             if (root.empty())
             {
-                if (!paths.elfDirectory.empty())
-                {
-                    root = paths.elfDirectory / "mc0";
-                }
-                else
-                {
-                    std::error_code ec;
-                    const std::filesystem::path cwd = std::filesystem::current_path(ec);
-                    root = ec ? std::filesystem::path("mc0") : (cwd / "mc0");
-                }
+                return {};
             }
 
             root = root.lexically_normal();
@@ -159,8 +151,13 @@ namespace ps2_stubs
 
         void ensureMcRootExists(int32_t port)
         {
+            const std::filesystem::path root = getMcRootPath(port);
+            if (root.empty())
+            {
+                return;
+            }
             std::error_code ec;
-            std::filesystem::create_directories(getMcRootPath(port), ec);
+            std::filesystem::create_directories(root, ec);
         }
 
         std::vector<std::string> splitMcPathComponents(const std::string &value)
@@ -251,6 +248,10 @@ namespace ps2_stubs
         std::filesystem::path guestMcPathToHostPath(int32_t port, const std::string &guestPath)
         {
             std::filesystem::path resolved = getMcRootPath(port);
+            if (resolved.empty())
+            {
+                return {};
+            }
             if (guestPath.size() > 1u)
             {
                 resolved /= std::filesystem::path(guestPath.substr(1));
@@ -709,10 +710,15 @@ namespace ps2_stubs
             {
                 closeMcFilesForPortLocked(port);
                 const std::filesystem::path root = getMcRootPath(port);
-                std::error_code ec;
-                std::filesystem::remove_all(root, ec);
-                ec.clear();
-                std::filesystem::create_directories(root, ec);
+                // No card location yet (no ELF loaded): fail, create nothing.
+                std::error_code ec = std::make_error_code(std::errc::no_such_file_or_directory);
+                if (!root.empty())
+                {
+                    ec.clear();
+                    std::filesystem::remove_all(root, ec);
+                    ec.clear();
+                    std::filesystem::create_directories(root, ec);
+                }
                 if (!ec)
                 {
                     McPortState &state = g_mcPorts[static_cast<size_t>(port)];
@@ -789,7 +795,7 @@ namespace ps2_stubs
                     }
 
                     std::filesystem::path hostDir = getMcRootPath(port);
-                    if (!parentRel.empty())
+                    if (!parentRel.empty() && !hostDir.empty())
                     {
                         hostDir /= parentRel;
                     }
@@ -1306,10 +1312,15 @@ namespace ps2_stubs
             {
                 closeMcFilesForPortLocked(port);
                 const std::filesystem::path root = getMcRootPath(port);
-                std::error_code ec;
-                std::filesystem::remove_all(root, ec);
-                ec.clear();
-                std::filesystem::create_directories(root, ec);
+                // No card location yet (no ELF loaded): fail, create nothing.
+                std::error_code ec = std::make_error_code(std::errc::no_such_file_or_directory);
+                if (!root.empty())
+                {
+                    ec.clear();
+                    std::filesystem::remove_all(root, ec);
+                    ec.clear();
+                    std::filesystem::create_directories(root, ec);
+                }
                 if (!ec)
                 {
                     McPortState &state = g_mcPorts[static_cast<size_t>(port)];

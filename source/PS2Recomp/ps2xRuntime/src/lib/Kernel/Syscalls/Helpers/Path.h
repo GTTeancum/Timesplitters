@@ -82,18 +82,8 @@ namespace
 
     std::filesystem::path getConfiguredMcRoot()
     {
-        const PS2Runtime::IoPaths &paths = PS2Runtime::getIoPaths();
-        if (!paths.mcRoot.empty())
-        {
-            return paths.mcRoot;
-        }
-        if (!paths.elfDirectory.empty())
-        {
-            return paths.elfDirectory / "mc0";
-        }
-
-        std::error_code ec;
-        const std::filesystem::path cwd = std::filesystem::current_path(ec);
-        return ec ? std::filesystem::path("mc0") : (cwd / "mc0").lexically_normal();
+        // Empty until the ELF's folder (or setIoPaths) gives the cards a
+        // home; never the working directory.
+        return PS2Runtime::getIoPaths().mcRoot;
     }
 }

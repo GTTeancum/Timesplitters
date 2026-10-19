@@ -5,6 +5,8 @@
 Put these together in one folder you can write to (not under Program Files):
 
 - `timesplitters.exe` and the `.dll` files that come with it
+- `Prepare Xbox Files.exe` and the `xbox` folder (only for the Xbox
+  version: see `README-XBOX-SETUP.md`)
 - `timesplitters.ini` (display settings; see the comments in it)
 - your own dump of the TimeSplitters (USA) PlayStation 2 disc, any of:
   - a `.bin` with its `.cue` (Redump style: `TRACK 01 MODE2/2352`)
@@ -15,15 +17,16 @@ Put these together in one folder you can write to (not under Program Files):
 
 Double-click `timesplitters.exe`. When it finds no game files yet, it
 unpacks every file of the disc dump (49 files, about 600 MB) into a
-`game-data` folder next to it, showing its progress in a window, and then
-starts the game. This happens once and takes a minute or two.
+`game-data` folder next to it, showing its progress in a small window with a
+progress bar (no console window), and then starts the game. This happens once and takes a minute or two.
 
 - The dump is only read, never changed. Once `game-data` exists the game
   does not use the dump again: you can delete or move it.
 - No disc image is made. The game reads only the loose files in
   `game-data`.
-- If the unpacking is interrupted, the half-finished `game-data.partial`
-  folder is thrown away and the next start unpacks again.
+- If the unpacking is interrupted (or stopped by closing its window), the
+  half-finished `game-data.partial` folder is thrown away and the next start
+  unpacks again.
 - If something is wrong (no dump, a dump of another game, a damaged or
   cut-short file, a full disk) a message box says what.
 

@@ -69,6 +69,7 @@ Thumbs.db
 
 # Local executables and Python caches
 /timesplitters.exe
+/Prepare Xbox Files.exe
 /*.dll
 /list.txt
 __pycache__/

@@ -123,6 +123,15 @@ namespace ps2_stubs
 
         std::filesystem::path getMcRootPath(int32_t port)
         {
+#if !defined(PLATFORM_XBOX)
+            // Empty until the ELF's folder (or setIoPaths) gives the cards a
+            // home; never the working directory.
+            std::filesystem::path root = PS2Runtime::getIoPaths().mcRoot;
+            if (root.empty())
+            {
+                return {};
+            }
+#else
             const PS2Runtime::IoPaths &paths = PS2Runtime::getIoPaths();
             std::filesystem::path root = paths.mcRoot;
             if (root.empty())
@@ -138,6 +147,7 @@ namespace ps2_stubs
                     root = ec ? std::filesystem::path("mc0") : (cwd / "mc0");
                 }
             }
+#endif
 
             root = root.lexically_normal();
             if (port <= 0)
@@ -162,8 +172,18 @@ namespace ps2_stubs
 
         void ensureMcRootExists(int32_t port)
         {
+#if !defined(PLATFORM_XBOX)
+            const std::filesystem::path root = getMcRootPath(port);
+            if (root.empty())
+            {
+                return;
+            }
+            std::error_code ec;
+            std::filesystem::create_directories(root, ec);
+#else
             std::error_code ec;
             std::filesystem::create_directories(getMcRootPath(port), ec);
+#endif
         }
 
 #if defined(PLATFORM_XBOX)
@@ -302,6 +322,12 @@ namespace ps2_stubs
         std::filesystem::path guestMcPathToHostPath(int32_t port, const std::string &guestPath)
         {
             std::filesystem::path resolved = getMcRootPath(port);
+#if !defined(PLATFORM_XBOX)
+            if (resolved.empty())
+            {
+                return {};
+            }
+#endif
             if (guestPath.size() > 1u)
             {
                 resolved /= std::filesystem::path(guestPath.substr(1));
@@ -792,13 +818,19 @@ namespace ps2_stubs
             {
                 closeMcFilesForPortLocked(port);
                 const std::filesystem::path root = getMcRootPath(port);
-                std::error_code ec;
 #if defined(PLATFORM_XBOX)
+                std::error_code ec;
                 clearMcRoot(root, ec);
 #else
-                std::filesystem::remove_all(root, ec);
-                ec.clear();
-                std::filesystem::create_directories(root, ec);
+                // No card location yet (no ELF loaded): fail, create nothing.
+                std::error_code ec = std::make_error_code(std::errc::no_such_file_or_directory);
+                if (!root.empty())
+                {
+                    ec.clear();
+                    std::filesystem::remove_all(root, ec);
+                    ec.clear();
+                    std::filesystem::create_directories(root, ec);
+                }
 #endif
                 if (!ec)
                 {
@@ -876,7 +908,11 @@ namespace ps2_stubs
                     }
 
                     std::filesystem::path hostDir = getMcRootPath(port);
+#if !defined(PLATFORM_XBOX)
+                    if (!parentRel.empty() && !hostDir.empty())
+#else
                     if (!parentRel.empty())
+#endif
                     {
                         hostDir /= parentRel;
                     }
@@ -1437,13 +1473,19 @@ namespace ps2_stubs
             {
                 closeMcFilesForPortLocked(port);
                 const std::filesystem::path root = getMcRootPath(port);
-                std::error_code ec;
 #if defined(PLATFORM_XBOX)
+                std::error_code ec;
                 clearMcRoot(root, ec);
 #else
-                std::filesystem::remove_all(root, ec);
-                ec.clear();
-                std::filesystem::create_directories(root, ec);
+                // No card location yet (no ELF loaded): fail, create nothing.
+                std::error_code ec = std::make_error_code(std::errc::no_such_file_or_directory);
+                if (!root.empty())
+                {
+                    ec.clear();
+                    std::filesystem::remove_all(root, ec);
+                    ec.clear();
+                    std::filesystem::create_directories(root, ec);
+                }
 #endif
                 if (!ec)
                 {

@@ -44,6 +44,11 @@
 #pragma comment(lib, "shell32.lib")
 // Common controls 6: the progress bar and dialogs in the current Windows style.
 #pragma comment(linker, "\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#else
+// Linux: progress is a line on the console; errors also go to a zenity
+// dialog when one can be shown (a desktop session with zenity installed).
+#include <sys/wait.h>
+#include <unistd.h>
 #endif
 
 namespace
@@ -131,6 +136,12 @@ namespace
         // The main line (what is being done).
         void line(const std::string &message)
         {
+#ifndef _WIN32
+            // Finish a progress line rewritten in place before a new line.
+            if (m_lastPercent >= 0 && m_lastPercent < 100 && isatty(STDOUT_FILENO) != 0)
+                std::cout << '\n';
+            m_lastPercent = -1;
+#endif
             std::cout << "[TS:setup] " << message << std::endl;
             set(m_status, message);
         }
@@ -143,6 +154,24 @@ namespace
 #ifdef _WIN32
             if (m_bar)
                 PostMessageW(m_bar, PBM_SETPOS, static_cast<WPARAM>(std::clamp(percent, 0, 100)), 0);
+#else
+            // One console line, rewritten in place on a terminal; a line
+            // every 10% when the output is a file.
+            percent = std::clamp(percent, 0, 100);
+            const bool terminal = isatty(STDOUT_FILENO) != 0;
+            if (percent == m_lastPercent || (!terminal && percent % 10 != 0 && percent != 100))
+                return;
+            m_lastPercent = percent;
+            std::string detail;
+            {
+                std::lock_guard<std::mutex> lock(m_lock);
+                detail = m_detail;
+            }
+            if (terminal)
+                std::cout << "\r[TS:setup] " << percent << "%  " << detail << "\033[K" << (percent == 100 ? "\n" : "")
+                          << std::flush;
+            else
+                std::cout << "[TS:setup] " << percent << "%  " << detail << std::endl;
 #endif
         }
 
@@ -154,6 +183,9 @@ namespace
 #ifdef _WIN32
             if (!m_quiet)
                 MessageBoxW(nullptr, wide(message).c_str(), m_title.c_str(), MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
+#else
+            if (!m_quiet)
+                showDialog(message);
 #endif
         }
 
@@ -290,7 +322,36 @@ namespace
         std::atomic<HWND> m_window{nullptr};
         std::atomic<HWND> m_bar{nullptr};
 #else
-        void set(std::string &slot, const std::string &message) { slot = message; }
+        void set(std::string &slot, const std::string &message)
+        {
+            std::lock_guard<std::mutex> lock(m_lock);
+            slot = message;
+        }
+
+        // zenity's error dialog, when there is a display to show it on and
+        // zenity is installed; otherwise the console message is all there is.
+        void showDialog(const std::string &message) const
+        {
+            if (!std::getenv("DISPLAY") && !std::getenv("WAYLAND_DISPLAY"))
+                return;
+            const std::string title(m_title.begin(), m_title.end());
+            const std::string titleArg = "--title=" + title;
+            const std::string textArg = "--text=" + message;
+            const pid_t pid = fork();
+            if (pid == 0)
+            {
+                execlp("zenity", "zenity", "--error", "--width=420", "--no-markup", titleArg.c_str(), textArg.c_str(),
+                       static_cast<char *>(nullptr));
+                _exit(127);
+            }
+            if (pid > 0)
+            {
+                int status = 0;
+                waitpid(pid, &status, 0);
+            }
+        }
+
+        int m_lastPercent = -1;
 #endif
         std::wstring m_title;
         bool m_quiet = false;
@@ -819,6 +880,13 @@ namespace
         {
             buffer.resize(size);
             return fs::path(buffer).parent_path();
+        }
+#elif defined(__linux__)
+        {
+            std::error_code linkEc;
+            const fs::path exe = fs::read_symlink("/proc/self/exe", linkEc);
+            if (!linkEc && !exe.empty())
+                return exe.parent_path();
         }
 #endif
         std::error_code ec;

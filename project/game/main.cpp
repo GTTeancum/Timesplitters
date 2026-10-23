@@ -28,7 +28,14 @@
 // memory cards - with no time limit. Empty when the game cannot start.
 static std::vector<std::string> defaultArguments(const char *argv0) {
     std::error_code ec;
+#if defined(__linux__)
+    // argv[0] is whatever the shell or launcher typed; the kernel knows the
+    // program's real path.
+    std::filesystem::path dir = std::filesystem::read_symlink("/proc/self/exe", ec).parent_path();
+    if (ec || dir.empty()) dir = std::filesystem::absolute(argv0, ec).parent_path();
+#else
     const std::filesystem::path dir = std::filesystem::absolute(argv0, ec).parent_path();
+#endif
     std::filesystem::current_path(dir, ec);
     const std::filesystem::path gameData = tsFindOrExtractGameData(dir);
     if (gameData.empty()) return {};

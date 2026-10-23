@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <climits>
+#include <cmath>
 #include "ps2_simd.h"
 #include <cstring>
 #include <deque>

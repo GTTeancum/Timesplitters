@@ -147,7 +147,14 @@ endif()
 
 # Stage the game into the repository root after every build, so the
 # timesplitters.exe there (double-clicked, no arguments) is always current.
-option(TS_STAGE_TO_ROOT "Copy the built game and its DLLs into the repository root" ON)
+if(WIN32)
+    set(TS_STAGE_TO_ROOT_DEFAULT ON)
+else()
+    # Linux: the game is run from its own folder (README-LINUX.md); nothing
+    # is copied into the checkout unless asked for.
+    set(TS_STAGE_TO_ROOT_DEFAULT OFF)
+endif()
+option(TS_STAGE_TO_ROOT "Copy the built game and its DLLs into the repository root" ${TS_STAGE_TO_ROOT_DEFAULT})
 if(TS_STAGE_TO_ROOT)
     add_custom_command(TARGET timesplitters POST_BUILD
         COMMAND "${CMAKE_COMMAND}" "-DSRC=$<TARGET_FILE_DIR:timesplitters>" "-DEXE=$<TARGET_FILE:timesplitters>"

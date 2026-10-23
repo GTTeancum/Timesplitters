@@ -3043,6 +3043,14 @@ void PS2Runtime::run()
         std::cerr << "[TS:capture] saved=" << saved << " path=" << capture << '\n';
     }
     UnloadTexture(frameTex);
+#if defined(__linux__)
+    // The GPU backend draws on its own thread with its own GLFW context
+    // (see initialize). Stop it before CloseWindow terminates GLFW and the
+    // display connection: Mesa crashes when a context is still in use on
+    // another thread (segfault at exit on Linux; Windows only logs a GLFW
+    // warning). The CPU backend takes over the GS local memory.
+    m_gs.setRasterBackend(nullptr);
+#endif
     CloseWindow();
 
     RUNTIME_LOG("[run] exiting loop");

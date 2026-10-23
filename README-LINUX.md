@@ -4,6 +4,18 @@ The PC release builds and runs on Linux (tested on Ubuntu under WSL2 with
 WSLg). It is the same program as the Windows release: the first start unpacks
 your disc dump into loose files, then the game runs from its own folder.
 
+## The prebuilt program
+
+The release's `timesplitters` binary was built on Ubuntu 26.04 and links the
+system's shared libraries: glibc 2.43 or newer, FFmpeg 8 (`libavcodec.so.62`,
+`libavformat.so.62`, `libavutil.so.60`, `libswscale.so.9`,
+`libswresample.so.6`), OpenGL (`libOpenGL.so.0`, `libGLX.so.0`,
+`libGLU.so.1`) and X11. On Ubuntu 26.04 these come with
+`sudo apt install libavcodec62 libavformat62 libswscale9 libglu1-mesa`
+(most desktops already have them). On an older distribution, or one with a
+different FFmpeg, build the program from source as described under Building:
+it takes a few minutes.
+
 ## Playing
 
 Put these together in one folder:

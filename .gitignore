@@ -89,3 +89,6 @@ project/analysis/extracted/MODULES/
 # (src/xbox/tools/xtpbuild.py)
 *.xtp
 *.dds
+
+# Screenshots for the README
+!docs/screenshots/*.png

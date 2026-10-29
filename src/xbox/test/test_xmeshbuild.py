@@ -203,6 +203,7 @@ int main(int argc, char **argv) {
     if (ts_xmesh::open(unaligned.data() + 1, data.size(), view) != ts_xmesh::Error::None) return 8;
     // Fixed-seed mutations with a valid checksum exercise structural guards.
     uint32_t rng = 0x12345678;
+    volatile uint32_t observed = 0; // keep validation observable under optimisation
     for (unsigned trial = 0; trial < 10000; ++trial) {
         auto changed = data;
         rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5;
@@ -210,7 +211,11 @@ int main(int argc, char **argv) {
         changed[pos] ^= static_cast<uint8_t>((rng >> 24) | 1u);
         const uint32_t crc = ts_xmesh::checksum(changed.data(), changed.size());
         for (unsigned j = 0; j < 4; ++j) changed[48 + j] = static_cast<uint8_t>(crc >> (j * 8));
-        ts_xmesh::open(changed.data(), changed.size(), view);
+        const auto status = ts_xmesh::open(changed.data(), changed.size(), view);
+        if (status == ts_xmesh::Error::None) {
+            if (!view.vertices || !view.strips || !view.vertexCount || !view.stripCount) return 9;
+        } else if (view.vertices || view.strips || view.sourceSha256 || view.vertexCount || view.stripCount) return 10;
+        observed = observed + static_cast<uint32_t>(status) + view.vertexCount;
     }
     return 0;
 }
@@ -224,6 +229,7 @@ int main(int argc, char **argv) {
         path = self.dir / "input.xmesh"
         path.write_bytes(packed)
         proc = subprocess.run([str(self.probe), mode, str(path)], capture_output=True, text=True)
+        self.assertEqual(proc.stderr, "", proc.stderr) # a sanitizer exit=1 is NOT an expected rejection
         self.assertEqual(proc.returncode, expected, proc.stderr)
 
     def test_differential_all_layouts(self):

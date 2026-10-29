@@ -1,4 +1,5 @@
 # Private validation inputs/outputs are never source artifacts.
 *.xmesh
 *.vu1data
+*.tsvucap
 __pycache__/

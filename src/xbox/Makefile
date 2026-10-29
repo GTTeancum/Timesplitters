@@ -279,6 +279,37 @@ $(RENDER_COUNTERS_STAMP): FORCE
 $(RENDER_COUNTERS_OBJS): $(RENDER_COUNTERS_STAMP)
 $(RENDER_COUNTERS_OBJS): RUNTIME_FLAGS += -DTS_RENDER_COUNTERS=$(TS_RENDER_COUNTERS)
 
+# make TS_NATIVE_CAPTURE=1: record bounded native VU1 draw inputs for the
+# Xbox-layout geometry converter. Off by default; the normal build registers
+# the original callback directly. Rename registration ONLY in the native game
+# object; the capture adapter must still call the runtime's real registry.
+# The stamp rebuilds both sides when enabling/disabling or changing sampling,
+# so a stale instrumented object cannot silently survive a normal rebuild.
+TS_NATIVE_CAPTURE ?= 0
+ifneq ($(TS_NATIVE_CAPTURE),0)
+ifneq ($(TS_NATIVE_CAPTURE),1)
+$(error TS_NATIVE_CAPTURE must be 0 or 1)
+endif
+endif
+TS_NATIVE_CAPTURE_DELAY_MS ?= 5000
+TS_NATIVE_CAPTURE_STRIDE ?= 64
+TS_NATIVE_CAPTURE_LIMIT ?= 128
+NATIVE_CAPTURE_STAMP := $(OUT)/gen/native_capture.flags
+NATIVE_CAPTURE_GAME_OBJ := $(OBJ)/project/game/vu1_native_ts.obj
+NATIVE_CAPTURE_ADAPTER_OBJ := $(OBJ)/src/xbox/xbox_vu_capture.obj
+NATIVE_CAPTURE_FLAGS := -DTS_NATIVE_CAPTURE=$(TS_NATIVE_CAPTURE) \
+    -DTS_NATIVE_CAPTURE_DELAY_MS=$(TS_NATIVE_CAPTURE_DELAY_MS) \
+    -DTS_NATIVE_CAPTURE_STRIDE=$(TS_NATIVE_CAPTURE_STRIDE) \
+    -DTS_NATIVE_CAPTURE_LIMIT=$(TS_NATIVE_CAPTURE_LIMIT)
+$(NATIVE_CAPTURE_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_CAPTURE_FLAGS)' ] || echo '$(NATIVE_CAPTURE_FLAGS)' > $@
+$(NATIVE_CAPTURE_GAME_OBJ) $(NATIVE_CAPTURE_ADAPTER_OBJ): $(NATIVE_CAPTURE_STAMP)
+$(NATIVE_CAPTURE_ADAPTER_OBJ): RUNTIME_FLAGS += $(NATIVE_CAPTURE_FLAGS)
+ifeq ($(TS_NATIVE_CAPTURE),1)
+$(NATIVE_CAPTURE_GAME_OBJ): RUNTIME_FLAGS += -DregisterVu1NativeProgram=xboxRegisterVu1NativeProgram
+endif
+
 # Thread stacks (REWRITE-PLAN.md M2.5). Every thread created without a size
 # (std::thread, CreateThread(..., 0, ...): the game thread, the audio
 # feeder) and the main thread get the XBE's stack size, 256 KB, committed

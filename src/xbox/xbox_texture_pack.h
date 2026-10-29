@@ -67,7 +67,7 @@ public:
         kLoading,     // asked for (now or before), not read yet: try again next frame
         kBusy,        // the loader's queue is full: try again next frame
         kNoRoom,      // the pool has no room that may be taken now: try again later
-        kUnavailable, // never (no pool, or the disc could not read it)
+        kUnavailable, // never (no pool, too large for it, or an unreadable entry)
     };
 
     struct Stats
@@ -87,13 +87,16 @@ public:
 
     // Reads and checks the header and the index. False when the file is
     // missing or is not a pack this reader understands (the reason is
-    // logged); the pack then stays unused.
+    // logged); the pack then stays unused. Reopening first closes the old
+    // pack: the caller must have stopped using all its borrowed entries.
     bool open(const char *path);
     // GPU memory for resident entries, 128-byte aligned, owned by the
     // caller (who must close() before freeing it), and starts the loader.
-    // False when the loader cannot start: the pack stays unused.
+    // The pool must hold at least 128 bytes. False for invalid pool storage
+    // or when the loader cannot start: the pack stays unused.
     bool attachPool(uint8_t *pool, uint32_t bytes);
-    // Stops the loader (after its current read) and closes the file.
+    // Stops the loader (after its current read), closes the file and frees
+    // metadata. Invalidates borrowed entries; the caller still owns pool.
     void close();
     bool enabled() const { return pool_ != nullptr; }
     uint32_t count() const { return uint32_t(index_.size()); }

@@ -1,4 +1,4 @@
-"""Synthetic VCU1 interoperability and negative tests; no copyrighted inputs.
+"""Synthetic VCU1/native interoperability and negative tests; no copyrighted inputs.
 
 Compile production header/hash/scalar-decoder excerpts from the checkout.
 Synthetic microprogram identity is substituted only inside unit tests; the
@@ -57,6 +57,13 @@ def snapshot(kind=0, top=256, counts=(3, 4, 5), seed=0):
 def recording(data=None, *, pc=0, top=256, code=CODE, state_size=640, itop=0, cycles=100000):
     data = snapshot() if data is None else data
     return cap.CAPTURE.pack(cap.CAPTURE_MAGIC, state_size, len(code), len(data), pc, top, itop, cycles) + bytes(state_size) + code + data
+
+
+def native_recording(data=None, *, pc=0, top=256, ordinal=1, program_hash=None):
+    data = snapshot(cap.DRAW_KINDS.get(pc & 0x3FFF, 0), top) if data is None else data
+    program_hash = cap.PROGRAM_HASH if program_hash is None else program_hash
+    return cap.NATIVE_CAPTURE.pack(cap.NATIVE_MAGIC, 1, cap.NATIVE_CAPTURE.size + len(data),
+                                   len(data), pc, top, 0, program_hash, ordinal) + data
 
 
 def record(kind=0, pc=None, data=None):
@@ -246,6 +253,129 @@ class ConversionTests(unittest.TestCase):
             out = io.StringIO()
             with redirect_stdout(out): cap.main(["inspect", str(source)])
             self.assertEqual(json.loads(out.getvalue()), json.loads(target.read_text()))
+
+
+class NativeCaptureTests(unittest.TestCase):
+    def test_auto_detection_metadata_and_partial_reads(self):
+        first, second = native_recording(), native_recording(pc=0x2800, ordinal=19)
+        stream = first + second
+        class TinyStream:
+            def __init__(self, data): self.source = io.BytesIO(data)
+            def read(self, n): return self.source.read(min(n, 3))
+        values = list(cap.records(TinyStream(stream)))
+        self.assertEqual(values, list(cap.records(io.BytesIO(stream), input_format="native-capture")))
+        self.assertEqual([r.offset for r in values], [0, 16432])
+        self.assertEqual([r.draw_ordinal for r in values], [1, 19])
+        for value in values:
+            self.assertEqual(value.format, "native-capture")
+            self.assertEqual(value.program_hash, cap.PROGRAM_HASH)
+            self.assertEqual((value.state_bytes, value.code, value.itop, value.max_cycles), (None,) * 4)
+        report = cap.analyze(io.BytesIO(stream))
+        self.assertEqual(report["capture_format"], "native-capture")
+        for item in report["records"]:
+            self.assertEqual(item["program_identity_source"], "native_callback_registration")
+            self.assertFalse(item["microprogram_captured"])
+            self.assertFalse(item["host_state_captured"])
+            self.assertIsNone(item["code_bytes"])
+            self.assertIsNone(item["state_bytes"])
+            self.assertNotIn("code", item)
+            self.assertNotIn("data", item)
+
+    def test_all_draws_and_native_pc_aliases(self):
+        stream = b"".join(native_recording(pc=pc, ordinal=i) for i, pc in enumerate(cap.DRAW_KINDS))
+        for index, (pc, kind) in enumerate(cap.DRAW_KINDS.items()):
+            packed = cap.extract(io.BytesIO(stream), index)
+            self.assertEqual(packed, mesh.convert(snapshot(kind), kind, 256))
+            aliased = next(cap.records(io.BytesIO(native_recording(pc=pc | 0x4000))))
+            self.assertEqual(aliased.pc, pc | 0x4000)  # retain the original callback argument
+            self.assertEqual(cap.convert_record(aliased), packed)
+        same_draw = native_recording() + native_recording(pc=0x4000, ordinal=2)
+        report = cap.analyze(io.BytesIO(same_draw))
+        self.assertEqual(report["unique_geometry_observations"], 1)
+        self.assertEqual(report["records"][1]["pc"], 0x4000)
+        self.assertEqual(report["records"][1]["entry_pc"], 0)
+
+    def test_native_headers_reject_bad_bounds_before_body(self):
+        valid = native_recording()
+        for offset, value in ((8, 2), (12, 0), (12, 0xFFFFFFFF),
+                              (16, 0), (16, 16383), (16, 0xFFFFFFFF), (24, 1024), (28, 1)):
+            header = bytearray(valid[:48]); struct.pack_into("<I", header, offset, value)
+            with self.subTest(offset=offset, value=value), self.assertRaises(cap.CaptureError) as error:
+                list(cap.records(io.BytesIO(header)))
+            self.assertNotIn("truncated", str(error.exception))
+        header = bytearray(valid[:48]); header[7] = 1
+        with self.assertRaises(cap.CaptureError): list(cap.records(io.BytesIO(header)))
+        for ordinal in (0, 7):
+            with self.assertRaisesRegex(cap.CaptureError, "ordinals"):
+                list(cap.records(io.BytesIO(native_recording(ordinal=7) + native_recording(ordinal=ordinal))))
+
+    def test_native_truncation_limits_and_mixed_containers(self):
+        native = native_recording()
+        for length in (0, 1, 3, 4, 7, 8, 47, 48, 49, len(native) - 1):
+            with self.subTest(length=length), self.assertRaises(cap.CaptureError):
+                list(cap.records(io.BytesIO(native[:length])))
+        for tail in (b"bad", native_recording(ordinal=2)[:-1], recording()):
+            with self.assertRaises(cap.CaptureError):
+                cap.extract(io.BytesIO(native + tail), 0)
+        with self.assertRaises(cap.CaptureError):
+            list(cap.records(io.BytesIO(recording() + native)))
+        for data, fmt in ((native, "vcu1"), (recording(), "native-capture")):
+            with self.assertRaises(cap.CaptureError):
+                list(cap.records(io.BytesIO(data), input_format=fmt))
+        self.assertEqual(len(list(cap.records(io.BytesIO(native), limit=1))), 1)
+        with self.assertRaisesRegex(cap.CaptureError, "record limit"):
+            list(cap.records(io.BytesIO(native + native_recording(ordinal=2)), limit=1))
+
+    def test_native_identity_draw_and_state_checks(self):
+        for data, status in ((native_recording(program_hash=0), "unsupported_program"),
+                             (native_recording(pc=0x3FE0), "non_draw_entry")):
+            self.assertEqual(cap.analyze(io.BytesIO(data))["status_counts"], {status: 1})
+            with self.assertRaises(cap.CaptureError): cap.extract(io.BytesIO(data), 0)
+        invalid = bytearray(snapshot())
+        struct.pack_into("<I", invalid, (256 + 216) * 16, 32)
+        invalid = native_recording(bytes(invalid))
+        self.assertEqual(cap.analyze(io.BytesIO(invalid))["status_counts"], {"unsupported_draw": 1})
+        with self.assertRaises(cap.CaptureError): cap.extract(io.BytesIO(invalid), 0)
+        # A native header is an explicit registration label; no missing code
+        # image may be synthesized and hashed to masquerade as replay evidence.
+        with patch.object(cap, "hash_program", side_effect=AssertionError("native recording has no code")):
+            self.assertEqual(cap.analyze(io.BytesIO(native_recording()))["status_counts"], {"converted": 1})
+
+    def test_native_fingerprints_keep_tags_state_constants_separate(self):
+        base = snapshot()
+        constants = bytearray(base); constants[0] ^= 1
+        state = bytearray(base); state[(256 + 217) * 16] ^= 1
+        tags = bytearray(base)
+        tag1 = struct.unpack_from("<I", tags, 256 * 16 + 4)[0] ^ (1 << (15 + 6))
+        struct.pack_into("<I", tags, 256 * 16 + 4, tag1)
+        stream = b"".join(native_recording(bytes(data), ordinal=i) for i, data in enumerate((base, constants, state, tags)))
+        report = cap.analyze(io.BytesIO(stream))
+        self.assertEqual(report["status_counts"], {"converted": 4})
+        self.assertEqual(report["unique_geometry_observations"], 1)
+        group = report["repeated_geometry"][0]
+        self.assertEqual(group["records"], [0, 1, 2, 3])
+        self.assertEqual((group["distinct_constant_inputs"], group["distinct_state_blocks"], group["distinct_tags"]),
+                         (2, 2, 2))
+        self.assertEqual(group["distinct_source_images"], 4)
+
+    def test_native_cli_auto_explicit_and_output_preservation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source, report, target = (Path(tmp) / n for n in ("native.tsvucap", "report.json", "draw.xmesh"))
+            source.write_bytes(native_recording() + native_recording(pc=0x2800, ordinal=2))
+            self.assertEqual(cap.main(["inspect", str(source), "--output", str(report)]), 0)
+            automatic = report.read_bytes()
+            self.assertEqual(cap.main(["inspect", str(source), "--format", "native-capture", "--output", str(report)]), 0)
+            self.assertEqual(report.read_bytes(), automatic)
+            with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+                self.assertEqual(cap.main(["extract", str(source), str(target), "--record", "1"]), 0)
+                packed = target.read_bytes()
+                self.assertEqual(packed, mesh.convert(snapshot(3), 3, 256))
+                source.write_bytes(source.read_bytes() + b"bad tail")
+                for args in (["extract", str(source), str(target), "--record", "1"],
+                             ["inspect", str(source), "--output", str(report)]):
+                    with self.assertRaises(SystemExit): cap.main(args)
+                self.assertEqual(target.read_bytes(), packed)
+                self.assertEqual(report.read_bytes(), automatic)
 
 
 class ReleaseIdentityTests(unittest.TestCase):

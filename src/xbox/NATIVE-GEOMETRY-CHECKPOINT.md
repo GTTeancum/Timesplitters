@@ -1,132 +1,215 @@
-# Xbox native geometry checkpoint
+# Xbox native geometry and texture checkpoint
 
-## Current objective and authorization
+## Objective and authorization
 
-Preserve gameplay and visuals while reducing repeated PS2 graphics-data
-translation. Publish to `main` only; change files inside `src/xbox/` only.
-No Codex service, Dot or user-PC operation. Continue TimeSplitters means resume
-an implementation/verification batch from the actual current repository head.
-No agent launcher was available; compiler configurations ran concurrently.
-Nothing continues unattended after the turn.
+Preserve gameplay, physics, AI and visuals while reducing repeated PS2
+graphics-data work. Publish to `main` only and change repository files inside
+`src/xbox/` only. No Codex service, Dot or user-PC operation.
 
-## Latest batch: existing capture import and geometry comparison
+“Continue TimeSplitters” means verify current `main` and resume a substantial
+implementation/verification batch. Keep chat updates short. This batch used
+three agents for native capture, importer integration and texture loading,
+with cross-review and combined host verification.
 
-Starting head: `37658ff87311692c36ddee8704870f10c02f325d`.
-Previous geometry prototype: `c5bbef4`; test-hardening follow-up: `37658ff`.
+## Current state — 2026-10-29 Eastern
 
-Implemented:
-- `tools/xmeshcapture.py`: bounded streaming reader for the existing PC-runtime
-  VCU1 input recording. Skips opaque host state by its declared size; verifies
-  the native microprogram identity and maps all five draw entries to the
-  correct four layouts. No user-supplied identity/layout override.
-- Selected-record extraction through the existing `xmeshbuild.py`. Validates
-  the entire container before atomically replacing an output. Truncated tails,
-  unsupported draws and write failures do not publish partial output.
-- JSON analysis separates repeated decoded geometry from changed constants,
-  material-state inputs and draw tags. It does not infer object/frame IDs,
-  automatically deduplicate live draws, or declare a static-geometry cache key.
-- `test/test_xmeshcapture.py`: interoperability, differential, malformed-input,
-  identity, repetition and safe-write tests using synthetic inputs only.
-- `NATIVE-GEOMETRY-CAPTURE.md`: exact input format, commands, limitations and
-  source contracts. All new changes stay within this Xbox folder.
+Reconciled baseline: `406f2e45fbeabf2c37b2ce23c34beb26f6e046f6`.
 
-The existing raw converter and C++ pack reader are unchanged. The `.xmesh`
-format remains version 1 / CAPTURE_ONLY. No game assets, raw capture bytes,
-user paths or private backups are included in the commit.
+The restored original chat had advanced beyond the initially recovered
+`37658ff` checkpoint. Commit `406f2e4` added `xmeshcapture.py`, its
+19-test suite, geometry-versus-state comparison and capture documentation.
+This batch extends that existing importer and preserves its behavior.
+It does not publish the duplicate importer initially prepared from the older
+context.
 
-## Actual verification in this batch
+`tools/xmeshbuild.py`, `test/test_xmeshbuild.py` and `xbox_mesh_pack.h`
+are unchanged from the reconciled baseline. The raw converter remains a
+separate simple 16 KiB snapshot converter, and XMESH remains v1/CAPTURE_ONLY.
 
-19 new tests passed in each of three host configurations:
-1. GCC, `-O2 -Wall -Wextra -Werror`.
-2. GCC, UBSan with fail-fast recovery disabled.
-3. Clang, ASan + UBSan with fail-fast recovery disabled.
+Implemented in this batch:
+- Optional Xbox-local native draw recorder, disabled in normal builds.
+- Native TSVUCAP input in the existing VCU1 inspection/extraction/comparison
+  pipeline, with explicit provenance and no fabricated interpreter state.
+- Native texture-pack loader lifecycle, pool admission and allocation fixes.
+- Combined host verification and a resumable capture workflow.
 
-Each configuration includes 40 synthetic C++-written captures covering all
-five draw entries / four layouts, 120 strips and 480 vertices compared
-byte-for-byte with the compiled production scalar decoder. The capture header
-and program hash are also compared against compiled production excerpts.
-Other tests cover short reads, host state-size variation, every-byte truncation
-of a small record, full-size truncation boundaries, malicious length fields,
-trailing garbage, record limits, unsupported code/entries, atomic write failure,
-and geometry-versus-state separation. Python syntax compilation passed.
+Not established: a target Xbox build, console/xemu run, real-game geometry
+fidelity or new FPS measurements. No real game capture/assets were available.
+The next required input remains a PRIVATE real draw recording.
 
-The earlier 12-test raw-converter suite was not rerun in this batch; its source
-and the raw converter were not changed. The raw converter's local bytes were
-verified against Git blob `3a0eb264c27b5c19e953d7417b8529c5695d72d7`.
+## Architectural context retained
 
-Direct GitHub DNS failed in the shell. Source inspection and publication use
-the connected GitHub API. Host tests used fetched production-source excerpts,
-not a full repository checkout, full Xbox build or running game. The committed
-tests read those same declarations/functions from a full checkout by default;
-`TS_XMESH_REFERENCE_ROOT` supports a separate read-only reference tree.
-Sanitizers apply to the C++ test probe, not the Python interpreter.
+The Xbox build already has native VU1 handling. `Makefile` defaults
+`TS_VU1_RECOMPILED` to 0 and `project/game/vu1_native_ts.cpp` already
+offers raw vertices to the Xbox transform ring. The remaining opportunity is
+packing/unpacking, VIF/DMA processing and submission; this is not a new
+wholesale VU1-emulation bypass.
 
-Reproduce:
+Xbox-ready meshes/world data, textures, animations and material tables were
+discussed as possible directions, not completed formats or measured speedups.
+The capture tools establish evidence for subsequent asset identity and reuse.
+They do not replace gameplay, collision or live renderer state.
+
+## Optional native draw recorder
+
+Files: `xbox_vu_capture.h/.cpp`, `Makefile` and
+`test/test_vu_capture.py`.
+
+The generic VCU1 recorder is excluded on Xbox. The new adapter observes the
+native callback instead. With `TS_NATIVE_CAPTURE=1`, only
+`vu1_native_ts.obj` sees a registration-name macro. The adapter uses the real
+runtime registry and invokes the original callback exactly once, forwarding
+every original argument and its return value/fallback.
+
+Normal builds default to 0, compile an empty adapter, and register the
+original callback directly. A flags stamp rebuilds both objects on
+off/on/reconfiguration/off transitions. The mode accepts only 0 or 1.
+
+Recording:
+- Program identity: `0x38ae1e855cd83dee`; draw PCs 0000, 0d20, 1ae0, 3520,
+  2800, classified with the native runtime's low-14-bit PC mask.
+- Exact 16 KiB RAM before mutation, original PC, effective TOP and observed
+  draw ordinal. No borrowed VU pointer survives observation.
+- Defaults: delay 5000 ms from first recognized draw, stride 64 per PC,
+  limit 128 records (2,103,296 bytes). Menus can start the timer.
+- Unique `E:\TimeSplitters\vu1-NNN.tsvucap`, created without replacing any
+  existing file. Stops at the limit or first I/O failure; closes on normal
+  early shutdown. Abrupt termination is untested.
+- A contended observer skips sampling while preserving the original call.
+  Writes are synchronous diagnostics; measure FPS with capture disabled.
+
+Build/use instructions and the exact 48-byte header are in
+[NATIVE-GEOMETRY-CAPTURE.md](NATIVE-GEOMETRY-CAPTURE.md).
+No target build or console operation was performed by these tools here.
+
+## One capture-analysis pipeline
+
+`tools/xmeshcapture.py` now auto-detects VCU1 or TSVUCAP. Existing VCU1
+commands remain valid. Optional `--format vcu1` or
+`--format native-capture` restricts the accepted input.
 
 ```sh
-python -m unittest discover -s src/xbox/test -p 'test_xmeshcapture.py' -v
-CXX=clang++ TS_XMESH_CXXFLAGS='-O1 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer' \
-  python -m unittest discover -s src/xbox/test -p 'test_xmeshcapture.py' -v
+python src/xbox/tools/xmeshcapture.py inspect /private/inputs.vucapture \
+  --output /private/geometry-report.json
+python src/xbox/tools/xmeshcapture.py extract /private/inputs.vucapture \
+  /private/draw.xmesh --record 17
+
+python src/xbox/tools/xmeshcapture.py inspect /private/vu1-000.tsvucap \
+  --output /private/native-geometry-report.json
+python src/xbox/tools/xmeshcapture.py extract /private/vu1-000.tsvucap \
+  /private/draw.xmesh --record 0
 ```
 
-No Xbox build, xemu run, hardware run, real-game conversion, visual comparison
-or new FPS measurement was performed. No performance improvement is claimed.
+Preserved: whole-stream validation before output, atomic write protection,
+VCU1 state-size handling, verified code identity, strict VCU1 PC handling,
+bounded render-state validation, and separate geometry/constants/tags/state
+fingerprints. A corrupt later record never silently produces accepted output.
+Native inputs add bounds/reserved-field checks and increasing ordinals;
+mixed-format streams are rejected.
 
-## Important architectural correction
+VCU1 identity is computed from captured code. Native identity is the
+registration label recorded by the callback observer, explicitly identified
+as such in reports. Native records have no code/host state; state-byte count,
+ITOP and cycle limit are null. Native high-PC aliases use the same
+normalization as the writer; original PC remains in metadata. Existing
+geometry fingerprint domains and VCU1 behavior are preserved.
 
-The existing Xbox build already has native VU1 handling. `src/xbox/Makefile`
-defaults `TS_VU1_RECOMPILED` to 0; `project/game/vu1_native_ts.cpp` already
-submits raw vertices to the Xbox transform ring. The remaining opportunity is
-packing/unpacking, VIF/DMA processing and submission, not a newly invented
-wholesale VU1-emulation bypass. Earlier chat FPS projections were not measured.
+Neither format proves full capture completion if truncated exactly at a
+record boundary. Neither hashes nor ordinals identify a static object or
+authorize skipping a draw. Repeated vertices can occur on dynamic objects;
+frame/view/object identity and GPU lifetime remain unknown.
 
-The existing input recorder is PC-only: `ps2_vu1_core.cpp` excludes its call
-under `PLATFORM_XBOX`. This batch consumes its format; it does not enable Xbox
-recording. The tools never launch the game or touch the user's PC.
+The earlier PC recording request remains usable:
+`TS_VU_CAPTURE_FILE` selects the private output,
+`TS_VU_CAPTURE_AFTER=180` delays recording, and
+`TS_VU_CAPTURE_LIMIT=256` bounds it. The original chat asked for the
+completed private `.vucapture` after entering a level. The tools do not
+launch or operate the user's PC. An ISO/PAK is not a capture-container input.
 
-## Source contracts
+## Native texture-pack fixes
 
-Read at starting head above; shared files were inspected, not modified:
-- `project/game/vu1_native_xf.h`: `bd6a61146ab783c04dcb2198e385b86d5fe78bf3`.
-- `project/game/vu1_native_ts.cpp`: `97723cc7725739099edc6bb756b4abd17538d5f9`.
-- `source/PS2Recomp/ps2xRuntime/include/runtime/gs/gs_backend.h`:
-  `fc1e87de1baf89e771bd7cafea54cae002ada66a`.
-- Capture header, hash and call-site blobs: `NATIVE-GEOMETRY-CAPTURE.md`.
+`xbox_texture_pack.cpp/.h` retains XTP1 layout, valid existing builder output,
+texture dimensions and pixels.
 
-## Existing pack contract (unchanged)
+- Reopening joins/closes the old loader before clearing requests, slots,
+  borrowed pool pointers, counters and metadata; a new loader starts with
+  reset request sequence and stop state.
+- Rejects undersized or non-128-byte-aligned pools before starting a loader.
+- Textures larger than the whole pool return `kUnavailable` immediately;
+  the existing backend keeps the runtime texture instead of repeatedly
+  attempting impossible evictions.
+- Rejects overlapping metadata/data ranges, unsupported reserved fields and
+  unknown entry flags.
+- Invalidates cached failed allocations when a failed read frees storage or
+  a completed read makes an old queued slot evictable.
+- Preserves current/previous-frame eviction protection through uint32 frame
+  counter rollover.
 
-`tools/xmeshbuild.py` converts one raw 16 KiB VU1 data snapshot plus kind/TOP.
-`xbox_mesh_pack.h` validates the resulting borrowed immutable byte view without
-allocation. The format is little-endian: 96-byte `<8s12I32s8x` header,
-32-byte `<8I` strip descriptors and 44-byte `GSXfVertex` records.
+These are correctness/admission improvements. No measured performance gain
+is claimed.
 
-Header offsets: magic `TSXMESH\0` at 0; version=1 at 8; exact size at 12;
-kind/TOP at 16/20; strip/vertex counts at 24/28; strip/vertex offsets at 32/36;
-stride=44, CAPTURE_ONLY=1, CRC32, reserved=0 at 40/44/48/52; input SHA-256 at
-56..87; zero padding at 88..95. CRC covers the whole file with bytes 48..51
-zeroed. Strip fields: first vertex, count, source qword, PRIM, four GIF words.
-Kinds: Plain=0, EnvMap=1, Lit=2, Skinned=3 (not GSXfConstants::Variant order).
+## Actual verification after reconciliation
 
-The converter preserves decoded float/colour/bone semantics; it does not bake
-camera transforms/lighting or simplify meshes. A file with the correct vertex
-bytes is not automatically GPU-visible. Borrowed storage must stay alive and
-immutable; never cast potentially unaligned file data to float structs.
+55 tests passed in both combined host runs:
+- GCC normal configuration: 55/55, 6.448 seconds.
+- GCC address + undefined-behavior sanitizers, fail-fast: 55/55, 9.464 seconds.
+  Leak detection was disabled (`ASAN_OPTIONS=detect_leaks=0`); no
+  leak-sanitizer coverage is claimed. The texture shim also counts handles.
 
-## Remaining blocker and next action
+Coverage:
+- 12 unchanged raw converter/reader tests, including production scalar
+  decoder comparison and 40,000 deterministic mutation cases per run.
+- All 19 upstream capture/import/comparison tests plus 7 native-container
+  tests. C++-written synthetic VCU1 records retain production header/hash/
+  decoder interoperability.
+- 6 actual capture-adapter tests against Win32 stubs and the production
+  callback declaration: exact forwarding, pre-mutation data, timing/sampling,
+  I/O failure and early shutdown, writer-to-importer round trip, and repeated
+  geometry with changed live constants.
+- 10 production texture-reader tests: all formats, asynchronous loads,
+  successful/failed reopen, pending-read shutdown, thread-start failure,
+  pool admission, rollover, stale allocation results and malformed metadata.
+- 1 test of the real Makefile with a command-recording compiler: registration
+  flag routing, both-side rebuilds and removal of capture instrumentation.
+  This is not an Xbox compilation.
 
-1. Verify current `main`, then keep all modifications inside `src/xbox/`.
-2. Obtain a PRIVATE existing VCU1 input recording. Unlike the first prototype,
-   the tool now accepts the whole recording and reads PC/TOP itself. Inspect it
-   using the documented command; extract records marked `converted`.
-3. Compare real vertex output with the reference decoder. Repeated geometry
-   observations can guide investigation, but cannot prove static-object identity
-   or cache invalidation. The format contains no frame/object IDs.
-4. Identify original asset offsets and mutable state before designing reuse or
-   an importer. A disc image/PAK is not accepted by this capture tool.
-5. Locate an Xbox-local build/loader hook before VIF decoding, preserve original
-   fallback, and validate ordering/side effects/memory lifetimes before enabling
-   any native-asset fast path. Shared-runtime writes remain outside permission.
+Python syntax checks and `git diff --check` passed. Raw converter and its
+test file were hash-checked as unchanged. The actual registration statement
+and runtime API declaration were also checked with the scoped macro.
 
-Do not activate a live fast path from these capture hashes. There is still no
-static-world importer, runtime lookup/cache, GPU allocation or draw hook. Real
-inputs and a proven rendering hook are required before claiming FPS gains.
+Reproduce from the full checkout (Python 3.9+, C++17 compiler; GNU make/POSIX
+shell for build-routing verification):
+
+```sh
+CXX=g++ python3 -m unittest discover -s src/xbox/test -p 'test_*.py' -v
+
+ts_san_flags='-O1 -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer'
+ASAN_OPTIONS=detect_leaks=0 CXX=g++ \
+TS_XMESH_CXXFLAGS="$ts_san_flags" TS_VU_CAPTURE_CXXFLAGS="$ts_san_flags" \
+TS_XTP_CXXFLAGS="$ts_san_flags" \
+python3 -m unittest discover -s src/xbox/test -p 'test_*.py' -v
+```
+
+Host stubs do not establish Xbox driver behavior, GPU visibility, actual SDK
+linking, gameplay or visual fidelity. Sanitizers cover compiled C++ probes,
+not the Python interpreter. Source inspection/publication uses the GitHub API;
+read-only shared source references are not publication inputs.
+
+## Remaining blocker and next concrete work
+
+1. Verify actual current `main` and retain all newer work and scope.
+2. Obtain the PRIVATE existing PC VCU1 recording already requested, or compile
+   an optional Xbox capture build in a configured target environment and
+   privately retrieve TSVUCAP. Both feed the same inspection/comparison tool.
+3. Compare real converted vertices against the production decoder and study
+   repeated geometry versus changed state across scenes/views.
+4. Establish original asset offsets, mutable data and invalidation before
+   designing reuse or model/world import.
+5. Add an Xbox-local loader/submission optimization with fallback only after
+   validating ordering, side effects, memory budget and GPU lifetimes.
+6. Verify real visuals and measure capture-disabled performance.
+
+No static-world importer, runtime mesh cache, GPU allocation or geometry
+replacement is activated. Camera, lighting, materials, animation, collision,
+clipping, strip joining, flat shading and ordering remain the existing path's
+responsibility. Keep private captures/reports/assets out of public commits.

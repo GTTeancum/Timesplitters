@@ -97,6 +97,28 @@ void XboxTexturePack::close()
         file_ = nullptr;
     }
     pool_ = nullptr;
+    poolBytes_ = 0;
+    ticksPerSecond_ = 0;
+    // Reopening is a fresh pack. In particular, no queued request may
+    // retain a pointer into the caller's old pool, and the next loader
+    // starts at request zero with stop_ cleared. The join above must
+    // precede every reset of storage visible to the loader.
+    std::vector<Entry>().swap(index_);
+    std::vector<Slot>().swap(slots_);
+    std::vector<int>().swap(resident_);
+    std::vector<Range>().swap(free_);
+    std::vector<Block>().swap(blocks_);
+    for (Request &r : requests_)
+    {
+        r.index = -1;
+        r.dest = nullptr;
+        r.fileOffset = r.bytes = r.microseconds = 0;
+        r.state.store(kPending, std::memory_order_relaxed);
+    }
+    issued_ = collected_ = 0;
+    noRoomFrame_ = noRoomBytes_ = 0;
+    stop_.store(false, std::memory_order_relaxed);
+    stats_ = Stats{};
 }
 
 bool XboxTexturePack::readAt(uint32_t offset, void *out, uint32_t bytes)
@@ -118,6 +140,7 @@ bool XboxTexturePack::readAt(uint32_t offset, void *out, uint32_t bytes)
 
 bool XboxTexturePack::open(const char *path)
 {
+    close();
     HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, nullptr);
     if (file == INVALID_HANDLE_VALUE)
     {
@@ -130,10 +153,7 @@ bool XboxTexturePack::open(const char *path)
         if (detail >= 0)
             std::cout << " " << detail;
         std::cout << std::endl;
-        CloseHandle(file);
-        file_ = nullptr;
-        index_.clear();
-        index_.shrink_to_fit();
+        close();
         return false;
     };
 
@@ -150,12 +170,15 @@ bool XboxTexturePack::open(const char *path)
         return fail("format version", header.version);
     if (header.hashVersion != gs_texture_hash::kVersion)
         return fail("texture key version", header.hashVersion);
+    if (header.reserved[0] != 0u || header.reserved[1] != 0u)
+        return fail("unsupported header flags");
     if (header.count == 0u || header.count > kMaxEntries)
         return fail("entry count", header.count);
-    if (header.indexOffset < sizeof(Header) || uint64_t(header.indexOffset) + uint64_t(header.count) * sizeof(Entry) > size)
+    const uint64_t indexEnd = uint64_t(header.indexOffset) + uint64_t(header.count) * sizeof(Entry);
+    if (header.indexOffset < sizeof(Header) || indexEnd > size)
         return fail("index outside the file", header.indexOffset);
-    if (header.dataOffset > size)
-        return fail("data outside the file", header.dataOffset);
+    if (header.dataOffset < indexEnd || header.dataOffset > size)
+        return fail("data outside the file or overlapping the index", header.dataOffset);
 
     index_.resize(header.count);
     if (!readAt(header.indexOffset, index_.data(), header.count * uint32_t(sizeof(Entry))))
@@ -166,6 +189,8 @@ bool XboxTexturePack::open(const char *path)
     for (uint32_t i = 0; i < header.count; ++i)
     {
         const Entry &e = index_[i];
+        if (e.reserved != 0u || (e.flags & ~(kUnitAlpha | kBinaryAlpha | kReplacement)) != 0u)
+            return fail("unsupported entry flags: entry", i);
         if (i > 0 && e.key <= index_[i - 1u].key)
             return fail("index not sorted by key, or a key twice: entry", i);
         if (!powerOfTwo(e.width) || !powerOfTwo(e.height) || e.width > 4096u || e.height > 4096u)
@@ -190,7 +215,8 @@ bool XboxTexturePack::open(const char *path)
 
 bool XboxTexturePack::attachPool(uint8_t *pool, uint32_t bytes)
 {
-    if (!file_ || !pool || thread_)
+    if (!file_ || !pool || thread_ || bytes < kAlign ||
+        (reinterpret_cast<uintptr_t>(pool) & (kAlign - 1u)) != 0u)
         return false;
     work_ = CreateSemaphore(nullptr, 0, LONG(kQueue) + 1, nullptr); // + 1: close()'s wake-up
     if (work_)
@@ -263,6 +289,10 @@ void XboxTexturePack::poll()
         if (state == kRead)
         {
             slot.state = kResident;
+            // A queued slot was protected from eviction. If this read
+            // spans frames, its now-resident entry can immediately be
+            // old enough to evict, invalidating a failed search too.
+            noRoomBytes_ = 0;
             ++stats_.loads;
             continue;
         }
@@ -307,6 +337,9 @@ uint32_t XboxTexturePack::allocate(uint32_t bytes)
 // Back into the free list, joined with its neighbours.
 void XboxTexturePack::release(uint32_t offset, uint32_t bytes)
 {
+    // A completed failed read can free room in the same frame as a
+    // rejected allocation. Its old negative result is no longer valid.
+    noRoomBytes_ = 0;
     auto next = std::lower_bound(free_.begin(), free_.end(), offset,
                                  [](const Range &r, uint32_t at) { return r.offset < at; });
     const bool joinsNext = next != free_.end() && offset + bytes == next->offset;
@@ -351,7 +384,7 @@ void XboxTexturePack::evict(int index)
 // least cost, its entries evicted. kNoOffset when no run may be taken.
 uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<int> &evicted)
 {
-    if (frame == noRoomFrame_ && bytes >= noRoomBytes_)
+    if (noRoomBytes_ != 0u && frame == noRoomFrame_ && bytes >= noRoomBytes_)
         return kNoOffset;
     blocks_.clear();
     for (const Range &r : free_)
@@ -372,9 +405,10 @@ uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<i
             if (b.entry >= 0)
             {
                 const Slot &s = slots_[size_t(b.entry)];
-                if (s.state != kResident || s.lastFrame + 1u >= frame)
+                const uint32_t age = frame - s.lastFrame;
+                if (s.state != kResident || age <= 1u)
                     break; // queued for the loader, or in use
-                cost += frame - s.lastFrame >= kLongIdle ? 1u : kRecentCost;
+                cost += age >= kLongIdle ? 1u : kRecentCost;
                 if (++victims > kMaxVictims || cost >= bestCost)
                     break;
             }
@@ -390,7 +424,7 @@ uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<i
     }
     if (bestCost == UINT32_MAX)
     {
-        if (noRoomFrame_ != frame || bytes < noRoomBytes_)
+        if (noRoomBytes_ == 0u || noRoomFrame_ != frame || bytes < noRoomBytes_)
             noRoomBytes_ = bytes;
         noRoomFrame_ = frame;
         return kNoOffset;
@@ -409,7 +443,7 @@ uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<i
 
 uint8_t *XboxTexturePack::acquire(int index, uint32_t frame, std::vector<int> &evicted, Status &status)
 {
-    if (!pool_)
+    if (!pool_ || index < 0 || size_t(index) >= slots_.size())
     {
         status = kUnavailable;
         return nullptr;
@@ -426,14 +460,22 @@ uint8_t *XboxTexturePack::acquire(int index, uint32_t frame, std::vector<int> &e
     case kUnreadable: status = kUnavailable; return nullptr;
     default: break;
     }
+    const Entry &e = index_[size_t(index)];
+    const uint32_t bytes = poolBytesOf(e);
+    if (bytes > poolBytes_)
+    {
+        // This entry can never fit this pool, even after eviction. Keep
+        // its runtime texture permanently instead of rescanning the pool
+        // on every retry (large replacements can exceed the whole pool).
+        status = kUnavailable;
+        return nullptr;
+    }
     if (issued_ - collected_ >= kQueue)
     {
         ++stats_.busy;
         status = kBusy;
         return nullptr;
     }
-    const Entry &e = index_[size_t(index)];
-    const uint32_t bytes = poolBytesOf(e);
     uint32_t at = allocate(bytes);
     if (at == kNoOffset)
         at = makeRoom(bytes, frame, evicted);

@@ -3,12 +3,31 @@
 # Builds the same recompiled game code, runtime and IOP emulator as the PC
 # build, plus the Xbox platform layer in this folder, into
 # build/xbox/default.xbe and a bootable build/xbox/TimeSplitters.iso.
-# Run through build.sh (MSYS2 CLANG64 shell); see README.md.
+# Run through build.sh (MSYS2 CLANG64 or Linux); see README.md.
 
 ROOT      := $(abspath $(CURDIR)/../..)
 OUT       := $(ROOT)/build/xbox
 OBJ       := $(OUT)/obj
 NXDK_DIR  ?= /c/nxdk
+# An external library overlay can complete a reused, read-only SDK.
+NXDK_LIB_DIR ?= $(NXDK_DIR)/lib
+export NXDK_DIR
+
+# Windows LLVM needs drive paths in response files; native Linux LLVM needs
+# the original POSIX paths. Keep the SDK's host tools separate from the Xbox
+# PE/XBE outputs, whose extensions are the same on either build host.
+HOST_SYSTEM := $(shell uname -s)
+ifneq ($(filter MINGW% MSYS% CYGWIN%,$(HOST_SYSTEM)),)
+HOST_EXE := .exe
+CG_HOST := win
+NXDK_LINK_LIB_DIR := $(shell cygpath -m $(NXDK_LIB_DIR))
+PYTHON ?= python
+else
+HOST_EXE :=
+CG_HOST := linux
+NXDK_LINK_LIB_DIR := $(NXDK_LIB_DIR)
+PYTHON ?= python3
+endif
 
 RUNTIME   := $(ROOT)/source/PS2Recomp/ps2xRuntime
 IOP       := $(ROOT)/source/PS2Recomp/ps2xIOP
@@ -27,6 +46,15 @@ GENVU     := $(ROOT)/project/generated-vu-xbox
 TS_VU1_RECOMPILED ?= 0
 GENVU_SRCS := $(if $(filter 1,$(TS_VU1_RECOMPILED)),$(wildcard $(GENVU)/*.cpp))
 XBOX      := $(CURDIR)
+
+# Optional build-speed aid for generated functions with the exact common
+# include prefix. The default keeps the existing Windows compilation route.
+TS_GEN_PCH ?= 0
+ifneq ($(TS_GEN_PCH),0)
+ifneq ($(TS_GEN_PCH),1)
+$(error TS_GEN_PCH must be 0 or 1)
+endif
+endif
 
 # Source-derived background vertices remain opt-in until target validation.
 # Keep the original object names: their optimisation/counter flags and link
@@ -64,11 +92,11 @@ BG_NATIVE_VIF_SOURCE := $(RUNTIME)/src/lib/ps2_vif1_interpreter.cpp
 BG_NATIVE_MEMORY_SOURCE := $(RUNTIME)/src/lib/ps2_memory.cpp
 endif
 
-CXX  := $(XBOX)/tools/nxdk-cxx-hosted
+CXX  := sh $(XBOX)/tools/nxdk-cxx-hosted
 CC   := nxdk-cc
 LINK := nxdk-link
-CXBE := $(NXDK_DIR)/tools/cxbe/cxbe.exe
-XISO := $(NXDK_DIR)/tools/extract-xiso/build/extract-xiso.exe
+CXBE := $(NXDK_DIR)/tools/cxbe/cxbe$(HOST_EXE)
+XISO := $(NXDK_DIR)/tools/extract-xiso/build/extract-xiso$(HOST_EXE)
 
 DEFINES := -DPLATFORM_XBOX=1 -DPS2X_SCALAR_SIMD=1 -DPS2X_NO_EXCEPTIONS=1 -DPS2X_HAS_FFMPEG=0 -DPS2X_ENABLE_IOP_RPC_TRACE=0 -DPS2X_DEVICE_CYCLE_BATCH=2048 -DPS2X_VU1_SSE1=1
 INCLUDES := -include $(XBOX)/compat/xbox_prelude.h -I$(XBOX)/compat -I$(XBOX)/raylib \
@@ -183,10 +211,60 @@ $(GEN_FAST_OBJS): GEN_FLAGS := $(GEN_FAST_FLAGS)
 # generated object depends on, so a flag change or a file moved between the
 # two lists rebuilds the generated code instead of linking a stale object.
 GEN_FLAGS_STAMP := $(OUT)/gen/gen_flags.stamp
-GEN_FLAGS_TEXT  := $(GEN_FLAGS) / $(GEN_FAST_FLAGS): $(GEN_FAST_NAMES)
-$(shell mkdir -p $(OUT)/gen && { [ "$$(cat $(GEN_FLAGS_STAMP) 2>/dev/null)" = "$(GEN_FLAGS_TEXT)" ] || printf '%s\n' "$(GEN_FLAGS_TEXT)" > $(GEN_FLAGS_STAMP); })
+GEN_FLAGS_TEXT  := $(GEN_FLAGS) / $(GEN_FAST_FLAGS): $(GEN_FAST_NAMES)$(if $(filter 1,$(TS_GEN_PCH)), / pch=1)
+# Update only when generated objects are requested. A runtime-only build
+# must not invalidate their cache just because it omitted TS_GEN_PCH.
+$(GEN_FLAGS_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(GEN_FLAGS_TEXT)' ] || printf '%s\n' '$(GEN_FLAGS_TEXT)' > $@
 .DEFAULT_GOAL := all # dependency rules above this line must not become the default
 $(GEN_OBJS): $(GEN_FLAGS_STAMP)
+
+# Precompile only the three includes already at the start of ordinary
+# generated functions, in their original order. Handwritten replacements,
+# special include prefixes, the registration table and VU units stay normal.
+GEN_PCH_HEADER := $(XBOX)/compat/generated_pch.h
+GEN_PCH_DIR := $(OUT)/gen/pch
+GEN_PCH_OZ := $(GEN_PCH_DIR)/generated_oz.pch
+GEN_PCH_FAST := $(GEN_PCH_DIR)/generated_o2_inline.pch
+GEN_PCH_LOAD :=
+ifeq ($(TS_GEN_PCH),1)
+GEN_PCH_NAMES := $(shell $(PYTHON) -c 'import pathlib,sys; h=pathlib.Path(sys.argv[1]); prefix="\n".join(s for s in h.read_text().splitlines() if s.startswith(chr(35)+"include"))+"\n"; print(" ".join(p.stem for p in sorted(pathlib.Path(sys.argv[2]).glob("*.cpp")) if p.read_text().startswith(prefix)))' "$(GEN_PCH_HEADER)" "$(GENERATED)")
+GEN_PCH_OBJS := $(call objof,$(addprefix $(OUT)/gen/,$(addsuffix .cpp,$(GEN_PCH_NAMES))))
+GEN_PCH_OZ_OBJS := $(filter-out $(GEN_FAST_OBJS),$(GEN_PCH_OBJS))
+GEN_PCH_FAST_OBJS := $(filter $(GEN_FAST_OBJS),$(GEN_PCH_OBJS))
+GEN_PCH_OZ_FLAGS := $(GEN_FLAGS)
+GEN_PCH_FAST_FLAGS := $(GEN_FAST_FLAGS)
+GEN_PCH_FLAGS_STAMP := $(GEN_PCH_DIR)/compile.flags
+GEN_PCH_FLAGS_TEXT := $(CXX) clang=$(NXDK_CLANG) sdk=$(NXDK_DIR) / $(GEN_PCH_OZ_FLAGS) / $(GEN_PCH_FAST_FLAGS)
+
+$(GEN_PCH_FLAGS_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(GEN_PCH_FLAGS_TEXT)' ] || printf '%s\n' '$(GEN_PCH_FLAGS_TEXT)' > $@
+
+$(GEN_PCH_OZ): private GEN_PCH_BUILD_FLAGS := $(GEN_PCH_OZ_FLAGS)
+$(GEN_PCH_FAST): private GEN_PCH_BUILD_FLAGS := $(GEN_PCH_FAST_FLAGS)
+$(GEN_PCH_OZ) $(GEN_PCH_FAST): $(GEN_PCH_HEADER) $(XBOX)/tools/nxdk-cxx-hosted $(GEN_PCH_FLAGS_STAMP)
+	@mkdir -p $(dir $@)
+	@echo "[ PCH     ] $(notdir $@)"
+	@$(CXX) $(GEN_PCH_BUILD_FLAGS) -x c++-header -MD -MP -MT $@ -MF $(@:.pch=.d) -o $@.tmp $<
+	@mv $@.tmp $@
+	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.pch=.d)
+
+ifneq ($(GEN_PCH_OZ_OBJS),)
+$(GEN_PCH_OZ_OBJS): $(GEN_PCH_OZ)
+$(GEN_PCH_OZ_OBJS): GEN_PCH_LOAD := -include-pch $(GEN_PCH_OZ)
+endif
+ifneq ($(GEN_PCH_FAST_OBJS),)
+$(GEN_PCH_FAST_OBJS): $(GEN_PCH_FAST)
+$(GEN_PCH_FAST_OBJS): GEN_PCH_LOAD := -include-pch $(GEN_PCH_FAST)
+endif
+-include $(GEN_PCH_OZ:.pch=.d) $(GEN_PCH_FAST:.pch=.d)
+else
+# A dependency file from an earlier enabled build may still mention a PCH.
+# Turning the option off must use the original flags even if it was removed.
+$(GEN_PCH_OZ) $(GEN_PCH_FAST):
+endif
 
 # The software renderer and the Xbox presenter are the hottest code: -O2.
 FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)/src/xbox/xbox_raylib.obj $(OBJ)/project/game/vu1_native_ts.obj \
@@ -202,19 +280,22 @@ FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_music.obj,$(OTHER_OBJS))
 $(FAST_OBJS): RUNTIME_FLAGS := $(COMMON) -O2 $(SDL_FLAGS) -DPS2_RUNTIME_LOGS=1 -DPS2X_POINT_SAMPLING=1
 
-# lld is a native Windows program: paths in its response file must be Windows paths.
-NXDK_WIN  := $(shell cygpath -m $(NXDK_DIR))
-NXDK_LIBS := $(addprefix $(NXDK_WIN)/lib/, xboxkrnl/libxboxkrnl.lib libpdclib.lib winmm.lib libwinapi.lib \
+# Paths in the response file use the linker's host-native spelling.
+NXDK_LIB_NAMES := xboxkrnl/libxboxkrnl.lib libpdclib.lib winmm.lib libwinapi.lib \
     libnxdk_hal.lib libnxdk.lib libnxdk_automount_d.lib libpbkit.lib nxdk_usb.lib libxboxrt.lib libzlib.lib \
-    libpng.lib libc++.lib libSDL2.lib)
+    libpng.lib libc++.lib libSDL2.lib
+NXDK_LIB_FILES := $(addprefix $(NXDK_LIB_DIR)/,$(NXDK_LIB_NAMES))
+NXDK_LIBS := $(addprefix $(NXDK_LINK_LIB_DIR)/,$(NXDK_LIB_NAMES))
 
 all: $(OUT)/TimeSplitters.iso
+# Build/link the actual title without copying the PS2 disc or staging assets.
+xbe: $(OUT)/iso/default.xbe
 
 # clang names the target D:/..., make calls it /d/...: sed fixes the first line.
 $(GEN_OBJS): $(OBJ)/%.obj: $(ROOT)/%.cpp
 	@mkdir -p $(dir $@)
 	@echo "[ CXX gen ] $(notdir $<)"
-	@$(CXX) $(GEN_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
+	@$(CXX) $(GEN_FLAGS) $(GEN_PCH_LOAD) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
 	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
 
 $(filter-out $(BG_NATIVE_ROUTED_OBJS),$(OTHER_OBJS)): $(OBJ)/%.obj: $(ROOT)/%.cpp
@@ -240,17 +321,17 @@ ifeq ($(TS_BG_NATIVE),1)
 $(BG_NATIVE_GAME_COPY): $(GAME)/vu1_native_ts.cpp $(XBOX)/tools/patch_bg_native.py
 	@mkdir -p $(dir $@)
 	@echo "[ BG PATCH] $(notdir $@)"
-	@python $(XBOX)/tools/patch_bg_native.py $< $@
+	@$(PYTHON) $(XBOX)/tools/patch_bg_native.py $< $@
 
 $(BG_NATIVE_VIF_COPY): $(RUNTIME)/src/lib/ps2_vif1_interpreter.cpp $(XBOX)/tools/patch_bg_runtime.py
 	@mkdir -p $(dir $@)
 	@echo "[ BG PATCH] $(notdir $@)"
-	@python $(XBOX)/tools/patch_bg_runtime.py vif $< $@
+	@$(PYTHON) $(XBOX)/tools/patch_bg_runtime.py vif $< $@
 
 $(BG_NATIVE_MEMORY_COPY): $(RUNTIME)/src/lib/ps2_memory.cpp $(XBOX)/tools/patch_bg_runtime.py
 	@mkdir -p $(dir $@)
 	@echo "[ BG PATCH] $(notdir $@)"
-	@python $(XBOX)/tools/patch_bg_runtime.py memory $< $@
+	@$(PYTHON) $(XBOX)/tools/patch_bg_runtime.py memory $< $@
 else
 # An old .d may name an enabled build's source copy. Switching off must not
 # run a patcher (or fail on a removed copy); the object compiles its original.
@@ -260,14 +341,14 @@ endif
 $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function_table.py
 	@mkdir -p $(dir $@)
 	@echo "[ TABLE   ] $@"
-	@python $(XBOX)/tools/compact_function_table.py $< $@
+	@$(PYTHON) $(XBOX)/tools/compact_function_table.py $< $@
 
 # The patcher reads the call targets' slots from the compact table, so a
 # regenerated table re-patches (and recompiles) every game function.
 $(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(GEN_TABLE) $(XBOX)/tools/patch_generated.py $(XBOX)/tools/direct_calls.py
 	@mkdir -p $(dir $@)
 	@echo "[ PATCH   ] $(notdir $@)"
-	@python $(XBOX)/tools/patch_generated.py $< $(GEN_TABLE) $@
+	@$(PYTHON) $(XBOX)/tools/patch_generated.py $< $(GEN_TABLE) $@
 
 # Fixed copies of nxdk C sources, built in place of the library's
 # (pbkit: double-buffered; winapi/sync: condition-variable timeouts).
@@ -276,12 +357,12 @@ PBKIT_OBJ := $(OBJ)/src/xbox/pbkit/pbkit_ts.obj $(OBJ)/src/xbox/winapi/sync_ts.o
 $(PBKIT_OBJ): $(OBJ)/src/xbox/%.obj: $(XBOX)/%.c
 	@mkdir -p $(dir $@)
 	@echo "[ CC      ] src/xbox/$*.c"
-	@nxdk-cc -O2 -I$(NXDK_DIR)/lib/pbkit -I$(NXDK_DIR)/lib/winapi -Wno-everything -c -o $@ $<
+	@$(CC) -O2 -I$(NXDK_DIR)/lib/pbkit -I$(NXDK_DIR)/lib/winapi -Wno-everything -c -o $@ $<
 
 # NV2A shaders (src/xbox/shaders): Cg -> vp20/fp20 assembly -> pushbuffer .inl.
-CGC    := $(NXDK_DIR)/tools/cg/win/cgc.exe
-VP20   := $(NXDK_DIR)/tools/vp20compiler/vp20compiler.exe
-FP20   := $(NXDK_DIR)/tools/fp20compiler/fp20compiler.exe
+CGC    := $(NXDK_DIR)/tools/cg/$(CG_HOST)/cgc$(HOST_EXE)
+VP20   := $(NXDK_DIR)/tools/vp20compiler/vp20compiler$(HOST_EXE)
+FP20   := $(NXDK_DIR)/tools/fp20compiler/fp20compiler$(HOST_EXE)
 SHADERS := $(OUT)/gen/shaders
 PS_VARIANTS := untextured modulate modulate_tcc decal decal_tcc highlight highlight_tcc \
                modulate_tcc_unit decal_tcc_unit highlight_tcc_unit
@@ -419,15 +500,17 @@ $(STACK_OBJS): RUNTIME_FLAGS += $(STACK_FLAGS)
 # What the link depends on besides the objects: a switch that leaves objects
 # out (TS_VU1_RECOMPILED) or changes the link (the stack) relinks.
 LINK_STAMP := $(OUT)/gen/link.flags
-LINK_FLAGS_TEXT := TS_VU1_RECOMPILED=$(TS_VU1_RECOMPILED) stack=$(XBE_STACK)
+LINK_FLAGS_TEXT := TS_VU1_RECOMPILED=$(TS_VU1_RECOMPILED) stack=$(XBE_STACK) libs=$(NXDK_LIB_DIR)
 $(LINK_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(LINK_FLAGS_TEXT)' ] || echo '$(LINK_FLAGS_TEXT)' > $@
 
 # The object list is long; hand it to the linker in a response file.
-$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ) $(LINK_STAMP)
+# Write it in make itself: expanding thousands of paths into one shell
+# command exceeds Linux's per-argument limit before printf can run.
+$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ) $(NXDK_LIB_FILES) $(LINK_STAMP)
 	@echo "[ LD      ] $@"
-	@printf '%s\n' $(patsubst $(OUT)/%,%,$(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)) $(NXDK_LIBS) > $(OUT)/link.rsp
+	$(file >$(OUT)/link.rsp,$(foreach f,$(patsubst $(OUT)/%,%,$(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)) $(NXDK_LIBS),"$(f)"))
 	@cd $(OUT) && $(LINK) -include:_automount_d_drive -stack:$(XBE_STACK) -errorlimit:0 -map:main.map -out:main.exe @link.rsp
 
 $(OUT)/iso/default.xbe: $(OUT)/main.exe
@@ -467,7 +550,8 @@ $(XTP_STAMP): FORCE
 $(XTP): $(MISC_PAK) $(XBOX)/tools/xtpbuild.py $(XTP_STAMP)
 	@mkdir -p $(dir $@)
 	@echo "[ XTP     ] $@"
-	@py='$(XTP_PYTHON)'; local="$$(cygpath -u -F 28 2>/dev/null)"; \
+	@py='$(XTP_PYTHON)'; local=; \
+	if command -v cygpath > /dev/null 2>&1; then local="$$(cygpath -u -F 28 2>/dev/null)"; fi; \
 	if [ -z "$$py" ]; then \
 	    for c in python python3 py "$$local"/Programs/Python/Python3*/python.exe "$$local"/Programs/Python/Launcher/py.exe; do \
 	        if "$$c" -c "import numpy, PIL" > /dev/null 2>&1; then py="$$c"; break; fi; \
@@ -494,7 +578,7 @@ $(BG_NATIVE_ASSET_STAMP): FORCE
 
 $(BG_NATIVE_MANIFEST): $(BG_PAK) $(MISC_PAK) $(XBOX)/tools/xbgbuild.py $(BG_NATIVE_ASSET_STAMP)
 	@echo "[ XBG     ] $(BG_NATIVE_ASSET_DIR)"
-	@python $(XBOX)/tools/xbgbuild.py build $(BG_PAK) $(BG_NATIVE_ASSET_DIR) --misc-pak $(MISC_PAK)
+	@$(PYTHON) $(XBOX)/tools/xbgbuild.py build $(BG_PAK) $(BG_NATIVE_ASSET_DIR) --misc-pak $(MISC_PAK)
 
 # The disc carries the game's own files from project/game-data (not in git).
 # make AUTOPLAY=<pad script>: the disc plays that controller script (tests).
@@ -523,6 +607,6 @@ clean:
 
 vuflags:
 	@echo $(CXX) $(GEN_FLAGS) -O2
-.PHONY: all runtime generated textures backgrounds clean FORCE vuflags
+.PHONY: all xbe runtime generated textures backgrounds clean FORCE vuflags
 FORCE:
 -include $(GEN_OBJS:.obj=.d) $(OTHER_OBJS:.obj=.d)

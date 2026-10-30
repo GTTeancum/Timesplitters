@@ -1,16 +1,58 @@
 # Original Xbox build
 
 The same runtime and recompiled game as the PC build, built with nxdk, with
-the screen drawn by the NV2A.
+the screen drawn by the NV2A. This build path and its optional optimizations
+are Xbox-only. Xbox-specific copies of shared sources are generated under
+`build/xbox/`; the original sources and normal PC build stay unchanged.
 
 ## Build
 
-Needs nxdk at `C:\nxdk` and MSYS2 (CLANG64). The game's own files must be in
-`project/game-data` and the PS2 disc image in `project/disc/TimeSplitters.iso`
+Use a built nxdk SDK, including its C++/SDL2 libraries and Cg shader tools.
+The executable-only target does not need the original game assets at build
+time. A complete playable disc also needs the game's own files in
+`project/game-data` and the PS2 disc image at `project/disc/TimeSplitters.iso`
 (neither is in git).
 
+### Windows / MSYS2
+
+The default SDK location is `C:\nxdk`. The script enters MSYS2's CLANG64
+environment when needed:
+
     bash src/xbox/build.sh
+    bash src/xbox/build.sh xbe                             # executable only
     bash src/xbox/build.sh AUTOPLAY=src/xbox/test/arcade-match.pad   # test disc
+
+### Linux cloud build
+
+Set `NXDK_DIR` to the built SDK. If LLVM is installed in a versioned
+directory, select that directory with `NXDK_LLVM_BIN`:
+
+```sh
+NXDK_DIR=/path/to/nxdk NXDK_LLVM_BIN=/usr/lib/llvm-18/bin \
+  bash src/xbox/build.sh xbe -j6 TS_GEN_PCH=1
+```
+
+This creates the same Xbox executable at `build/xbox/iso/default.xbe`.
+It does not create a Linux version of the game. The `xbe` target compiles
+the shaders and game, links the Xbox program and converts it to XBE without
+copying the original assets or building a disc image. Omit `xbe` to build
+the complete disc once the private assets are available.
+
+`TS_GEN_PCH=1` reuses the compiler's work on common headers for generated
+game functions. It affects build time only. Files with a different include
+order keep their original compilation path, and the two optimization
+settings use separate caches. It defaults to `0`; omit the option to use
+the original compilation route. Header or flag changes rebuild the cache.
+`NXDK_LIB_DIR` can point to a separate set of built SDK libraries when the
+SDK's headers and tools are being reused read-only.
+
+The native background path remains opt-in. Append `TS_BG_NATIVE=1` to
+build it, and `TS_BG_VERIFY=1` when preparing a build that checks its live
+geometry. See [NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md)
+for pack placement and behavior. Neither option enables this path in a PC
+build.
+
+### Disc and texture output
 
 Output: `build/xbox/TimeSplitters.iso` (about 1.3 GB: the XBE, the game files
 and the PS2 disc image, which the game reads sector by sector). With
@@ -38,7 +80,19 @@ can be read with gdb from the addresses in `build/xbox/main.map`
 `E:\TimeSplitters\timesplitters.log`. A fatal error (out of memory, a failed
 game assertion) is logged with its cause.
 
-## State (2026-10-02)
+## Current build verification (2026-10-30)
+
+The complete Xbox executable has been compiled, linked and converted to XBE
+in the Linux cloud with the real NXDK toolchain. Standard, native-background
+and native-background verification configurations were built separately.
+The standard XBE is 11,546,624 bytes; each enabled XBE is 11,571,200 bytes.
+The source hashes, configurations and checks are recorded in
+[NATIVE-GEOMETRY-CHECKPOINT.md](NATIVE-GEOMETRY-CHECKPOINT.md).
+
+These new executables have not been run on an Xbox or in an emulator.
+The execution measurements below belong to the earlier baseline.
+
+## Earlier execution baseline (2026-10-02)
 
 Boots to the arcade match in about 3.5 minutes of xemu time (64 MB), most of
 it the scripted menu route; the match runs at about 11-18 frames a second in

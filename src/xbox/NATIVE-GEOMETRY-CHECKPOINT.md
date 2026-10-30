@@ -7,11 +7,95 @@ graphics-data work. Publish to `main` only and change repository files inside
 `src/xbox/` only. No Codex service, Dot or user-PC operation.
 
 “Continue TimeSplitters” means verify current `main` and resume a substantial
-implementation/verification batch. Keep chat updates short. Runtime, gameplay
+implementation/verification batch. Keep chat updates short, in plain English
+and one-screen bullets. Say "Xbox version" explicitly when describing this
+work; normal PC builds are outside its scope. Runtime, gameplay
 proof and build verification were developed in parallel with cross-review.
 Earlier capture/import and texture work is retained below.
 
-## Current state — runtime integration, 2026-10-30 Eastern
+## Current state — complete Xbox builds, 2026-10-30 Eastern
+
+Batch baseline: `052c11c910d77910e1c1b30814962f66d39c3ab9`.
+The complete Xbox title now compiles, links and converts to XBE in the cloud.
+All tracked changes remain inside `src/xbox/`; normal PC sources and build
+files are unchanged. This batch did not run the new XBEs on hardware or in
+an emulator. Boot, rendering, actual memory headroom and FPS remain untested.
+
+### Build changes
+
+- The Xbox Makefile and `build.sh` support Linux and the existing MSYS2
+  CLANG64 route. `xbe` builds only `build/xbox/iso/default.xbe`, without
+  staging the original disc or assets. Tool suffixes, Cg paths and library
+  response paths follow the build host. `NXDK_LIB_DIR` can select a separate
+  set of built libraries while reusing a read-only SDK.
+- GNU make writes the linker response file directly. The full title's
+  object list exceeded Linux's per-argument limit when expanded into one
+  shell `printf` command. Object/library order and link flags are preserved.
+- Optional `TS_GEN_PCH=1` caches only the exact initial three-header prefix
+  already present in 2,423 of 2,671 generated units. Separate size-optimized
+  and fast/direct-inline profiles preserve the existing compile flags; the
+  other 248 units retain their original include order. Transitive header and
+  flag dependencies rebuild the cache. A runtime-only make invocation no
+  longer changes the generated-code flag stamp at parse time.
+- The existing Xbox filesystem layer now implements `__equivalent`, which
+  the disc-directory scan requires. It compares real open-handle volume and
+  64-bit file identities, supports directories, preserves errors through
+  cleanup, and rejects empty or oversized paths before reaching SDK asserts.
+
+The installed NXDK source is commit
+`f8c52e4be65bab7d6e10455db8d86d69d232bbe3`. Clang and LLD are 18.1.3,
+targeting `i386-pc-win32` / Pentium III. The shared SDK was not modified.
+Four missing libraries were built privately from SDK sources and the exact
+pinned zlib/libpng revisions; the private library directory supplies all
+14 link archives. All 15 real NV2A shader variants compiled.
+
+### Retained Xbox executables
+
+All three builds use `TS_GEN_PCH=1` and diagnostic capture off. The repository
+still defaults to `TS_BG_NATIVE=0`, `TS_BG_VERIFY=0`, and `TS_GEN_PCH=0`.
+
+| Build | Native backgrounds | Live geometry verification | XBE bytes |
+| --- | ---: | ---: | ---: |
+| standard | 0 | 0 | 11,546,624 |
+| background-enabled | 1 | 0 | 11,571,200 |
+| background-check | 1 | 1 | 11,571,200 |
+
+XBE SHA-256 identities:
+
+- standard: `dffecaa2aa086c330e752db32cfb502f0011549e916d2ca921baf68c3a728745`
+- background-enabled: `0609218dded461c5493cb0c709fa04ba80d2ae1da1e6ddde0398011cb04b713d`
+- background-check: `4d4969162c75f7ad75572327833b72b8f4660189b4bbf7cb2fb8f9c7a1705993`
+
+The final background-check compile/link/conversion completed in 304.393 s.
+The enabled and standard incremental builds completed in 8.285 s and
+7.515 s. These are build durations, not game performance measurements.
+Each variant has an immutable XBE, linked PE, map, actual converter dump,
+response file, flags and source/library hashes. Inputs remained unchanged
+within every final build. SDK/locally supplied Win32-symbol link warnings
+and shader register-mapping warnings are retained in the logs.
+
+Independent static inspections compare all four XBE sections with the PE,
+including zero-filled tails; decode the retail entry and match the LLD map;
+and check kernel thunks against both the PE and SDK ordinal definitions.
+Those checks establish file integrity and linkage, not execution or fit in
+a running console's memory. The converter's own section digests are zero;
+the reports use independent SHA-256 hashes instead.
+
+The optional compiler cache produced byte-identical representative objects
+with and without the cache, ignoring only COFF timestamps, for both compiler
+profiles. The two isolated build-routing regressions passed after the final
+Makefile fixes. A focused extracted-production filesystem check passed 14
+identity, error, bounds and cleanup cases. No broader gameplay test was run
+for this build batch.
+
+Private delivery: `TimeSplitters-Xbox-builds-2026-10-30.zip`, containing the
+three labeled Xbox builds, one shared set of 27 `native-bg` packs, matching
+link evidence, checksums and reproduction details. Keep binaries, assets,
+SDK material and private reports out of Git. Linux/MSYS2 commands:
+[README.md](README.md). Runtime deployment:
+[NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md).
+
+## Runtime integration — 2026-10-30 Eastern
 
 Batch baseline: `111ad7aff01bad404cb07a1cf2bfcb3e233e3b69`.
 The optional source-derived background path is implemented and connected to
@@ -104,8 +188,9 @@ The final audited runtime SHA-256 is
 `c15559bd2ef261a6374317f110edfd376e161e66668dab62d3e255fa3e269578`.
 Private evidence includes `bg-binding-corpus-audit.json` and the target
 compile reports, plus the failed initial and corrected gameplay runs in
-`TimeSplitters-Xbox-background-runtime-2026-10-30.zip`. No linked XBE, NV2A
-rendering or Xbox FPS result is claimed.
+`TimeSplitters-Xbox-background-runtime-2026-10-30.zip`. That integration
+batch did not link an XBE; the later build results are recorded above.
+NV2A rendering and Xbox FPS remain unverified for the new path.
 
 ## Source conversion and first capture — 2026-10-30 Eastern
 
@@ -384,7 +469,7 @@ read-only shared source references are not publication inputs.
 1. Verify actual current `main` and retain all newer work and scope.
 2. Reuse the verified private source packs, gameplay capture and audit package.
    The source inputs and first real recording no longer need to be requested.
-3. Link/build the Xbox title and validate real rendering, level transitions,
+3. Use the retained Xbox builds to validate real rendering, level transitions,
    memory headroom and capture-disabled/verification-disabled performance.
 4. Resolve unmatched/unsupported inputs through provenance, without treating
    matching hashes or the degenerate triangle as permission to skip work.

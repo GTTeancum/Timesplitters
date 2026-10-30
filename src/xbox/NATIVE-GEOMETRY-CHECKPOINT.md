@@ -11,7 +11,94 @@ implementation/verification batch. Keep chat updates short. This batch used
 three agents for native capture, importer integration and texture loading,
 with cross-review and combined host verification.
 
-## Current state — 2026-10-29 Eastern
+## Current state — 2026-10-30 Eastern
+
+Batch baseline: `7a841360ff54dfd92845547b6ec24873c6139541`.
+The private original game image was obtained and matched the project's
+recorded archive/BIN/ELF hashes. All 49 original game files passed the
+existing restoration checks. The input/capture blocker below is resolved;
+reuse the private verification package rather than asking for those inputs
+again.
+
+### Source assets converted
+
+`tools/xbgbuild.py` directly converts original `BG.PAK` class-0 background
+parts to the existing 44-byte `GSXfVertex` layout. It supports the checked
+Plain and EnvMap source batches, preserves float bit patterns, full strip
+tags, room/texture records and source order, and retains level/room/part/
+variant/descriptor identities plus the original source digests. Matching
+`MISC.PAK` validation checks numeric texture references. Unsupported layouts,
+classes, inherited texture indices and malformed ranges fail explicitly.
+
+All 27 original levels were converted privately:
+- 1,210 rooms; 17,999 batches; 128,970 strips; 611,121 vertices.
+- 1,196 texture records, with all referenced numeric textures found.
+- 26,889,324 native vertex bytes; 32,270,572 total encoded pack bytes.
+- Arcade Tomb is source level 26: 15 rooms, 336 batches, 1,947 strips,
+  9,216 vertices, 55 textures and a 491,392-byte pack. Display names are not
+  stable identifiers; another source level is also named Tomb.
+
+`xbox_bg_pack.h` is the allocation-free, borrowed-memory XBG1 reader. It
+validates sizes, CRC, canonical tables, source bounds, hierarchy, ordering,
+full tags and padding before exposing data, and clears failed opens. Every
+pack requires live binding. The reader performs no GPU operation and is not
+installed in the renderer. Format and commands:
+[NATIVE-BACKGROUND-FORMAT.md](NATIVE-BACKGROUND-FORMAT.md).
+
+### Real gameplay and independent verification
+
+A cloud Linux build from the baseline, using GCC 13.3, FFmpeg, Xvfb and Mesa
+software rendering, ran the original four-player Tomb script with six bots.
+State logs and viewed screenshots established active gameplay around the
+180-second capture delay. The recorder completed all 256 VCU1 inputs and
+the game stopped through its configured 240-second watchdog.
+
+The capture contained 110 supported draw records and 146 non-draw entries.
+Every supported draw passed the production scalar-decoder and XMESH reader
+comparison: 638 strips, 2,680 vertices, 117,920 matching vertex bytes. The
+draws covered Plain, Lit and Lit near-plane paths. This capture did not
+contain EnvMap or Skinned draws.
+
+The only repeated full vertex payload in this short sample was a
+three-vertex Plain triangle whose three positions were all zero: 31
+occurrences, but nine different state packets. Those packets include texture
+and clamp changes; the repetition does not authorize discarding their effects.
+It provides weak evidence for a general geometry cache.
+
+The entire source-derived XBG corpus independently passed the unchanged
+production scalar decoder, using original source arrays reconstructed as VU
+input rows rather than the new writer's math. All 611,121 complete vertex
+records, source identities, room/texture records and tags matched. All 27
+packs opened aligned and unaligned through the C++ reader. Normal and
+ASan/UBSan corpus checks passed (2.366 and 2.437 seconds for the reported
+audit phases). Leak detection was disabled; no LeakSanitizer coverage is
+claimed.
+
+24 of the capture's 26 nonzero-position Plain draws matched complete Tomb 26
+source payloads and strip counts byte for byte. Two remain unassigned.
+These are correspondence candidates, not proof of live ownership, generations
+or safe cache lifetime.
+
+Combined regression verification: 74 tests passed normally (7.379 seconds)
+and under fail-fast ASan/UBSan (9.848 seconds). This includes all previous 55
+tests and 19 independent background-format tests, with fully synthetic
+fixtures. The new tests cover exact golden output, both layouts/variants,
+signed-zero Q, float bits, source/pack corruption, empty rooms, empty MISC
+placeholders, numeric texture bindings, unaligned reads and output preservation.
+Use `TS_XBG_CXXFLAGS` alongside the earlier sanitizer variables when
+reproducing the combined suite.
+
+Private deliverable: `TimeSplitters-Xbox-native-geometry-2026-10-30.zip`,
+containing the converted packs, source manifest, completed gameplay capture,
+audit reports and verification evidence. Keep that data out of public commits.
+
+This batch establishes real source conversion and decoder/reader correctness.
+It does not activate native background rendering, prove all visual behavior,
+build the Xbox target, or establish an Xbox FPS improvement. Live relighting,
+material/texture state, visibility, ordering and GPU lifetimes still need the
+runtime adapter and target validation described below.
+
+## Previous implementation — 2026-10-29 Eastern
 
 Reconciled baseline: `406f2e45fbeabf2c37b2ce23c34beb26f6e046f6`.
 
@@ -33,9 +120,9 @@ Implemented in this batch:
 - Native texture-pack loader lifecycle, pool admission and allocation fixes.
 - Combined host verification and a resumable capture workflow.
 
-Not established: a target Xbox build, console/xemu run, real-game geometry
-fidelity or new FPS measurements. No real game capture/assets were available.
-The next required input remains a PRIVATE real draw recording.
+At the end of that earlier batch, no real game input or target run had been
+available. The current-state section above records the subsequently obtained
+private source assets, completed PC recording and source conversion.
 
 ## Architectural context retained
 
@@ -119,12 +206,13 @@ record boundary. Neither hashes nor ordinals identify a static object or
 authorize skipping a draw. Repeated vertices can occur on dynamic objects;
 frame/view/object identity and GPU lifetime remain unknown.
 
-The earlier PC recording request remains usable:
+The PC recording settings remain usable:
 `TS_VU_CAPTURE_FILE` selects the private output,
 `TS_VU_CAPTURE_AFTER=180` delays recording, and
-`TS_VU_CAPTURE_LIMIT=256` bounds it. The original chat asked for the
-completed private `.vucapture` after entering a level. The tools do not
-launch or operate the user's PC. An ISO/PAK is not a capture-container input.
+`TS_VU_CAPTURE_LIMIT=256` bounds it. This batch produced that completed
+recording using the same recorder in the cloud Linux build. No user-PC
+operation was needed. An ISO/PAK is not a capture-container input; the new
+background converter reads original source PAKs through its separate path.
 
 ## Native texture-pack fixes
 
@@ -148,7 +236,7 @@ texture dimensions and pixels.
 These are correctness/admission improvements. No measured performance gain
 is claimed.
 
-## Actual verification after reconciliation
+## Previous combined verification — 2026-10-29
 
 55 tests passed in both combined host runs:
 - GCC normal configuration: 55/55, 6.448 seconds.
@@ -195,21 +283,23 @@ linking, gameplay or visual fidelity. Sanitizers cover compiled C++ probes,
 not the Python interpreter. Source inspection/publication uses the GitHub API;
 read-only shared source references are not publication inputs.
 
-## Remaining blocker and next concrete work
+## Next concrete work after source conversion
 
 1. Verify actual current `main` and retain all newer work and scope.
-2. Obtain the PRIVATE existing PC VCU1 recording already requested, or compile
-   an optional Xbox capture build in a configured target environment and
-   privately retrieve TSVUCAP. Both feed the same inspection/comparison tool.
-3. Compare real converted vertices against the production decoder and study
-   repeated geometry versus changed state across scenes/views.
-4. Establish original asset offsets, mutable data and invalidation before
-   designing reuse or model/world import.
-5. Add an Xbox-local loader/submission optimization with fallback only after
-   validating ordering, side effects, memory budget and GPU lifetimes.
-6. Verify real visuals and measure capture-disabled performance.
+2. Reuse the verified private source packs, gameplay capture and audit package.
+   The source inputs and first real recording no longer need to be requested.
+3. Bind the exact source level/room/part/variant/descriptor to loaded assets
+   and their generations. The original part path can use precalculated,
+   relit double-buffered or per-frame REF streams; preserve their live data.
+4. Add the Xbox-local adapter with original-path fallback, keeping transforms,
+   texture/CLUT/flush effects, vertex-queue behavior, portal/order/material
+   state, clipping, memory budget and GPU lifetimes correct.
+5. Resolve unmatched/unsupported inputs through provenance, without treating
+   matching hashes or the degenerate triangle as permission to skip work.
+6. Build and validate the target, compare real visuals and measure
+   capture-disabled Xbox performance.
 
-No static-world importer, runtime mesh cache, GPU allocation or geometry
-replacement is activated. Camera, lighting, materials, animation, collision,
+The source background converter is implemented; no runtime mesh cache, GPU
+allocation or geometry replacement is activated. Camera, lighting, materials, animation, collision,
 clipping, strip joining, flat shading and ordering remain the existing path's
 responsibility. Keep private captures/reports/assets out of public commits.

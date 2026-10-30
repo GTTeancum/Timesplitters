@@ -58,7 +58,8 @@ object names retain their optimization and instrumentation flags. The
 optional native recorder can be enabled alongside background rendering;
 it observes the same original input before the wrapped callback.
 
-The additional switches default to `1`: `TS_BG_FAST`, `TS_VIF_FAST`,
+The additional switches default to `1`: `TS_BG_FAST`, `TS_BG_BATCH`,
+`TS_VIF_FAST`, `TS_GIF_NATIVE`, `TS_DMA_CHAIN_CACHE`, `TS_NATIVE_CALL_SLOTS`,
 `TS_NV2A_MATERIAL_CACHE` and `TS_NV2A_PACK_IDENTITY_CACHE`. Each accepts
 `0` to retain its previous implementation for later comparisons. Native
 background verification and capture still default to off.
@@ -138,11 +139,12 @@ counts remain in the same order, and every original VU write still occurs.
 
 ## Rendering behavior
 
-The native build copy changes exactly two production call sites: joined
-strip writing and flat-strip decoding. State-block application, pending
-packet submission, GIF arbitration, `beginXfRun`, CPU fallback and
-`endXfRun` remain the original code. The independent ring self-check
-continues to use the original decoder.
+The background source-copy stage wraps the production joined-strip and
+flat-strip decode calls and adds a complete-group attempt inside an already
+accepted `beginXfRun`. State-block application, pending draw-packet
+submission, CPU fallback and `endXfRun` remain the original code. The
+independent ring self-check retains the original strip loop. A separate
+GIF stage handles the known packet-only XGKICK entry, described below.
 
 Accepted vertices are copied into the existing transform ring in memory
 order: geometry, current color, then texture coordinates and bone field.
@@ -160,6 +162,63 @@ neighboring vertex. The existing cached last vertex supplies strip joins.
 Every binding check completes before the first destination write. A miss
 leaves the cursor and destination untouched, so the original decode can
 execute immediately. No file access or allocation occurs in a draw.
+
+With `TS_BG_BATCH=1`, a consecutive group of prepared Plain/EnvMap strips
+shares one runtime guard and one pack borrow. All requested strip identities
+and packed-vertex ranges are admitted before the writer is called. A direct
+group must fit the currently open ring segment, including degenerate joins
+and the original first-strip reservation. A capacity miss leaves cursor
+growth and fences to the original per-strip loop. Flat groups continue to
+call the existing `emitXfStrip` for each strip, preserving provoking vertices.
+No pack pointer survives the synchronous group callback.
+
+## Packet plans and DMA leaf reuse
+
+`TS_GIF_NATIVE=1` adds four bounded plans for complete PACKED GIF packets
+up to 16 KiB, 32 tags and 1,024 tag/write operations. Every cached tag is
+compared byte-for-byte on reuse. Plans contain descriptors and offsets;
+colors, positions, all register values and A+D destinations remain live.
+Complete admission precedes every GS effect. Ordered execution occurs
+under the GS lock and a separate nonblocking plan lease. Reentrant cache
+requests and incomplete streams fall back before any output.
+
+The known native XGKICK entry uses this route only outside the VIF worker
+and with an empty arbiter. Nonnull memory without an arbiter keeps its
+original callback behavior. `TS_PERF_BACKEND=1` also keeps the original
+callback so per-path profiling remains intact. The existing direct PATH3
+DMA caller benefits through the same GS method. Q resets at the first
+packed write of each tag; a zero-loop tag leaves current Q unchanged,
+matching the streaming interpreter. This corrects the previous direct
+method's zero-loop reset. The fixed plan cache is bounded below 24 KiB.
+
+`TS_DMA_CHAIN_CACHE=1` reuses only main-RAM leaf subchains made of
+REF/REFS/CNT tags ending in RET, after the original CALL has pushed its
+return address and appended its own data. All live 16-byte tags are checked
+again. An owning result contains the original nonempty TTE/payload append
+sequence as offsets into current RAM. The existing `addSegment` controls
+all coalescing; the cache does not retain payload pointers or snapshots.
+
+The complete leaf must fit both remaining byte/tag budgets. With fixed
+VIF batching, room for twice the leaf's tag count is required before any
+piece is appended. This conservative bound prevents a decoder callback
+between tag validation and use and preserves later flush boundaries.
+The original RET stack pop, ASR contents, TADR, tag count and CHCR upper
+bits are retained. Unsupported control flow, IRQ tags, scratchpad/aliased
+or wrapping payloads, oversized leaves, detailed counters and zero-TTE
+suppression keep the original walk. Metadata storage is bounded below
+40 KiB; payloads and all VIF writes still execute through the existing route.
+
+## Native guest calls
+
+`TS_NATIVE_CALL_SLOTS=1` resolves literal `guestCall`/`lightCall` targets in
+the four native game/math files against the same compact address table
+used by the executable. Generated Xbox copies call through the current
+slot, so replacement functions and temporary self-test overrides remain
+visible. The return register, one dispatch-cycle charge and unwind/resume
+contract are retained through the existing `ps2xDirectCall`. A mismatched
+or missing slot uses the original dispatcher before any charge. Dynamic
+targets, missing table targets and tail jumps remain unchanged, including
+tail-jump diagnostic history.
 
 ## Material and texture reuse
 
@@ -185,22 +244,25 @@ This preserves the existing loader queue, eviction protection and GPU fences.
 ## Build isolation and diagnostics
 
 All tracked implementation lives in `src/xbox/`. Exact-anchor patchers make
-Xbox build copies of the shared native, VIF and memory translation units;
+Xbox build copies of the shared native, VIF, memory and GS translation units;
 the shared source files remain unchanged. Changed, duplicate or missing
 anchors fail the build before replacing a generated file. Disabling the
-background feature restores the original background path; the independent
-VIF optimization can remain enabled. Disabling a fast-path switch selects
+background feature restores the original background path; independent
+packet, DMA, VIF and guest-call optimizations can remain enabled. Disabling a fast-path switch selects
 its previous branch or source even if generated copies remain.
 
 `[TS:bg]` reports the active level, resident pack/index KiB, substituted
 strips/vertices, fallback strips, verification differences, load/source
 rejections, lifecycle invalidations, cached binding hits and provenance
-range/row checks. Material and texture lookup diagnostics count cache hits,
+range/row checks, and group attempts/acceptances/strip totals. `[TS:gif-native]`
+reports packet-plan hits, builds, writes and fallback reasons. `[TS:dma-chain]`
+reports cache requests, exact-tag hits, changes and helper admissions; a
+helper admission can still fall back at the batch-capacity guard. Material and texture lookup diagnostics count cache hits,
 misses and source invalidations. A nonzero geometry match count proves that
 the adapter supplied vertices; it does not measure a performance gain.
 
-The implementation still performs the original DMA/VIF operations and
-copies accepted vertices into the existing ring. Its performance benefit
+The implementation retains the original VIF memory effects and copies
+accepted vertices into the existing ring. Its performance benefit
 must be measured on the target. These changes reduce repeated work inside
 that route; a complete command-pipeline bypass is not implemented.
 Unsupported layouts and source paths remain explicit fallback work. See

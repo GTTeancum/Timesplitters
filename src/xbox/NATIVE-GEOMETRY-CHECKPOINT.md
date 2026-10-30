@@ -25,7 +25,67 @@ Console/XEMU availability does not block source work. After the planned code
 is written and connected, build and validate it; hardware behavior and FPS
 remain unmeasured until an actual target run is available.
 
-## Current state — connected optimization batch, 2026-10-30 Eastern
+## Current state — source-only packet and geometry batch, 2026-10-30 Eastern
+
+Batch baseline: `7ebd583ecc6a6acde706fce234480c681715ed3b`.
+All tracked changes remain inside `src/xbox/`; publication is to `main`
+only. This batch was written and reviewed without any compiler, make,
+patcher execution, runnable test, emulator, build or package operation.
+Earlier build results below do not validate this newer source.
+
+### Newly connected source
+
+- `TS_BG_BATCH=1`: one guard and pack borrow admits a complete consecutive
+  Plain/EnvMap group before output. Direct groups must fit the open ring
+  segment; flat groups retain existing per-strip emission and provoking
+  vertices. Capacity/layout/binding misses use the original strip loop.
+  Ring self-check runs also keep that loop. Live colors and state remain
+  current; source pointers exist only during the synchronous writer.
+- `TS_GIF_NATIVE=1`: four exact-tag PACKED GIF plans reuse descriptors and
+  offsets for complete bounded packets. Every register/vertex payload and
+  A+D destination is read live. Full admission precedes GS effects, one
+  GS lock and a nonblocking shared-plan lease cover execution, and partial
+  streams/queued work/VIF workers retain the old route. Nonnull memory
+  without an arbiter and backend profiling keep original callbacks.
+  Zero-loop Q behavior now matches the streaming GS interpreter, including
+  the preexisting direct-PATH3 caller. The cache stays below 24 KiB.
+- `TS_DMA_CHAIN_CACHE=1`: a bounded exact-tag cache replaces eligible
+  REF/REFS/CNT-to-RET leaf walks after the original CALL's own bytes and
+  return-stack update. Raw live TTE/payload pieces pass through original
+  coalescing. A conservative batch-capacity check prevents decoder calls
+  between validation and use and keeps later flush boundaries unchanged.
+  Tag/byte budgets, RET/ASR/ASP/TADR/CHCR effects and unsupported fallback
+  are retained. Metadata stays below 40 KiB; payloads are never cached.
+- `TS_NATIVE_CALL_SLOTS=1`: literal native guest calls resolve to the same
+  compact table used by translated code. The live slot preserves overrides;
+  the existing dispatch helper retains scheduler charges and unwind/resume.
+  Dynamic/missing targets and all tail jumps keep their original helpers.
+- Xbox-only source-copy routing composes the new stages with the existing
+  geometry/VIF adapters, retains original object identities and flags, and
+  stamps all switch consumers. Startup/status logging identifies enabled
+  paths and metadata admissions. `TS_PERF_BACKEND` now has a consistent
+  stamped option across the timing wrapper and native-packet bypass guard.
+
+### Review and remaining work
+
+Independent source review caught and corrected the no-arbiter/profiling
+callback cases and two DMA flush-boundary hazards: callbacks during leaf
+application and eager piece merging after an earlier flush. Existing test
+source was updated for the group anchor, generated-copy composition,
+enable/disable paths, compact-table dependency and profiling flag changes.
+No test pass or target build is claimed for this batch.
+
+The full graphics-command replacement is still unfinished. These paths
+reduce repeated decode, lookup and submission work while retaining VIF
+memory effects. They do not yet replace `partGfx` output with ordered native
+draw records, reproduce all skipped VIF/VU end state, or provide direct
+NV2A fetch of pack vertices. Unsupported source/layout work and the later
+verification gates remain. Continue source implementation before building;
+completion of this batch does not lift the user's no-build instruction.
+No new Xbox boot, visual result, runtime memory headroom or FPS result is
+claimed.
+
+## Previous connected optimization build batch, 2026-10-30 Eastern
 
 Batch baseline: `b31f40990b2c940be07f2e9fb6cda79ae3770404`.
 All tracked changes remain inside `src/xbox/`, with publication to `main`

@@ -3,6 +3,7 @@
 // state and constants have been accepted. A miss leaves output untouched so
 // the original VU decoder remains the caller's fallback.
 #include "runtime/gs/gs_backend.h"
+#include "xbox_bg_runtime.h"
 
 #include <cstdint>
 
@@ -18,3 +19,15 @@ bool xboxBgTryDecodeStrip(uint32_t kind, const uint8_t *vu, uint32_t vi,
 // last vertex is assembled separately in cursor.last's cached storage.
 bool xboxBgTryWriteJoinedStrip(uint32_t kind, GSXfCursor &cursor,
                                const uint8_t *vu, uint32_t vi, uint32_t count);
+
+using XboxBgFlatEmitter = void (*)(const GSXfVertex *vertices,
+                                  uint32_t count, void *user);
+// Called only inside an already accepted GS transform run. Every strip is
+// admitted together under one pack borrow. A direct group must fit the
+// current ring segment, including all joins; otherwise the caller's original
+// strip loop handles growth and fences. Flat groups use the existing backend
+// emitter, which preserves provoking vertices. False writes/emits nothing
+// and leaves the cursor untouched. No callback may reject after writing.
+bool xboxBgTryEmitGroup(uint32_t kind, GSXfCursor &cursor, const uint8_t *vu,
+                        const XboxBgStripSpan *strips, uint32_t stripCount,
+                        XboxBgFlatEmitter emitFlat, void *sink);

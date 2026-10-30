@@ -219,7 +219,7 @@ class VertexTests(unittest.TestCase):
 
 
 class PatcherTests(unittest.TestCase):
-    def test_only_two_production_calls_and_include_change(self):
+    def test_only_group_loop_two_production_calls_and_include_change(self):
         source = NATIVE.read_text()
         result = patcher.patch_source(source)
         self.assertIn('ts_native_xf::decodeXfStrip(kind, data, vi, n - 1u, s_ringShadow);', result)
@@ -234,11 +234,12 @@ class PatcherTests(unittest.TestCase):
             '                if (!xboxBgTryDecodeStrip(kind, data, vi, n, list))\n'
             '                    ts_native_xf::decodeXfStrip(kind, data, vi, n, list);',
             '                ts_native_xf::decodeXfStrip(kind, data, vi, n, list);')
+        restored = restored.replace(patcher.GROUP_REPLACEMENT, patcher.GROUP)
         self.assertEqual(restored, source)
 
     def test_missing_duplicate_and_repatched_anchors_fail(self):
         source = NATIVE.read_text()
-        for anchor in (patcher.INCLUDE, patcher.JOINED, patcher.FLAT):
+        for anchor in (patcher.INCLUDE, patcher.JOINED, patcher.FLAT, patcher.GROUP):
             for invalid in (source.replace(anchor, "// changed", 1), source + "\n" + anchor):
                 with self.subTest(anchor=anchor), self.assertRaises(ValueError):
                     patcher.patch_source(invalid)

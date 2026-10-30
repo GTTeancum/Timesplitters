@@ -3,9 +3,35 @@
 #include <cstddef>
 #include <cstdint>
 
+#ifndef TS_BG_BATCH
+#define TS_BG_BATCH 1
+#endif
+
 using XboxBgStripWriter = void (*)(const uint8_t *packedVertices, void *user);
 bool xboxBgWithStrip(uint32_t kind, const uint8_t *vu, uint32_t vi,
                      uint32_t count, XboxBgStripWriter writer, void *user);
+
+// A consecutive subset of the current native draw. At most 24 strip headers
+// and 64 vertices fit the supported Plain/EnvMap source layout. Requests own
+// no pack bytes; returned pointers exist only during one synchronous writer.
+inline constexpr uint32_t kXboxBgMaxBatchStrips = 24u;
+struct XboxBgStripSpan
+{
+    uint32_t vi = 0, count = 0;
+};
+struct XboxBgPackedStrip
+{
+    const uint8_t *vertices = nullptr;
+    uint32_t vi = 0, count = 0;
+};
+using XboxBgBatchWriter = void (*)(const XboxBgPackedStrip *strips,
+                                  uint32_t stripCount, void *user);
+// Every requested strip must match the prepared draw before the writer is
+// called. Failure calls no writer. The writer commits the complete group;
+// it must not retain pointers, re-enter the binding layer or reject halfway.
+bool xboxBgWithBatch(uint32_t kind, const uint8_t *vu,
+                     const XboxBgStripSpan *strips, uint32_t stripCount,
+                     XboxBgBatchWriter writer, void *user);
 
 // Level-time operations, called before original texture fixups/relocation.
 void xboxBgConfigure(const char *packRoot, uint32_t budgetBytes);
@@ -40,6 +66,8 @@ struct XboxBgRuntimeStats
     uint64_t geometryDiffs = 0, invalidations = 0, observedUnpacks = 0;
     uint64_t bindingCacheHits = 0, bindingSearches = 0;
     uint64_t provenanceFastRanges = 0, provenanceRowChecks = 0;
+    uint64_t batchAttempts = 0, batchAccepted = 0, batchFallbacks = 0;
+    uint64_t batchStrips = 0, batchVertices = 0;
     uint32_t level = 0, packBytes = 0, bindingBytes = 0;
     bool active = false;
 };

@@ -5,6 +5,12 @@ the screen drawn by the NV2A. This build path and its optional optimizations
 are Xbox-only. Xbox-specific copies of shared sources are generated under
 `build/xbox/`; the original sources and normal PC build stay unchanged.
 
+**Development is currently source-only.** Finish writing and connecting the
+full planned Xbox optimization implementation before another compilation,
+build or download package. The commands below describe the later build
+stage. The newest packet, DMA, geometry-group and native-call source paths
+have been reviewed but have not been compiled or executed.
+
 ## Build
 
 Use a built nxdk SDK, including its C++/SDL2 libraries and Cg shader tools.
@@ -73,12 +79,20 @@ rebuilds its consumers when the switch changes.
 | Switch | Work reused or reduced |
 | --- | --- |
 | `TS_BG_FAST` | Background source lookups, validated provenance ranges, strip selection and vertex copies; applies when native backgrounds are enabled. |
+| `TS_BG_BATCH` | One validated pack access for a complete accepted geometry group; applies when native backgrounds are enabled. |
 | `TS_VIF_FAST` | Repeated UNPACK size calculations and contiguous 32-bit vector copy loops. |
+| `TS_GIF_NATIVE` | Reuse of exact PACKED GIF tag/operation plans, with all register and vertex payloads read live. |
+| `TS_DMA_CHAIN_CACHE` | Reuse of validated leaf DMA subchains while retaining the original payload appends, return-stack effects and batch-flush boundaries. |
+| `TS_NATIVE_CALL_SLOTS` | Known guest-call targets in the four native game/math files use the current function-table slot directly. |
 | `TS_NV2A_MATERIAL_CACHE` | Derived NV2A material registers for exactly matching material inputs. |
 | `TS_NV2A_PACK_IDENTITY_CACHE` | Texture-pack lookup identities across texture cache eviction, invalidated by writes to the source pages. |
 
-These paths preserve live colors, transforms, texture residency and draw
-ordering. They do not bypass the complete PS2 DMA/VIF pipeline. See
+These paths are designed to preserve live colors, transforms, texture
+residency and draw ordering. They do not replace the complete PS2 DMA/VIF
+pipeline. `TS_PERF_BACKEND=1` enables the existing measurement wrapper and
+keeps native XGKICK packets on its original callback route; it defaults to
+`0`. Detailed DMA counters and zero-TTE suppression likewise retain the
+original walker. See
 [NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md) for deployment
 and the exact boundaries. Current development is source-only until the full
 planned optimization implementation is written and connected. Do not make
@@ -113,7 +127,21 @@ can be read with gdb from the addresses in `build/xbox/main.map`
 `E:\TimeSplitters\timesplitters.log`. A fatal error (out of memory, a failed
 game assertion) is logged with its cause.
 
-## Current build verification (2026-10-30)
+## Current source-only batch (2026-10-30)
+
+The batch based on `7ebd583` connects complete-group background emission,
+native PACKED GIF execution, bounded exact-tag DMA leaf reuse, and resolved
+native guest calls. Each path has an independent disable switch, startup
+configuration logging, and unchanged shared sources. Packet and DMA caches
+hold bounded metadata; they do not hold copies of mutable payloads.
+
+Source review covered callback ordering, fallbacks before output, live
+function overrides, geometry ring boundaries and source-copy composition.
+The routing test source has been updated for later use. No compiler, make
+invocation, test executable, emulator, XBE, ISO or package was run/created
+for this batch. Full graphics-command replacement remains unfinished.
+
+## Previous build verification (2026-10-30, before source-only instruction)
 
 The optimization batch based on `b31f409` connects the faster geometry,
 VIF, material and texture identity paths and adds the `optimized` target.

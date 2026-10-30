@@ -70,10 +70,16 @@ endif
 TS_BG_NATIVE ?= 0
 TS_BG_VERIFY ?= 0
 TS_BG_FAST ?= 1
+TS_BG_BATCH ?= 1
 TS_VIF_FAST ?= 1
 TS_NV2A_MATERIAL_CACHE ?= 1
 TS_NV2A_PACK_IDENTITY_CACHE ?= 1
-OPT_SWITCHES := TS_BG_FAST TS_VIF_FAST TS_NV2A_MATERIAL_CACHE TS_NV2A_PACK_IDENTITY_CACHE
+TS_GIF_NATIVE ?= 1
+TS_DMA_CHAIN_CACHE ?= 1
+TS_NATIVE_CALL_SLOTS ?= 1
+TS_PERF_BACKEND ?= 0
+OPT_SWITCHES := TS_BG_FAST TS_BG_BATCH TS_VIF_FAST TS_NV2A_MATERIAL_CACHE TS_NV2A_PACK_IDENTITY_CACHE \
+    TS_GIF_NATIVE TS_DMA_CHAIN_CACHE TS_NATIVE_CALL_SLOTS TS_PERF_BACKEND
 $(foreach v,$(OPT_SWITCHES),$(if $(filter 1,$(words $($(v)))),$(if $(filter 0 1,$($(v))),,$(error $(v) must be 0 or 1)),$(error $(v) must be 0 or 1)))
 ifneq ($(filter optimized,$(MAKECMDGOALS)),)
 ifneq ($(TS_BG_NATIVE),1)
@@ -118,6 +124,29 @@ VIF_FAST_COPY := $(OUT)/gen/vif/ps2_vif1_interpreter.cpp
 ifeq ($(TS_VIF_FAST),1)
 BG_NATIVE_VIF_SOURCE := $(VIF_FAST_COPY)
 endif
+
+# Additional Xbox source-copy stages. Keep all original object names so the
+# established optimization flags, link order and instrumentation still apply.
+GIF_NATIVE_INPUT := $(BG_NATIVE_GAME_SOURCE)
+GIF_NATIVE_COPY := $(OUT)/gen/gif/vu1_native_ts.cpp
+GIF_GS_OBJ := $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/gs_frontend.obj
+GIF_GS_COPY := $(OUT)/gen/gif/gs_frontend.cpp
+GIF_GS_SOURCE := $(RUNTIME)/src/lib/gs/gs_frontend.cpp
+ifeq ($(TS_GIF_NATIVE),1)
+BG_NATIVE_GAME_SOURCE := $(GIF_NATIVE_COPY)
+GIF_GS_SOURCE := $(GIF_GS_COPY)
+endif
+DMA_CHAIN_INPUT := $(BG_NATIVE_MEMORY_SOURCE)
+DMA_CHAIN_COPY := $(OUT)/gen/dma/ps2_memory.cpp
+ifeq ($(TS_DMA_CHAIN_CACHE),1)
+BG_NATIVE_MEMORY_SOURCE := $(DMA_CHAIN_COPY)
+endif
+
+NATIVE_CALL_NAMES := ts_native_math ts_native_game ts_native_game2 ts_native_game3
+NATIVE_CALL_DIR := $(OUT)/gen/native-calls
+NATIVE_CALL_COPIES := $(addprefix $(NATIVE_CALL_DIR)/,$(addsuffix .cpp,$(NATIVE_CALL_NAMES)))
+NATIVE_CALL_OBJS := $(addprefix $(OBJ)/project/game/,$(addsuffix .obj,$(NATIVE_CALL_NAMES)))
+XBOX_ROUTED_OBJS := $(BG_NATIVE_ROUTED_OBJS) $(GIF_GS_OBJ) $(NATIVE_CALL_OBJS)
 
 CXX  := sh $(XBOX)/tools/nxdk-cxx-hosted
 CC   := nxdk-cc
@@ -299,6 +328,7 @@ FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)
                      $(OBJ)/project/game/ts_native_game.obj $(OBJ)/project/game/ts_native_game2.obj \
                      $(OBJ)/project/game/ts_native_game3.obj \
                      $(OBJ)/src/xbox/xbox_bg_runtime.obj $(OBJ)/src/xbox/xbox_bg_xf.obj \
+                     $(OBJ)/src/xbox/xbox_gif_native.obj $(OBJ)/src/xbox/xbox_dma_chain.obj \
                      $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj \
@@ -325,23 +355,32 @@ $(GEN_OBJS): $(OBJ)/%.obj: $(ROOT)/%.cpp
 	@$(CXX) $(GEN_FLAGS) $(GEN_PCH_LOAD) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
 	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
 
-$(filter-out $(BG_NATIVE_ROUTED_OBJS),$(OTHER_OBJS)): $(OBJ)/%.obj: $(ROOT)/%.cpp
+$(filter-out $(XBOX_ROUTED_OBJS),$(OTHER_OBJS)): $(OBJ)/%.obj: $(ROOT)/%.cpp
 	@mkdir -p $(dir $@)
 	@echo "[ CXX     ] $(subst $(ROOT)/,,$<)"
 	@$(CXX) $(RUNTIME_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
 	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
 
 $(BG_NATIVE_GAME_OBJ): $(BG_NATIVE_GAME_SOURCE)
-$(BG_NATIVE_GAME_OBJ): BG_COMPILE_SOURCE := $(BG_NATIVE_GAME_SOURCE)
+$(BG_NATIVE_GAME_OBJ): XBOX_COMPILE_SOURCE := $(BG_NATIVE_GAME_SOURCE)
 $(BG_NATIVE_VIF_OBJ): $(BG_NATIVE_VIF_SOURCE)
-$(BG_NATIVE_VIF_OBJ): BG_COMPILE_SOURCE := $(BG_NATIVE_VIF_SOURCE)
+$(BG_NATIVE_VIF_OBJ): XBOX_COMPILE_SOURCE := $(BG_NATIVE_VIF_SOURCE)
 $(BG_NATIVE_MEMORY_OBJ): $(BG_NATIVE_MEMORY_SOURCE)
-$(BG_NATIVE_MEMORY_OBJ): BG_COMPILE_SOURCE := $(BG_NATIVE_MEMORY_SOURCE)
-$(BG_NATIVE_ROUTED_OBJS): RUNTIME_FLAGS += -I$(GAME) -I$(XBOX)
-$(BG_NATIVE_ROUTED_OBJS):
+$(BG_NATIVE_MEMORY_OBJ): XBOX_COMPILE_SOURCE := $(BG_NATIVE_MEMORY_SOURCE)
+$(GIF_GS_OBJ): $(GIF_GS_SOURCE)
+$(GIF_GS_OBJ): XBOX_COMPILE_SOURCE := $(GIF_GS_SOURCE)
+ifeq ($(TS_NATIVE_CALL_SLOTS),1)
+$(NATIVE_CALL_OBJS): $(OBJ)/project/game/%.obj: $(NATIVE_CALL_DIR)/%.cpp
+$(NATIVE_CALL_OBJS): XBOX_COMPILE_SOURCE = $(NATIVE_CALL_DIR)/$(notdir $(basename $@)).cpp
+else
+$(NATIVE_CALL_OBJS): $(OBJ)/project/game/%.obj: $(GAME)/%.cpp
+$(NATIVE_CALL_OBJS): XBOX_COMPILE_SOURCE = $(GAME)/$(notdir $(basename $@)).cpp
+endif
+$(XBOX_ROUTED_OBJS): RUNTIME_FLAGS += -I$(GAME) -I$(XBOX)
+$(XBOX_ROUTED_OBJS):
 	@mkdir -p $(dir $@)
-	@echo "[ CXX     ] $(subst $(ROOT)/,,$(BG_COMPILE_SOURCE))"
-	@$(CXX) $(RUNTIME_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $(BG_COMPILE_SOURCE)
+	@echo "[ CXX     ] $(subst $(ROOT)/,,$(XBOX_COMPILE_SOURCE))"
+	@$(CXX) $(RUNTIME_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $(XBOX_COMPILE_SOURCE)
 	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
 
 ifeq ($(TS_BG_NATIVE),1)
@@ -372,6 +411,37 @@ $(VIF_FAST_COPY): $(VIF_FAST_INPUT) $(XBOX)/tools/patch_vif_fast.py $(XBOX)/xbox
 	@$(PYTHON) $(XBOX)/tools/patch_vif_fast.py $< $@
 else
 $(VIF_FAST_COPY):
+endif
+
+ifeq ($(TS_GIF_NATIVE),1)
+$(GIF_NATIVE_COPY): $(GIF_NATIVE_INPUT) $(XBOX)/tools/patch_native_gif.py $(OUT)/gen/bg_native.flags $(OUT)/gen/native_paths.flags
+	@mkdir -p $(dir $@)
+	@echo "[ GIF     ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_gif.py native $< $@
+$(GIF_GS_COPY): $(RUNTIME)/src/lib/gs/gs_frontend.cpp $(XBOX)/tools/patch_native_gif.py $(OUT)/gen/native_paths.flags
+	@mkdir -p $(dir $@)
+	@echo "[ GIF     ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_gif.py gs $< $@
+else
+$(GIF_NATIVE_COPY) $(GIF_GS_COPY):
+endif
+
+ifeq ($(TS_DMA_CHAIN_CACHE),1)
+$(DMA_CHAIN_COPY): $(DMA_CHAIN_INPUT) $(XBOX)/tools/patch_dma_chain.py $(OUT)/gen/bg_native.flags $(OUT)/gen/native_paths.flags
+	@mkdir -p $(dir $@)
+	@echo "[ DMA     ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_dma_chain.py $< $@
+else
+$(DMA_CHAIN_COPY):
+endif
+
+ifeq ($(TS_NATIVE_CALL_SLOTS),1)
+$(NATIVE_CALL_COPIES): $(NATIVE_CALL_DIR)/%.cpp: $(GAME)/%.cpp $(GEN_TABLE) $(XBOX)/tools/patch_native_calls.py $(XBOX)/tools/direct_calls.py
+	@mkdir -p $(dir $@)
+	@echo "[ CALLS   ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_calls.py $< $(GEN_TABLE) $@
+else
+$(NATIVE_CALL_COPIES):
 endif
 
 $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function_table.py
@@ -470,7 +540,7 @@ $(RENDER_COUNTERS_OBJS): RUNTIME_FLAGS += -DTS_RENDER_COUNTERS=$(TS_RENDER_COUNT
 # Rebuild every consumer on enable/disable or verification changes. Generated
 # copies are never selected when disabled, even if a previous build left them.
 BG_NATIVE_STAMP := $(OUT)/gen/bg_native.flags
-BG_NATIVE_FLAGS := -DTS_BG_NATIVE=$(TS_BG_NATIVE) -DTS_BG_VERIFY=$(TS_BG_VERIFY) -DTS_BG_FAST=$(TS_BG_FAST)
+BG_NATIVE_FLAGS := -DTS_BG_NATIVE=$(TS_BG_NATIVE) -DTS_BG_VERIFY=$(TS_BG_VERIFY) -DTS_BG_FAST=$(TS_BG_FAST) -DTS_BG_BATCH=$(TS_BG_BATCH)
 $(BG_NATIVE_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(BG_NATIVE_FLAGS)' ] || echo '$(BG_NATIVE_FLAGS)' > $@
@@ -487,6 +557,29 @@ $(XBOX_OPT_STAMP): FORCE
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(XBOX_OPT_FLAGS)' ] || echo '$(XBOX_OPT_FLAGS)' > $@
 $(XBOX_OPT_OBJS): $(XBOX_OPT_STAMP)
 $(XBOX_OPT_OBJS): RUNTIME_FLAGS += $(XBOX_OPT_FLAGS)
+
+# Source-only integration work also records the future build's native routes.
+# Do not invoke these build targets until the planned implementation is done.
+NATIVE_PATH_STAMP := $(OUT)/gen/native_paths.flags
+NATIVE_PATH_FLAGS := -DTS_GIF_NATIVE=$(TS_GIF_NATIVE) -DTS_DMA_CHAIN_CACHE=$(TS_DMA_CHAIN_CACHE) -DTS_NATIVE_CALL_SLOTS=$(TS_NATIVE_CALL_SLOTS)
+NATIVE_PATH_OBJS := $(BG_NATIVE_GAME_OBJ) $(BG_NATIVE_MEMORY_OBJ) $(GIF_GS_OBJ) $(NATIVE_CALL_OBJS) \
+    $(OBJ)/src/xbox/xbox_gif_native.obj $(OBJ)/src/xbox/xbox_dma_chain.obj $(OBJ)/src/xbox/xbox_main.obj
+$(NATIVE_PATH_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_PATH_FLAGS)' ] || echo '$(NATIVE_PATH_FLAGS)' > $@
+$(NATIVE_PATH_OBJS): $(NATIVE_PATH_STAMP)
+$(NATIVE_PATH_OBJS): RUNTIME_FLAGS += $(NATIVE_PATH_FLAGS)
+
+# The GIF timing wrapper and its bypass guard must agree. Measurement mode
+# retains the arbiter callback instead of bypassing its per-packet totals.
+PERF_BACKEND_STAMP := $(OUT)/gen/perf_backend.flags
+PERF_BACKEND_FLAGS := -DTS_PERF_BACKEND=$(TS_PERF_BACKEND)
+PERF_BACKEND_OBJS := $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_perf xbox_gif_native xbox_main))
+$(PERF_BACKEND_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(PERF_BACKEND_FLAGS)' ] || echo '$(PERF_BACKEND_FLAGS)' > $@
+$(PERF_BACKEND_OBJS): $(PERF_BACKEND_STAMP)
+$(PERF_BACKEND_OBJS): RUNTIME_FLAGS += $(PERF_BACKEND_FLAGS)
 
 # make TS_NATIVE_CAPTURE=1: record bounded native VU1 draw inputs for the
 # Xbox-layout geometry converter. Off by default; the normal build registers

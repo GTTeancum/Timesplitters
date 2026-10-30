@@ -17,6 +17,8 @@
 #include "xbox_perf.h"
 #include "xbox_bg_game.h"
 #include "xbox_bg_runtime.h"
+#include "xbox_gif_native.h"
+#include "xbox_dma_chain.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
@@ -213,6 +215,25 @@ namespace
                       << " invalid=" << bg.invalidations
                       << " lookup hit/search=" << bg.bindingCacheHits << "/" << bg.bindingSearches
                       << " provenance range/row=" << bg.provenanceFastRanges << "/" << bg.provenanceRowChecks
+                      << " batch accept/try/fallback=" << bg.batchAccepted << "/" << bg.batchAttempts
+                      << "/" << bg.batchFallbacks
+                      << " batch strips/verts=" << bg.batchStrips << "/" << bg.batchVertices
+                      << std::endl;
+#endif
+#if TS_GIF_NATIVE
+        const XboxGifNativeStats gif = xboxGifNativeGetStats();
+        std::cout << "[TS:gif-native] packets/tags/writes=" << gif.packets << "/" << gif.tags
+                  << "/" << gif.packedWrites << " plan hit/build=" << gif.planHits << "/" << gif.planBuilds
+                  << " reject/busy=" << gif.rejected << "/" << gif.cacheBusy
+                  << " fallback queue/worker/stream=" << gif.queuedFallbacks << "/"
+                  << gif.workerFallbacks << "/" << gif.streamFallbacks << std::endl;
+#endif
+#if TS_DMA_CHAIN_CACHE
+        XboxDmaChainStats dma;
+        if (xboxDmaChainGetStats(dma))
+            std::cout << "[TS:dma-chain] request/hit/build=" << dma.requests << "/" << dma.hits
+                      << "/" << dma.built << " changed/declined=" << dma.changed << "/" << dma.declined
+                      << " admitted tags/bytes=" << dma.admittedTags << "/" << dma.admittedBytes
                       << std::endl;
 #endif
     }
@@ -314,9 +335,12 @@ int main()
     logMemory("runtime initialised");
 
     std::cout << "[TS:opt] background=" << TS_BG_NATIVE
-              << " geometry-fast=" << TS_BG_FAST << " vif-fast=" << TS_VIF_FAST
+              << " geometry-fast=" << TS_BG_FAST << " geometry-batch=" << TS_BG_BATCH
+              << " vif-fast=" << TS_VIF_FAST << " gif-native=" << TS_GIF_NATIVE
+              << " dma-chain=" << TS_DMA_CHAIN_CACHE << " native-call-slots=" << TS_NATIVE_CALL_SLOTS
               << " material-cache=" << TS_NV2A_MATERIAL_CACHE
               << " texture-identity=" << TS_NV2A_PACK_IDENTITY_CACHE
+              << " profile-backend=" << TS_PERF_BACKEND
               << " geometry-verify=" << TS_BG_VERIFY << std::endl;
 
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";

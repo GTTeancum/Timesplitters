@@ -107,7 +107,7 @@ struct Draw
 {
     const uint8_t *vu=nullptr;
     uint32_t top=0, kind=0, count=0;
-    struct Strip { uint32_t vi=0, count=0, binding=kNoBinding; } strips[24];
+    struct Strip { uint32_t vi=0, count=0, binding=kNoBinding; } strips[kXboxBgMaxBatchStrips];
 #if TS_BG_FAST
     // The accepted Plain/EnvMap batch has at most 64 vertex rows. A value
     // is the strip slot plus one; zero means no prepared strip starts here.
@@ -341,7 +341,7 @@ void bindDraw(void *opaque,const ts_xbg::View &v)
 {
     State &s=*static_cast<State *>(opaque); Draw &d=s.draw;
     uint32_t vi=d.top+24;
-    for (uint32_t j=0;j<24 && d.top+j<kRows;++j)
+    for (uint32_t j=0;j<kXboxBgMaxBatchStrips && d.top+j<kRows;++j)
     {
         const uint8_t *tag=d.vu+size_t(d.top+j)*16;
         const uint32_t n=read32(tag)&0x7fffu;
@@ -392,6 +392,35 @@ void writeStrip(void *opaque,const ts_xbg::View &v)
     auto &c=*static_cast<WriteContext *>(opaque);
     c.writer(v.vertices+size_t(c.b->firstVertex)*44,c.user); c.done=true;
 }
+#if TS_BG_BATCH
+struct BatchContext
+{
+    State *state;
+    uint32_t first, count;
+    XboxBgBatchWriter writer;
+    void *user;
+    bool done=false;
+};
+void writeBatch(void *opaque,const ts_xbg::View &v)
+{
+    auto &c=*static_cast<BatchContext *>(opaque);
+    XboxBgPackedStrip packed[kXboxBgMaxBatchStrips];
+    // Resolve the complete group before invoking any output. The State
+    // guard pins its binding indexes, and withView pins this exact pack
+    // generation throughout the single synchronous callback.
+    for (uint32_t i=0;i<c.count;++i)
+    {
+        const auto &strip=c.state->draw.strips[c.first+i];
+        if (strip.binding>=c.state->bindingCount) return;
+        const Binding &binding=c.state->bindings[strip.binding];
+        if (binding.firstVertex>v.vertexCount ||
+            strip.count>v.vertexCount-binding.firstVertex) return;
+        packed[i]={v.vertices+size_t(binding.firstVertex)*44,strip.vi,strip.count};
+    }
+    c.writer(packed,c.count,c.user);
+    c.done=true;
+}
+#endif
 } // namespace
 
 void xboxBgConfigure(const char *root,uint32_t budget)
@@ -561,6 +590,57 @@ bool xboxBgWithStrip(uint32_t kind,const uint8_t *vu,uint32_t vi,uint32_t count,
     }
     ++s.stats.fallbackStrips; return false;
 }
+bool xboxBgWithBatch(uint32_t kind,const uint8_t *vu,const XboxBgStripSpan *strips,
+                     uint32_t stripCount,XboxBgBatchWriter writer,void *user)
+{
+#if TS_BG_BATCH
+    State &s=state(); if (!s.tracking.load(std::memory_order_acquire)) return false;
+    Guard g(s); if (!g.held) return false;
+    ++s.stats.batchAttempts;
+    auto miss=[&]() { ++s.stats.batchFallbacks; return false; };
+    if (!writer || !strips || !stripCount || stripCount>kXboxBgMaxBatchStrips ||
+        kind>1 || !s.active || s.draw.vu!=vu || s.draw.kind!=kind) return miss();
+
+    uint32_t first=s.draw.count;
+#if TS_BG_FAST
+    const uint32_t base=s.draw.top+24u;
+    if (strips[0].vi>=base && strips[0].vi-base<sizeof(s.draw.byVertex))
+    {
+        const uint32_t encoded=s.draw.byVertex[strips[0].vi-base];
+        if (encoded && encoded<=s.draw.count) first=encoded-1;
+    }
+#else
+    for (uint32_t i=0;i<s.draw.count;++i)
+        if (s.draw.strips[i].vi==strips[0].vi) { first=i; break; }
+#endif
+    if (first>=s.draw.count || stripCount>s.draw.count-first) return miss();
+    uint32_t vertices=0;
+    for (uint32_t i=0;i<stripCount;++i)
+    {
+        const auto &request=strips[i];
+        const auto &slot=s.draw.strips[first+i];
+        if (request.vi!=slot.vi || request.count!=slot.count ||
+            slot.binding>=s.bindingCount || slot.count<3 || slot.count>64u-vertices)
+            return miss();
+        const Binding &binding=s.bindings[slot.binding];
+        if (binding.kind!=kind || binding.count!=slot.count) return miss();
+        // Reordering or repeating bound strips is not a group from the live
+        // native draw. Partial PRIM groups remain valid consecutive subsets.
+        if (i && request.vi!=strips[i-1].vi+strips[i-1].count) return miss();
+        vertices+=slot.count;
+    }
+    BatchContext context{&s,first,stripCount,writer,user};
+    if (!s.loader.withView(s.pack.generation,&writeBatch,&context) || !context.done)
+        return miss();
+    ++s.stats.batchAccepted;
+    s.stats.batchStrips+=stripCount; s.stats.batchVertices+=vertices;
+    s.stats.matchedStrips+=stripCount; s.stats.matchedVertices+=vertices;
+    return true;
+#else
+    (void)kind; (void)vu; (void)strips; (void)stripCount; (void)writer; (void)user;
+    return false;
+#endif
+}
 bool xboxBgGetStats(XboxBgRuntimeStats &out)
 {
     out={}; State &s=state(); Guard g(s); if (!g.held) return false;
@@ -579,5 +659,6 @@ void xboxBgNoteUnpack(const uint8_t *,const uint8_t *,uint32_t,const uint8_t *,u
 void xboxBgBeginNative(uint32_t,const uint8_t *,uint32_t,uint32_t,bool) {}
 void xboxBgEndNative() {}
 bool xboxBgWithStrip(uint32_t,const uint8_t *,uint32_t,uint32_t,XboxBgStripWriter,void *) { return false; }
+bool xboxBgWithBatch(uint32_t,const uint8_t *,const XboxBgStripSpan *,uint32_t,XboxBgBatchWriter,void *) { return false; }
 bool xboxBgGetStats(XboxBgRuntimeStats &out) { out={}; return true; }
 #endif

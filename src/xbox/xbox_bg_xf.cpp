@@ -96,6 +96,51 @@ namespace
         ++cursor.strips;
         cursor.vertices += job.count;
     }
+
+#if TS_BG_BATCH && defined(TS_BG_NATIVE) && TS_BG_NATIVE
+    struct GroupWrite
+    {
+        GSXfCursor *cursor;
+        const uint8_t *vu;
+        uint32_t rgba;
+        XboxBgFlatEmitter emitFlat;
+        void *sink;
+    };
+
+    void writeJoinedGroup(const XboxBgPackedStrip *strips, uint32_t stripCount, void *user)
+    {
+        const GroupWrite &group = *static_cast<const GroupWrite *>(user);
+        GSXfCursor &cursor = *group.cursor;
+        // The whole group's cursor range was admitted before its pack
+        // borrow. No grow, allocation or possible rejection can occur
+        // after the first current-group vertex is written.
+        for (uint32_t i = 0; i < stripCount; ++i)
+        {
+            const auto &strip = strips[i];
+            Write job{cursor.next, group.vu + (strip.vi + group.rgba) * 16u,
+                      strip.count, &cursor};
+            writeJoined(strip.vertices, &job);
+        }
+    }
+
+    void writeFlatGroup(const XboxBgPackedStrip *strips, uint32_t stripCount, void *user)
+    {
+        const GroupWrite &group = *static_cast<const GroupWrite *>(user);
+        // A separate callback keeps the flat path's staging array out of
+        // the direct writer's hot stack frame.
+        GSXfVertex vertices[64];
+        for (uint32_t i = 0; i < stripCount; ++i)
+        {
+            const auto &strip = strips[i];
+            Write job{vertices, group.vu + (strip.vi + group.rgba) * 16u,
+                      strip.count, nullptr};
+            writeFlat(strip.vertices, &job);
+            // The existing backend retains its last-to-first provoking
+            // vertex conversion, ring reservations and segment fences.
+            group.emitFlat(vertices, strip.count, group.sink);
+        }
+    }
+#endif
 }
 
 bool xboxBgTryDecodeStrip(uint32_t kind, const uint8_t *vu, uint32_t vi,
@@ -123,4 +168,51 @@ bool xboxBgTryWriteJoinedStrip(uint32_t kind, GSXfCursor &cursor,
     const uint32_t rgba = ts_native_xf::kLayouts[kind].rgba;
     Write job{cursor.next, vu + (vi + rgba) * 16u, count, &cursor};
     return xboxBgWithStrip(kind, vu, vi, count, &writeJoined, &job);
+}
+
+bool xboxBgTryEmitGroup(uint32_t kind, GSXfCursor &cursor, const uint8_t *vu,
+                        const XboxBgStripSpan *strips, uint32_t stripCount,
+                        XboxBgFlatEmitter emitFlat, void *sink)
+{
+#if TS_BG_BATCH && defined(TS_BG_NATIVE) && TS_BG_NATIVE
+    if (!strips || !stripCount || stripCount > kXboxBgMaxBatchStrips)
+        return false;
+    uint32_t vertices = 0;
+    for (uint32_t i = 0; i < stripCount; ++i)
+    {
+        const auto &strip = strips[i];
+        if (!validInput(kind, vu, strip.vi, strip.count) || strip.count > 64u - vertices ||
+            (i && strip.vi != strips[i - 1u].vi + strips[i - 1u].count))
+            return false;
+        vertices += strip.count;
+    }
+    if (cursor.direct)
+    {
+        if (!cursor.next || !cursor.end ||
+            cursor.strips > std::numeric_limits<uint32_t>::max() - stripCount ||
+            cursor.vertices > std::numeric_limits<uint32_t>::max() - vertices)
+            return false;
+        const uintptr_t begin = reinterpret_cast<uintptr_t>(cursor.next);
+        const uintptr_t end = reinterpret_cast<uintptr_t>(cursor.end);
+        const uint32_t joins = stripCount - 1u + (cursor.join ? 1u : 0u);
+        // gpuStrip reserves n + 2 even for a first strip without a join.
+        // Retain that boundary as well as all records this group writes.
+        const uint32_t records = std::max(vertices + joins * 2u, strips[0].count + 2u);
+        const size_t needed = size_t(records) * sizeof(GSXfVertex);
+        // A segment boundary keeps the original strip-at-a-time route.
+        // Returning false here has no GS/cursor side effect to roll back.
+        if (end < begin || end - begin < needed)
+            return false;
+    }
+    else if (!emitFlat)
+        return false;
+
+    GroupWrite group{&cursor, vu, ts_native_xf::kLayouts[kind].rgba, emitFlat, sink};
+    return xboxBgWithBatch(kind, vu, strips, stripCount,
+                           cursor.direct ? &writeJoinedGroup : &writeFlatGroup, &group);
+#else
+    (void)kind; (void)cursor; (void)vu; (void)strips; (void)stripCount;
+    (void)emitFlat; (void)sink;
+    return false;
+#endif
 }

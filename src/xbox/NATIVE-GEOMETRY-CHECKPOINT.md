@@ -13,11 +13,17 @@ work; normal PC builds are outside its scope. Runtime, gameplay
 proof and build verification were developed in parallel with cross-review.
 Earlier capture/import and texture work is retained below.
 
-The user's current instruction is to keep writing code and building while
-the console and XEMU are unavailable, and to connect the optimization paths.
-Continue implementation and cloud target builds without waiting for device
-access. Hardware-dependent behavior and FPS must still be reported as
-unmeasured until a real target run is available.
+The user's latest instruction is: "I don't want a build until everything is
+written." This supersedes the earlier code-and-build cadence. Finish the
+full planned Xbox optimization implementation and integration, including the
+remaining geometry/graphics processing replacement, before another build.
+Continue writing, reviewing and pushing source to `main`. Do not perform
+interim compilations, link/XBE/ISO builds, or create new download packages.
+The existing build commands and results below are retained for later use
+and historical reference, not as instructions to build each source batch.
+Console/XEMU availability does not block source work. After the planned code
+is written and connected, build and validate it; hardware behavior and FPS
+remain unmeasured until an actual target run is available.
 
 ## Current state — connected optimization batch, 2026-10-30 Eastern
 
@@ -558,8 +564,9 @@ read-only shared source references are not publication inputs.
 1. Verify actual current `main` and retain all newer work and scope.
 2. Reuse the verified private source packs, gameplay capture and audit package.
    The source inputs and first real recording no longer need to be requested.
-3. Continue writing and connecting supported Xbox optimizations, then build
-   with the real target toolchain and push the completed source batch.
+3. Complete and connect the full planned Xbox optimization code, pushing
+   source batches to `main` without interim builds or download packages.
+   Build only after the planned implementation is written and integrated.
    Console/XEMU availability is not a prerequisite for this coding work.
 4. Resolve unmatched/unsupported inputs through provenance, without treating
    matching hashes or the degenerate triangle as permission to skip work.

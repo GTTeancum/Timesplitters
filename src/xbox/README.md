@@ -80,9 +80,10 @@ rebuilds its consumers when the switch changes.
 These paths preserve live colors, transforms, texture residency and draw
 ordering. They do not bypass the complete PS2 DMA/VIF pipeline. See
 [NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md) for deployment
-and the exact boundaries. Development continues with cloud compilation
-while the console and XEMU are unavailable; target execution and FPS are
-still separate, uncompleted checks.
+and the exact boundaries. Current development is source-only until the full
+planned optimization implementation is written and connected. Do not make
+interim builds or download packages; the build commands here are retained
+for that later stage. Target execution and FPS remain uncompleted checks.
 
 ### Disc and texture output
 

@@ -10,7 +10,9 @@ converted geometry and textures with the executable. Ordinary `xbe` and
 disc targets keep native backgrounds opt-in. An enabled runtime remains
 functional without a matching pack; unsupported or unbound draws continue
 through the original decoder. Console/XEMU availability does not block
-further coding and cloud builds; target rendering and performance remain
+further coding. The current instruction is to finish the full planned
+optimization code before another build or download package; the commands
+below are for that later stage. Target rendering and performance remain
 unmeasured.
 
 ## Build and deployment

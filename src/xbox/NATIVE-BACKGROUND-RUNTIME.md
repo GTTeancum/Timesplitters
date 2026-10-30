@@ -60,6 +60,7 @@ it observes the same original input before the wrapped callback.
 
 The additional switches default to `1`: `TS_BG_FAST`, `TS_BG_BATCH`,
 `TS_VIF_FAST`, `TS_GIF_NATIVE`, `TS_DMA_CHAIN_CACHE`, `TS_NATIVE_CALL_SLOTS`,
+`TS_DRAW_RECORDS`,
 `TS_NV2A_MATERIAL_CACHE` and `TS_NV2A_PACK_IDENTITY_CACHE`. Each accepts
 `0` to retain its previous implementation for later comparisons. Native
 background verification and capture still default to off.
@@ -207,6 +208,72 @@ bits are retained. Unsupported control flow, IRQ tags, scratchpad/aliased
 or wrapping payloads, oversized leaves, detailed counters and zero-TTE
 suppression keep the original walk. Metadata storage is bounded below
 40 KiB; payloads and all VIF writes still execute through the existing route.
+
+## Ordered draw records
+
+`TS_DRAW_RECORDS=1` connects two production observations in the Xbox copy
+of `partGfx`: the completed precalc CALL at guest `0x261c40` and completed
+per-instance Dbuf CALL at `0x261c90`. Original guest-list bytes, register
+values and control flow remain unchanged. These observations do not draw
+anything early; they retain up to 256 compact exact CALL hints for the
+later VIF decoder. Observing a CALL reads only that caller, with no leaf
+walk during list construction. Hints use 128 two-way sets keyed by chain
+address, so repeated instances of one chain share the latest caller.
+
+Descriptors cover main-RAM REF/REFS/CNT leaves ending in RET, up to 32 tags,
+64 raw TTE/payload pieces and 256 KiB of logical source data. The 16-entry
+descriptor cache is populated lazily at an observed chain's first TTE
+word. A missing interior lookup keeps the original decoder; no backward
+scan guesses the chain origin. Every live caller and leaf tag is checked
+before lending a descriptor. All payloads, including instance relighting
+colors, are read from current RAM. A changed resident leaf declines that
+attempt and retires the descriptor; an exact CALL hint permits a later
+first-TTE rebuild. Changed caller bytes discard the hint until a fresh
+observation. A 16-entry offset query cache stores indexes and generations
+rather than borrowed pointers. All producer metadata fits a 40 KiB ceiling;
+there is no heap allocation on this route.
+
+The segmented decoder consults a descriptor only at a command boundary
+after its pending PATH2 image handling. A private copy of the reader must
+match every source address through the next MSCAL/MSCALF. A command or
+payload split across actual pieces declines. This preserves split counters
+and the original background-provenance treatment. The original stream is
+never replaced with marker bytes, and failure consumes no logical input.
+
+Eight bounded plans, below 12 KiB in total, admit up to 64 commands before
+that terminal MSCAL. Their exact command words, initial cycle/mode and
+live source spans are rechecked. Supported uploads are unmasked, mode-0
+S/V2/V3/V4-32 with CL >= WL. Controls include NOP, STCYCL, BASE, OFFSET,
+ITOP, STMOD, MARK, FLUSH, STMASK, STROW and STCOL. Matrix, lighting, color,
+row/column/mask and vertex payload values are never held in the plan.
+
+Once the whole prefix is admitted, its commands update live VIF registers
+and VU rows in order. S uploads broadcast; V2/V3 retain untouched lanes;
+destinations retain skip-cycle and 1024-row wrap semantics. Every upload
+keeps watched-row and background-provenance observations. Contiguous
+uploads reuse the existing SSE1 writer when `TS_VIF_FAST=1`.
+
+Execution stops before MSCAL, and only then advances the original reader
+through the committed prefix. The original MSCAL branch performs TOP/ITOP
+and double-buffer transitions, VU code lookup, native callback or interpreter
+fallback, GS effects, and background execution invalidation. No arbitrary
+native/GS callback runs inside the prefix. Workers, detailed command
+counters, unsupported inputs and nonblocking-cache contention keep the
+original decoder. Disabling records removes both source-copy stages.
+
+This route replaces repeated command decoding for admitted prefixes.
+It retains original DMA walking and VU memory effects; it does not yet
+replace complete display lists or fetch pack vertices directly on NV2A.
+Lazy construction retains more queued draw origins than the full descriptor
+cache alone. Hint collisions, eviction and an unsupported first TTE can
+still limit coverage. `[TS:draw-record]`
+reports precalc/Dbuf observations and descriptor use; `[TS:vif-record]`
+reports plan reuse, rejection and accepted command/vector totals. These
+are diagnostic admissions, not evidence of measured target speed.
+
+The record code and its regression probes are source-only additions. They
+have not been compiled or executed. The no-interim-build instruction
+continues until the entire planned implementation is written and connected.
 
 ## Native guest calls
 

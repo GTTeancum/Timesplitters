@@ -19,6 +19,8 @@
 #include "xbox_bg_runtime.h"
 #include "xbox_gif_native.h"
 #include "xbox_dma_chain.h"
+#include "xbox_draw_record.h"
+#include "xbox_vif_record.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
@@ -236,6 +238,22 @@ namespace
                       << " admitted tags/bytes=" << dma.admittedTags << "/" << dma.admittedBytes
                       << std::endl;
 #endif
+#if TS_DRAW_RECORDS
+        XboxDrawRecordStats records;
+        if (xboxDrawRecordGetStats(records))
+            std::cout << "[TS:draw-record] notes/new/reuse=" << records.notes << "/" << records.created
+                      << "/" << records.reused << " precalc/dbuf=" << records.notesPrecalc << "/" << records.notesDbuf
+                      << " lookup/hit/hint=" << records.lookups << "/"
+                      << records.hits << "/" << records.hintHits
+                      << " changed/reject/busy=" << records.changed << "/" << records.rejected
+                      << "/" << records.busy << " accepted=" << records.accepted << std::endl;
+        XboxVifRecordStats prefixes;
+        if (xboxVifRecordGetStats(prefixes))
+            std::cout << "[TS:vif-record] attempt/hit/build=" << prefixes.attempts << "/" << prefixes.hits
+                      << "/" << prefixes.built << " reject/busy=" << prefixes.rejected << "/" << prefixes.busy
+                      << " prefixes/commands/vectors/bytes=" << prefixes.prefixes << "/" << prefixes.commands
+                      << "/" << prefixes.vectors << "/" << prefixes.bytes << std::endl;
+#endif
     }
 
     // std::chrono on nxdk: check the clocks advance like the kernel timer.
@@ -338,6 +356,7 @@ int main()
               << " geometry-fast=" << TS_BG_FAST << " geometry-batch=" << TS_BG_BATCH
               << " vif-fast=" << TS_VIF_FAST << " gif-native=" << TS_GIF_NATIVE
               << " dma-chain=" << TS_DMA_CHAIN_CACHE << " native-call-slots=" << TS_NATIVE_CALL_SLOTS
+              << " draw-records=" << TS_DRAW_RECORDS
               << " material-cache=" << TS_NV2A_MATERIAL_CACHE
               << " texture-identity=" << TS_NV2A_PACK_IDENTITY_CACHE
               << " profile-backend=" << TS_PERF_BACKEND
@@ -346,6 +365,9 @@ int main()
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";
     if (!rt.loadELF(elf))
         halt("could not load D:\\game-data\\SLUS_200.90");
+#if TS_DRAW_RECORDS
+    xboxDrawRecordReset();
+#endif
 #if TS_BG_NATIVE
     xboxBgConfigure("D:\\native-bg", 4u * 1024u * 1024u);
     xboxBgInstallGameHooks(rt);

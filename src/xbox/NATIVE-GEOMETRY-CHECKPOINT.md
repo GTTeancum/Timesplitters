@@ -13,6 +13,14 @@ work; normal PC builds are outside its scope. Runtime, gameplay
 proof and build verification were developed in parallel with cross-review.
 Earlier capture/import and texture work is retained below.
 
+The user explicitly requires sustained implementation sessions of 15+
+minutes with parallel agents. Continue through multiple substantive subtasks
+and integrate their results before ending a turn; a small commit is not a
+reason to stop and require another "Continue". Do useful implementation,
+review and integration work throughout, and push at the end of the session.
+Do not pad elapsed time with idle waits or interpret this cadence as a
+change to the no-build instruction below.
+
 The user's latest instruction is: "I don't want a build until everything is
 written." This supersedes the earlier code-and-build cadence. Finish the
 full planned Xbox optimization implementation and integration, including the
@@ -25,7 +33,80 @@ Console/XEMU availability does not block source work. After the planned code
 is written and connected, build and validate it; hardware behavior and FPS
 remain unmeasured until an actual target run is available.
 
-## Current state — source-only packet and geometry batch, 2026-10-30 Eastern
+## Current state — ordered draw-record source, 2026-10-30 Eastern
+
+Batch baseline: `da74fb4b84397e09c291bad256ffcef5a15a2365`.
+This session connects observed game draw chains to a bounded VIF prefix
+executor under `TS_DRAW_RECORDS=1`. All tracked changes remain inside
+`src/xbox/`; shared game/runtime sources are only read. New source-copy
+stages compose before native guest-call resolution and after the existing
+background/VIF adapters. No compiler, make, patcher, runnable test, emulator,
+build or package was executed for this source-only batch.
+
+### Connected data path
+
+- Observe completed zero-QWC `partGfx` precalc and per-instance Dbuf CALLs
+  without changing the original guest display list, guest registers or
+  scheduler steps. Keep up to 256 compact CALL hints while constructing
+  the list; build full descriptors only when the decoder reaches an
+  observed chain's first TTE word. Descriptors retain
+  raw main-RAM TTE/payload offsets and exact caller/leaf tags; payloads stay
+  live. Unsupported flow, IRQ, aliases, wrapping payloads and excessive
+  chain sizes decline. Repeated callers of the same unchanged chain share
+  one bounded descriptor.
+- At a real segmented VIF command boundary, match the descriptor's source
+  addresses against a copy of the live reader. Every command, complete
+  payload and terminal MSCAL must match before any register or VU write.
+  The original byte stream remains available on every rejected attempt.
+  No marker replaces guest data, so a preceding cross-piece command cannot
+  accidentally consume a private token as vertex data.
+- Decode supported prefixes into bounded plans. Reuse exact command words
+  and physical payload offsets, with current cycle/mode admission. Apply
+  live BASE/OFFSET/TOPS, CODE/NUM/INT, row/column/mask and mode state and
+  unmasked mode-0 S/V2/V3/V4-32 uploads with CL >= WL. V2/V3 preserve their
+  unspecified lanes, S broadcasts, and destination rows keep the original
+  skips/wrap. Contiguous uploads retain the existing SSE1 copy helper when
+  `TS_VIF_FAST=1`.
+- Stop immediately before MSCAL/MSCALF. The untouched original branch
+  still controls double buffering, TOP/ITOP, native VU dispatch, fallback,
+  GS work and background execution invalidation. No native/GS callback
+  occurs inside a committed prefix. Watched-row and background provenance
+  observations are preserved before each upload.
+- Workers, detailed per-command counters, incomplete/split payload spans,
+  unsupported formats or modes, and cache contention retain the original
+  decoder. Flag stamps and source routing retain independent off paths.
+
+### Scope and verification status
+
+This is an ordered producer-to-decoder implementation, not a complete DMA
+or GPU draw replacement. The original CALL and DMA piece stream still
+execute. Direct NV2A fetch, arbitrary command formats, broader per-frame
+REF emission, and removal of all intermediate VU copies remain unfinished.
+Descriptor/plan caches are bounded and can evict coverage; admission counts
+are not frame coverage or speed measurements. Full implementation must be
+written and connected before any build is started.
+
+The producer keeps 256 two-way CALL hints, 16 lazily constructed leaf
+descriptors and 16 offset queries within a 40 KiB metadata ceiling. Eight
+decoded-prefix plans have a separate 12 KiB ceiling. Both leases are
+nonblocking. Same-chain instances share a hint; consuming more than 16
+distinct queued chains can build descriptors in draw order rather than
+discarding all but the final 16 during list construction. Hash collisions,
+capacity eviction and a first TTE that fails the cheap VIF filter can still
+limit coverage. An interior lookup alone never guesses a missing chain
+origin. Changed resident leaf tags decline the current attempt; an exact
+CALL hint permits a later first-TTE rebuild. Changed caller bytes require
+a fresh observation. `[TS:draw-record]` separates precalc and Dbuf
+observations; `[TS:vif-record]` records accepted prefixes, commands,
+vectors and bytes for later target measurement.
+
+Source-level regression probes cover long queued lists, eviction/rebuild,
+live identity/payload changes, nonblocking leases, unsupported fallback,
+register/lane behavior and source composition. They were authored for the
+later verification stage and have not been run. Target compilation, game
+rendering, memory headroom and FPS for these changes remain unverified.
+
+## Previous source-only packet and geometry batch, 2026-10-30 Eastern
 
 Batch baseline: `7ebd583ecc6a6acde706fce234480c681715ed3b`.
 All tracked changes remain inside `src/xbox/`; publication is to `main`

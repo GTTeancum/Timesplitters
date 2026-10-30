@@ -65,6 +65,7 @@ with (Path(__file__).parent / "commands.jsonl").open("a") as log:
             for name in ("game", "loader", "runtime", "vu", "xf"):
                 sources["bg_" + name] = "src/xbox/xbox_bg_" + name + ".cpp"
             sources.update({"main": "src/xbox/xbox_main.cpp", "capture": "src/xbox/xbox_vu_capture.cpp",
+                            "backend": "src/xbox/gs_nv2a_backend.cpp",
                             "registry": "source/PS2Recomp/ps2xRuntime/src/lib/vu/ps2_vu1_jit.cpp",
                             "gif_adapter": "src/xbox/xbox_gif_native.cpp",
                             "dma_adapter": "src/xbox/xbox_dma_chain.cpp",
@@ -111,8 +112,8 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
             by_object = {str(path): name for name, path in objects.items()}
             native_calls = {"native_math", "native_game", "native_game2", "native_game3"}
             bg_consumers = {"native", "vif", "memory", "bg_game", "bg_loader", "bg_runtime",
-                            "bg_vu", "bg_xf", "main"}
-            opt_consumers = {"vif", "vif_record", "main"}
+                            "bg_vu", "bg_xf", "backend", "main"}
+            opt_consumers = {"vif", "vif_record", "backend", "main"}
             path_consumers = {"native", "memory", "gs", "gif_adapter", "dma_adapter", "main"} | native_calls
             perf_consumers = {"perf", "gif_adapter", "main"}
             draw_consumers = {"native_game2", "vif", "draw_adapter", "vif_record", "main"}
@@ -206,6 +207,7 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
                     ("vif", "xboxVifRecordTryPrefix(", "TS_DRAW_RECORDS"),
                     ("native_game2", "xboxDrawRecordNotePrecalc(", "TS_DRAW_RECORDS"),
                     ("native_game2", "xboxDrawRecordNoteDbuf(", "TS_DRAW_RECORDS"),
+                    ("native_game2", "xboxDrawRecordNoteRefs(", "TS_DRAW_RECORDS"),
                     ("memory", '#include "xbox_bg_runtime.h"', "TS_BG_NATIVE"),
                     ("memory", "xboxDmaChainPrepare(", "TS_DMA_CHAIN_CACHE"),
                     ("gs", "xboxGifWithNativePlan(", "TS_GIF_NATIVE"),

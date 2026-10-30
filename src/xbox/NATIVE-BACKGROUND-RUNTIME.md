@@ -151,7 +151,8 @@ Accepted vertices are copied into the existing transform ring in memory
 order: geometry, current color, then texture coordinates and bone field.
 Joined strips keep the two degenerate join vertices and cached final
 vertex. The writer never reads from write-combined destination memory.
-Flat strips still go through the existing provoking-vertex conversion.
+Flat strips keep the existing provoking-vertex order, including the
+direct group writer described below.
 The original segment and frame fences own every GPU-visible byte; the
 CPU pack allocation is never submitted directly to the GPU.
 
@@ -169,9 +170,20 @@ shares one runtime guard and one pack borrow. All requested strip identities
 and packed-vertex ranges are admitted before the writer is called. A direct
 group must fit the currently open ring segment, including degenerate joins
 and the original first-strip reservation. A capacity miss leaves cursor
-growth and fences to the original per-strip loop. Flat groups continue to
-call the existing `emitXfStrip` for each strip, preserving provoking vertices.
-No pack pointer survives the synchronous group callback.
+growth and fences to the original per-strip loop.
+
+With `TS_BG_NATIVE && TS_BG_BATCH`, the Xbox backend also lends the remaining
+ring span to a flat group while retaining `cursor.direct=false`. The group
+must fit all `3 * (vertexCount - 2 * stripCount)` expanded records before
+the pack is borrowed. It writes pack geometry and current VU colors
+directly in the original `i, i-2, i-1` triangle order, removing the temporary
+64-vertex array. Legacy `emitXfStrip` takes any pending cursor records before
+its normal reservation can flush or fence a segment, then refreshes the
+lent span. `endXfRun` takes final pending records and releases the cursor.
+Flat groups without a lent span use the existing emitter. Binding/capacity
+misses and ring self-checks keep the original strip loop. Both switches
+off retain the earlier backend path. No pack pointer survives the callback,
+and no GPU allocation or fence contract changes.
 
 ## Packet plans and DMA leaf reuse
 
@@ -211,27 +223,40 @@ suppression keep the original walk. Metadata storage is bounded below
 
 ## Ordered draw records
 
-`TS_DRAW_RECORDS=1` connects two production observations in the Xbox copy
-of `partGfx`: the completed precalc CALL at guest `0x261c40` and completed
-per-instance Dbuf CALL at `0x261c90`. Original guest-list bytes, register
-values and control flow remain unchanged. These observations do not draw
-anything early; they retain up to 256 compact exact CALL hints for the
-later VIF decoder. Observing a CALL reads only that caller, with no leaf
-walk during list construction. Hints use 128 two-way sets keyed by chain
-address, so repeated instances of one chain share the latest caller.
+`TS_DRAW_RECORDS=1` connects all three production origin kinds in the Xbox
+copy of `partGfx`: the completed precalc CALL at guest `0x261c40`, completed
+per-instance Dbuf CALL at `0x261c90`, and the three per-frame REF loops.
+REF observations occur after their final list-pointer stores `0x261450`,
+`0x2618a0` and `0x261f48`, before a scheduler checkpoint can return. Each
+iteration captures its own start address. Source guards reject new calls,
+yields, branch exits or interior entries inside those capture spans.
+Original guest-list bytes, register values and control flow remain intact.
 
-Descriptors cover main-RAM REF/REFS/CNT leaves ending in RET, up to 32 tags,
-64 raw TTE/payload pieces and 256 KiB of logical source data. The 16-entry
-descriptor cache is populated lazily at an observed chain's first TTE
-word. A missing interior lookup keeps the original decoder; no backward
-scan guesses the chain origin. Every live caller and leaf tag is checked
-before lending a descriptor. All payloads, including instance relighting
-colors, are read from current RAM. A changed resident leaf declines that
-attempt and retires the descriptor; an exact CALL hint permits a later
-first-TTE rebuild. Changed caller bytes discard the hint until a fresh
-observation. A 16-entry offset query cache stores indexes and generations
-rather than borrowed pointers. All producer metadata fits a 40 KiB ceiling;
-there is no heap allocation on this route.
+Observations retain up to 256 compact origin hints in 128 two-way sets.
+They read the caller or first REF tag and one first leaf header; no leaf
+walk occurs during list construction. Repeated instances of one chain
+share the latest caller. A nonempty canonical first payload is indexed
+alongside the first TTE entry. This supports both tag-data transfers and
+the payload-only CHCR `0x185` transfers recorded in earlier game logs.
+
+Descriptors cover main-RAM REF/REFS/CNT leaves ending in RET, or a completed
+linear REF span, up to 32 tags, 64 raw pieces and 256 KiB of source data.
+The 16-entry descriptor cache is populated lazily at an observed first
+TTE or indexed first-payload word, retaining or omitting TTE pieces for
+that candidate. A linked payload index retains shared-start origins still
+present in the hint table; it does not discard all but two objects using
+the same command template. Ordered candidates are bounded to 32 attempts
+per lookup. Only the live reader proof can select a transport/origin.
+
+A missing interior lookup keeps the original decoder. Every live caller
+or first REF and every retained tag is checked before the consumer. All
+payloads, including instance relighting colors, are read from current RAM.
+Changed resident tags decline the current lookup; an exact origin hint
+permits later reconstruction. Changed origin bytes require a fresh
+observation. A changed first-payload address can miss until observation
+reindexes it. Sixteen offset queries store indexes and generations, and a
+rejected consumer cannot create a permanent miss for other shared starts.
+All producer metadata fits a 40 KiB ceiling with no heap allocation.
 
 The segmented decoder consults a descriptor only at a command boundary
 after its pending PATH2 image handling. A private copy of the reader must
@@ -243,7 +268,10 @@ never replaced with marker bytes, and failure consumes no logical input.
 Eight bounded plans, below 12 KiB in total, admit up to 64 commands before
 that terminal MSCAL. Their exact command words, initial cycle/mode and
 live source spans are rechecked. Supported uploads are unmasked, mode-0
-S/V2/V3/V4-32 with CL >= WL. Controls include NOP, STCYCL, BASE, OFFSET,
+S/V2/V3/V4 at 32, 16 or 8 bits and packed V4-5, with CL >= WL. Compact
+uploads preserve signed/unsigned extension and complete word padding;
+V4-5 retains the original decoder's raw 5/5/5/1 fields. These cover the
+V4-8 color commands in the actual precalc templates. Controls include NOP, STCYCL, BASE, OFFSET,
 ITOP, STMOD, MARK, FLUSH, STMASK, STROW and STCOL. Matrix, lighting, color,
 row/column/mask and vertex payload values are never held in the plan.
 
@@ -251,7 +279,7 @@ Once the whole prefix is admitted, its commands update live VIF registers
 and VU rows in order. S uploads broadcast; V2/V3 retain untouched lanes;
 destinations retain skip-cycle and 1024-row wrap semantics. Every upload
 keeps watched-row and background-provenance observations. Contiguous
-uploads reuse the existing SSE1 writer when `TS_VIF_FAST=1`.
+32-bit uploads reuse the existing SSE1 writer when `TS_VIF_FAST=1`.
 
 Execution stops before MSCAL, and only then advances the original reader
 through the committed prefix. The original MSCAL branch performs TOP/ITOP
@@ -265,15 +293,20 @@ This route replaces repeated command decoding for admitted prefixes.
 It retains original DMA walking and VU memory effects; it does not yet
 replace complete display lists or fetch pack vertices directly on NV2A.
 Lazy construction retains more queued draw origins than the full descriptor
-cache alone. Hint collisions, eviction and an unsupported first TTE can
-still limit coverage. `[TS:draw-record]`
-reports precalc/Dbuf observations and descriptor use; `[TS:vif-record]`
+cache alone. Hint collisions, eviction, empty/unsupported first payloads
+and candidate limits can still limit coverage. `[TS:draw-record]` reports
+precalc/Dbuf and all REF observations, accepted payload/TTE descriptors,
+descriptor use and capped candidate selection; `[TS:vif-record]`
 reports plan reuse, rejection and accepted command/vector totals. These
 are diagnostic admissions, not evidence of measured target speed.
+The transport counters identify admitted descriptor representations; they
+do not sample CHCR or establish frame coverage.
 
-The record code and its regression probes are source-only additions. They
-have not been compiled or executed. The no-interim-build instruction
-continues until the entire planned implementation is written and connected.
+The native record code and its regression probes have not been compiled
+or executed. Python source-adapter checks run without building the game
+and exercise actual source composition, restoration and rejection guards.
+The no-interim-build instruction continues until the entire planned
+implementation is written and connected.
 
 ## Native guest calls
 

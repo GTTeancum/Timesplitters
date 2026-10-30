@@ -97,6 +97,97 @@ OBSERVER = '''            // (The span needs a division; nothing to note without
             if (g_vu1WatchedRows.ranges != 0u)
                 g_vu1WatchedRows.note(vuAddr, vu1UnpackSpan(writeVectorCount, cl, wl));
 '''
+UNPACK_EXTEND = '''    template <bool kZero>
+    inline uint32_t extend16(uint16_t raw)
+    {
+        return kZero ? raw : static_cast<uint32_t>(static_cast<int32_t>(static_cast<int16_t>(raw)));
+    }
+    template <bool kZero>
+    inline uint32_t extend8(uint8_t raw)
+    {
+        return kZero ? raw : static_cast<uint32_t>(static_cast<int32_t>(static_cast<int8_t>(raw)));
+    }
+'''
+UNPACK_COMPACT = '''        case 0x1: // S-16
+            unpackRun<2>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                const uint32_t v = extend16<kZero>(loadU16(s));
+                storeLanes<4>(d, v, v, v, v); });
+            break;
+        case 0x5: // V2-16
+            unpackRun<4>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                storeLanes<2>(d, extend16<kZero>(loadU16(s)), extend16<kZero>(loadU16(s + 2)), 0u, 0u); });
+            break;
+        case 0x9: // V3-16
+            unpackRun<6>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                storeLanes<3>(d, extend16<kZero>(loadU16(s)), extend16<kZero>(loadU16(s + 2)),
+                              extend16<kZero>(loadU16(s + 4)), 0u); });
+            break;
+        case 0xD: // V4-16
+            unpackRun<8>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                storeLanes<4>(d, extend16<kZero>(loadU16(s)), extend16<kZero>(loadU16(s + 2)),
+                              extend16<kZero>(loadU16(s + 4)), extend16<kZero>(loadU16(s + 6))); });
+            break;
+        case 0x2: // S-8
+            unpackRun<1>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                const uint32_t v = extend8<kZero>(s[0]);
+                storeLanes<4>(d, v, v, v, v); });
+            break;
+        case 0x6: // V2-8
+            unpackRun<2>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                storeLanes<2>(d, extend8<kZero>(s[0]), extend8<kZero>(s[1]), 0u, 0u); });
+            break;
+        case 0xA: // V3-8
+            unpackRun<3>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                storeLanes<3>(d, extend8<kZero>(s[0]), extend8<kZero>(s[1]), extend8<kZero>(s[2]), 0u); });
+            break;
+        case 0xE: // V4-8
+            unpackRun<4>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                storeLanes<4>(d, extend8<kZero>(s[0]), extend8<kZero>(s[1]), extend8<kZero>(s[2]), extend8<kZero>(s[3])); });
+            break;
+        case 0xF: // V4-5
+            unpackRun<2>(vu, src, n, c, [](uint8_t *d, const uint8_t *s) {
+                const uint32_t v = loadU16(s);
+                storeLanes<4>(d, v & 0x1Fu, (v >> 5) & 0x1Fu, (v >> 10) & 0x1Fu, (v >> 15) & 0x01u); });
+            break;
+'''
+# The original calculation remains in the fast adapter's fallback branch,
+# so the same semantic guard applies with either TS_VIF_FAST selection.
+UNPACK_LAYOUT = '''            const uint32_t vn = (opcode >> 2) & 0x3u;
+            const uint32_t vl = opcode & 0x3u;
+            const uint32_t components = vn + 1u;
+            uint32_t bitsPerComponent = 32u;
+            if (vl == 1u)
+                bitsPerComponent = 16u;
+            else if (vl == 2u)
+                bitsPerComponent = 8u;
+            else if (vl == 3u)
+                bitsPerComponent = (vn == 3u) ? 4u : 16u;
+            const uint32_t bitsPerVector = (vl == 3u && vn == 3u) ? 16u : (components * bitsPerComponent);
+            const uint32_t bytesPerVector = (bitsPerVector + 7u) / 8u;
+            // UNPACK semantics: NUM is 8-bit and NUM==0 means 256 vectors (writes).
+            const uint32_t writeVectorCount = (num == 0u) ? 256u : static_cast<uint32_t>(num);
+
+            // STCYCL controls write cycles for UNPACK.
+            uint32_t cl = vif1_regs.cycle & 0xFFu;
+            uint32_t wl = (vif1_regs.cycle >> 8) & 0xFFu;
+            if (cl == 0u)
+                cl = 1u;
+            if (wl == 0u)
+                wl = 1u;
+
+            uint32_t sourceVectorCount = writeVectorCount;
+            if (cl < wl)
+            {
+                const uint32_t fullBlocks = writeVectorCount / wl;
+                uint32_t remainder = writeVectorCount % wl;
+                if (remainder > cl)
+                    remainder = cl;
+                sourceVectorCount = fullBlocks * cl + remainder;
+            }
+
+            const uint32_t sourceBytes = sourceVectorCount * bytesPerVector;
+            const uint32_t totalBytes = (sourceBytes + 3u) & ~3u;
+'''
 HOOK = '''#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2
         static_assert(XboxDrawRecordChain::kRamBytes == PS2_RAM_SIZE,
                       "draw-record RAM layout must match the runtime");
@@ -183,7 +274,9 @@ def patch_source(source: str) -> str:
     for label, anchor in (('Xbox SSE include', INCLUDE), ('segmented decoder', DECODE),
                           ('segmented command read', COMMAND), ('register semantics', REGISTERS),
                           ('command register tracking', TRACK_COMMAND), ('VU write observer', OBSERVER),
-                          ('MARK/FLUSH semantics', MARK_FLUSH), ('payload register semantics', PAYLOAD_REGISTERS)):
+                          ('MARK/FLUSH semantics', MARK_FLUSH), ('payload register semantics', PAYLOAD_REGISTERS),
+                          ('compact UNPACK extension', UNPACK_EXTEND), ('compact UNPACK writers', UNPACK_COMPACT),
+                          ('UNPACK layout and padding', UNPACK_LAYOUT)):
         if normalized.count(anchor) != 1:
             raise ValueError(f'expected exactly one {label} anchor')
     if not normalized.index(DECODE) < normalized.index(COMMAND) < normalized.index(REGISTERS):

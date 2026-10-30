@@ -21,7 +21,7 @@ review and integration work throughout, and push at the end of the session.
 Do not pad elapsed time with idle waits or interpret this cadence as a
 change to the no-build instruction below.
 
-The user's latest instruction is: "I don't want a build until everything is
+The user's no-build instruction is: "I don't want a build until everything is
 written." This supersedes the earlier code-and-build cadence. Finish the
 full planned Xbox optimization implementation and integration, including the
 remaining geometry/graphics processing replacement, before another build.
@@ -33,7 +33,90 @@ Console/XEMU availability does not block source work. After the planned code
 is written and connected, build and validate it; hardware behavior and FPS
 remain unmeasured until an actual target run is available.
 
-## Current state — ordered draw-record source, 2026-10-30 Eastern
+The latest direction is to inspect the actual project and checkpoint, pick
+the next concrete blocker, implement a bounded change, verify it with
+meaningful available checks and continue while productive. Resolve routine
+reversible choices without check-ins and preserve unrelated work. Pure
+Python source-adapter checks are available without compiling the game;
+native probes, make, compiler, emulator and packaging remain deferred.
+
+## Current state — REF origins, payload-only records and flat groups, 2026-10-30 Eastern
+
+Batch baseline: `52f38db8a988d94ac5707d2ed2967ec0c21fd290`.
+The actual source exposed three connected gaps in the prior record path:
+dynamic `partGfx` REF groups were unobserved, the first-entry logic assumed
+TTE bytes, and real precalc templates contain compact V4-8 color uploads.
+This batch connects those cases and removes an extra flat-geometry copy.
+All tracked changes remain inside `src/xbox/`.
+
+### Source evidence and implementation
+
+- `nativePartGfxLevel` has three per-frame REF loops at `L_261200`,
+  `L_261650` and `L_261ca8`. Xbox-only observers capture each iteration's
+  start and completed end after guest stores `0x261450`, `0x2618a0` and
+  `0x261f48`, before the original loop checkpoint. The guest display list,
+  register writes and scheduler boundary remain intact. REF descriptors
+  accept only the bounded, fully completed linear span; no CALL or RET is
+  synthesized.
+- Saved cloud game logs show VIF1 CHCR `0x185`; the runtime's TTE bit
+  `0x40` is clear in those transfers. The producer now indexes an origin's
+  nonempty first payload using one first-tag read and can describe raw
+  streams either with or without tag data. Full copied-reader admission
+  selects the actual stream. This fixes a coverage gap in the prior path;
+  the prior reader proof already prevented incorrect injected bytes.
+- A bounded linked index retains all shared first-payload origins still
+  present in the 256 origin-hint table. Observation order supplies the
+  first candidate; exact live source proof decides acceptance. Rejected
+  consumers cannot create a permanent pointer-only miss. Candidate work
+  is capped at 32 per lookup and the original decoder handles a cap miss.
+  Sixteen lazy descriptors and sixteen offset queries remain bounded
+  within the producer's 40 KiB metadata ceiling.
+- `partPrecalcVifData` constructs V4-8 commands at guest `0x25eff4` and
+  `0x25f1ec`, alongside 32-bit uploads and STCYCL `0x0404`. Prefix execution
+  now accepts all 13 standard unmasked formats: S/V2/V3/V4 at 32, 16 and
+  8 bits plus V4-5, still with mode 0 and CL >= WL. It preserves signed or
+  unsigned extension, scalar broadcast, untouched V2/V3 lanes, raw packed
+  fields, word padding, skip cycles, TOPS and VU wrap. Every source span
+  and the terminal command are proved before effects. The original MSCAL
+  branch remains unchanged.
+- Accepted flat XBG groups write their expanded triangle list directly
+  into the existing transform ring. Immutable pack fields and current VU
+  colors are written in the original `i, i-2, i-1` order. The backend
+  retains `direct=false`, takes pending records before legacy strip
+  reservations and segment handoff, and releases the borrowed cursor at
+  EndXfRun. Complete admission precedes writes; capacity/binding misses
+  retain the old route. No new GPU allocation or extended pack borrow is
+  required. This path is gated by `TS_BG_NATIVE && TS_BG_BATCH`.
+
+### Verification and remaining scope
+
+Independent source review covers compact formats, producer identity and
+candidate selection, REF loop entry/re-entry and flat-ring ownership.
+Python adapter checks exercise the real shared sources, exact restoration,
+composition, semantic-anchor rejection and atomic output. Native probe
+source covers compact uploads, shared-payload candidates, both transport
+layouts and mixed flat/legacy ring writes, including segment rollover.
+Those native probes have not been compiled or executed. No game build,
+emulator run or new package has been produced.
+
+Executed source checks: 15 tests passed across
+`test_vif_record_patch.VifRecordPatcherTests` (4),
+`test_draw_record.DrawRecordPatcherTests` (3),
+`test_draw_record_ref.DrawRecordRefPatcherTests` (5), and
+`test_xbg_xf.PatcherTests` (3). Select these classes explicitly under the
+build hold; the other classes in those modules may compile native probes.
+These results verify source adapters, not C++ execution or game behavior.
+
+The original DMA walk, VU writes and MSCAL execution remain. Complete
+graphics-command replacement and direct NV2A fetching of guest/pack arrays
+are unfinished. Zero-length first payloads, unsupported commands/modes,
+split source spans, candidate limits and cache contention retain fallback.
+No coverage, target-memory or frame-rate result is claimed for this source.
+`[TS:draw-record]` now separates all three REF variants, admitted payload
+versus TTE descriptor modes, and candidate-budget exhaustion. These counters
+do not sample CHCR or establish frame coverage.
+
+## Previous ordered draw-record source, 2026-10-30 Eastern
 
 Batch baseline: `da74fb4b84397e09c291bad256ffcef5a15a2365`.
 This session connects observed game draw chains to a bounded VIF prefix

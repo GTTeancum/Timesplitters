@@ -41,6 +41,8 @@ static std::array<uint8_t, 16384> vu;
 static std::vector<uint8_t> packed;
 static uint32_t kindWanted, viWanted, countWanted, calls, callbacks;
 static bool hit = true;
+static uint32_t batchCalls, batchCallbacks;
+static std::vector<XboxBgStripSpan> batchWanted;
 
 bool xboxBgWithStrip(uint32_t kind, const uint8_t *data, uint32_t vi, uint32_t count,
                      XboxBgStripWriter writer, void *user) {
@@ -50,6 +52,24 @@ bool xboxBgWithStrip(uint32_t kind, const uint8_t *data, uint32_t vi, uint32_t c
     if (!hit) return false;
     ++callbacks;
     writer(packed.data() + 1, user);
+    return true;
+}
+
+bool xboxBgWithBatch(uint32_t kind, const uint8_t *data, const XboxBgStripSpan *strips,
+                    uint32_t stripCount, XboxBgBatchWriter writer, void *user) {
+    ++batchCalls;
+    if (kind != kindWanted || data != vu.data() || stripCount != batchWanted.size()) std::abort();
+    XboxBgPackedStrip resolved[kXboxBgMaxBatchStrips];
+    for (uint32_t i = 0; i < stripCount; ++i) {
+        if (strips[i].vi != batchWanted[i].vi || strips[i].count != batchWanted[i].count ||
+            strips[i].vi < viWanted || strips[i].vi - viWanted + strips[i].count > countWanted)
+            std::abort();
+        resolved[i] = {packed.data() + 1u + (strips[i].vi - viWanted) * 44u,
+                       strips[i].vi, strips[i].count};
+    }
+    if (!hit) return false;
+    ++batchCallbacks;
+    writer(resolved, stripCount, user);
     return true;
 }
 
@@ -180,10 +200,112 @@ static bool misses() {
     return true;
 }
 
+static std::vector<uint8_t> triangleList(const std::vector<uint8_t> &input,
+                                         const std::vector<XboxBgStripSpan> &strips) {
+    std::vector<uint8_t> result;
+    uint32_t first = 0;
+    for (const auto &strip : strips) {
+        for (uint32_t i = 2; i < strip.count; ++i)
+            for (uint32_t vertex : {i, i - 2u, i - 1u}) {
+                const auto at = input.begin() + (first + vertex) * 44u;
+                result.insert(result.end(), at, at + 44u);
+            }
+        first += strip.count;
+    }
+    return result;
+}
+
+static bool flatGroups() {
+    for (uint32_t kind : {0u, 1u}) for (uint32_t total : {3u, 10u, 64u}) {
+        batchWanted = total == 10u ? std::vector<XboxBgStripSpan>{{280, 3}, {283, 4}, {287, 3}}
+                                  : std::vector<XboxBgStripSpan>{{280, total}};
+        auto input = fixture(kind, 280, total, 71);
+        // Relight after the packed geometry was prepared. Only the current
+        // VU lane low bytes, never the pack's stored color, are emitted.
+        for (uint32_t i = 0; i < total; ++i) {
+            auto *c = vu.data() + (280u + 64u + i) * 16u;
+            for (uint32_t lane = 0; lane < 4; ++lane) c[lane * 4u] ^= 0x73u;
+            auto *p = input.data() + i * 44u;
+            p[24] = c[8]; p[25] = c[4]; p[26] = c[0]; p[27] = c[12];
+        }
+        const auto expected = triangleList(input, batchWanted);
+        GSXfVertex ring[190]; std::memset(ring, 0xB6, sizeof(ring));
+        GSXfVertex canary; std::memset(&canary, 0xB6, 44);
+        GSXfCursor cursor; cursor.next = ring + 1;
+        cursor.end = cursor.next + expected.size() / 44u;
+        cursor.strips = 5u; cursor.vertices = 17u;
+        std::memset(&cursor.last, 0x59, 44);
+        const GSXfCursor prior = cursor;
+        const uint32_t callsBefore = batchCalls, writesBefore = batchCallbacks;
+        CHECK(xboxBgTryEmitGroup(kind, cursor, vu.data(), batchWanted.data(),
+                                uint32_t(batchWanted.size()), nullptr, nullptr));
+        CHECK(batchCalls == callsBefore + 1 && batchCallbacks == writesBefore + 1);
+        CHECK(cursor.next == cursor.end && !cursor.direct && !cursor.join);
+        CHECK(cursor.strips == 5u + batchWanted.size() && cursor.vertices == 17u + total);
+        CHECK(std::memcmp(&cursor.last, &prior.last, 44) == 0);
+        CHECK(std::memcmp(ring, &canary, 44) == 0);
+        CHECK(std::memcmp(cursor.end, &canary, 44) == 0);
+        // No borrowed pointer may influence the already-written output.
+        packed.assign(packed.size(), 0); vu.fill(0);
+        CHECK(std::memcmp(ring + 1, expected.data(), expected.size()) == 0);
+    }
+    return true;
+}
+
+static bool flatGroupMisses() {
+    batchWanted = {{280, 3}, {283, 4}, {287, 3}};
+    fixture(0, 280, 10, 19);
+    GSXfVertex ring[20]; std::memset(ring, 0xB6, sizeof(ring));
+    std::array<uint8_t, sizeof(ring)> original{}; std::memcpy(original.data(), ring, sizeof(ring));
+    GSXfCursor good; good.next = ring + 1; good.end = ring + 13; // 12 expanded records.
+    good.strips = 2u; good.vertices = 6u; std::memset(&good.last, 0x59, 44);
+    for (uint32_t mode = 0; mode < 8u; ++mode) {
+        GSXfCursor cursor = good;
+        if (mode == 0) --cursor.end;
+        if (mode == 1) cursor.end = ring;
+        if (mode == 2) cursor.next = nullptr;
+        if (mode == 3) cursor.end = nullptr;
+        if (mode == 4) cursor.join = true;
+        if (mode == 5) cursor.strips = std::numeric_limits<uint32_t>::max() - 1u;
+        if (mode == 6) cursor.vertices = std::numeric_limits<uint32_t>::max() - 9u;
+        if (mode == 7) cursor.end = nullptr, cursor.next = nullptr;
+        const GSXfCursor prior = cursor;
+        const uint32_t before = batchCalls;
+        CHECK(!xboxBgTryEmitGroup(0, cursor, vu.data(), batchWanted.data(), 3, nullptr, nullptr));
+        CHECK(sameCursor(cursor, prior) && batchCalls == before);
+        CHECK(std::memcmp(ring, original.data(), sizeof(ring)) == 0);
+    }
+    GSXfCursor cursor = good;
+    hit = false;
+    const uint32_t callsBefore = batchCalls, writesBefore = batchCallbacks;
+    CHECK(!xboxBgTryEmitGroup(0, cursor, vu.data(), batchWanted.data(), 3, nullptr, nullptr));
+    CHECK(batchCalls == callsBefore + 1 && batchCallbacks == writesBefore);
+    CHECK(sameCursor(cursor, good) && std::memcmp(ring, original.data(), sizeof(ring)) == 0);
+    return true;
+}
+
+static bool flatGroupEmitter() {
+    batchWanted = {{280, 3}, {283, 4}, {287, 3}};
+    const auto expected = fixture(1, 280, 10, 23);
+    GSXfCursor cursor; std::memset(&cursor.last, 0x59, 44);
+    const GSXfCursor prior = cursor;
+    struct Sink { uint32_t calls = 0; std::vector<uint8_t> vertices; } sink;
+    const auto emit = [](const GSXfVertex *vertices, uint32_t count, void *user) {
+        auto &sink = *static_cast<Sink *>(user);
+        const auto *bytes = reinterpret_cast<const uint8_t *>(vertices);
+        ++sink.calls; sink.vertices.insert(sink.vertices.end(), bytes, bytes + count * 44u);
+    };
+    CHECK(xboxBgTryEmitGroup(1, cursor, vu.data(), batchWanted.data(), 3, emit, &sink));
+    CHECK(sink.calls == 3 && sink.vertices == expected && sameCursor(cursor, prior));
+    return true;
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) return 2;
     const std::string mode = argv[1];
-    return (mode == "flat" ? flat() : mode == "joined" ? joined() : mode == "misses" && misses()) ? 0 : 1;
+    return (mode == "flat" ? flat() : mode == "joined" ? joined() : mode == "misses" ? misses()
+        : mode == "flat_groups" ? flatGroups() : mode == "flat_group_misses" ? flatGroupMisses()
+        : mode == "flat_group_emitter" && flatGroupEmitter()) ? 0 : 1;
 }
 '''
 
@@ -216,6 +338,33 @@ class VertexTests(unittest.TestCase):
 
     def test_binding_miss_and_invalid_inputs_leave_output_untouched(self):
         self.run_probe("misses")
+
+
+class BatchVertexTests(VertexTests):
+    """Source-authored probes; the current development pass does not compile them."""
+    @classmethod
+    def setUpClass(cls):
+        cls.temp = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.temp.cleanup)
+        directory = Path(cls.temp.name)
+        source = directory / "batch_probe.cpp"
+        source.write_text(PROBE)
+        cls.probe = directory / "batch_probe"
+        command = shlex.split(os.environ.get("CXX", "c++"))
+        command += ["-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror", "-DTS_BG_NATIVE=1",
+                    "-DTS_BG_BATCH=1", "-I", str(XBOX),
+                    "-I", str(ROOT / "source/PS2Recomp/ps2xRuntime/include")]
+        command += shlex.split(os.environ.get("TS_XBG_CXXFLAGS", ""))
+        subprocess.run(command + [str(source), str(XBOX / "xbox_bg_xf.cpp"), "-o", str(cls.probe)], check=True)
+
+    def test_direct_flat_group_triangle_order_live_colors_and_exact_capacity(self):
+        self.run_probe("flat_groups")
+
+    def test_flat_group_misses_preserve_cursor_output_and_callback_count(self):
+        self.run_probe("flat_group_misses")
+
+    def test_null_flat_cursor_retains_legacy_emitter(self):
+        self.run_probe("flat_group_emitter")
 
 
 class PatcherTests(unittest.TestCase):

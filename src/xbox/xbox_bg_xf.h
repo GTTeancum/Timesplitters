@@ -25,8 +25,12 @@ using XboxBgFlatEmitter = void (*)(const GSXfVertex *vertices,
 // Called only inside an already accepted GS transform run. Every strip is
 // admitted together under one pack borrow. A direct group must fit the
 // current ring segment, including all joins; otherwise the caller's original
-// strip loop handles growth and fences. Flat groups use the existing backend
-// emitter, which preserves provoking vertices. False writes/emits nothing
+// strip loop handles growth and fences. The Xbox backend may also lend
+// next/end with direct=false: a flat group then writes its complete expanded
+// triangle list in last-vertex-first order, while preserving direct=false.
+// That backend must take pending cursor writes before legacy EmitXfStrip
+// reservations and at EndXfRun. With both pointers null, flat groups use
+// emitFlat. A capacity/binding miss, or a partial cursor, writes/emits nothing
 // and leaves the cursor untouched. No callback may reject after writing.
 bool xboxBgTryEmitGroup(uint32_t kind, GSXfCursor &cursor, const uint8_t *vu,
                         const XboxBgStripSpan *strips, uint32_t stripCount,

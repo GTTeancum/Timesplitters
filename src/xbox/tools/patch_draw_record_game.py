@@ -1,8 +1,10 @@
-"""Observe completed partGfx precalc/Dbuf CALLs in an Xbox-only source copy.
+"""Observe completed partGfx CALLs and per-frame REF groups in an Xbox copy.
 
 No guest list byte, register, scheduler step or original statement changes.
-Production precalc and Dbuf paths meet at their checked final QWC stores. The
-observer may decline and the original DMA/VIF path still has its full list.
+Production precalc and Dbuf paths meet at their checked final QWC stores.
+Three REF loops are observed after each iteration's final list-pointer store
+and before its possible scheduler checkpoint. The observer may decline;
+the original DMA/VIF path still has its full list.
 Compose this copy before patch_native_calls.py for ts_native_game2.cpp.
 """
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+import re
 import tempfile
 
 
@@ -43,6 +46,47 @@ OBSERVE_DBUF = '''#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2
         xboxDrawRecordNoteDbuf(rdram, lo32(r.v0));
 #endif
 '''
+REF_FUNCTION = '''    bool nativePartGfxLevel(G_ARGS, uint32_t depth)
+    {
+        PartGfxRegs r;
+'''
+REF_LOCAL = '''#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2
+        uint32_t xboxRecordRefBegin = 0u;
+#endif
+'''
+REF_STARTS = (
+    '''    L_261200:
+        TS_RENDER_COUNT(++g_renderCounters.partRefBatches);
+        r.v1 = LW(lo32(r.gp) - 0x6c60u);                         // 261200 lw $v1, -0x6C60($gp)
+''',
+    '''    L_261650:
+        TS_RENDER_COUNT(++g_renderCounters.partRefBatches);
+        r.v1 = LW(lo32(r.gp) - 0x6c60u);                         // 261650 lw $v1, -0x6C60($gp)
+''',
+    '''    L_261ca8:
+        TS_RENDER_COUNT(++g_renderCounters.partRefBatches);
+        r.v1 = LW(lo32(r.gp) - 0x6c60u);                         // 261ca8 lw $v1, -0x6C60($gp)
+''',
+)
+REF_BEGIN = '''#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2
+        xboxRecordRefBegin = lo32(r.v1);
+#endif
+'''
+REF_ENDS = (
+    '''        WRITE32(lo32(r.gp) - 0x6c60u, lo32(r.a0));               // 261450 sw $a0, -0x6C60($gp)
+''',
+    '''        WRITE32(lo32(r.gp) - 0x6c60u, lo32(r.a0));               // 2618a0 sw $a0, -0x6C60($gp)
+''',
+    '''        WRITE32(lo32(r.gp) - 0x6c60u, lo32(r.a0));               // 261f48 sw $a0, -0x6C60($gp)
+''',
+)
+REF_OBSERVATIONS = tuple(
+    '#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2\n'
+    f'        xboxDrawRecordNoteRefs(rdram, xboxRecordRefBegin, lo32(r.a0), {variant}u);\n'
+    '#endif\n' for variant in range(3)
+)
+# Removing these exact blocks plus ADAPTER and GENERATED restores the input.
+INSERTIONS = (OBSERVE, OBSERVE_DBUF, REF_LOCAL, REF_BEGIN, *REF_OBSERVATIONS)
 
 
 def patch_source(source: str) -> str:
@@ -53,17 +97,46 @@ def patch_source(source: str) -> str:
     if '\x00' in source or source.startswith('\ufeff'):
         raise ValueError('unsupported source encoding')
     if any(marker in text for marker in (GENERATED, ADAPTER, 'xboxDrawRecordNotePrecalc(',
-                                        'xboxDrawRecordNoteDbuf(')):
+                                        'xboxDrawRecordNoteDbuf(', 'xboxDrawRecordNoteRefs(',
+                                        'xboxRecordRefBegin')):
         raise ValueError('source already observes Xbox draw records')
-    for name, anchor in (('runtime include', INCLUDE), ('complete precalc CALL', PRECALC),
-                          ('complete Dbuf CALL', DBUF)):
+    required = [('runtime include', INCLUDE), ('complete precalc CALL', PRECALC),
+                ('complete Dbuf CALL', DBUF), ('partGfx local scope', REF_FUNCTION)]
+    required += [(f'REF {variant} start', anchor) for variant, anchor in enumerate(REF_STARTS)]
+    required += [(f'REF {variant} completion', anchor) for variant, anchor in enumerate(REF_ENDS)]
+    for name, anchor in required:
         if text.count(anchor) != 1:
             raise ValueError('expected exactly one ' + name + ' anchor')
+    for start, end in zip(REF_STARTS, REF_ENDS):
+        begin_at, end_at = text.index(start), text.index(end)
+        if not text.index(REF_FUNCTION) < begin_at < end_at:
+            raise ValueError('unexpected REF observation scope/order')
+        # The host-only begin value is never required across a yield, call,
+        # or source-level resume entry. Each completed iteration consumes it
+        # before the original loop checkpoint can return to the scheduler.
+        body = text[begin_at:end_at]
+        if any(marker in body for marker in ('loopCheckpoint(', 'NATIVE_CALL(',
+                                             'guestCall(', 'xboxNativeGuestCall<',
+                                             'callTranslated(', 'return ', 'return;')):
+            raise ValueError('REF iteration acquired an unsupported yield/call')
+        labels = set(re.findall(r'^    (L_[0-9a-f]+):', body, re.MULTILINE))
+        targets = set(re.findall(r'\bgoto (L_[0-9a-f]+);', body))
+        if not targets <= labels:
+            raise ValueError('REF iteration acquired an unsupported branch exit')
+        first_label = next(iter(re.findall(r'^    (L_[0-9a-f]+):', start, re.MULTILINE)))
+        outside = text[:begin_at] + text[end_at:]
+        if any(re.search(r'\bgoto ' + re.escape(label) + ';', outside)
+               for label in labels - {first_label}):
+            raise ValueError('REF iteration acquired an unsupported interior entry')
     text = text.replace(INCLUDE, INCLUDE + ADAPTER)
     text = text.replace(PRECALC, PRECALC.replace('        goto L_261f4c;\n',
                                                OBSERVE + '        goto L_261f4c;\n'))
     text = text.replace(DBUF, DBUF.replace('        goto L_261f4c;\n',
                                          OBSERVE_DBUF + '        goto L_261f4c;\n'))
+    text = text.replace(REF_FUNCTION, REF_FUNCTION + REF_LOCAL)
+    for start, end, observe in zip(REF_STARTS, REF_ENDS, REF_OBSERVATIONS):
+        text = text.replace(start, start + REF_BEGIN)
+        text = text.replace(end, end + observe)
     return (GENERATED + text).replace('\n', newline)
 
 

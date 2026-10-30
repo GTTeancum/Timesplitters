@@ -3508,10 +3508,19 @@ struct GSNv2aBackend::Impl
         runKey = key;
         cursor.direct = key.topology == 1u;
         cursor.strips = cursor.vertices = 0u;
+#if TS_BG_NATIVE && TS_BG_BATCH
+        // Xbox-only extension of the flat cursor: XBG may write an admitted
+        // triangle list directly into this segment. direct stays false, so
+        // the original native path still uses EmitXfStrip on every miss.
+        // The GS run lock scopes this pointer; it never survives EndXfRun.
+        flatXfCursor = cursor.direct ? nullptr : &cursor;
+        openXfCursor(cursor);
+#else
         if (cursor.direct)
             openXfCursor(cursor);
         else
             cursor.next = cursor.end = nullptr;
+#endif
         return true;
     }
 
@@ -3529,7 +3538,11 @@ struct GSNv2aBackend::Impl
         }
         cursor.next = xfVertices + xfUsed;
         cursor.end = xfVertices + (xfSegment + 1u) * kXfSegment;
+#if TS_BG_NATIVE && TS_BG_BATCH
+        cursor.join = cursor.direct && batchCount != 0u;
+#else
         cursor.join = batchCount != 0u;
+#endif
         if (cursor.join)
             cursor.last = stripLast;
     }
@@ -3538,7 +3551,11 @@ struct GSNv2aBackend::Impl
         const uint32_t written = uint32_t(cursor.next - (xfVertices + xfUsed));
         xfUsed += written;
         batchCount += written;
+#if TS_BG_NATIVE && TS_BG_BATCH
+        if (written && cursor.direct)
+#else
         if (written)
+#endif
             stripLast = cursor.last;
         g_nv2aTextureStats.xfStrips += cursor.strips;
         g_nv2aTextureStats.xfVertices += cursor.vertices;
@@ -3559,10 +3576,20 @@ struct GSNv2aBackend::Impl
 
     DrawKey runKey{};       // the open run's (beginXfRun)
     GSXfVertex stripLast{}; // last vertex of the current strip batch (joins): a cached copy, the ring is write-combined
+#if TS_BG_NATIVE && TS_BG_BATCH
+    GSXfCursor *flatXfCursor = nullptr; // borrowed only while the GS run lock is held
+#endif
 
     // A strip of a run that is not direct (flat shading: a triangle list).
     void emitXfStrip(const GSXfVertex *v, uint32_t n)
     {
+#if TS_BG_NATIVE && TS_BG_BATCH
+        // A preceding admitted XBG group may already occupy this segment.
+        // Commit it before reserveXf can flush/fence or advance the ring;
+        // the legacy array must follow it without overwriting its records.
+        if (flatXfCursor)
+            takeXfCursor(*flatXfCursor);
+#endif
         ++g_nv2aTextureStats.xfStrips;
         g_nv2aTextureStats.xfVertices += n;
         // Each triangle's last vertex first: the GS flat-shades with the
@@ -3574,12 +3601,24 @@ struct GSNv2aBackend::Impl
             out[1] = v[i - 2];
             out[2] = v[i - 1];
         }
+#if TS_BG_NATIVE && TS_BG_BATCH
+        // reserveXf may have moved to the next fenced segment. Publish only
+        // that segment's remaining span for the next optional XBG group.
+        if (flatXfCursor)
+            openXfCursor(*flatXfCursor);
+#endif
     }
 
     void endXfRun(GSXfCursor &cursor)
     {
+#if TS_BG_NATIVE && TS_BG_BATCH
+        if (cursor.direct || flatXfCursor == &cursor)
+            takeXfCursor(cursor);
+        flatXfCursor = nullptr;
+#else
         if (cursor.direct)
             takeXfCursor(cursor);
+#endif
         gpuRows = std::min<uint32_t>(frameHeight, kDisplayRows); // where it lands is not known here
         screenGpuNewer = true;
     }

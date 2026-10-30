@@ -243,10 +243,14 @@ namespace
         if (xboxDrawRecordGetStats(records))
             std::cout << "[TS:draw-record] notes/new/reuse=" << records.notes << "/" << records.created
                       << "/" << records.reused << " precalc/dbuf=" << records.notesPrecalc << "/" << records.notesDbuf
+                      << " ref=" << records.notesRef[0] << "/" << records.notesRef[1] << "/" << records.notesRef[2]
                       << " lookup/hit/hint=" << records.lookups << "/"
                       << records.hits << "/" << records.hintHits
                       << " changed/reject/busy=" << records.changed << "/" << records.rejected
-                      << "/" << records.busy << " accepted=" << records.accepted << std::endl;
+                      << "/" << records.busy << " accepted=" << records.accepted
+                      << " payload/tte=" << records.transportAccepted[0] << "/" << records.transportAccepted[1]
+                      << " candidates/capped=" << records.candidates << "/" << records.candidateLimits
+                      << std::endl;
         XboxVifRecordStats prefixes;
         if (xboxVifRecordGetStats(prefixes))
             std::cout << "[TS:vif-record] attempt/hit/build=" << prefixes.attempts << "/" << prefixes.hits

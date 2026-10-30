@@ -140,6 +140,33 @@ namespace
             group.emitFlat(vertices, strip.count, group.sink);
         }
     }
+
+    void writeFlatRingGroup(const XboxBgPackedStrip *strips, uint32_t stripCount, void *user)
+    {
+        const GroupWrite &group = *static_cast<const GroupWrite *>(user);
+        GSXfCursor &cursor = *group.cursor;
+        GSXfVertex *out = cursor.next;
+        // The complete group's expanded triangle list already fits. Write
+        // each triangle in the backend's original i, i-2, i-1 order: the
+        // GS last vertex becomes NV2A's first provoking vertex. Never read
+        // the write-combined ring or stage another full vertex array.
+        for (uint32_t stripIndex = 0; stripIndex < stripCount; ++stripIndex)
+        {
+            const auto &strip = strips[stripIndex];
+            const uint8_t *colors = group.vu + (strip.vi + group.rgba) * 16u;
+            for (uint32_t i = 2u; i < strip.count; ++i, out += 3u)
+            {
+                writeVertex(out, strip.vertices + size_t(i) * 44u, colors + i * 16u);
+                writeVertex(out + 1u, strip.vertices + size_t(i - 2u) * 44u,
+                            colors + (i - 2u) * 16u);
+                writeVertex(out + 2u, strip.vertices + size_t(i - 1u) * 44u,
+                            colors + (i - 1u) * 16u);
+            }
+            ++cursor.strips;
+            cursor.vertices += strip.count;
+        }
+        cursor.next = out;
+    }
 #endif
 }
 
@@ -186,7 +213,10 @@ bool xboxBgTryEmitGroup(uint32_t kind, GSXfCursor &cursor, const uint8_t *vu,
             return false;
         vertices += strip.count;
     }
-    if (cursor.direct)
+    const bool flatRing = !cursor.direct && cursor.next && cursor.end;
+    if (flatRing && cursor.join)
+        return false;
+    if (cursor.direct || flatRing)
     {
         if (!cursor.next || !cursor.end ||
             cursor.strips > std::numeric_limits<uint32_t>::max() - stripCount ||
@@ -195,21 +225,24 @@ bool xboxBgTryEmitGroup(uint32_t kind, GSXfCursor &cursor, const uint8_t *vu,
         const uintptr_t begin = reinterpret_cast<uintptr_t>(cursor.next);
         const uintptr_t end = reinterpret_cast<uintptr_t>(cursor.end);
         const uint32_t joins = stripCount - 1u + (cursor.join ? 1u : 0u);
-        // gpuStrip reserves n + 2 even for a first strip without a join.
-        // Retain that boundary as well as all records this group writes.
-        const uint32_t records = std::max(vertices + joins * 2u, strips[0].count + 2u);
+        // The flat cursor lends actual triangle-list records. A joined
+        // strip also retains gpuStrip's n+2 first-reservation boundary.
+        const uint32_t records = flatRing ? 3u * (vertices - 2u * stripCount)
+            : std::max(vertices + joins * 2u, strips[0].count + 2u);
         const size_t needed = size_t(records) * sizeof(GSXfVertex);
         // A segment boundary keeps the original strip-at-a-time route.
         // Returning false here has no GS/cursor side effect to roll back.
         if (end < begin || end - begin < needed)
             return false;
     }
-    else if (!emitFlat)
+    else if (!emitFlat || cursor.next || cursor.end)
         return false;
 
     GroupWrite group{&cursor, vu, ts_native_xf::kLayouts[kind].rgba, emitFlat, sink};
     return xboxBgWithBatch(kind, vu, strips, stripCount,
-                           cursor.direct ? &writeJoinedGroup : &writeFlatGroup, &group);
+                           cursor.direct ? &writeJoinedGroup
+                               : flatRing ? &writeFlatRingGroup : &writeFlatGroup,
+                           &group);
 #else
     (void)kind; (void)cursor; (void)vu; (void)strips; (void)stripCount;
     (void)emitFlat; (void)sink;

@@ -1,7 +1,7 @@
 """Source-copy regression cases for the ordered Xbox VIF-prefix consumer.
 
-Written for the later verification stage. These checks exercise patcher
-composition and atomic output, not target compilation or game execution.
+These checks exercise patcher composition, semantic guards and atomic
+output independently of target compilation or game execution.
 """
 from __future__ import annotations
 
@@ -70,7 +70,8 @@ class VifRecordPatcherTests(unittest.TestCase):
         source = SOURCE.read_bytes().decode('utf-8').replace('\r\n', '\n')
         for anchor in (records.INCLUDE, records.DECODE, records.COMMAND,
                        records.REGISTERS, records.TRACK_COMMAND, records.OBSERVER,
-                       records.MARK_FLUSH, records.PAYLOAD_REGISTERS):
+                       records.MARK_FLUSH, records.PAYLOAD_REGISTERS,
+                       records.UNPACK_EXTEND, records.UNPACK_COMPACT, records.UNPACK_LAYOUT):
             for changed in (source.replace(anchor, '// upstream drift\n', 1), source + '\n' + anchor):
                 with self.subTest(anchor=anchor[:50]), self.assertRaises(ValueError):
                     records.patch_source(changed)

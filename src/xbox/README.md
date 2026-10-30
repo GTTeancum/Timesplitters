@@ -130,6 +130,22 @@ game assertion) is logged with its cause.
 
 ## Current source-only batch (2026-10-30)
 
+The batch based on `52f38db` adds all three per-frame REF observations,
+payload-only draw-record entry and the compact color/vertex upload formats
+used by the actual game templates. Shared command-template addresses keep
+bounded candidate origins, and full live-reader proof selects the matching
+stream before effects. Flat background groups can write their expanded
+triangles directly into the existing fenced transform ring, removing an
+intermediate vertex copy while retaining current relighting colors.
+
+Python source-adapter checks exercise real source composition, exact
+restoration, semantic guards and atomic output without compiling the game.
+Native regression probes are authored but remain uncompiled and unexecuted.
+The no-build instruction remains in force. Complete graphics-command
+replacement and direct GPU fetch remain open.
+
+### Previous ordered draw-record batch
+
 The batch based on `da74fb4` connects game-side draw-chain observations to
 an ordered VIF prefix executor. It leaves original display-list bytes and
 DMA pieces intact, proves source addresses against a copied reader, and
@@ -138,9 +154,8 @@ original MSCAL branch still performs the actual native draw and its state
 transitions. Cache contention, changed metadata, unsupported commands and
 split input spans use the existing decoder.
 
-The source-only instruction remains in force. No new code was compiled or
-executed; test sources are prepared for the later verification stage.
-Complete graphics-command replacement and direct GPU fetch remain open.
+That initial native code remains uncompiled; the current source batch above
+extends its transport and format coverage.
 
 ### Previous source-only packet and geometry batch
 

@@ -238,11 +238,21 @@ bool pointerIdentity() {
     CHECK(xboxDrawRecordWithChain(ram.data(), ram.data() + external + 4u, &inspect, nullptr));
     CHECK(callbacks == 2u);
     fixture();
-    // The first TTE bytes also occur in the REF payload. Source-pointer
-    // identity alone cannot pick one logical occurrence of this address.
+    // The first TTE bytes also occur in the REF payload. The TTE descriptor
+    // is ambiguous, but the distinct payload-only descriptor may be offered
+    // to a consumer that must prove the actual stream before any effects.
     word(chain + 4u, chain + 8u);
     xboxDrawRecordNotePrecalc(ram.data(), call);
-    CHECK(!admitted() && callbacks == 0u);
+    bool sawPayloadOnly = false;
+    auto rejectPayloadOnly = [](const XboxDrawRecordChain &record, const uint8_t *, void *opaque) {
+        ++callbacks;
+        *static_cast<bool *>(opaque) = record.pieceCount == 3u && record.totalBytes == 64u &&
+                                     record.pieces[0].offset == chain + 8u;
+        return false;
+    };
+    CHECK(!xboxDrawRecordWithChain(ram.data(), ram.data() + chain + 8u,
+                                  rejectPayloadOnly, &sawPayloadOnly));
+    CHECK(sawPayloadOnly && callbacks == 1u);
     return true;
 }
 
@@ -610,7 +620,8 @@ bool eligibilityFilter() {
     }
     for (uint32_t opcode : {0x06u, 0x08u, 0x14u, 0x15u, 0x17u, 0x4Au, 0x50u, 0x51u})
         CHECK(!xboxVifRecordMayStart(opcode << 24u, 0x101u, 0u));
-    for (uint32_t opcode : {0x60u, 0x64u, 0x68u, 0x6Cu}) {
+    for (uint32_t opcode : {0x60u, 0x61u, 0x62u, 0x64u, 0x65u, 0x66u,
+                            0x68u, 0x69u, 0x6Au, 0x6Cu, 0x6Du, 0x6Eu, 0x6Fu}) {
         const uint32_t code = (opcode << 24u) | 0x00018007u;
         CHECK(xboxVifRecordMayStart(code, 0x101u, 0u));
         CHECK(xboxVifRecordMayStart(code | 0x80000000u, 0u, 0u));
@@ -619,9 +630,9 @@ bool eligibilityFilter() {
         CHECK(!xboxVifRecordMayStart(code, 0x101u, 1u));
         CHECK(!xboxVifRecordMayStart(code, 0x101u, 2u));
         CHECK(!xboxVifRecordMayStart(code | 0x10000000u, 0x101u, 0u));
-        for (uint32_t width : {1u, 2u, 3u})
-            CHECK(!xboxVifRecordMayStart(code | (width << 24u), 0x101u, 0u));
     }
+    for (uint32_t opcode : {0x63u, 0x67u, 0x6Bu})
+        CHECK(!xboxVifRecordMayStart(opcode << 24u, 0x101u, 0u));
     return true;
 }
 
@@ -735,9 +746,112 @@ bool cycleSkipsAndZeroNum() {
     return true;
 }
 
+bool compactWidthsAndSign() {
+    // Exercise every compact standard format using explicit edge-value
+    // expectations, with both USN settings, S broadcast, V2/V3 untouched
+    // lanes, TOPS-relative wrap and a skipped row between vectors.
+    const std::array<uint8_t, 8> half{0x00u, 0x80u, 0xFFu, 0xFFu,
+                                     0xFFu, 0x7Fu, 0x01u, 0x00u};
+    const std::array<uint8_t, 4> byte{0x80u, 0xFFu, 0x7Fu, 0x01u};
+    const uint32_t signedHalf[]{0xFFFF8000u, 0xFFFFFFFFu, 0x7FFFu, 1u};
+    const uint32_t unsignedHalf[]{0x8000u, 0xFFFFu, 0x7FFFu, 1u};
+    const uint32_t signedByte[]{0xFFFFFF80u, 0xFFFFFFFFu, 0x7Fu, 1u};
+    const uint32_t unsignedByte[]{0x80u, 0xFFu, 0x7Fu, 1u};
+    const uint32_t rows[]{1023u, 1u, 3u};
+    for (uint32_t width : {1u, 2u})
+        for (uint32_t lanes = 1u; lanes <= 4u; ++lanes)
+            for (uint32_t usn = 0u; usn < 2u; ++usn) {
+                const uint32_t format = ((lanes - 1u) << 2u) | width;
+                const uint32_t vectorBytes = lanes * (width == 1u ? 2u : 1u);
+                const uint32_t padded = (3u * vectorBytes + 3u) & ~3u;
+                const uint32_t code = ((0x60u | format) << 24u) | 0x00038017u | (usn << 14u);
+                std::vector<uint32_t> words(2u + padded / 4u, 0xCCCCCCCCu);
+                words[0] = code; words.back() = 0x14000000u;
+                seed(words);
+                registers.tops = 1000u; registers.cycle = 0x0102u;
+                for (uint32_t i = 0u; i < 3u; ++i)
+                    std::memcpy(ram.data() + sourceBase + 4u + i * vectorBytes,
+                                width == 1u ? half.data() : byte.data(), vectorBytes);
+                auto expected = vu;
+                const uint32_t *values = width == 1u ? (usn ? unsignedHalf : signedHalf) :
+                                                      (usn ? unsignedByte : signedByte);
+                for (uint32_t row : rows)
+                    for (uint32_t lane = 0u; lane < (lanes == 1u ? 4u : lanes); ++lane)
+                        putVu(expected, row, lane, values[lanes == 1u ? 0u : lane]);
+                auto expectedRegs = registers;
+                expectedRegs.code = code; expectedRegs.num = 3u;
+                auto p = probe(); uint32_t bytes, vectors, commands;
+                CHECK(run(p, bytes, vectors, commands));
+                CHECK(vu == expected && std::memcmp(&registers, &expectedRegs, sizeof(registers)) == 0);
+                CHECK(bytes == 4u + padded && vectors == 3u && commands == 1u);
+                CHECK(p.observerBeforeWrite && p.observations.size() == 1u);
+                CHECK(p.observations[0].source == ram.data() + sourceBase + 4u &&
+                      p.observations[0].format == format && p.observations[0].cl == 2u &&
+                      p.observations[0].wl == 1u && p.observations[0].dest == 1023u);
+            }
+    return true;
+}
+
+bool packedFiveAndPadding() {
+    // V4-5 keeps raw 5/5/5/1 fields. USN does not scale or sign-extend them.
+    for (uint32_t usn = 0u; usn < 2u; ++usn) {
+        const uint32_t code = 0x6F0303FFu | (usn << 14u);
+        seed({code, 0xFFFF0000u, 0xCCCC8421u, 0x15000000u});
+        auto expected = vu;
+        for (uint32_t lane = 0u; lane < 4u; ++lane) {
+            putVu(expected, 1023u, lane, 0u);
+            putVu(expected, 0u, lane, lane == 3u ? 1u : 31u);
+            putVu(expected, 1u, lane, 1u);
+        }
+        auto p = probe(); uint32_t bytes, vectors, commands;
+        CHECK(run(p, bytes, vectors, commands));
+        CHECK(vu == expected && bytes == 12u && vectors == 3u && commands == 1u);
+        CHECK(p.observations.size() == 1u && p.observations[0].format == 15u);
+    }
+    // V3-8 has one padding byte. Its contents are ignored, but the whole
+    // padded upload must be present and contiguous before any effect.
+    seed({0x6A010007u, 0xCC7F8081u, 0x14000000u});
+    auto expected = vu;
+    putVu(expected, 7u, 0u, 0xFFFFFF81u); putVu(expected, 7u, 1u, 0xFFFFFF80u);
+    putVu(expected, 7u, 2u, 0x7Fu);
+    auto p = probe(); uint32_t bytes, vectors, commands;
+    CHECK(run(p, bytes, vectors, commands) && vu == expected && bytes == 8u);
+    vu.fill(0xA5u); put(sourceBase + 4u, 0xEE01807Fu);
+    expected = vu;
+    putVu(expected, 7u, 0u, 0x7Fu); putVu(expected, 7u, 1u, 0xFFFFFF80u);
+    putVu(expected, 7u, 2u, 1u);
+    p = probe();
+    CHECK(run(p, bytes, vectors, commands) && vu == expected); // Live compact payload on reuse.
+    vu.fill(0xA5u); p = probe();
+    p.pieces = {{sourceBase, 7u}, {sourceBase + 7u, chain.totalBytes - 7u}};
+    CHECK(unchangedRejection(p)); // Padding split keeps the ordinary decoder.
+    return true;
+}
+
+bool productionColorPrefix() {
+    // partPrecalcVifData creates 0x0404 cycles with V4/V3-32 and V4-8
+    // (guest 0x25eff4 / 0x25f1ec), followed by the original MSCAL template.
+    seed({0u, 0u, 0x01000404u,
+          0x6C018000u, 11u, 12u, 13u, 14u,
+          0x68018018u, 21u, 22u, 23u,
+          0x6E0180D8u, 0x807F00FFu, 0x14000000u});
+    registers.tops = 7u;
+    auto expected = vu;
+    for (uint32_t lane = 0u; lane < 4u; ++lane) putVu(expected, 7u, lane, 11u + lane);
+    for (uint32_t lane = 0u; lane < 3u; ++lane) putVu(expected, 31u, lane, 21u + lane);
+    const uint32_t colors[]{0xFFFFFFFFu, 0u, 0x7Fu, 0xFFFFFF80u};
+    for (uint32_t lane = 0u; lane < 4u; ++lane) putVu(expected, 223u, lane, colors[lane]);
+    auto p = probe(); uint32_t bytes, vectors, commands;
+    CHECK(run(p, bytes, vectors, commands));
+    CHECK(vu == expected && bytes == chain.totalBytes - 4u && vectors == 3u && commands == 6u);
+    CHECK(p.observations.size() == 3u && p.observations[2].format == 14u);
+    CHECK(registers.code == 0x6E0180D8u && registers.cycle == 0x0404u && registers.num == 1u);
+    return true;
+}
+
 bool rejectBeforeEffects() {
     const std::vector<uint32_t> legal{0x6C010000u, 1u, 2u, 3u, 4u, 0x14000000u};
-    for (uint32_t code : {0x7C010000u, 0x6D010000u, 0x50000001u, 0x4A010000u, 0x17000000u}) {
+    for (uint32_t code : {0x7C010000u, 0x63010000u, 0x50000001u, 0x4A010000u, 0x17000000u}) {
         seed(legal); put(sourceBase, code); auto p = probe();
         CHECK(unchangedRejection(p));
     }
@@ -780,6 +894,9 @@ int main(int argc, char **argv) {
     else if (mode == "state") passed = stateAndLanes();
     else if (mode == "live") passed = liveStateAndPayload();
     else if (mode == "cycles") passed = cycleSkipsAndZeroNum();
+    else if (mode == "compact") passed = compactWidthsAndSign();
+    else if (mode == "packed") passed = packedFiveAndPadding();
+    else if (mode == "production") passed = productionColorPrefix();
     else if (mode == "reject") passed = rejectBeforeEffects();
     else if (mode == "changed") passed = changedCommands();
     else return 2;
@@ -827,6 +944,15 @@ class DrawRecordVifTests(unittest.TestCase):
     def test_cycle_skips_zero_cycle_and_zero_num(self):
         self.run_probe("cycles")
 
+    def test_compact_widths_sign_extension_lane_preservation_and_cycles(self):
+        self.run_probe("compact")
+
+    def test_v4_5_fields_compact_padding_and_live_payload(self):
+        self.run_probe("packed")
+
+    def test_production_precalc_template_can_admit_its_v4_8_colors(self):
+        self.run_probe("production")
+
     def test_rejected_prefixes_have_no_guest_effects(self):
         self.run_probe("reject")
 
@@ -854,20 +980,23 @@ class DrawRecordPatcherTests(unittest.TestCase):
         cls.fast = load_tool("patch_vif_fast")
         cls.calls = load_tool("patch_native_calls")
 
-    def test_producer_changes_only_the_two_completed_call_observations(self):
+    def test_producer_changes_only_completed_origins_and_host_ref_bookkeeping(self):
         original = (ROOT / "project/game/ts_native_game2.cpp").read_text()
         result = self.game.patch_source(original)
         self.assertEqual(result.count("xboxDrawRecordNotePrecalc("), 1)
         self.assertEqual(result.count("xboxDrawRecordNoteDbuf("), 1)
+        self.assertEqual(result.count("xboxDrawRecordNoteRefs("), 3)
         restored = result.removeprefix(self.game.GENERATED)
         restored = restored.replace(self.game.INCLUDE + self.game.ADAPTER, self.game.INCLUDE)
-        restored = restored.replace(self.game.OBSERVE, "").replace(self.game.OBSERVE_DBUF, "")
+        for insertion in self.game.INSERTIONS:
+            restored = restored.replace(insertion, "")
         self.assertEqual(restored, original)
         slots = {int(match["target"][:-1], 16): index
                  for index, match in enumerate(self.calls.CALL.finditer(original))}
         composed = self.calls.patch_source(result, "ts_native_game2.cpp", slots)
         self.assertIn("xboxDrawRecordNotePrecalc(", composed)
         self.assertIn("xboxDrawRecordNoteDbuf(", composed)
+        self.assertEqual(composed.count("xboxDrawRecordNoteRefs("), 3)
         self.assertIn("xboxNativeGuestCall<", composed)
 
     def test_consumer_composes_with_all_bg_and_fast_modes_without_changing_original_execution(self):
@@ -889,10 +1018,12 @@ class DrawRecordPatcherTests(unittest.TestCase):
         game = (ROOT / "project/game/ts_native_game2.cpp").read_text()
         vif = (ROOT / "source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.cpp").read_text()
         anchors = (
-            (self.game, game, (self.game.INCLUDE, self.game.PRECALC, self.game.DBUF)),
+            (self.game, game, (self.game.INCLUDE, self.game.PRECALC, self.game.DBUF,
+                              self.game.REF_FUNCTION, *self.game.REF_STARTS, *self.game.REF_ENDS)),
             (self.vif, vif, (self.vif.INCLUDE, self.vif.DECODE, self.vif.COMMAND,
                              self.vif.REGISTERS, self.vif.TRACK_COMMAND, self.vif.OBSERVER,
-                             self.vif.MARK_FLUSH, self.vif.PAYLOAD_REGISTERS)),
+                             self.vif.MARK_FLUSH, self.vif.PAYLOAD_REGISTERS,
+                             self.vif.UNPACK_EXTEND, self.vif.UNPACK_COMPACT, self.vif.UNPACK_LAYOUT)),
         )
         for patcher, source, required in anchors:
             for anchor in required:

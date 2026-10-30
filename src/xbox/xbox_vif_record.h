@@ -17,7 +17,11 @@ inline bool xboxVifRecordMayStart(uint32_t code, uint32_t cycle, uint32_t mode)
         uint32_t cl = cycle & 0xFFu, wl = (cycle >> 8u) & 0xFFu;
         if (!cl) cl = 1u;
         if (!wl) wl = 1u;
-        return !(opcode & 0x13u) && !(mode & 3u) && cl >= wl;
+        const uint32_t format = opcode & 0xFu;
+        // All standard widths share the admitted mode/cycle semantics.
+        // The other VL=3 encodings retain the decoder's legacy fallback.
+        const bool standardFormat = (format & 3u) != 3u || format == 0xFu;
+        return !(opcode & 0x10u) && !(mode & 3u) && cl >= wl && standardFormat;
     }
     switch (opcode)
     {

@@ -19,6 +19,13 @@ namespace
         return value;
     }
 
+    uint16_t read16(const uint8_t *p)
+    {
+        uint16_t value;
+        std::memcpy(&value, p, sizeof(value));
+        return value;
+    }
+
     struct Operation
     {
         uint32_t code, commandOffset, payloadOffset;
@@ -159,11 +166,16 @@ namespace
                 uint32_t cl = cycle & 0xFFu, wl = (cycle >> 8u) & 0xFFu;
                 if (!cl) cl = 1u;
                 if (!wl) wl = 1u;
-                if ((opcode & 0x10u) || (mode & 3u) || (format & 3u) || cl < wl)
+                if ((opcode & 0x10u) || (mode & 3u) || cl < wl ||
+                    ((format & 3u) == 3u && format != 0xFu))
                     return false;
                 const uint32_t num = (code >> 16u) & 0xFFu;
                 const uint32_t count = num ? num : 256u;
-                const uint32_t bytes = count * ((format >> 2u) + 1u) * 4u;
+                const uint32_t vectorBytes = format == 0xFu ? 2u :
+                    ((format >> 2u) + 1u) * (4u >> (format & 3u));
+                // Compact vectors still consume padding through the next
+                // word, exactly like the original segmented decoder.
+                const uint32_t bytes = (count * vectorBytes + 3u) & ~3u;
                 if (!source.span(bytes, op.payloadOffset)) return false;
                 op.payloadBytes = uint16_t(bytes);
                 op.vectors = uint16_t(count);
@@ -214,6 +226,57 @@ namespace
         return match(user, ram + plan.terminalOffset, 4u);
     }
 
+    // Standard compact formats use the segmented decoder's mode-0 rules:
+    // scalar broadcast, untouched upper V2/V3 lanes, USN extension, and
+    // packed V4-5 fields without scaling. kBytes=0 selects V4-5.
+    template <uint32_t kBytes>
+    void unpackCompact(const Operation &op, const uint8_t *source,
+                       uint8_t *vu, uint32_t dest)
+    {
+        uint32_t cyclePosition = 0;
+        for (uint32_t vector = 0; vector < op.vectors; ++vector)
+        {
+            uint8_t *out = vu + dest * 16u;
+            uint32_t values[4];
+            if constexpr (kBytes == 0u)
+            {
+                const uint32_t packed = read16(source);
+                values[0] = packed & 0x1Fu;
+                values[1] = (packed >> 5u) & 0x1Fu;
+                values[2] = (packed >> 10u) & 0x1Fu;
+                values[3] = (packed >> 15u) & 1u;
+                source += 2u;
+                std::memcpy(out, values, sizeof(values));
+            }
+            else
+            {
+                const uint32_t lanes = (op.format >> 2u) + 1u;
+                const bool zeroExtend = (op.code & 0x4000u) != 0u;
+                constexpr uint32_t sign = 1u << (kBytes * 8u - 1u);
+                constexpr uint32_t upper = kBytes == 2u ? 0xFFFF0000u : 0xFFFFFF00u;
+                for (uint32_t lane = 0; lane < lanes; ++lane)
+                {
+                    const uint32_t raw = kBytes == 2u ? read16(source) : *source;
+                    values[lane] = !zeroExtend && (raw & sign) ? raw | upper : raw;
+                    source += kBytes;
+                }
+                if (lanes == 1u)
+                {
+                    for (uint32_t lane = 1u; lane < 4u; ++lane) values[lane] = values[0];
+                    std::memcpy(out, values, sizeof(values));
+                }
+                else
+                    std::memcpy(out, values, lanes * 4u);
+            }
+            dest = (dest + 1u) & 0x3FFu;
+            if (++cyclePosition == op.wl)
+            {
+                dest = (dest + op.cl - op.wl) & 0x3FFu;
+                cyclePosition = 0;
+            }
+        }
+    }
+
     void execute(const Plan &plan, const uint8_t *ram, VIFRegisters &regs,
                   uint8_t *vu, XboxVifRecordObserve observe, void *user)
     {
@@ -231,6 +294,16 @@ namespace
                 const uint8_t *source = ram + op.payloadOffset;
                 if (observe) observe(user, dest, source, op.vectors, op.format,
                                       op.cl, op.wl, regs.mode);
+                if (op.format & 3u)
+                {
+                    switch (op.format & 3u)
+                    {
+                    case 1u: unpackCompact<2u>(op, source, vu, dest); break;
+                    case 2u: unpackCompact<1u>(op, source, vu, dest); break;
+                    default: unpackCompact<0u>(op, source, vu, dest); break;
+                    }
+                    continue;
+                }
 #if TS_VIF_FAST
                 // Use the same bounded SSE1 row writer as the production
                 // decoder. Its false return has no writes; all accepted

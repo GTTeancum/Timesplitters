@@ -104,7 +104,8 @@ BG_NATIVE_ROUTED_OBJS := $(BG_NATIVE_GAME_OBJ) $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_
 BG_NATIVE_VU_OBJ := $(OBJ)/src/xbox/xbox_bg_vu.obj
 BG_NATIVE_ADAPTER_OBJS := $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,\
     xbox_bg_game xbox_bg_loader xbox_bg_runtime xbox_bg_vu xbox_bg_xf))
-BG_NATIVE_OBJS := $(BG_NATIVE_ROUTED_OBJS) $(BG_NATIVE_ADAPTER_OBJS) $(OBJ)/src/xbox/xbox_main.obj
+BG_NATIVE_OBJS := $(BG_NATIVE_ROUTED_OBJS) $(BG_NATIVE_ADAPTER_OBJS) \
+    $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/src/xbox/xbox_main.obj
 BG_NATIVE_GAME_COPY := $(OUT)/gen/bg/vu1_native_ts.cpp
 BG_NATIVE_VIF_COPY := $(OUT)/gen/bg/ps2_vif1_interpreter.cpp
 BG_NATIVE_MEMORY_COPY := $(OUT)/gen/bg/ps2_memory.cpp

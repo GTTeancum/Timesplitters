@@ -11,14 +11,20 @@ namespace
     using Chain = XboxDrawRecordChain;
     constexpr uint32_t kRecords = 16u, kQueries = 16u, kAbsent = kRecords;
     constexpr uint32_t kHintSets = 128u, kHintWays = 2u;
-    struct ObservedCall
+    constexpr uint32_t kHints = kHintSets * kHintWays, kPayloadSets = 128u;
+    constexpr uint32_t kMaxCandidates = 32u;
+    constexpr uint16_t kNoHint = 0xFFFFu;
+    struct ObservedOrigin
     {
         uint32_t callAddress = 0, chainAddress = 0;
+        uint32_t endAddress = 0; // nonzero only for a completed linear REF group
         uint8_t bytes[16];
     };
     struct Hint
     {
-        ObservedCall call;
+        ObservedOrigin call;
+        uint32_t payload = Chain::kRamBytes;
+        uint16_t previousPayload = kNoHint, nextPayload = kNoHint;
         bool valid = false;
     };
     struct Tag
@@ -31,6 +37,8 @@ namespace
         Chain chain;
         Tag tags[Chain::kMaxTags];
         uint8_t caller[16];
+        uint32_t endAddress = 0;
+        bool transferTagData = true;
         bool valid = false;
     };
     struct Query
@@ -47,8 +55,10 @@ namespace
         uint32_t replacement = 0, last = kAbsent;
         Record records[kRecords]{};
         Query queries[kQueries]{};
-        Hint hints[kHintSets * kHintWays]{};
+        Hint hints[kHints]{};
         uint8_t nextHintWay[kHintSets]{};
+        uint16_t payloadHeads[kPayloadSets]{}, payloadTails[kPayloadSets]{};
+        uint16_t payloadCursors[kPayloadSets]{};
         XboxDrawRecordStats stats;
     };
     static_assert(sizeof(State) <= 40u * 1024u, "bounded draw-call side metadata");
@@ -83,8 +93,10 @@ namespace
     void clearRecords()
     {
         for (auto &record : state.records) record.valid = false;
-        for (auto &hint : state.hints) hint.valid = false;
+        for (auto &hint : state.hints) hint = {};
         for (auto &way : state.nextHintWay) way = 0;
+        for (uint32_t i = 0; i < kPayloadSets; ++i)
+            state.payloadHeads[i] = state.payloadTails[i] = state.payloadCursors[i] = kNoHint;
         clearQueries();
         state.replacement = 0;
     }
@@ -106,7 +118,7 @@ namespace
         chain.totalBytes += bytes;
         return true;
     }
-    bool readCaller(const uint8_t *ram, uint32_t callAddress, ObservedCall &observed)
+    bool readCaller(const uint8_t *ram, uint32_t callAddress, ObservedOrigin &observed)
     {
         if (!ram || (callAddress & 15u) || !within(callAddress, 16u)) return false;
         std::memcpy(observed.bytes, ram + callAddress, sizeof(observed.bytes));
@@ -120,23 +132,137 @@ namespace
         observed.chainAddress = target;
         return true;
     }
-    void copyCaller(Record &record, const ObservedCall &observed)
+    bool readRefs(const uint8_t *ram, uint32_t first, uint32_t end, ObservedOrigin &observed)
+    {
+        if (!ram || (first & 15u) || (end & 15u) || end <= first ||
+            end - first > Chain::kMaxTags * 16u || !within(first, end - first))
+            return false;
+        std::memcpy(observed.bytes, ram + first, sizeof(observed.bytes));
+        const uint32_t low = word(observed.bytes);
+        if ((low & 0x80000000u) || ((low >> 28u) & 7u) != 3u) return false;
+        observed.callAddress = observed.chainAddress = first;
+        observed.endAddress = end;
+        return true;
+    }
+    void copyCaller(Record &record, const ObservedOrigin &observed)
     {
         record.chain.callAddress = observed.callAddress;
         record.chain.chainAddress = observed.chainAddress;
         std::memcpy(record.caller, observed.bytes, sizeof(record.caller));
+        record.endAddress = observed.endAddress;
     }
     uint32_t hintSet(uint32_t chainAddress)
     {
         return ((chainAddress >> 4u) ^ (chainAddress >> 11u)) & (kHintSets - 1u);
     }
-    Hint *findHint(uint32_t chainAddress)
+    uint16_t findHint(uint32_t chainAddress)
     {
         const uint32_t first = hintSet(chainAddress) * kHintWays;
         for (uint32_t i = first; i < first + kHintWays; ++i)
             if (state.hints[i].valid && state.hints[i].call.chainAddress == chainAddress)
-                return &state.hints[i];
-        return nullptr;
+                return uint16_t(i);
+        return kNoHint;
+    }
+    uint32_t firstPayload(const uint8_t *ram, const ObservedOrigin &origin)
+    {
+        // One header, never a traversal. Zero-QWC leading tags have no
+        // payload entry until a later observation supplies a usable origin.
+        const uint8_t *tag = ram + origin.chainAddress;
+        const uint32_t low = word(tag), id = (low >> 28u) & 7u;
+        const uint32_t bytes = (low & 0xFFFFu) * 16u;
+        if (!bytes || (low & 0x80000000u) ||
+            (id != 1u && id != 3u && id != 4u && id != 6u))
+            return Chain::kRamBytes;
+        const uint32_t payload = id == 3u || id == 4u
+                                     ? word(tag + 4u) & 0x7FFFFFFFu : origin.chainAddress + 16u;
+        return within(payload, bytes) ? payload : Chain::kRamBytes;
+    }
+    uint32_t payloadSet(uint32_t offset)
+    {
+        return ((offset >> 4u) ^ (offset >> 11u)) & (kPayloadSets - 1u);
+    }
+    void unlinkPayload(uint16_t index)
+    {
+        Hint &hint = state.hints[index];
+        if (hint.payload == Chain::kRamBytes) return;
+        const uint32_t set = payloadSet(hint.payload);
+        if (hint.previousPayload == kNoHint) state.payloadHeads[set] = hint.nextPayload;
+        else state.hints[hint.previousPayload].nextPayload = hint.nextPayload;
+        if (hint.nextPayload == kNoHint) state.payloadTails[set] = hint.previousPayload;
+        else state.hints[hint.nextPayload].previousPayload = hint.previousPayload;
+        if (state.payloadCursors[set] == index)
+            state.payloadCursors[set] = hint.nextPayload != kNoHint
+                                           ? hint.nextPayload : state.payloadHeads[set];
+        hint.payload = Chain::kRamBytes;
+        hint.previousPayload = hint.nextPayload = kNoHint;
+    }
+    void invalidateHint(uint16_t index)
+    {
+        unlinkPayload(index);
+        state.hints[index].valid = false;
+    }
+    void linkPayload(uint16_t index)
+    {
+        Hint &hint = state.hints[index];
+        if (hint.payload == Chain::kRamBytes) return;
+        const uint32_t set = payloadSet(hint.payload);
+        hint.previousPayload = state.payloadTails[set];
+        hint.nextPayload = kNoHint;
+        if (hint.previousPayload == kNoHint) state.payloadHeads[set] = index;
+        else state.hints[hint.previousPayload].nextPayload = index;
+        state.payloadTails[set] = index;
+        if (state.payloadCursors[set] == kNoHint) state.payloadCursors[set] = index;
+    }
+    void rememberOrigin(const uint8_t *ram, const ObservedOrigin &observed)
+    {
+        uint16_t index = findHint(observed.chainAddress);
+        if (index != kNoHint) ++state.stats.reused;
+        else
+        {
+            const uint32_t set = hintSet(observed.chainAddress);
+            const uint32_t first = set * kHintWays;
+            index = uint16_t(first + state.nextHintWay[set]);
+            for (uint32_t i = first; i < first + kHintWays; ++i)
+                if (!state.hints[i].valid) { index = uint16_t(i); break; }
+            state.nextHintWay[set] ^= 1u;
+        }
+        unlinkPayload(index);
+        Hint &hint = state.hints[index];
+        hint.call = observed;
+        hint.payload = firstPayload(ram, observed);
+        hint.valid = true;
+        linkPayload(index);
+        // Keep both transport versions if they exist, but a changed REF
+        // span boundary cannot inherit a prior descriptor's geometry range.
+        for (auto &record : state.records)
+            if (record.valid && record.chain.chainAddress == observed.chainAddress)
+            {
+                if (record.endAddress != observed.endAddress) record.valid = false;
+                else copyCaller(record, observed);
+            }
+        // New observations can revive either entry or a previously missed
+        // interior pointer. No rejected transport mode sticks across Note.
+        clearQueries();
+    }
+    bool describeRefs(const uint8_t *ram, Record &record)
+    {
+        auto &chain = record.chain;
+        for (uint32_t address = chain.chainAddress; address < record.endAddress; address += 16u)
+        {
+            Tag &tag = record.tags[chain.tagCount];
+            tag.address = address;
+            std::memcpy(tag.bytes, ram + address, sizeof(tag.bytes));
+            const uint32_t low = word(tag.bytes);
+            if ((low & 0x80000000u) || ((low >> 28u) & 7u) != 3u) return false;
+            const uint32_t bytes = (low & 0xFFFFu) * 16u;
+            const uint32_t payload = word(tag.bytes + 4u) & 0x7FFFFFFFu;
+            if ((record.transferTagData && !append(record, address + 8u, 8u)) ||
+                !append(record, payload, bytes))
+                return false;
+            ++chain.tagCount;
+        }
+        record.valid = chain.tagCount != 0u;
+        return record.valid;
     }
     bool describeLeaf(const uint8_t *ram, Record &record)
     {
@@ -158,7 +284,8 @@ namespace
                                          : address + 16u;
             // Preserve raw TTE/payload order. Actual DMA and its original
             // coalescing still run; the decoder later proves the live prefix.
-            if (!append(record, address + 8u, 8u) || !append(record, payload, bytes))
+            if ((record.transferTagData && !append(record, address + 8u, 8u)) ||
+                !append(record, payload, bytes))
                 return false;
             ++chain.tagCount;
             if (id == 6u)
@@ -194,27 +321,19 @@ namespace
     {
         return ((offset >> 2u) ^ (offset >> 10u)) & (kQueries - 1u);
     }
-    uint32_t lazyRecord(const uint8_t *ram, uint32_t offset)
+    uint32_t lazyRecord(const uint8_t *ram, uint16_t index, bool transferTagData)
     {
-        // Only the first TTE word supplies an unambiguous leaf entry point.
-        // An interior pointer without a resident descriptor keeps the old
-        // decoder; no backward scan guesses where guest commands began.
-        if ((offset & 15u) != 8u) return kAbsent;
-        Hint *hint = findHint(offset - 8u);
-        if (!hint) return kAbsent;
-        if (std::memcmp(hint->call.bytes, ram + hint->call.callAddress, 16u))
-        {
-            hint->valid = false;
-            ++state.stats.changed;
-            return kAbsent;
-        }
+        Hint &hint = state.hints[index];
         Record candidate{};
-        copyCaller(candidate, hint->call);
-        if (state.serial == std::numeric_limits<uint64_t>::max() || !describeLeaf(ram, candidate))
+        copyCaller(candidate, hint.call);
+        candidate.transferTagData = transferTagData;
+        if (state.serial == std::numeric_limits<uint64_t>::max() ||
+            !(candidate.endAddress ? describeRefs(ram, candidate) : describeLeaf(ram, candidate)))
         {
-            // The immutable caller hint alone never authorizes a prefix.
-            // A later Note may retry a chain that has since been rebuilt.
-            hint->valid = false;
+            // TTE bytes count toward the budget, so failure in one mode
+            // must not suppress the same origin's other transport. Keep
+            // the exact hint; any later attempt still rebuilds and proves
+            // the complete live structure before reaching a consumer.
             ++state.stats.rejected;
             return kAbsent;
         }
@@ -226,7 +345,61 @@ namespace
         // A new descriptor may cover earlier negative interior queries.
         clearQueries();
         ++state.stats.created;
-        return containsOnce(state.records[slot].chain, offset) ? slot : kAbsent;
+        return slot;
+    }
+    enum class Attempt { Declined, Accepted, Changed };
+    Attempt tryRecord(const uint8_t *ram, uint32_t offset, uint32_t slot,
+                      XboxDrawRecordConsumer consumer, void *user, uint64_t *tried)
+    {
+        Record &record = state.records[slot];
+        if (!record.valid || tried[slot] == record.chain.generation ||
+            !containsOnce(record.chain, offset))
+            return Attempt::Declined;
+        tried[slot] = record.chain.generation;
+        const bool callerCurrent = !std::memcmp(record.caller, ram + record.chain.callAddress, 16u);
+        if (!callerCurrent || !leafCurrent(record, ram))
+        {
+            record.valid = false;
+            const uint16_t index = findHint(record.chain.chainAddress);
+            if (index != kNoHint && (!callerCurrent ||
+                std::memcmp(state.hints[index].call.bytes, ram + state.hints[index].call.callAddress, 16u)))
+                invalidateHint(index);
+            clearQueries();
+            ++state.stats.changed;
+            // Do not reconstruct changed resident metadata in this lookup.
+            return Attempt::Changed;
+        }
+        ++state.stats.hits;
+        ++state.stats.consumers;
+        if (!consumer(record.chain, ram, user)) return Attempt::Declined;
+        ++state.stats.accepted;
+        ++state.stats.transportAccepted[record.transferTagData ? 1u : 0u];
+        state.last = slot;
+        state.queries[queryIndex(offset)] = {offset, slot, record.chain.generation, true};
+        return Attempt::Accepted;
+    }
+    Attempt tryOrigin(const uint8_t *ram, uint32_t offset, uint16_t index, bool transferTagData,
+                      XboxDrawRecordConsumer consumer, void *user, uint64_t *tried)
+    {
+        Hint &hint = state.hints[index];
+        if (!hint.valid) return Attempt::Declined;
+        if (std::memcmp(hint.call.bytes, ram + hint.call.callAddress, 16u))
+        {
+            invalidateHint(index);
+            ++state.stats.changed;
+            return Attempt::Declined;
+        }
+        // The indexed payload may have moved since Note. A stale index is
+        // never authority for an old byte range; a fresh Note can reindex it.
+        if (!transferTagData && firstPayload(ram, hint.call) != offset) return Attempt::Declined;
+        uint32_t slot = kAbsent;
+        for (uint32_t i = 0; i < kRecords; ++i)
+            if (state.records[i].valid && state.records[i].chain.chainAddress == hint.call.chainAddress &&
+                state.records[i].endAddress == hint.call.endAddress &&
+                state.records[i].transferTagData == transferTagData)
+            { slot = i; break; }
+        if (slot == kAbsent) slot = lazyRecord(ram, index, transferTagData);
+        return slot == kAbsent ? Attempt::Declined : tryRecord(ram, offset, slot, consumer, user, tried);
     }
 }
 #endif
@@ -241,44 +414,13 @@ static void noteCall(const uint8_t *rdram, uint32_t callAddress, bool dbuf)
     ++state.stats.notes;
     if (dbuf) ++state.stats.notesDbuf;
     else ++state.stats.notesPrecalc;
-    ObservedCall observed{};
+    ObservedOrigin observed{};
     if (!readCaller(rdram, callAddress, observed))
     {
         ++state.stats.rejected;
         return;
     }
-    Hint *hint = findHint(observed.chainAddress);
-    if (hint)
-        ++state.stats.reused;
-    else
-    {
-        const uint32_t set = hintSet(observed.chainAddress);
-        const uint32_t first = set * kHintWays;
-        uint32_t slot = first + state.nextHintWay[set];
-        for (uint32_t i = first; i < first + kHintWays; ++i)
-            if (!state.hints[i].valid) { slot = i; break; }
-        state.nextHintWay[set] ^= 1u;
-        hint = &state.hints[slot];
-    }
-    hint->call = observed;
-    hint->valid = true;
-    // Do not walk any leaf while partGfx is assembling the list. A small
-    // caller hint survives more distinct draws than the full descriptor
-    // cache, and the first consumer constructs only records it reaches.
-    for (auto &record : state.records)
-    {
-        if (record.valid && record.chain.chainAddress == observed.chainAddress)
-        {
-            // The leaf serial remains conditional on its exact tag check
-            // at the next lease. No unchecked metadata reaches a consumer.
-            copyCaller(record, observed);
-            break;
-        }
-    }
-    const uint32_t firstOffset = observed.chainAddress + 8u;
-    Query &query = state.queries[queryIndex(firstOffset)];
-    if (query.valid && query.offset == firstOffset && query.slot == kAbsent)
-        query.valid = false;
+    rememberOrigin(rdram, observed);
 #else
     (void)rdram; (void)callAddress; (void)dbuf;
 #endif
@@ -294,6 +436,28 @@ void xboxDrawRecordNoteDbuf(const uint8_t *rdram, uint32_t callAddress)
     noteCall(rdram, callAddress, true);
 }
 
+void xboxDrawRecordNoteRefs(const uint8_t *rdram, uint32_t firstTagAddress,
+                           uint32_t endTagAddress, uint32_t variant)
+{
+#if TS_DRAW_RECORDS
+    if (!rdram || variant >= 3u) return;
+    Lease lease;
+    if (!lease.held) return;
+    selectRam(rdram);
+    ++state.stats.notes;
+    ++state.stats.notesRef[variant];
+    ObservedOrigin observed{};
+    if (!readRefs(rdram, firstTagAddress, endTagAddress, observed))
+    {
+        ++state.stats.rejected;
+        return;
+    }
+    rememberOrigin(rdram, observed);
+#else
+    (void)rdram; (void)firstTagAddress; (void)endTagAddress; (void)variant;
+#endif
+}
+
 bool xboxDrawRecordWithChain(const uint8_t *rdram, const uint8_t *data,
                             XboxDrawRecordConsumer consumer, void *user)
 {
@@ -307,53 +471,108 @@ bool xboxDrawRecordWithChain(const uint8_t *rdram, const uint8_t *data,
     if (!lease.held) return false;
     if (state.ram != rdram) { ++state.stats.misses; return false; }
     ++state.stats.lookups;
+    uint64_t tried[kRecords]{};
+    uint32_t candidates = 0;
+    bool hadCandidate = false;
+    auto attemptOrigin = [&](uint16_t index, bool tte) {
+        hadCandidate = true;
+        ++candidates;
+        ++state.stats.candidates;
+        return tryOrigin(rdram, offset, index, tte, consumer, user, tried);
+    };
+    // Do not let an interior hit from the other transport hide a precise
+    // origin. The live reader, not pointer coincidence, selects the mode.
+    if ((offset & 15u) == 8u)
+    {
+        const uint16_t index = findHint(offset - 8u);
+        if (index != kNoHint)
+        {
+            const Attempt result = attemptOrigin(index, true);
+            if (result != Attempt::Declined) return result == Attempt::Accepted;
+        }
+    }
+    const uint32_t set = payloadSet(offset);
+    const uint16_t start = state.payloadCursors[set] != kNoHint
+                               ? state.payloadCursors[set] : state.payloadHeads[set];
+    uint16_t index = start;
+    uint32_t visitedHints[kHints / 32u]{};
+    for (uint32_t visited = 0; visited < kHints && index != kNoHint; ++visited)
+    {
+        const uint32_t bit = 1u << (index & 31u);
+        if (visitedHints[index >> 5u] & bit) break;
+        visitedHints[index >> 5u] |= bit;
+        Hint &hint = state.hints[index];
+        const uint16_t next = hint.nextPayload != kNoHint ? hint.nextPayload : state.payloadHeads[set];
+        if (hint.valid && hint.payload == offset)
+        {
+            if (candidates == kMaxCandidates)
+            {
+                ++state.stats.candidateLimits;
+                // A later lookup must be able to reach origins beyond the
+                // current bounded scan, even when every start is shared.
+                state.payloadCursors[set] = index;
+                state.queries[queryIndex(offset)].valid = false;
+                return false;
+            }
+            ++state.stats.payloadLookups;
+            const Attempt result = attemptOrigin(index, false);
+            if (result == Attempt::Accepted)
+            {
+                state.payloadCursors[set] = next;
+                return true;
+            }
+            if (result == Attempt::Changed) return false;
+        }
+        if (next == start) break;
+        index = next;
+    }
     Query &query = state.queries[queryIndex(offset)];
-    uint32_t slot = kAbsent;
-    if (query.valid && query.offset == offset &&
-        (query.slot == kAbsent || (state.records[query.slot].valid &&
-         state.records[query.slot].chain.generation == query.generation)))
+    if (query.valid && query.offset == offset)
     {
-        ++state.stats.hintHits;
-        slot = query.slot;
+        if (query.slot == kAbsent && !hadCandidate)
+        { ++state.stats.hintHits; ++state.stats.misses; return false; }
+        if (query.slot != kAbsent && state.records[query.slot].valid &&
+            state.records[query.slot].chain.generation == query.generation &&
+            tried[query.slot] != query.generation)
+        {
+            if (candidates == kMaxCandidates)
+            {
+                ++state.stats.candidateLimits;
+                query.valid = false;
+                return false;
+            }
+            ++state.stats.hintHits;
+            ++state.stats.candidates;
+            ++candidates;
+            hadCandidate = true;
+            const Attempt result = tryRecord(rdram, offset, query.slot, consumer, user, tried);
+            if (result != Attempt::Declined) return result == Attempt::Accepted;
+        }
     }
-    else
+    // Interior records can recover a prefix after an unsupported command,
+    // or prove that this byte address belongs to the opposite transport.
+    for (uint32_t i = 0; i < kRecords; ++i)
     {
-        if (state.last != kAbsent && state.records[state.last].valid &&
-            containsOnce(state.records[state.last].chain, offset))
-            slot = state.last;
-        else
-            for (uint32_t i = 0; i < kRecords; ++i)
-                if (state.records[i].valid && containsOnce(state.records[i].chain, offset))
-                { slot = i; break; }
-        if (slot == kAbsent) slot = lazyRecord(rdram, offset);
-        query = {offset, slot, slot == kAbsent ? 0u : state.records[slot].chain.generation, true};
+        if (!state.records[i].valid || !containsOnce(state.records[i].chain, offset) ||
+            tried[i] == state.records[i].chain.generation) continue;
+        if (candidates == kMaxCandidates)
+        {
+            ++state.stats.candidateLimits;
+            query.valid = false;
+            return false;
+        }
+        hadCandidate = true;
+        ++candidates;
+        ++state.stats.candidates;
+        const Attempt result = tryRecord(rdram, offset, i, consumer, user, tried);
+        if (result != Attempt::Declined) return result == Attempt::Accepted;
     }
-    if (slot == kAbsent) { ++state.stats.misses; return false; }
-    Record &record = state.records[slot];
-    const bool callerCurrent = !std::memcmp(record.caller, rdram + record.chain.callAddress, 16u);
-    if (!callerCurrent || !leafCurrent(record, rdram))
-    {
-        record.valid = false;
-        if (Hint *hint = findHint(record.chain.chainAddress))
-            if (!callerCurrent ||
-                std::memcmp(hint->call.bytes, rdram + hint->call.callAddress, 16u))
-                hint->valid = false;
-        // Retire changed metadata without invoking the consumer. If only
-        // leaf tags changed, a still-exact observed CALL may reconstruct a
-        // descriptor at a later first-TTE lookup; this lookup always falls
-        // back. Changed caller bytes require a fresh producer observation.
-        clearQueries();
-        ++state.stats.changed;
-        return false;
-    }
-    state.last = slot;
-    ++state.stats.hits;
-    ++state.stats.consumers;
-    // The record is pinned until the synchronous consumer returns; all
-    // guest payloads remain at their live source addresses throughout.
-    const bool accepted = consumer(record.chain, rdram, user);
-    if (accepted) ++state.stats.accepted;
-    return accepted;
+    // Only an absent origin can be memoized as a miss. A rejected consumer
+    // never hides another draw that shares the same first payload address.
+    if (hadCandidate) query.valid = false;
+    else query = {offset, kAbsent, 0u, true};
+    ++state.stats.misses;
+    return false;
 #else
     (void)rdram; (void)data; (void)consumer; (void)user;
     return false;

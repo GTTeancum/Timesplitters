@@ -13,7 +13,96 @@ work; normal PC builds are outside its scope. Runtime, gameplay
 proof and build verification were developed in parallel with cross-review.
 Earlier capture/import and texture work is retained below.
 
-## Current state — complete Xbox builds, 2026-10-30 Eastern
+The user's current instruction is to keep writing code and building while
+the console and XEMU are unavailable, and to connect the optimization paths.
+Continue implementation and cloud target builds without waiting for device
+access. Hardware-dependent behavior and FPS must still be reported as
+unmeasured until a real target run is available.
+
+## Current state — connected optimization batch, 2026-10-30 Eastern
+
+Batch baseline: `b31f40990b2c940be07f2e9fb6cda79ae3770404`.
+All tracked changes remain inside `src/xbox/`, with publication to `main`
+only. This batch adds work to the Xbox version; private assets and build
+outputs remain outside the repository.
+
+### Connected paths
+
+- `TS_BG_FAST=1`: exact source-binding cache and adjacent-strip lookup,
+  revocable contiguous provenance ranges, direct per-run strip selection,
+  and bounded SSE1 copies for the 44-byte converted vertices. Live colors,
+  source lifetimes, clipping, provoking vertices and GPU fences remain the
+  existing path's responsibility. Range certificates fall back to the
+  original row checks after overlap or partial coverage.
+- `TS_VIF_FAST=1`: a 516-byte cache local to each segmented decoder call
+  reuses UNPACK sizes; contiguous unmasked mode-0 S/V2/V3/V4-32 writes use
+  four-row loops with one wrap split. V2/V3 preserve the untouched lanes.
+  Payloads are always read live; masks, other modes, split payloads and
+  unsupported conditions keep the previous path and every VU write.
+- `TS_NV2A_MATERIAL_CACHE=1`: 64 material records reuse derived NV2A state
+  only after full input equality. Current texture addresses, viewport
+  mapping and scissor remain live.
+- `TS_NV2A_PACK_IDENTITY_CACHE=1`: 64 texture-source records reuse pack
+  lookup results across texture-cache eviction. Exact source keys and
+  reverse page invalidation preserve texture writes and palette changes;
+  GPU addresses and residency are never cached as identities. The recent
+  and last-texture shortcuts also respect pack retry timing, allowing a
+  runtime fallback texture to be replaced by its loaded pack version.
+
+These four switches default to `1` and each can be set to `0` for a later
+comparison. They reduce repeated work within the existing rendering route;
+the original DMA/VIF command pipeline has not been completely bypassed.
+No Xbox boot, visual result, runtime memory headroom or FPS improvement is
+claimed for this batch.
+
+### Preferred build and deployment
+
+```sh
+bash src/xbox/build.sh optimized
+```
+
+The new target selects `TS_BG_NATIVE=1` and `TS_GEN_PCH=1`, builds the XBE
+and requires converted geometry plus textures. It produces `default.xbe`,
+`native-bg/` and `textures.xtp` together under `build/xbox/iso/`. Missing
+source archives or a skipped texture conversion fail the target. Keep
+those outputs with the original `game-data/` and `ps2disc.iso`; the target
+does not package those original inputs or build a disc image.
+
+Ordinary `xbe` and disc targets retain `TS_BG_NATIVE=0` unless selected.
+Geometry verification and native draw capture remain off by default.
+The new flag stamps rebuild the VIF, backend and background consumers when
+their switches change. VIF patching composes after background observations
+when both are enabled and also works without background conversion.
+
+### Target build results
+
+Both actual target builds compiled, linked and converted to XBE successfully.
+Both have `TS_BG_NATIVE=1`, `TS_BG_VERIFY=0`, `TS_GEN_PCH=1` and native
+capture off. The four switches above distinguish the builds:
+
+| Build | Four new optimization switches | XBE bytes | Incremental build seconds |
+| --- | --- | ---: | ---: |
+| optimized | all `1` | 11,583,488 | 7.370 |
+| comparison | all `0` | 11,571,200 | 10.045 |
+
+XBE SHA-256 identities:
+
+- optimized: `92098eed58b8548c804f4f013e72e3d7ae06dec29a6f3e7b19316c1bcf1e2fef`
+- comparison: `d96466a46fbddbf8e3496995a09f98eeb43d7e5e7ae01b42ea63fce2e4cdb597`
+
+The optimized target rebuilt all 27 background geometry packs and
+`textures.xtp`: 2,254 textures, 11,451,088 bytes, SHA-256
+`73fb246c99ef267610ca1d6f72cd23fa5ac1b3cc76eb8c7a3f06af5800c712ed`.
+The recorded source inputs stayed unchanged during each final build.
+Existing LLD section-merge and locally supplied import warnings remain in
+the build logs. Build seconds describe compilation/linking work and do not
+measure game performance.
+
+This batch did not repeat the earlier whole-XBE static inspections or run
+the game on a console or in XEMU. Its evidence establishes successful
+target builds and asset generation; device behavior and FPS remain open.
+
+## Previous complete build batch — 2026-10-30 Eastern
 
 Batch baseline: `052c11c910d77910e1c1b30814962f66d39c3ab9`.
 The complete Xbox title now compiles, links and converts to XBE in the cloud.
@@ -95,7 +184,7 @@ SDK material and private reports out of Git. Linux/MSYS2 commands:
 [README.md](README.md). Runtime deployment:
 [NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md).
 
-## Runtime integration — 2026-10-30 Eastern
+## Earlier runtime integration — 2026-10-30 Eastern
 
 Batch baseline: `111ad7aff01bad404cb07a1cf2bfcb3e233e3b69`.
 The optional source-derived background path is implemented and connected to
@@ -464,19 +553,21 @@ linking, gameplay or visual fidelity. Sanitizers cover compiled C++ probes,
 not the Python interpreter. Source inspection/publication uses the GitHub API;
 read-only shared source references are not publication inputs.
 
-## Next concrete work after runtime integration
+## Next concrete work
 
 1. Verify actual current `main` and retain all newer work and scope.
 2. Reuse the verified private source packs, gameplay capture and audit package.
    The source inputs and first real recording no longer need to be requested.
-3. Use the retained Xbox builds to validate real rendering, level transitions,
-   memory headroom and capture-disabled/verification-disabled performance.
+3. Continue writing and connecting supported Xbox optimizations, then build
+   with the real target toolchain and push the completed source batch.
+   Console/XEMU availability is not a prerequisite for this coding work.
 4. Resolve unmatched/unsupported inputs through provenance, without treating
    matching hashes or the degenerate triangle as permission to skip work.
-5. Extend accelerated source coverage only when measured fallback counts and
-   target profiles justify it, preserving the original path for every miss.
+5. Preserve the original fallback for each unsupported case. When target
+   access returns, check rendering, level transitions, memory headroom and
+   verification-disabled performance, using the switches for comparisons.
 
-The source converter and opt-in runtime adapter are implemented. Default
-builds retain the original decoder. Camera, lighting, materials, animation,
-collision, clipping, flat shading and ordering remain the existing path's
+The source converter and runtime adapter are implemented. The `optimized`
+target includes them with converted textures. Camera, lighting, materials,
+animation, collision, clipping, flat shading and ordering remain the existing path's
 responsibility. Keep private captures/reports/assets out of public commits.

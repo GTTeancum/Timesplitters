@@ -12,6 +12,9 @@
 #ifndef TS_BG_VERIFY
 #define TS_BG_VERIFY 0
 #endif
+#ifndef TS_BG_FAST
+#define TS_BG_FAST 1
+#endif
 
 namespace
 {
@@ -105,6 +108,11 @@ struct Draw
     const uint8_t *vu=nullptr;
     uint32_t top=0, kind=0, count=0;
     struct Strip { uint32_t vi=0, count=0, binding=kNoBinding; } strips[24];
+#if TS_BG_FAST
+    // The accepted Plain/EnvMap batch has at most 64 vertex rows. A value
+    // is the strip slot plus one; zero means no prepared strip starts here.
+    uint8_t byVertex[64]{};
+#endif
 };
 struct State
 {
@@ -123,6 +131,17 @@ struct State
     bool prepared=false, active=false;
     char root[192]{};
     Origin rows[kRows];
+#if TS_BG_FAST
+    // A certificate covers one contiguous UNPACK run. Each covered row's
+    // format packs (run-start + 1) above its low byte. Overwriting ANY row
+    // revokes the certificate before establishing a new one, so first-row
+    // identity never stands in for the identity of an unobserved interior.
+    // The original row records remain the exact fallback for split runs.
+    uint16_t rangeEnds[kRows]{};
+    static constexpr uint32_t kBindingSets=128;
+    uint32_t bindingCache[kBindingSets][2]{}, lastBinding=0;
+    uint8_t olderBinding[kBindingSets]{};
+#endif
     Draw draw;
     ~State() { std::free(bindings); }
     void forget()
@@ -135,6 +154,11 @@ struct State
         tracking.store(false,std::memory_order_release);
         prepared=active=false; forget(); vu=nullptr;
         std::free(bindings); bindings=nullptr; bindingCount=0;
+#if TS_BG_FAST
+        std::memset(bindingCache,0,sizeof(bindingCache));
+        std::memset(olderBinding,0,sizeof(olderBinding));
+        lastBinding=0;
+#endif
         loader.unload(); pack={}; rdram=nullptr; base=rawBytes=level=0;
         stats.level=stats.packBytes=stats.bindingBytes=0; stats.active=false;
         ++stats.invalidations;
@@ -236,10 +260,83 @@ void buildBindings(void *opaque,const ts_xbg::View &v)
     c.ok=true;
 }
 
+uint32_t originFormat(const Origin &origin)
+{
+#if TS_BG_FAST
+    return origin.format&255u;
+#else
+    return origin.format;
+#endif
+}
 bool originMatches(const State &s,uint32_t row,uint32_t address,uint32_t format)
 {
-    return row<kRows && s.rows[row].epoch==s.epoch && s.rows[row].source==address && s.rows[row].format==format;
+    return row<kRows && s.rows[row].epoch==s.epoch && s.rows[row].source==address && originFormat(s.rows[row])==format;
 }
+
+#if TS_BG_FAST
+bool originRangeMatches(State &s,uint32_t row,uint32_t address,uint32_t format,uint32_t count)
+{
+    if (!count || row>=kRows || count>kRows-row) return false;
+    const uint32_t stride=format==8 ? 12u : 16u;
+    if (originMatches(s,row,address,format))
+    {
+        const uint32_t encoded=s.rows[row].format>>8;
+        if (encoded && encoded<=kRows)
+        {
+            const uint32_t first=encoded-1;
+            if (first<=row && s.rangeEnds[first]>=row+count &&
+                address>=(row-first)*stride &&
+                originMatches(s,first,address-(row-first)*stride,format) &&
+                (s.rows[first].format>>8)==encoded)
+            { ++s.stats.provenanceFastRanges; return true; }
+        }
+    }
+    for (uint32_t i=0;i<count;++i)
+    {
+        ++s.stats.provenanceRowChecks;
+        if (!originMatches(s,row+i,address+i*stride,format)) return false;
+    }
+    return true;
+}
+#endif
+
+uint32_t findBinding(State &s,const Binding &key)
+{
+#if TS_BG_FAST
+    // The cache contains only indexes, never borrowed pack pointers. Every
+    // hit compares all five source-identity fields; hashes only choose a set.
+    if (s.lastBinding)
+    {
+        const uint32_t previous=s.lastBinding-1;
+        if (compareKey(s.bindings[previous],key)==0)
+        { ++s.stats.bindingCacheHits; return previous; }
+        // Consecutive strips usually occupy consecutive sorted source tags.
+        if (previous+1<s.bindingCount && compareKey(s.bindings[previous+1],key)==0)
+        { ++s.stats.bindingCacheHits; s.lastBinding=previous+2; return previous+1; }
+    }
+    const uint32_t hash=(key.tag>>4)^(key.position>>2)^(key.vector>>4)^(key.count<<1)^(key.kind<<6);
+    const uint32_t set=(hash^(hash>>7))&(State::kBindingSets-1);
+    for (uint32_t way=0;way<2;++way)
+    {
+        const uint32_t encoded=s.bindingCache[set][way];
+        if (encoded && compareKey(s.bindings[encoded-1],key)==0)
+        {
+            s.lastBinding=encoded; s.olderBinding[set]=uint8_t(way^1u);
+            ++s.stats.bindingCacheHits; return encoded-1;
+        }
+    }
+#endif
+    ++s.stats.bindingSearches;
+    uint32_t lo=0,hi=s.bindingCount;
+    while (lo<hi) { const uint32_t m=lo+(hi-lo)/2; if (compareKey(s.bindings[m],key)<0) lo=m+1; else hi=m; }
+    if (lo==s.bindingCount || compareKey(s.bindings[lo],key)!=0) return kNoBinding;
+#if TS_BG_FAST
+    const uint32_t way=s.olderBinding[set];
+    s.bindingCache[set][way]=lo+1; s.olderBinding[set]=uint8_t(way^1u); s.lastBinding=lo+1;
+#endif
+    return lo;
+}
+
 void bindDraw(void *opaque,const ts_xbg::View &v)
 {
     State &s=*static_cast<State *>(opaque); Draw &d=s.draw;
@@ -250,19 +347,28 @@ void bindDraw(void *opaque,const ts_xbg::View &v)
         const uint32_t n=read32(tag)&0x7fffu;
         if (n<3 || n>64 || vi<d.top+24 || vi+n>d.top+88 || vi+128+n>kRows) break;
         auto &slot=d.strips[d.count++]; slot.vi=vi; slot.count=n;
+#if TS_BG_FAST
+        d.byVertex[vi-d.top-24]=uint8_t(d.count);
+#endif
         const Origin &t=s.rows[d.top+j], &p=s.rows[vi], &x=s.rows[vi+128];
         if (t.epoch==s.epoch && p.epoch==s.epoch && x.epoch==s.epoch &&
-            t.format==12 && p.format==8 && x.format==12)
+            originFormat(t)==12 && originFormat(p)==8 && originFormat(x)==12)
         {
             Binding key{t.source,p.source,x.source,n,d.kind,0,0,0};
-            uint32_t lo=0,hi=s.bindingCount;
-            while (lo<hi) { const uint32_t m=lo+(hi-lo)/2; if (compareKey(s.bindings[m],key)<0) lo=m+1; else hi=m; }
-            if (lo<s.bindingCount && compareKey(s.bindings[lo],key)==0)
+            const uint32_t lo=findBinding(s,key);
+            if (lo!=kNoBinding)
             {
                 const Binding &b=s.bindings[lo];
                 bool ok=std::memcmp(tag,v.strips+size_t(b.strip)*32+16,16)==0;
+#if TS_BG_FAST
+                if (ok) ok=originRangeMatches(s,vi,b.position,8,n) && originRangeMatches(s,vi+128,b.vector,12,n);
+#else
                 for (uint32_t i=0;ok && i<n;++i)
+                {
+                    s.stats.provenanceRowChecks+=2;
                     ok=originMatches(s,vi+i,b.position+i*12,8) && originMatches(s,vi+128+i,b.vector+i*16,12);
+                }
+#endif
 #if TS_BG_VERIFY
                 if (ok)
                 {
@@ -372,11 +478,41 @@ void xboxBgNoteUnpack(const uint8_t *rdram,const uint8_t *vu,uint32_t dest,const
     const uintptr_t ram=reinterpret_cast<uintptr_t>(rdram), src=reinterpret_cast<uintptr_t>(source);
     const bool known=source && !masked && !(mode&3u) && cl>=wl && (format==8 || format==12) &&
         src>=ram && src-ram<=kRamBytes && uint64_t(count)*stride<=kRamBytes-(src-ram);
+#if TS_BG_FAST
+    // Advance the VIF cycle directly. Equal CL/WL values form one continuous
+    // run even when WL is one; gaps and VU wrap split certificates. All VIF
+    // writes still execute in the original decoder after this observation.
+    uint32_t i=0,row=dest&1023u,cycle=0;
+    while (i<count)
+    {
+        uint32_t run=std::min(count-i,kRows-row);
+        if (cl>wl) run=std::min(run,wl-cycle);
+        const uint32_t owner=(row+1u)<<8;
+        for (uint32_t j=0;j<run;++j)
+        {
+            Origin &previous=s.rows[row+j];
+            if (previous.epoch==s.epoch)
+            {
+                const uint32_t oldOwner=previous.format>>8;
+                if (oldOwner) s.rangeEnds[oldOwner-1]=0;
+            }
+            previous=known ? Origin{uint32_t(src-ram)+(i+j)*stride,s.epoch,format|owner} : Origin{};
+        }
+        if (known) s.rangeEnds[row]=uint16_t(row+run);
+        i+=run; row=(row+run)&1023u;
+        if (cl>wl)
+        {
+            cycle+=run;
+            if (cycle==wl) { row=(row+cl-wl)&1023u; cycle=0; }
+        }
+    }
+#else
     for (uint32_t i=0;i<count;++i)
     {
         const uint32_t row=(dest+(cl>=wl ? (i/wl)*cl+i%wl : i))&1023u;
         s.rows[row]=known ? Origin{uint32_t(src-ram)+i*stride,s.epoch,format} : Origin{};
     }
+#endif
 }
 void xboxBgBeginNative(uint32_t pc,const uint8_t *vu,uint32_t bytes,uint32_t top,bool worker)
 {
@@ -394,6 +530,24 @@ bool xboxBgWithStrip(uint32_t kind,const uint8_t *vu,uint32_t vi,uint32_t count,
     State &s=state(); if (!s.tracking.load(std::memory_order_acquire)) return false;
     Guard g(s); if (!g.held) return false;
     if (writer && s.active && s.draw.vu==vu && s.draw.kind==kind)
+    {
+#if TS_BG_FAST
+        const uint32_t first=s.draw.top+24;
+        if (vi>=first && vi-first<sizeof(s.draw.byVertex))
+        {
+            const uint32_t encoded=s.draw.byVertex[vi-first];
+            if (encoded && encoded<=s.draw.count)
+            {
+                const auto &slot=s.draw.strips[encoded-1];
+                if (slot.vi==vi && slot.count==count && slot.binding!=kNoBinding)
+                {
+                    WriteContext context{&s.bindings[slot.binding],writer,user};
+                    if (s.loader.withView(s.pack.generation,&writeStrip,&context) && context.done)
+                    { ++s.stats.matchedStrips; s.stats.matchedVertices+=count; return true; }
+                }
+            }
+        }
+#else
         for (uint32_t i=0;i<s.draw.count;++i)
         {
             const auto &slot=s.draw.strips[i];
@@ -403,6 +557,8 @@ bool xboxBgWithStrip(uint32_t kind,const uint8_t *vu,uint32_t vi,uint32_t count,
             { ++s.stats.matchedStrips; s.stats.matchedVertices+=count; return true; }
             break;
         }
+#endif
+    }
     ++s.stats.fallbackStrips; return false;
 }
 bool xboxBgGetStats(XboxBgRuntimeStats &out)

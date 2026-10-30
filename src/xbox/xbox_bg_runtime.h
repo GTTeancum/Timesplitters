@@ -38,6 +38,8 @@ struct XboxBgRuntimeStats
     uint64_t matchedStrips = 0, matchedVertices = 0, fallbackStrips = 0;
     uint64_t boundStrips = 0, verifiedStrips = 0, verifiedVertices = 0;
     uint64_t geometryDiffs = 0, invalidations = 0, observedUnpacks = 0;
+    uint64_t bindingCacheHits = 0, bindingSearches = 0;
+    uint64_t provenanceFastRanges = 0, provenanceRowChecks = 0;
     uint32_t level = 0, packBytes = 0, bindingBytes = 0;
     bool active = false;
 };

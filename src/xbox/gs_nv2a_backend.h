@@ -107,6 +107,11 @@ struct GSNv2aLookupStats
     uint32_t oldHits = 0, oldNew = 0, oldConflicts = 0, oldVersions = 0;
     // Transform-constant rows rebuilt with a new value, rows sent to the GPU.
     uint32_t constRows = 0, constUploads = 0;
+    // Exact material-to-register reuse, and pack identities reused after
+    // GPU texture-record eviction. Source entries are invalidated by GS
+    // page writes; these counters do not claim a measured frame-time gain.
+    uint32_t drawKeyHits = 0, drawKeyMisses = 0;
+    uint32_t packSourceHits = 0, packSourceMisses = 0, packSourceInvalidations = 0;
 };
 GSNv2aLookupStats nv2aLookupStats();
 

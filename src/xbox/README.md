@@ -13,12 +13,26 @@ time. A complete playable disc also needs the game's own files in
 `project/game-data` and the PS2 disc image at `project/disc/TimeSplitters.iso`
 (neither is in git).
 
+The preferred development target is now:
+
+```sh
+bash src/xbox/build.sh optimized
+```
+
+It selects native background geometry and the compiler header cache, builds
+the Xbox executable, and requires both converted asset outputs:
+`build/xbox/iso/native-bg/` and `build/xbox/iso/textures.xtp`. Missing source
+archives or a skipped texture conversion fail this target. Keep both outputs
+beside `default.xbe`, together with the original `game-data/` and
+`ps2disc.iso`. This target does not package the original data or make a disc.
+
 ### Windows / MSYS2
 
 The default SDK location is `C:\nxdk`. The script enters MSYS2's CLANG64
 environment when needed:
 
     bash src/xbox/build.sh
+    bash src/xbox/build.sh optimized                       # geometry + textures + XBE
     bash src/xbox/build.sh xbe                             # executable only
     bash src/xbox/build.sh AUTOPLAY=src/xbox/test/arcade-match.pad   # test disc
 
@@ -29,28 +43,46 @@ directory, select that directory with `NXDK_LLVM_BIN`:
 
 ```sh
 NXDK_DIR=/path/to/nxdk NXDK_LLVM_BIN=/usr/lib/llvm-18/bin \
-  bash src/xbox/build.sh xbe -j6 TS_GEN_PCH=1
+  bash src/xbox/build.sh optimized -j6
 ```
 
-This creates the same Xbox executable at `build/xbox/iso/default.xbe`.
-It does not create a Linux version of the game. The `xbe` target compiles
-the shaders and game, links the Xbox program and converts it to XBE without
-copying the original assets or building a disc image. Omit `xbe` to build
-the complete disc once the private assets are available.
+This creates the Xbox executable at `build/xbox/iso/default.xbe` and its
+converted geometry and texture packs. Use `xbe -j6 TS_GEN_PCH=1` instead
+when only an executable is needed: that target compiles the shaders and
+game, links the Xbox program and converts it to XBE without staging assets.
+Omit the target to build the complete disc once the private assets are
+available. These Linux commands produce the Xbox version.
 
 `TS_GEN_PCH=1` reuses the compiler's work on common headers for generated
 game functions. It affects build time only. Files with a different include
 order keep their original compilation path, and the two optimization
-settings use separate caches. It defaults to `0`; omit the option to use
-the original compilation route. Header or flag changes rebuild the cache.
+settings use separate caches. It defaults to `1` for `optimized` and `0`
+otherwise. Header or flag changes rebuild the cache.
 `NXDK_LIB_DIR` can point to a separate set of built SDK libraries when the
 SDK's headers and tools are being reused read-only.
 
-The native background path remains opt-in. Append `TS_BG_NATIVE=1` to
-build it, and `TS_BG_VERIFY=1` when preparing a build that checks its live
-geometry. See [NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md)
-for pack placement and behavior. Neither option enables this path in a PC
-build.
+`optimized` selects `TS_BG_NATIVE=1`; ordinary `xbe` and disc builds retain
+`TS_BG_NATIVE=0` unless explicitly enabled. Add `TS_BG_VERIFY=1` when
+preparing a build that compares the converted geometry with live vertices.
+It adds diagnostic work and should be off for eventual speed comparisons.
+
+The following independent Xbox optimization switches default to `1`. Set
+one to `0` to compile its previous path for a comparison; the Makefile
+rebuilds its consumers when the switch changes.
+
+| Switch | Work reused or reduced |
+| --- | --- |
+| `TS_BG_FAST` | Background source lookups, validated provenance ranges, strip selection and vertex copies; applies when native backgrounds are enabled. |
+| `TS_VIF_FAST` | Repeated UNPACK size calculations and contiguous 32-bit vector copy loops. |
+| `TS_NV2A_MATERIAL_CACHE` | Derived NV2A material registers for exactly matching material inputs. |
+| `TS_NV2A_PACK_IDENTITY_CACHE` | Texture-pack lookup identities across texture cache eviction, invalidated by writes to the source pages. |
+
+These paths preserve live colors, transforms, texture residency and draw
+ordering. They do not bypass the complete PS2 DMA/VIF pipeline. See
+[NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md) for deployment
+and the exact boundaries. Development continues with cloud compilation
+while the console and XEMU are unavailable; target execution and FPS are
+still separate, uncompleted checks.
 
 ### Disc and texture output
 
@@ -82,6 +114,21 @@ game assertion) is logged with its cause.
 
 ## Current build verification (2026-10-30)
 
+The optimization batch based on `b31f409` connects the faster geometry,
+VIF, material and texture identity paths and adds the `optimized` target.
+Both the optimized and comparison Xbox executables compiled, linked and
+converted successfully with the real target tools. The optimized XBE is
+11,583,488 bytes; the comparison with all four new switches disabled is
+11,571,200 bytes. Both include native background support. The optimized
+target also rebuilt all 27 geometry packs and a 2,254-texture pack.
+
+Exact configurations and hashes are recorded in
+[NATIVE-GEOMETRY-CHECKPOINT.md](NATIVE-GEOMETRY-CHECKPOINT.md). No new whole-XBE
+static inspection, console/XEMU execution, rendering result or FPS
+improvement is claimed for this batch.
+
+### Previous complete build batch (2026-10-30)
+
 The complete Xbox executable has been compiled, linked and converted to XBE
 in the Linux cloud with the real NXDK toolchain. Standard, native-background
 and native-background verification configurations were built separately.
@@ -89,7 +136,7 @@ The standard XBE is 11,546,624 bytes; each enabled XBE is 11,571,200 bytes.
 The source hashes, configurations and checks are recorded in
 [NATIVE-GEOMETRY-CHECKPOINT.md](NATIVE-GEOMETRY-CHECKPOINT.md).
 
-These new executables have not been run on an Xbox or in an emulator.
+Those earlier executables were not run on an Xbox or in an emulator.
 The execution measurements below belong to the earlier baseline.
 
 ## Earlier execution baseline (2026-10-02)

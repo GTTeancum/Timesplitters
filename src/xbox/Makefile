@@ -47,6 +47,14 @@ TS_VU1_RECOMPILED ?= 0
 GENVU_SRCS := $(if $(filter 1,$(TS_VU1_RECOMPILED)),$(wildcard $(GENVU)/*.cpp))
 XBOX      := $(CURDIR)
 
+# The optimized target keeps the executable and its converted private assets
+# together. It selects native geometry and the compiler header cache; ordinary
+# xbe/all targets retain their explicit background opt-in for comparisons.
+ifneq ($(filter optimized,$(MAKECMDGOALS)),)
+TS_BG_NATIVE ?= 1
+TS_GEN_PCH ?= 1
+endif
+
 # Optional build-speed aid for generated functions with the exact common
 # include prefix. The default keeps the existing Windows compilation route.
 TS_GEN_PCH ?= 0
@@ -61,6 +69,17 @@ endif
 # ordering remain the same when their input is an Xbox-generated source copy.
 TS_BG_NATIVE ?= 0
 TS_BG_VERIFY ?= 0
+TS_BG_FAST ?= 1
+TS_VIF_FAST ?= 1
+TS_NV2A_MATERIAL_CACHE ?= 1
+TS_NV2A_PACK_IDENTITY_CACHE ?= 1
+OPT_SWITCHES := TS_BG_FAST TS_VIF_FAST TS_NV2A_MATERIAL_CACHE TS_NV2A_PACK_IDENTITY_CACHE
+$(foreach v,$(OPT_SWITCHES),$(if $(filter 1,$(words $($(v)))),$(if $(filter 0 1,$($(v))),,$(error $(v) must be 0 or 1)),$(error $(v) must be 0 or 1)))
+ifneq ($(filter optimized,$(MAKECMDGOALS)),)
+ifneq ($(TS_BG_NATIVE),1)
+$(error optimized requires TS_BG_NATIVE=1; use xbe for an original-geometry comparison)
+endif
+endif
 ifneq ($(TS_BG_NATIVE),0)
 ifneq ($(TS_BG_NATIVE),1)
 $(error TS_BG_NATIVE must be 0 or 1)
@@ -90,6 +109,14 @@ else
 BG_NATIVE_GAME_SOURCE := $(GAME)/vu1_native_ts.cpp
 BG_NATIVE_VIF_SOURCE := $(RUNTIME)/src/lib/ps2_vif1_interpreter.cpp
 BG_NATIVE_MEMORY_SOURCE := $(RUNTIME)/src/lib/ps2_memory.cpp
+endif
+
+# Compose the fast decoder after the optional source-provenance observations.
+# Neither patcher ever edits the shared PS2 runtime source.
+VIF_FAST_INPUT := $(BG_NATIVE_VIF_SOURCE)
+VIF_FAST_COPY := $(OUT)/gen/vif/ps2_vif1_interpreter.cpp
+ifeq ($(TS_VIF_FAST),1)
+BG_NATIVE_VIF_SOURCE := $(VIF_FAST_COPY)
 endif
 
 CXX  := sh $(XBOX)/tools/nxdk-cxx-hosted
@@ -338,6 +365,15 @@ else
 $(BG_NATIVE_GAME_COPY) $(BG_NATIVE_VIF_COPY) $(BG_NATIVE_MEMORY_COPY):
 endif
 
+ifeq ($(TS_VIF_FAST),1)
+$(VIF_FAST_COPY): $(VIF_FAST_INPUT) $(XBOX)/tools/patch_vif_fast.py $(XBOX)/xbox_vif_fast.h $(OUT)/gen/bg_native.flags
+	@mkdir -p $(dir $@)
+	@echo "[ VIF FAST] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_vif_fast.py $< $@
+else
+$(VIF_FAST_COPY):
+endif
+
 $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function_table.py
 	@mkdir -p $(dir $@)
 	@echo "[ TABLE   ] $@"
@@ -434,12 +470,23 @@ $(RENDER_COUNTERS_OBJS): RUNTIME_FLAGS += -DTS_RENDER_COUNTERS=$(TS_RENDER_COUNT
 # Rebuild every consumer on enable/disable or verification changes. Generated
 # copies are never selected when disabled, even if a previous build left them.
 BG_NATIVE_STAMP := $(OUT)/gen/bg_native.flags
-BG_NATIVE_FLAGS := -DTS_BG_NATIVE=$(TS_BG_NATIVE) -DTS_BG_VERIFY=$(TS_BG_VERIFY)
+BG_NATIVE_FLAGS := -DTS_BG_NATIVE=$(TS_BG_NATIVE) -DTS_BG_VERIFY=$(TS_BG_VERIFY) -DTS_BG_FAST=$(TS_BG_FAST)
 $(BG_NATIVE_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(BG_NATIVE_FLAGS)' ] || echo '$(BG_NATIVE_FLAGS)' > $@
 $(BG_NATIVE_OBJS): $(BG_NATIVE_STAMP)
 $(BG_NATIVE_OBJS): RUNTIME_FLAGS += $(BG_NATIVE_FLAGS)
+
+# Keep the optimization switches scoped to the actual consumers. A switch
+# change rebuilds those objects even when a generated copy already exists.
+XBOX_OPT_STAMP := $(OUT)/gen/optimizations.flags
+XBOX_OPT_FLAGS := -DTS_VIF_FAST=$(TS_VIF_FAST) -DTS_NV2A_MATERIAL_CACHE=$(TS_NV2A_MATERIAL_CACHE) -DTS_NV2A_PACK_IDENTITY_CACHE=$(TS_NV2A_PACK_IDENTITY_CACHE)
+XBOX_OPT_OBJS := $(BG_NATIVE_VIF_OBJ) $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/src/xbox/xbox_main.obj
+$(XBOX_OPT_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(XBOX_OPT_FLAGS)' ] || echo '$(XBOX_OPT_FLAGS)' > $@
+$(XBOX_OPT_OBJS): $(XBOX_OPT_STAMP)
+$(XBOX_OPT_OBJS): RUNTIME_FLAGS += $(XBOX_OPT_FLAGS)
 
 # make TS_NATIVE_CAPTURE=1: record bounded native VU1 draw inputs for the
 # Xbox-layout geometry converter. Off by default; the normal build registers
@@ -602,11 +649,19 @@ textures: $(XTP_DEP)
 backgrounds: $(BG_NATIVE_ASSET_DEP)
 	@$(if $(BG_NATIVE_ASSET_DEP),,rm -rf $(BG_NATIVE_ASSET_DIR))
 
+# Unlike xbe, this target requires the converted geometry and textures too.
+# An absent archive fails as a missing prerequisite; a skipped texture build
+# cannot leave an apparently complete optimized output.
+optimized: $(OUT)/iso/default.xbe $(XTP) $(BG_NATIVE_MANIFEST)
+	@test -s "$(XTP)" || { echo "optimized: texture conversion requires Python with numpy and Pillow (set XTP_PYTHON)" >&2; exit 2; }
+	@echo "[ OPTIMIZED] default.xbe, native-bg/ and textures.xtp in $(OUT)/iso"
+	@echo "[ OPTIMIZED] Keep these with the original game-data/ and ps2disc.iso."
+
 clean:
 	rm -rf $(OUT)
 
 vuflags:
 	@echo $(CXX) $(GEN_FLAGS) -O2
-.PHONY: all xbe runtime generated textures backgrounds clean FORCE vuflags
+.PHONY: all xbe optimized runtime generated textures backgrounds clean FORCE vuflags
 FORCE:
 -include $(GEN_OBJS:.obj=.d) $(OTHER_OBJS:.obj=.d)

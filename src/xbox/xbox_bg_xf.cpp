@@ -6,6 +6,10 @@
 #include <cstring>
 #include <limits>
 
+#ifndef TS_BG_FAST
+#define TS_BG_FAST 1
+#endif
+
 namespace
 {
     static_assert(sizeof(GSXfVertex) == 44 && offsetof(GSXfVertex, color) == 24 &&
@@ -30,9 +34,22 @@ namespace
         const uint32_t color = uint32_t(rgba[8]) | (uint32_t(rgba[4]) << 8) |
                                (uint32_t(rgba[0]) << 16) | (uint32_t(rgba[12]) << 24);
         uint8_t *dest = reinterpret_cast<uint8_t *>(out);
+#if TS_BG_FAST && TS_NATIVE_XF_SSE
+        // SSE1 only (Pentium III): 16 + 8 + 4 + 16 bytes, in memory order.
+        // No destination read, source overread, write past this 44-byte
+        // record, or dependence on the pack's original mutable colour.
+        _mm_storeu_ps(reinterpret_cast<float *>(dest),
+                     _mm_loadu_ps(reinterpret_cast<const float *>(packed)));
+        _mm_storel_pi(reinterpret_cast<__m64 *>(dest + 16u),
+                     _mm_loadl_pi(_mm_setzero_ps(), reinterpret_cast<const __m64 *>(packed + 16u)));
+        std::memcpy(dest + 24u, &color, 4u);
+        _mm_storeu_ps(reinterpret_cast<float *>(dest + 28u),
+                     _mm_loadu_ps(reinterpret_cast<const float *>(packed + 28u)));
+#else
         std::memcpy(dest, packed, 24u);
         std::memcpy(dest + 24u, &color, 4u);
         std::memcpy(dest + 28u, packed + 28u, 16u);
+#endif
     }
 
     struct Write
@@ -57,7 +74,11 @@ namespace
         GSXfVertex *out = job.out;
         if (cursor.join)
         {
+#if TS_BG_FAST
+            ts_native_xf::copyXfVertex(out, cursor.last);
+#else
             std::memcpy(out, &cursor.last, sizeof(cursor.last));
+#endif
             writeVertex(out + 1, packed, job.colors);
             out += 2;
         }
@@ -65,7 +86,11 @@ namespace
             writeVertex(out + i, packed + size_t(i) * 44u, job.colors + i * 16u);
         const uint32_t last = job.count - 1u;
         writeVertex(&cursor.last, packed + size_t(last) * 44u, job.colors + last * 16u);
+#if TS_BG_FAST
+        ts_native_xf::copyXfVertex(out + last, cursor.last);
+#else
         std::memcpy(out + last, &cursor.last, sizeof(cursor.last));
+#endif
         cursor.next = out + job.count;
         cursor.join = true;
         ++cursor.strips;

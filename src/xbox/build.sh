@@ -2,6 +2,7 @@
 # Build the Xbox version using MSYS2 CLANG64 or a native Linux nxdk toolchain.
 #   src/xbox/build.sh            build everything (default.xbe + TimeSplitters.iso)
 #   src/xbox/build.sh xbe        compile/link default.xbe without staging a disc
+#   src/xbox/build.sh optimized  native-geometry XBE plus geometry/texture packs
 #   src/xbox/build.sh runtime    compile only the runtime / platform objects
 #   src/xbox/build.sh -j8 ...    extra make arguments are passed through
 # Linux: set NXDK_DIR to an already built SDK. NXDK_LLVM_BIN optionally selects

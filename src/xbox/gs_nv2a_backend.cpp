@@ -63,6 +63,18 @@
 #ifndef TS_GPU_RANGE_MEMO
 #define TS_GPU_RANGE_MEMO 1
 #endif
+// Reuse the derived NV2A material registers across draws. Cached records own
+// no texture pointers; the current texture and window clip are attached only
+// after the exact material inputs match.
+#ifndef TS_NV2A_MATERIAL_CACHE
+#define TS_NV2A_MATERIAL_CACHE 1
+#endif
+// Remember which pack entry an unchanged GS texture decoded to, independently
+// of its GPU cache record. Exact page-write invalidation lets an evicted
+// texture return from the pack without another decode or content hash.
+#ifndef TS_NV2A_PACK_IDENTITY_CACHE
+#define TS_NV2A_PACK_IDENTITY_CACHE 1
+#endif
 // TS_CLUT_IDENTITY 1: full CLUT loads are found by identity (CBP, format and
 // GS page versions -> the content hash; 24 bytes an entry) and the CPU
 // renderer's CLUT buffer is filled only when something reads it; 0: the
@@ -476,7 +488,9 @@ std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &s)
                << " miss new/conf/ver/other=" << s.clutNew << "/" << s.clutConflicts << "/" << s.clutVersions << "/"
                << s.clutOther << " old hit/new/conf/ver=" << s.oldHits << "/" << s.oldNew << "/" << s.oldConflicts
                << "/" << s.oldVersions << " fill=" << s.clutFills << " cdiff=" << s.clutDiffs << " krows=" << s.constRows
-               << " kup=" << s.constUploads;
+               << " kup=" << s.constUploads << " matkey=" << s.drawKeyHits << "/" << s.drawKeyMisses
+               << " packsrc=" << s.packSourceHits << "/" << s.packSourceMisses
+               << " inv=" << s.packSourceInvalidations;
 }
 
 // Guest RAM, for the local player count (TS_NV2A_MP_TEXTURE_BUDGET).
@@ -501,6 +515,9 @@ struct GSNv2aBackend::Impl
 
     void bumpPages(const GSCpuBackend::VramRange &range)
     {
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        invalidatePackSources(range);
+#endif
         ++pageEpoch;
         if (range.end == UINT64_MAX || range.end > kPageCount * kPageBytes)
         {
@@ -1073,7 +1090,9 @@ struct GSNv2aBackend::Impl
         // Consecutive draws mostly share a texture: remember the last hit.
         const uint64_t tex0Bits = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
                                   (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
-        if (lastTexture && lastTex0 == tex0Bits && lastTexa == texa && lastClut == hash && lastVersions == versions &&
+        const bool packDue = lastTexture && lastTexture->packEntry >= 0 && !lastTexture->pooled &&
+                             frameNumber >= lastTexture->packRetryFrame;
+        if (lastTexture && !packDue && lastTex0 == tex0Bits && lastTexa == texa && lastClut == hash && lastVersions == versions &&
             lastTexture->width == w && lastTexture->height == h)
         {
             lastTexture->lastUse = ++textureTick;
@@ -1324,14 +1343,34 @@ struct GSNv2aBackend::Impl
 #if TS_TEXTURE_INDEX
         t.indexTag = tag;
 #endif
+        const bool packed = pack.enabled() && !renderTarget(range);
+        bool knownPackSource = false;
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        int knownPackEntry = -1;
+        if (packed && findPackSource(t, knownPackEntry))
+        {
+            knownPackSource = true;
+            if (knownPackEntry >= 0)
+            {
+                ++g_nv2aTextureStats.packHits;
+                if (usePack(t, knownPackEntry))
+                {
+                    Texture &added = addTexture(t);
+                    noteUse(added);
+                    return &added;
+                }
+            }
+            else
+                ++g_nv2aTextureStats.packMisses;
+        }
+#endif
 #if TS_NV2A_TEXTURE_STREAM
         // Decoded once when it fits the scratch (TexelPlan), else streamed.
-        const bool packed = pack.enabled() && !renderTarget(range);
         TexelPlan plan;
-        beginTexels(state, t, packed, plan);
+        beginTexels(state, t, packed && !knownPackSource, plan);
         // The pack's copy when it has this texture (render targets and
         // screen copies are never looked up, as on the PC).
-        if (packed)
+        if (packed && !knownPackSource)
             if (Texture *pooled = packTexture(t, plan.key))
                 return pooled;
         // The CPU renderer's texture flush where the second decode took it.
@@ -1344,7 +1383,7 @@ struct GSNv2aBackend::Impl
             decoded.assign(size_t(w) * h, 0u);
         // The pack's copy when it has this texture (render targets and
         // screen copies are never looked up, as on the PC).
-        if (whole && pack.enabled() && !renderTarget(range))
+        if (whole && packed && !knownPackSource)
             if (Texture *pooled = packTexture(t))
                 return pooled;
         encodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
@@ -1417,6 +1456,117 @@ struct GSNv2aBackend::Impl
     uint8_t *packPool = nullptr;
     std::vector<int> packEvicted;
 
+#if TS_NV2A_PACK_IDENTITY_CACHE
+    // A source identity is independent of a Texture record's lifetime and of
+    // a pack slot's residency. No GPU address is retained here. Every page
+    // write clears the exact affected slots through a reverse page mask;
+    // palette/TEXA changes require a different complete source key.
+    struct PackSourceKey
+    {
+        uint64_t clut;
+        uint32_t tbp0, tbw, psm, width, height, cpsm, csm, csa, texa;
+        bool operator==(const PackSourceKey &) const = default;
+    };
+    struct PackSource
+    {
+        PackSourceKey key{};
+        GSCpuBackend::VramRange range{};
+        int entry = -1; // a remembered miss also avoids a repeat content hash
+        uint32_t lastUse = 0;
+    };
+    static constexpr uint32_t kPackSourceSets = 32u, kPackSourceWays = 2u;
+    static constexpr uint32_t kPackSources = kPackSourceSets * kPackSourceWays;
+    static_assert(kPackSources == 64u, "one page mask covers the source table");
+    std::array<PackSource, kPackSources> packSources{};
+    std::array<uint64_t, kPageCount> packSourcePages{};
+    uint64_t packSourceValid = 0;
+    uint32_t packSourceTick = 0;
+
+    static PackSourceKey packSourceKey(const Texture &t)
+    {
+        const bool indexed = isIndexed(t.psm);
+        return {t.clutHash, t.tbp0, t.tbw, t.psm, t.width, t.height,
+                indexed ? t.cpsm : 0u, indexed ? t.csm : 0u, indexed ? t.csa : 0u, t.texa};
+    }
+
+    static uint32_t packSourceSet(const PackSourceKey &k)
+    {
+        const uint32_t hash = (k.tbp0 * 0x9E3779B1u) ^ (k.width * 0x85EBCA6Bu) ^
+                              (k.height * 0xC2B2AE35u) ^ (k.psm << 18) ^ k.texa ^
+                              uint32_t(k.clut) ^ uint32_t(k.clut >> 32);
+        return (hash >> 27) * kPackSourceWays;
+    }
+
+    void invalidatePackSources(const GSCpuBackend::VramRange &range)
+    {
+        if (packSourceValid == 0u)
+            return;
+        uint64_t invalid = 0;
+        if (range.end == UINT64_MAX || range.end > kPageCount * kPageBytes)
+        {
+            invalid = packSourceValid;
+            packSourcePages.fill(0u);
+        }
+        else
+            for (uint64_t p = range.begin / kPageBytes;
+                 p < (range.end + kPageBytes - 1u) / kPageBytes && p < kPageCount; ++p)
+                invalid |= packSourcePages[p];
+        invalid &= packSourceValid;
+        packSourceValid &= ~invalid;
+        for (; invalid; invalid &= invalid - 1u)
+            ++s_lookupStats.packSourceInvalidations;
+    }
+
+    bool findPackSource(const Texture &t, int &entry)
+    {
+        const PackSourceKey key = packSourceKey(t);
+        const uint32_t first = packSourceSet(key);
+        for (uint32_t i = first; i < first + kPackSourceWays; ++i)
+            if ((packSourceValid & (1ull << i)) && packSources[i].key == key)
+            {
+                packSources[i].lastUse = ++packSourceTick;
+                entry = packSources[i].entry;
+                ++s_lookupStats.packSourceHits;
+                return true;
+            }
+        ++s_lookupStats.packSourceMisses;
+        return false;
+    }
+
+    void rememberPackSource(const Texture &t, int entry)
+    {
+        // TextureRange may conservatively cover the whole VRAM for an
+        // unsupported layout. Those inputs keep the original decode path.
+        if (t.range.begin >= t.range.end || t.range.end > kPageCount * kPageBytes)
+            return;
+        const PackSourceKey key = packSourceKey(t);
+        const uint32_t first = packSourceSet(key);
+        uint32_t slot = first;
+        for (uint32_t i = first; i < first + kPackSourceWays; ++i)
+        {
+            if (!(packSourceValid & (1ull << i)) || packSources[i].key == key)
+            {
+                slot = i;
+                break;
+            }
+            if (packSources[i].lastUse < packSources[slot].lastUse)
+                slot = i;
+        }
+        const uint64_t bit = 1ull << slot;
+        PackSource &source = packSources[slot];
+        // Remove old reverse links even if a previous page write already
+        // invalidated this slot, before its bit is reused for another range.
+        for (uint64_t p = source.range.begin / kPageBytes;
+             p < (source.range.end + kPageBytes - 1u) / kPageBytes && p < kPageCount; ++p)
+            packSourcePages[p] &= ~bit;
+        source = {key, t.range, entry, ++packSourceTick};
+        for (uint64_t p = t.range.begin / kPageBytes;
+             p < (t.range.end + kPageBytes - 1u) / kPageBytes; ++p)
+            packSourcePages[p] |= bit;
+        packSourceValid |= bit;
+    }
+#endif
+
     // Only when Create gives up on the GPU: the software renderer gets the
     // pool's memory back (once the loader has stopped writing into it).
     ~Impl()
@@ -1431,6 +1581,9 @@ struct GSNv2aBackend::Impl
     // memory, or the loader) everything runs as before.
     void openTexturePack()
     {
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        invalidatePackSources({0, UINT64_MAX});
+#endif
         if (!pack.open(kTexturePackPath))
             return;
         packPool = static_cast<uint8_t *>(allocGpu(kTexturePoolBytes));
@@ -1551,6 +1704,9 @@ struct GSNv2aBackend::Impl
     Texture *packTexture(Texture &t)
     {
         const int index = pack.find(gs_texture_hash::hash(decoded.data(), t.width, t.height));
+#endif
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        rememberPackSource(t, index);
 #endif
         if (index < 0)
         {
@@ -2163,6 +2319,49 @@ struct GSNv2aBackend::Impl
 #endif
         bool operator==(const DrawKey &) const = default;
     };
+#if TS_NV2A_MATERIAL_CACHE
+    // Only inputs read by buildMaterialKey. Neither a texture's address nor
+    // frame mapping belongs to this record: they are attached to its result
+    // afresh. Field equality, rather than a hash match, admits a cache hit.
+    struct MaterialInput
+    {
+        uint64_t alpha = 0, test = 0;
+        uint32_t fbmsk = 0, wrap = 0, flags = 0, levels = 0;
+        bool operator==(const MaterialInput &) const = default;
+    };
+    struct MaterialRecord
+    {
+        MaterialInput input{};
+        DrawKey key{}; // texture is always null; viewport clip is not cached
+        uint32_t lastUse = 0;
+        bool valid = false;
+    };
+    static constexpr uint32_t kMaterialSets = 32u, kMaterialWays = 2u;
+    std::array<MaterialRecord, kMaterialSets * kMaterialWays> materials{};
+    uint32_t lastMaterial = UINT32_MAX, materialTick = 0;
+
+    static MaterialInput materialInput(const GSDrawState &state, const Texture *tex)
+    {
+        const bool sixteen = state.context.frame.psm == GS_PSM_CT16 || state.context.frame.psm == GS_PSM_CT16S;
+        const uint32_t flags = uint32_t(state.prim.tme) | (uint32_t(state.prim.abe) << 1) |
+                               (uint32_t(state.prim.iip) << 2) | (uint32_t(state.context.zbuf.zmask) << 3) |
+                               (uint32_t(sixteen) << 4) |
+                               (uint32_t(state.linearFilter || (tex && tex->forceLinear)) << 5) |
+                               (uint32_t(tex != nullptr) << 6) | (uint32_t(tex && tex->unitAlpha) << 7) |
+                               (uint32_t(state.context.tex0.tfx) << 8) | (uint32_t(state.context.tex0.tcc) << 16);
+        return {state.context.alpha, state.context.test, state.context.frame.fbmsk,
+                uint32_t(state.context.clamp & 15u), flags, tex ? tex->levels : 0u};
+    }
+
+    static uint32_t materialSet(const MaterialInput &input)
+    {
+        uint32_t hash = uint32_t(input.alpha) ^ (uint32_t(input.alpha >> 32) * 0x85EBCA6Bu);
+        hash = (hash ^ uint32_t(input.test) ^ uint32_t(input.test >> 32)) * 0x9E3779B1u;
+        hash = (hash ^ input.fbmsk ^ (input.wrap << 24)) * 0x85EBCA6Bu;
+        hash = (hash ^ input.flags ^ (input.levels << 27)) * 0xC2B2AE35u;
+        return (hash >> 27) * kMaterialWays;
+    }
+#endif
     DrawKey applied{};
     bool stateValid = false;
     DrawKey batchKey{};
@@ -2694,7 +2893,7 @@ struct GSNv2aBackend::Impl
         (void)blendFactor;
     }
 
-    DrawKey keyFor(const GSDrawState &state, const Texture *tex)
+    DrawKey buildMaterialKey(const GSDrawState &state, const Texture *tex)
     {
         DrawKey k;
         k.texture = tex;
@@ -2741,7 +2940,65 @@ struct GSNv2aBackend::Impl
                       ((fbmsk & bMask) != bMask ? NV097_SET_COLOR_MASK_BLUE_WRITE_ENABLE : 0u) |
                       ((fbmsk & aMask) != aMask ? NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE : 0u);
         k.shade = state.prim.iip ? NV097_SET_SHADE_MODEL_SMOOTH : NV097_SET_SHADE_MODEL_FLAT;
+        return k;
+    }
+
+    DrawKey keyFor(const GSDrawState &state, const Texture *tex, bool verify = false)
+    {
+#if TS_NV2A_MATERIAL_CACHE
+        const MaterialInput input = materialInput(state, tex);
+        uint32_t slot = lastMaterial;
+        bool hit = slot < materials.size() && materials[slot].valid && materials[slot].input == input;
+        if (!hit)
+        {
+            const uint32_t first = materialSet(input);
+            slot = first;
+            for (uint32_t i = first; i < first + kMaterialWays; ++i)
+            {
+                if (materials[i].valid && materials[i].input == input)
+                {
+                    slot = i;
+                    hit = true;
+                    break;
+                }
+                if (!materials[i].valid || materials[i].lastUse < materials[slot].lastUse)
+                    slot = i;
+            }
+        }
+        MaterialRecord &record = materials[slot];
+        if (!hit)
+        {
+            record.input = input;
+            record.key = buildMaterialKey(state, tex);
+            record.key.texture = nullptr;
+            record.valid = true;
+            ++s_lookupStats.drawKeyMisses;
+        }
+        else
+            ++s_lookupStats.drawKeyHits;
+        record.lastUse = ++materialTick;
+        lastMaterial = slot;
+        DrawKey k = record.key;
+        k.texture = tex;
+        if (verify || TS_NV2A_SELFCHECK)
+        {
+            const DrawKey full = buildMaterialKey(state, tex);
+            if (!(k == full))
+            {
+                noteDrawDiff("material key", slot, input.flags);
+                k = full;
+                record.key = full;
+                record.key.texture = nullptr;
+            }
+        }
+#else
+        (void)verify;
+        DrawKey k = buildMaterialKey(state, tex);
+#endif
 #if TS_NV2A_SCISSOR
+        // The frame mapping and portal scissor can change while the same
+        // material repeats. Resolve them on every call through clipFor's
+        // existing mapping-aware cache, after the material lookup.
         clipFor(state.context.scissor, k.clipX, k.clipY);
 #endif
         return k;
@@ -3152,7 +3409,7 @@ struct GSNv2aBackend::Impl
         checkRun = c.check != 0u;
         const Texture *tex = state.prim.tme ? texture(state) : nullptr;
         checkRun = false;
-        DrawKey key = keyFor(state, tex);
+        DrawKey key = keyFor(state, tex, c.check != 0u);
         key.vertexMode = 1u + c.variant;
         key.topology = state.prim.iip ? 1u : 0u; // flat shading needs the list's vertex order
 #if TS_NV2A_SCISSOR

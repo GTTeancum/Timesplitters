@@ -210,7 +210,10 @@ namespace
                       << " strips/verts=" << bg.matchedStrips << "/" << bg.matchedVertices
                       << " fallback=" << bg.fallbackStrips << " diff=" << bg.geometryDiffs
                       << " reject=" << bg.sourceRejects << "/" << bg.loadRejects
-                      << " invalid=" << bg.invalidations << std::endl;
+                      << " invalid=" << bg.invalidations
+                      << " lookup hit/search=" << bg.bindingCacheHits << "/" << bg.bindingSearches
+                      << " provenance range/row=" << bg.provenanceFastRanges << "/" << bg.provenanceRowChecks
+                      << std::endl;
 #endif
     }
 
@@ -309,6 +312,12 @@ int main()
     xboxPerfWrapGif(rt.gifArbiter(), rt.gs()); // TS_PERF_BACKEND: GIF packets timed (else nothing)
     nv2aSetGuestRam(rt.memory().getRDRAM()); // the player count: split screen's texture budget
     logMemory("runtime initialised");
+
+    std::cout << "[TS:opt] background=" << TS_BG_NATIVE
+              << " geometry-fast=" << TS_BG_FAST << " vif-fast=" << TS_VIF_FAST
+              << " material-cache=" << TS_NV2A_MATERIAL_CACHE
+              << " texture-identity=" << TS_NV2A_PACK_IDENTITY_CACHE
+              << " geometry-verify=" << TS_BG_VERIFY << std::endl;
 
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";
     if (!rt.loadELF(elf))

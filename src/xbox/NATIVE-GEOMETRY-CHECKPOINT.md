@@ -7,11 +7,107 @@ graphics-data work. Publish to `main` only and change repository files inside
 `src/xbox/` only. No Codex service, Dot or user-PC operation.
 
 “Continue TimeSplitters” means verify current `main` and resume a substantial
-implementation/verification batch. Keep chat updates short. This batch used
-three agents for native capture, importer integration and texture loading,
-with cross-review and combined host verification.
+implementation/verification batch. Keep chat updates short. Runtime, gameplay
+proof and build verification were developed in parallel with cross-review.
+Earlier capture/import and texture work is retained below.
 
-## Current state — 2026-10-30 Eastern
+## Current state — runtime integration, 2026-10-30 Eastern
+
+Batch baseline: `111ad7aff01bad404cb07a1cf2bfcb3e233e3b69`.
+The optional source-derived background path is implemented and connected to
+the existing Xbox native renderer. `TS_BG_NATIVE=0` remains the default
+until full target rendering and performance validation. Enable it with
+`make TS_BG_NATIVE=1`; `TS_BG_VERIFY=1` additionally checks current VU
+geometry before accepting each source-bound strip. Details and deployment:
+[NATIVE-BACKGROUND-RUNTIME.md](NATIVE-BACKGROUND-RUNTIME.md).
+
+The level loader owns one CPU pack and a sorted source lookup index under
+an explicit combined 4 MiB dynamic budget. It validates exact pristine raw
+bytes before texture-handle fixups, verifies source descriptors and geometry,
+and activates only the same level/allocation/length. Lifecycle hooks revoke
+ownership across reloads and known source writes. A missed/contended source
+event latches full revocation; it cannot later reactivate an old prepared
+identity at a reused address. The loader pins bytes through each synchronous
+writer callback and uses fallible allocation.
+
+Xbox-only build copies observe validated segmented VIF UNPACK sources and
+invalidate stale provenance on unsupported writes, every VU execution,
+direct EE VU writes and reset. Exact original tag/position/vector addresses,
+current full tags and every source row identify supported Plain/EnvMap
+strips. Colors always come from current VU lanes. The two native vertex
+write sites use the adapter with untouched original fallback. Material
+application, constants, GIF order, clipping, flat shading and existing GPU
+ring fences remain the original path. No source pack is directly GPU-owned.
+
+### Runtime verification completed
+
+- Full source corpus: all 27 levels prepared/activated; 17,999 batches,
+  128,970 strips and 611,121 vertices accepted. Both flat and joined writes
+  matched the unchanged production scalar decoder after every live color
+  channel was changed. Zero source/load rejects, fallback strips or geometry
+  differences. Inputs here are independently reconstructed canonical VU
+  rows with original guest addresses, not a gameplay capture.
+- All levels fit the dynamic budget. Largest: level 17, 3,662,472 pack bytes
+  plus 484,512 index bytes = 4,146,984 bytes. Tomb 26 uses 553,696 bytes.
+  Fixed runtime state and host harness allocations are outside those figures.
+- Combined initial suite: 96 tests passed normally (16.598 s) and under
+  ASan/UBSan (30.638 s). Review then found and fixed contended source-event
+  revocation. The final eight binding test groups passed in both verification
+  modes normally (4.47 s) and under ASan/UBSan (7.71 s), including the added
+  reentrant lifetime regression. Current discovery contains 97 tests.
+  After the gameplay filename correction, the final hook test passed normally
+  (0.737 s), under ASan/UBSan (1.401 s), and against the real runtime headers.
+  Leak detection was disabled; no LeakSanitizer coverage is claimed.
+- Real NXDK compile gate: 16 translation-unit/configuration checks passed
+  with Clang 18.1.3, `i386-pc-win32`, Pentium III, real NXDK headers and the
+  production prelude. Every object is x86 COFF `0x014c`. This covers the
+  three patched sources, five adapters, Xbox main and capture adapter with
+  feature/verification/capture on, plus normal and disabled runtime branches.
+  Only the changed runtime unit was recompiled after the lifecycle fix,
+  followed by the two affected game-hook configurations after the filename
+  fix. The complete reports retain the other successful records.
+
+### Actual segmented-DMA gameplay proof
+
+A private cloud Linux build ran four-player arcade Tomb (level 26) using
+the original input script, native VU CPU rendering, the Xbox segmented DMA
+walker and `TS_BG_VERIFY=1`. Private build copies enabled the relevant DMA
+guards without globally defining the Xbox platform. Source preparation and
+activation hooks ran on the original game flow; no synthetic binding was
+injected. Viewed gameplay frames show four active viewports and HUDs.
+
+The first run exposed a strict filename mismatch: the original game retains
+`host0:bg/levelN/levelN.raw` in its preload table. The shorter archive name
+never prepared a source, so that run provided no binding comparison coverage.
+The hook now requires the original prefixed name; regression cases reject
+bare, `host1:` and `cdrom0:` names.
+
+The corrected run reached its configured 240-second watchdog (240.389 s
+elapsed). It prepared and activated level 26 once, retained the expected
+491,392-byte pack plus 62,304-byte index, and reported:
+
+- 7,146,305 source-bound strip comparisons across repeated gameplay draws.
+- 33,756,260 verified vertex comparisons, with zero geometry differences.
+- Zero source or load rejections; the source was still active at shutdown.
+- 58,284,602 observed UNPACKs and 7,463 segmented DMA chains, with zero
+  batch overflows.
+
+The game logged its normal watchdog stop and final counters. The surrounding
+`xvfb-run` process returned 5 because its temporary-directory cleanup failed
+after the game exited; this wrapper cleanup limitation is retained in the
+private evidence. The host CPU renderer declines raw GPU submissions, so
+`matchedStrips` and `matchedVertices` are zero in this run. These results
+establish live source binding and geometry verification; writer output is
+covered separately by the full-source decoder comparisons above.
+
+The final audited runtime SHA-256 is
+`c15559bd2ef261a6374317f110edfd376e161e66668dab62d3e255fa3e269578`.
+Private evidence includes `bg-binding-corpus-audit.json` and the target
+compile reports, plus the failed initial and corrected gameplay runs in
+`TimeSplitters-Xbox-background-runtime-2026-10-30.zip`. No linked XBE, NV2A
+rendering or Xbox FPS result is claimed.
+
+## Source conversion and first capture — 2026-10-30 Eastern
 
 Batch baseline: `7a841360ff54dfd92845547b6ec24873c6139541`.
 The private original game image was obtained and matched the project's
@@ -283,23 +379,19 @@ linking, gameplay or visual fidelity. Sanitizers cover compiled C++ probes,
 not the Python interpreter. Source inspection/publication uses the GitHub API;
 read-only shared source references are not publication inputs.
 
-## Next concrete work after source conversion
+## Next concrete work after runtime integration
 
 1. Verify actual current `main` and retain all newer work and scope.
 2. Reuse the verified private source packs, gameplay capture and audit package.
    The source inputs and first real recording no longer need to be requested.
-3. Bind the exact source level/room/part/variant/descriptor to loaded assets
-   and their generations. The original part path can use precalculated,
-   relit double-buffered or per-frame REF streams; preserve their live data.
-4. Add the Xbox-local adapter with original-path fallback, keeping transforms,
-   texture/CLUT/flush effects, vertex-queue behavior, portal/order/material
-   state, clipping, memory budget and GPU lifetimes correct.
-5. Resolve unmatched/unsupported inputs through provenance, without treating
+3. Link/build the Xbox title and validate real rendering, level transitions,
+   memory headroom and capture-disabled/verification-disabled performance.
+4. Resolve unmatched/unsupported inputs through provenance, without treating
    matching hashes or the degenerate triangle as permission to skip work.
-6. Build and validate the target, compare real visuals and measure
-   capture-disabled Xbox performance.
+5. Extend accelerated source coverage only when measured fallback counts and
+   target profiles justify it, preserving the original path for every miss.
 
-The source background converter is implemented; no runtime mesh cache, GPU
-allocation or geometry replacement is activated. Camera, lighting, materials, animation, collision,
-clipping, strip joining, flat shading and ordering remain the existing path's
+The source converter and opt-in runtime adapter are implemented. Default
+builds retain the original decoder. Camera, lighting, materials, animation,
+collision, clipping, flat shading and ordering remain the existing path's
 responsibility. Keep private captures/reports/assets out of public commits.

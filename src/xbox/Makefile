@@ -28,6 +28,42 @@ TS_VU1_RECOMPILED ?= 0
 GENVU_SRCS := $(if $(filter 1,$(TS_VU1_RECOMPILED)),$(wildcard $(GENVU)/*.cpp))
 XBOX      := $(CURDIR)
 
+# Source-derived background vertices remain opt-in until target validation.
+# Keep the original object names: their optimisation/counter flags and link
+# ordering remain the same when their input is an Xbox-generated source copy.
+TS_BG_NATIVE ?= 0
+TS_BG_VERIFY ?= 0
+ifneq ($(TS_BG_NATIVE),0)
+ifneq ($(TS_BG_NATIVE),1)
+$(error TS_BG_NATIVE must be 0 or 1)
+endif
+endif
+ifneq ($(TS_BG_VERIFY),0)
+ifneq ($(TS_BG_VERIFY),1)
+$(error TS_BG_VERIFY must be 0 or 1)
+endif
+endif
+BG_NATIVE_GAME_OBJ := $(OBJ)/project/game/vu1_native_ts.obj
+BG_NATIVE_VIF_OBJ := $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj
+BG_NATIVE_MEMORY_OBJ := $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj
+BG_NATIVE_ROUTED_OBJS := $(BG_NATIVE_GAME_OBJ) $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_MEMORY_OBJ)
+BG_NATIVE_VU_OBJ := $(OBJ)/src/xbox/xbox_bg_vu.obj
+BG_NATIVE_ADAPTER_OBJS := $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,\
+    xbox_bg_game xbox_bg_loader xbox_bg_runtime xbox_bg_vu xbox_bg_xf))
+BG_NATIVE_OBJS := $(BG_NATIVE_ROUTED_OBJS) $(BG_NATIVE_ADAPTER_OBJS) $(OBJ)/src/xbox/xbox_main.obj
+BG_NATIVE_GAME_COPY := $(OUT)/gen/bg/vu1_native_ts.cpp
+BG_NATIVE_VIF_COPY := $(OUT)/gen/bg/ps2_vif1_interpreter.cpp
+BG_NATIVE_MEMORY_COPY := $(OUT)/gen/bg/ps2_memory.cpp
+ifeq ($(TS_BG_NATIVE),1)
+BG_NATIVE_GAME_SOURCE := $(BG_NATIVE_GAME_COPY)
+BG_NATIVE_VIF_SOURCE := $(BG_NATIVE_VIF_COPY)
+BG_NATIVE_MEMORY_SOURCE := $(BG_NATIVE_MEMORY_COPY)
+else
+BG_NATIVE_GAME_SOURCE := $(GAME)/vu1_native_ts.cpp
+BG_NATIVE_VIF_SOURCE := $(RUNTIME)/src/lib/ps2_vif1_interpreter.cpp
+BG_NATIVE_MEMORY_SOURCE := $(RUNTIME)/src/lib/ps2_memory.cpp
+endif
+
 CXX  := $(XBOX)/tools/nxdk-cxx-hosted
 CC   := nxdk-cc
 LINK := nxdk-link
@@ -157,6 +193,7 @@ FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)
                      $(OBJ)/project/game/ts_native_math.obj $(OBJ)/project/game/ts_native_fp.obj \
                      $(OBJ)/project/game/ts_native_game.obj $(OBJ)/project/game/ts_native_game2.obj \
                      $(OBJ)/project/game/ts_native_game3.obj \
+                     $(OBJ)/src/xbox/xbox_bg_runtime.obj $(OBJ)/src/xbox/xbox_bg_xf.obj \
                      $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj \
@@ -180,11 +217,45 @@ $(GEN_OBJS): $(OBJ)/%.obj: $(ROOT)/%.cpp
 	@$(CXX) $(GEN_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
 	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
 
-$(OTHER_OBJS): $(OBJ)/%.obj: $(ROOT)/%.cpp
+$(filter-out $(BG_NATIVE_ROUTED_OBJS),$(OTHER_OBJS)): $(OBJ)/%.obj: $(ROOT)/%.cpp
 	@mkdir -p $(dir $@)
 	@echo "[ CXX     ] $(subst $(ROOT)/,,$<)"
 	@$(CXX) $(RUNTIME_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $<
 	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
+
+$(BG_NATIVE_GAME_OBJ): $(BG_NATIVE_GAME_SOURCE)
+$(BG_NATIVE_GAME_OBJ): BG_COMPILE_SOURCE := $(BG_NATIVE_GAME_SOURCE)
+$(BG_NATIVE_VIF_OBJ): $(BG_NATIVE_VIF_SOURCE)
+$(BG_NATIVE_VIF_OBJ): BG_COMPILE_SOURCE := $(BG_NATIVE_VIF_SOURCE)
+$(BG_NATIVE_MEMORY_OBJ): $(BG_NATIVE_MEMORY_SOURCE)
+$(BG_NATIVE_MEMORY_OBJ): BG_COMPILE_SOURCE := $(BG_NATIVE_MEMORY_SOURCE)
+$(BG_NATIVE_ROUTED_OBJS): RUNTIME_FLAGS += -I$(GAME) -I$(XBOX)
+$(BG_NATIVE_ROUTED_OBJS):
+	@mkdir -p $(dir $@)
+	@echo "[ CXX     ] $(subst $(ROOT)/,,$(BG_COMPILE_SOURCE))"
+	@$(CXX) $(RUNTIME_FLAGS) -MD -MP -MT $@ -MF $(@:.obj=.d) -c -o $@ $(BG_COMPILE_SOURCE)
+	@sed -i '1s|^\([A-Za-z]\):/|/\L\1/|' $(@:.obj=.d)
+
+ifeq ($(TS_BG_NATIVE),1)
+$(BG_NATIVE_GAME_COPY): $(GAME)/vu1_native_ts.cpp $(XBOX)/tools/patch_bg_native.py
+	@mkdir -p $(dir $@)
+	@echo "[ BG PATCH] $(notdir $@)"
+	@python $(XBOX)/tools/patch_bg_native.py $< $@
+
+$(BG_NATIVE_VIF_COPY): $(RUNTIME)/src/lib/ps2_vif1_interpreter.cpp $(XBOX)/tools/patch_bg_runtime.py
+	@mkdir -p $(dir $@)
+	@echo "[ BG PATCH] $(notdir $@)"
+	@python $(XBOX)/tools/patch_bg_runtime.py vif $< $@
+
+$(BG_NATIVE_MEMORY_COPY): $(RUNTIME)/src/lib/ps2_memory.cpp $(XBOX)/tools/patch_bg_runtime.py
+	@mkdir -p $(dir $@)
+	@echo "[ BG PATCH] $(notdir $@)"
+	@python $(XBOX)/tools/patch_bg_runtime.py memory $< $@
+else
+# An old .d may name an enabled build's source copy. Switching off must not
+# run a patcher (or fail on a removed copy); the object compiles its original.
+$(BG_NATIVE_GAME_COPY) $(BG_NATIVE_VIF_COPY) $(BG_NATIVE_MEMORY_COPY):
+endif
 
 $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function_table.py
 	@mkdir -p $(dir $@)
@@ -279,6 +350,16 @@ $(RENDER_COUNTERS_STAMP): FORCE
 $(RENDER_COUNTERS_OBJS): $(RENDER_COUNTERS_STAMP)
 $(RENDER_COUNTERS_OBJS): RUNTIME_FLAGS += -DTS_RENDER_COUNTERS=$(TS_RENDER_COUNTERS)
 
+# Rebuild every consumer on enable/disable or verification changes. Generated
+# copies are never selected when disabled, even if a previous build left them.
+BG_NATIVE_STAMP := $(OUT)/gen/bg_native.flags
+BG_NATIVE_FLAGS := -DTS_BG_NATIVE=$(TS_BG_NATIVE) -DTS_BG_VERIFY=$(TS_BG_VERIFY)
+$(BG_NATIVE_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(BG_NATIVE_FLAGS)' ] || echo '$(BG_NATIVE_FLAGS)' > $@
+$(BG_NATIVE_OBJS): $(BG_NATIVE_STAMP)
+$(BG_NATIVE_OBJS): RUNTIME_FLAGS += $(BG_NATIVE_FLAGS)
+
 # make TS_NATIVE_CAPTURE=1: record bounded native VU1 draw inputs for the
 # Xbox-layout geometry converter. Off by default; the normal build registers
 # the original callback directly. Rename registration ONLY in the native game
@@ -304,9 +385,12 @@ NATIVE_CAPTURE_FLAGS := -DTS_NATIVE_CAPTURE=$(TS_NATIVE_CAPTURE) \
 $(NATIVE_CAPTURE_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_CAPTURE_FLAGS)' ] || echo '$(NATIVE_CAPTURE_FLAGS)' > $@
-$(NATIVE_CAPTURE_GAME_OBJ) $(NATIVE_CAPTURE_ADAPTER_OBJ): $(NATIVE_CAPTURE_STAMP)
+$(NATIVE_CAPTURE_GAME_OBJ) $(NATIVE_CAPTURE_ADAPTER_OBJ) $(BG_NATIVE_VU_OBJ): $(NATIVE_CAPTURE_STAMP)
 $(NATIVE_CAPTURE_ADAPTER_OBJ): RUNTIME_FLAGS += $(NATIVE_CAPTURE_FLAGS)
-ifeq ($(TS_NATIVE_CAPTURE),1)
+$(BG_NATIVE_VU_OBJ): RUNTIME_FLAGS += -DTS_NATIVE_CAPTURE=$(TS_NATIVE_CAPTURE)
+ifeq ($(TS_BG_NATIVE),1)
+$(NATIVE_CAPTURE_GAME_OBJ): RUNTIME_FLAGS += -DregisterVu1NativeProgram=xboxBgRegisterVu1NativeProgram
+else ifeq ($(TS_NATIVE_CAPTURE),1)
 $(NATIVE_CAPTURE_GAME_OBJ): RUNTIME_FLAGS += -DregisterVu1NativeProgram=xboxRegisterVu1NativeProgram
 endif
 
@@ -395,30 +479,50 @@ $(XTP): $(MISC_PAK) $(XBOX)/tools/xtpbuild.py $(XTP_STAMP)
 	    "$$py" $(XBOX)/tools/xtpbuild.py $(XTP_FLAGS) $< $@; \
 	fi
 
+# Optional source-derived geometry, built only under build/ from the user's
+# original archives. The converter validates every selected level and MISC
+# texture binding before replacing its outputs; the manifest is published last.
+BG_PAK ?= $(ROOT)/project/game-data/PAK/BG.PAK
+BG_NATIVE_ASSET_DIR := $(OUT)/iso/native-bg
+BG_NATIVE_MANIFEST := $(BG_NATIVE_ASSET_DIR)/manifest.json
+BG_NATIVE_ASSET_STAMP := $(OUT)/gen/bg_native_assets.flags
+BG_NATIVE_ASSET_FLAGS := native=$(TS_BG_NATIVE) bg=$(BG_PAK) misc=$(MISC_PAK)
+BG_NATIVE_ASSET_DEP := $(if $(filter 1,$(TS_BG_NATIVE)),$(if $(wildcard $(BG_PAK)),$(BG_NATIVE_MANIFEST)))
+$(BG_NATIVE_ASSET_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(BG_NATIVE_ASSET_FLAGS)' ] || echo '$(BG_NATIVE_ASSET_FLAGS)' > $@
+
+$(BG_NATIVE_MANIFEST): $(BG_PAK) $(MISC_PAK) $(XBOX)/tools/xbgbuild.py $(BG_NATIVE_ASSET_STAMP)
+	@echo "[ XBG     ] $(BG_NATIVE_ASSET_DIR)"
+	@python $(XBOX)/tools/xbgbuild.py build $(BG_PAK) $(BG_NATIVE_ASSET_DIR) --misc-pak $(MISC_PAK)
+
 # The disc carries the game's own files from project/game-data (not in git).
 # make AUTOPLAY=<pad script>: the disc plays that controller script (tests).
 AUTOPLAY ?=
 
-$(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso $(XTP_DEP) FORCE
+$(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso $(XTP_DEP) $(BG_NATIVE_ASSET_DEP) FORCE
 	@echo "[ XISO    ] $@"
 	@$(if $(XTP_DEP),,echo "[ XTP     ] skipped: no $(MISC_PAK); runtime textures only" && rm -f $(XTP))
+	@$(if $(BG_NATIVE_ASSET_DEP),,rm -rf $(BG_NATIVE_ASSET_DIR))
 	@rm -f $(OUT)/iso/autoplay.pad
 	@$(if $(AUTOPLAY),cp $(AUTOPLAY) $(OUT)/iso/autoplay.pad)
 	@rm -rf $(OUT)/iso/game-data && cp -r $(ROOT)/project/game-data $(OUT)/iso/game-data
 	@rm -rf $(OUT)/iso/game-data/mc0 $(OUT)/iso/game-data/mc1
 	@cd $(OUT) && $(XISO) -c iso TimeSplitters.iso > /dev/null
 
-# Compile one group only, e.g. make runtime / make generated / make textures
+# Compile one group only, e.g. make runtime / generated / textures / backgrounds
 runtime: $(OTHER_OBJS)
 generated: $(GEN_OBJS)
 textures: $(XTP_DEP)
 	@$(if $(XTP_DEP),,echo "[ XTP     ] skipped: no $(MISC_PAK)")
+backgrounds: $(BG_NATIVE_ASSET_DEP)
+	@$(if $(BG_NATIVE_ASSET_DEP),,rm -rf $(BG_NATIVE_ASSET_DIR))
 
 clean:
 	rm -rf $(OUT)
 
 vuflags:
 	@echo $(CXX) $(GEN_FLAGS) -O2
-.PHONY: all runtime generated textures clean FORCE vuflags
+.PHONY: all runtime generated textures backgrounds clean FORCE vuflags
 FORCE:
 -include $(GEN_OBJS:.obj=.d) $(OTHER_OBJS:.obj=.d)

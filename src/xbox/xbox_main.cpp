@@ -6,6 +6,7 @@
 //   D:\ps2disc.iso            the PS2 disc image: the game reads its directory
 //                             sectors itself, as on the PC build
 //   D:\textures.xtp           prebuilt textures (optional; xbox_texture_pack.h)
+//   D:\native-bg\levelN.xbg   preconverted background geometry (TS_BG_NATIVE)
 // Writable data on the hard disk:
 //   E:\TimeSplitters\mc0\     memory card 1
 //   E:\TimeSplitters\timesplitters.log
@@ -14,6 +15,8 @@
 #include "xbox_log.h"
 #include "xbox_hwprof.h"
 #include "xbox_perf.h"
+#include "xbox_bg_game.h"
+#include "xbox_bg_runtime.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
@@ -199,6 +202,16 @@ namespace
 #endif
         renderCountersReport(); // [TS:render] (project/game/ts_render_counters.cpp)
         std::cout << "[TS:tex] " << nv2aLookupStats() << std::endl;
+#if TS_BG_NATIVE
+        XboxBgRuntimeStats bg;
+        if (xboxBgGetStats(bg))
+            std::cout << "[TS:bg] level=" << bg.level << " active=" << bg.active
+                      << " pack/bind=" << bg.packBytes / 1024u << "/" << bg.bindingBytes / 1024u << "K"
+                      << " strips/verts=" << bg.matchedStrips << "/" << bg.matchedVertices
+                      << " fallback=" << bg.fallbackStrips << " diff=" << bg.geometryDiffs
+                      << " reject=" << bg.sourceRejects << "/" << bg.loadRejects
+                      << " invalid=" << bg.invalidations << std::endl;
+#endif
     }
 
     // std::chrono on nxdk: check the clocks advance like the kernel timer.
@@ -300,6 +313,10 @@ int main()
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";
     if (!rt.loadELF(elf))
         halt("could not load D:\\game-data\\SLUS_200.90");
+#if TS_BG_NATIVE
+    xboxBgConfigure("D:\\native-bg", 4u * 1024u * 1024u);
+    xboxBgInstallGameHooks(rt);
+#endif
     logMemory("game loaded");
 
     PS2Runtime::IoPaths paths = PS2Runtime::getIoPaths();

@@ -279,12 +279,16 @@ HOOK = '''#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2
                     (void)probe; (void)source; (void)format; (void)mode;
 #endif
                 };
+                // This stock observer updates metadata only: it never
+                // reads intermediate VU rows or invokes a guest/GS callback.
+                // Preserve remains the public API default for other callers.
                 return xboxVifRecordTryPrefix(chain, ram, context.first,
                                                context.memory->vif1_regs,
                                                context.memory->getVU1Data(),
                                                match, observe, &probe,
                                                context.bytes, context.vectors, context.commands,
-                                               context.sourceScope);
+                                               context.sourceScope,
+                                               XboxVifRecordWritePolicy::FinalState);
             };
             if (xboxDrawRecordWithChain(m_rdram, context.first, consume, &context))
             {

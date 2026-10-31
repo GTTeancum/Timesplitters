@@ -344,6 +344,26 @@ bool XboxVifSourceScope::array(const uint8_t *vu, uint32_t row, uint32_t count, 
     return true;
 }
 
+bool xboxVifSourceTryReadRow(const uint8_t *vu, uint32_t row, void *out)
+{
+    if (!vu || !out || row >= 1024u) return false;
+    XboxVifSourceScope *source = activeSource(vu);
+    if (!source) return false;
+    const uint8_t *input = nullptr;
+    uint32_t stride = 0;
+    if (!source->array(vu, row, 1u, false, input, stride) ||
+        (stride != 12u && stride != 16u)) return false;
+    // Do not reinterpret V3's following record as W, or normalize any float
+    // bits. The omitted lane belongs to the fully materialized VU image.
+    uint8_t value[16];
+    std::memcpy(value, input, 12u);
+    std::memcpy(value + 12u, stride == 16u ? input + 12u : vu + row * 16u + 12u, 4u);
+    if (!source->active(vu)) return false;
+    std::memcpy(out, value, sizeof(value));
+    ++state.stats.readRows;
+    return true;
+}
+
 bool xboxVifSourceTryDecodeStrip(uint32_t kind, const uint8_t *vu, uint32_t vi,
                                 uint32_t count, GSXfVertex *out)
 {
@@ -365,6 +385,8 @@ bool xboxVifSourceTryWriteJoinedStrip(uint32_t kind, GSXfCursor &cursor,
     if (!source) return false;
     Arrays arrays;
     if (!cursor.direct || !prepare(*source, kind, vu, vi, count, arrays) ||
+        cursor.strips == std::numeric_limits<uint32_t>::max() ||
+        cursor.vertices > std::numeric_limits<uint32_t>::max() - count ||
         !room(cursor, count + (cursor.join ? 2u : 0u)) || !source->active(vu))
     { ++state.stats.rejected; return false; }
     joined(kind, cursor, arrays, count);
@@ -391,8 +413,14 @@ bool xboxVifSourceTryWriteGroup(uint32_t kind, GSXfCursor &cursor, const uint8_t
             return miss();
         vertices += strips[i].count;
     }
-    const uint32_t required = cursor.direct ? vertices + 2u * (count - (cursor.join ? 0u : 1u))
-                                            : 3u * (vertices - 2u * count);
+    if (cursor.strips > std::numeric_limits<uint32_t>::max() - count ||
+        cursor.vertices > std::numeric_limits<uint32_t>::max() - vertices) return miss();
+    uint32_t required = cursor.direct ? vertices + 2u * (count - (cursor.join ? 0u : 1u))
+                                      : 3u * (vertices - 2u * count);
+    // The original per-strip path reserves n + 2 even for an unjoined first
+    // strip. Retain that growth boundary rather than consuming a short tail.
+    if (cursor.direct && required < strips[0].count + 2u)
+        required = strips[0].count + 2u;
     if (!room(cursor, required) || !source->active(vu)) return miss();
     // Complete admission precedes the first write. These loops invoke no
     // renderer, allocator, callback, or guest code while sources are lent.

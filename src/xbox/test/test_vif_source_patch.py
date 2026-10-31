@@ -41,6 +41,9 @@ class SourceNativePatcherTests(unittest.TestCase):
                     restored = patched.removeprefix(source_route.GENERATED)
                     restored = restored.replace(source_route.ADAPTER_INCLUDE, '', 1)
                     restored = restored.replace(source_route.NATIVE_SCOPE, '', 1)
+                    restored = restored.replace(source_route.LOAD_V_SOURCE, source_route.LOAD_V, 1)
+                    restored = restored.replace(source_route.LOAD_I_SOURCE, source_route.LOAD_I, 1)
+                    self.assertEqual(patched.count(source_route.READ_GUARD), 2)
                     for call, attempt in (
                             (source_route.JOINED_CALL,
                              'xboxVifSourceTryWriteJoinedStrip(kind, cursor, data, vi, n)'),
@@ -74,7 +77,8 @@ class SourceNativePatcherTests(unittest.TestCase):
         for bg in (False, True):
             source = background.patch_source(original) if bg else original
             indent = ' ' * (20 if bg else 16)
-            anchors = [source_route.INCLUDE, source_route.RUN, source_route.ELIGIBILITY,
+            anchors = [source_route.INCLUDE, source_route.RUN, source_route.LOAD_V,
+                       source_route.LOAD_I, source_route.ELIGIBILITY,
                        source_route.GROUP_OPEN, source_route.GROUP_CLOSE,
                        indent + source_route.JOINED_CALL + '\n',
                        indent + source_route.FLAT_CALL + '\n',

@@ -1,6 +1,6 @@
 #pragma once
 // One decoder invocation may lend the immediately following fast native
-// draw its exact live UNPACK sources. Every original VU write still runs.
+// draw its exact live UNPACK sources. Final VU state remains materialized.
 #include <cstdint>
 
 #ifndef TS_VIF_SOURCE
@@ -83,6 +83,14 @@ private:
     XboxVifSourceScope *source_ = nullptr;
 };
 
+// A single complete row for native loadV/loadI, only during the claimed
+// synchronous draw. V4-32 reads all lanes from its current source; V3-32
+// keeps the untouched W lane from the materialized VU image. Compact,
+// partial, wrapped, skipped and unbound rows retain the original reader.
+// out addresses 16 writable bytes. False leaves them untouched. No borrowed
+// pointer escapes. Diagnostic native readers deliberately do not use this.
+bool xboxVifSourceTryReadRow(const uint8_t *vu, uint32_t row, void *out);
+
 struct XboxVifSourceStripSpan { uint32_t vi = 0, count = 0; };
 inline constexpr uint32_t kXboxVifSourceMaxStrips = 24u;
 
@@ -96,7 +104,7 @@ bool xboxVifSourceTryWriteGroup(uint32_t kind, GSXfCursor &cursor, const uint8_t
 struct XboxVifSourceStats
 {
     uint64_t prefixes = 0, armed = 0, claims = 0, rejected = 0;
-    uint64_t groups = 0, strips = 0, vertices = 0;
+    uint64_t groups = 0, strips = 0, vertices = 0, readRows = 0;
     uint32_t busy = 0;
 };
 bool xboxVifSourceGetStats(XboxVifSourceStats &out);

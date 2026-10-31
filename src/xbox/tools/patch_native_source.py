@@ -24,6 +24,37 @@ NATIVE_SCOPE = '''#if TS_VIF_SOURCE && TS_DRAW_RECORDS && !TS_NATIVE_CAPTURE
                                                   vuData, dataSize, top, PS2Memory::onVif1Worker());
 #endif
 '''
+LOAD_V = '''    inline V4 loadV(const uint8_t *d, uint32_t q)
+    {
+        V4 v;
+        std::memcpy(&v, d + (q & (kDataQwords - 1u)) * 16u, 16);
+        return v;
+    }
+'''
+LOAD_I = '''    inline void loadI(const uint8_t *d, uint32_t q, uint32_t out[4]) { std::memcpy(out, d + (q & (kDataQwords - 1u)) * 16u, 16); }
+'''
+# Keep diagnostic readers independent from the source-backed path. The
+# existing source claim already excludes capture; this guard makes all
+# three diagnostic selections explicit at both raw read sites as well.
+READ_GUARD = '#if TS_VIF_SOURCE && TS_DRAW_RECORDS && !TS_NATIVE_DRAW_SELFCHECK && !TS_NATIVE_RING_SELFCHECK && !TS_NATIVE_CAPTURE\n'
+LOAD_V_SOURCE = '''    inline V4 loadV(const uint8_t *d, uint32_t q)
+    {
+        V4 v;
+''' + READ_GUARD + '''        if (xboxVifSourceTryReadRow(d, q & (kDataQwords - 1u), &v))
+            return v;
+#endif
+        std::memcpy(&v, d + (q & (kDataQwords - 1u)) * 16u, 16);
+        return v;
+    }
+'''
+LOAD_I_SOURCE = '''    inline void loadI(const uint8_t *d, uint32_t q, uint32_t out[4])
+    {
+''' + READ_GUARD + '''        if (xboxVifSourceTryReadRow(d, q & (kDataQwords - 1u), out))
+            return;
+#endif
+        std::memcpy(out, d + (q & (kDataQwords - 1u)) * 16u, 16);
+    }
+'''
 JOINED_CALL = 'ts_native_xf::writeJoinedStrip(kind, cursor, data, vi, n);'
 FLAT_CALL = 'ts_native_xf::decodeXfStrip(kind, data, vi, n, list);'
 GROUP_LINES = ('for (uint32_t k = i; k < j; ++k)', '    gpuStrip(strips[k]);')
@@ -100,10 +131,13 @@ def patch_source(source: str) -> str:
     if '\x00' in source or source.startswith('\ufeff'):
         raise ValueError('unsupported source encoding')
     if any(marker in normalized for marker in
-           (GENERATED, ADAPTER_INCLUDE, 'xboxSourceNative', 'xboxSourceGroupWritten')):
+           (GENERATED, ADAPTER_INCLUDE, 'xboxSourceNative', 'xboxSourceGroupWritten',
+            'xboxVifSourceTryReadRow(')):
         raise ValueError('native source already has the Xbox VIF source adapter')
     require_once(normalized, 'native vertex include', INCLUDE)
     require_once(normalized, 'native entry', RUN)
+    require_once(normalized, 'native vector reader', LOAD_V)
+    require_once(normalized, 'native integer reader', LOAD_I)
     require_once(normalized, 'GPU eligibility', ELIGIBILITY)
     require_once(normalized, 'ordered accepted GPU run', GROUP_OPEN)
     require_once(normalized, 'GPU run end and original CPU fallback', GROUP_CLOSE)
@@ -129,6 +163,8 @@ def patch_source(source: str) -> str:
             require_once(normalized, f'XBG {label} guarded fallback', guard + fallback)
     normalized = normalized.replace(INCLUDE, INCLUDE + ADAPTER_INCLUDE)
     normalized = normalized.replace(RUN, RUN + NATIVE_SCOPE)
+    normalized = normalized.replace(LOAD_V, LOAD_V_SOURCE)
+    normalized = normalized.replace(LOAD_I, LOAD_I_SOURCE)
     normalized = normalized.replace(joined, strip_replacement(
         indent, JOINED_CALL, 'xboxVifSourceTryWriteJoinedStrip(kind, cursor, data, vi, n)'))
     normalized = normalized.replace(flat, strip_replacement(

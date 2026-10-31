@@ -2,6 +2,7 @@
 #include "runtime/ps2_memory.h"
 #include "xbox_vif_fast.h"
 #include "xbox_vif_source.h"
+#include "xbox_vif_write_plan.h"
 
 #if TS_DRAW_RECORDS
 #include <atomic>
@@ -12,6 +13,8 @@ namespace
 {
     constexpr uint32_t kMaxOperations = 64u;
     constexpr uint32_t kPlans = 8u;
+    static_assert(kMaxOperations == xbox_vif_write_plan::kMaxOperations,
+                  "write proof and command plan must share their bound");
 
     uint32_t read32(const uint8_t *p)
     {
@@ -39,7 +42,9 @@ namespace
         uint32_t count = 0, bytes = 0, vectors = 0;
         uint32_t terminalOffset = 0, terminalCode = 0;
         Operation operations[kMaxOperations];
-        bool valid = false;
+        xbox_vif_write_plan::Result writes;
+        uint32_t writeBase = 0, writeTops = 0;
+        bool writesValid = false, valid = false;
     };
     struct Cache
     {
@@ -136,7 +141,7 @@ namespace
     bool prepare(Plan &plan, const XboxDrawRecordChain &chain,
                  const uint8_t *ram, uint32_t first, uint32_t cycle, uint32_t mode)
     {
-        plan.valid = false;
+        plan.valid = plan.writesValid = false;
         plan.chainAddress = chain.chainAddress;
         plan.firstOffset = first;
         plan.cycle = cycle;
@@ -278,9 +283,41 @@ namespace
         }
     }
 
+    uint64_t finalWriteMask(Plan &plan, const uint8_t *ram,
+                            const uint8_t *vu, const VIFRegisters &regs,
+                            XboxVifRecordWritePolicy policy)
+    {
+        // Diagnostic/custom observers default to every original store. A
+        // caller opting in promises not to inspect intermediate VU data.
+        // Aliased RAM/VU/register storage cannot satisfy the read-free proof.
+        if (policy != XboxVifRecordWritePolicy::FinalState ||
+            !xbox_vif_write_plan::disjoint(vu, 16384u, ram, XboxDrawRecordChain::kRamBytes) ||
+            !xbox_vif_write_plan::disjoint(vu, 16384u, &regs, sizeof(regs)))
+            return ~uint64_t(0);
+        const uint32_t base = regs.base & 1023u, tops = regs.tops & 1023u;
+        if (!plan.writesValid || plan.writeBase != base || plan.writeTops != tops)
+        {
+            // The parent plan already keys initial cycle/mode and checks
+            // every command. BASE/TOPS are live per invocation, not part of
+            // that older key: never reuse a relative-address proof blindly.
+            plan.writes = xbox_vif_write_plan::analyze(plan.operations, plan.count,
+                                                      base, tops, regs.cycle, regs.mode);
+            plan.writeBase = base;
+            plan.writeTops = tops;
+            plan.writesValid = true;
+            ++cache.stats.writePlans;
+        }
+        else
+            ++cache.stats.writePlanHits;
+        cache.stats.omittedUploads += plan.writes.omittedUploads;
+        cache.stats.omittedVectors += plan.writes.omittedVectors;
+        cache.stats.omittedStoreBytes += plan.writes.omittedStoreBytes;
+        return plan.writes.keep;
+    }
+
     void execute(const Plan &plan, const uint8_t *ram, VIFRegisters &regs,
                   uint8_t *vu, XboxVifRecordObserve observe, void *user,
-                  XboxVifSourceScope *sourceScope)
+                  XboxVifSourceScope *sourceScope, uint64_t writeMask)
     {
 #if !TS_VIF_SOURCE
         (void)sourceScope;
@@ -303,6 +340,9 @@ namespace
                 if (sourceScope)
                     sourceScope->noteUnpack(dest, source, op.vectors, op.format, op.cl, op.wl);
 #endif
+                // Command registers, watched rows and both provenance paths
+                // see EVERY logical upload. Only its dead memory stores go.
+                if ((writeMask & (uint64_t(1) << i)) == 0u) continue;
                 if (op.format & 3u)
                 {
                     switch (op.format & 3u)
@@ -371,7 +411,8 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
                             uint8_t *vuData, XboxVifRecordMatch match,
                             XboxVifRecordObserve observe, void *user,
                             uint32_t &consumedBytes, uint32_t &vectors,
-                            uint32_t &commands, XboxVifSourceScope *sourceScope)
+                            uint32_t &commands, XboxVifSourceScope *sourceScope,
+                            XboxVifRecordWritePolicy writePolicy)
 {
     consumedBytes = vectors = commands = 0;
 #if TS_DRAW_RECORDS
@@ -424,10 +465,13 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
         ++cache.stats.rejected;
         return false;
     }
+    // No effects precede complete live-reader admission. The prefix has
+    // no VU reader; MSCAL remains in the original decoder after it returns.
+    const uint64_t writeMask = finalWriteMask(*plan, rdram, vuData, registers, writePolicy);
 #if TS_VIF_SOURCE
     if (sourceScope) sourceScope->beginPrefix(rdram, vuData);
 #endif
-    execute(*plan, rdram, registers, vuData, observe, user, sourceScope);
+    execute(*plan, rdram, registers, vuData, observe, user, sourceScope, writeMask);
 #if TS_VIF_SOURCE
     if (sourceScope)
         sourceScope->finishPrefix(rdram + plan->terminalOffset, plan->terminalCode,
@@ -443,7 +487,7 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
     return true;
 #else
     (void)chain; (void)rdram; (void)firstData; (void)registers; (void)vuData;
-    (void)match; (void)observe; (void)user; (void)sourceScope;
+    (void)match; (void)observe; (void)user; (void)sourceScope; (void)writePolicy;
     return false;
 #endif
 }

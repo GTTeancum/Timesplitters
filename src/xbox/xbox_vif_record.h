@@ -43,6 +43,15 @@ using XboxVifRecordObserve = void (*)(void *user, uint32_t dest, const uint8_t *
                                      uint32_t vectors, uint32_t format,
                                      uint32_t cl, uint32_t wl, uint32_t mode);
 
+// Preserve every intermediate write unless the caller explicitly guarantees
+// a metadata-only observer: no VU reads/writes, native/GS callbacks or changes
+// to registers, input bytes or reader state, and no concurrent VU reader.
+// FinalState may omit an upload only when later uploads replace ALL of
+// its written lanes in this prefix.
+// The complete 16 KiB VU image is current before MSCAL or any fallback; no
+// deferred pointer or restoration obligation escapes the function.
+enum class XboxVifRecordWritePolicy : uint8_t { Preserve, FinalState };
+
 // Admit a nonempty prefix with at least one UNPACK, ending just BEFORE an
 // MSCAL/MSCALF. No GS/VU-program callback runs here. Complete structural,
 // register-mode and live-reader admission precedes every register/VU write.
@@ -55,12 +64,15 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
                             uint8_t *vuData, XboxVifRecordMatch match,
                             XboxVifRecordObserve observe, void *user,
                             uint32_t &consumedBytes, uint32_t &vectors,
-                            uint32_t &commands, XboxVifSourceScope *sourceScope = nullptr);
+                            uint32_t &commands, XboxVifSourceScope *sourceScope = nullptr,
+                            XboxVifRecordWritePolicy writePolicy = XboxVifRecordWritePolicy::Preserve);
 
 struct XboxVifRecordStats
 {
     uint64_t attempts = 0, hits = 0, built = 0, rejected = 0;
     uint64_t prefixes = 0, commands = 0, vectors = 0, bytes = 0;
+    uint64_t writePlans = 0, writePlanHits = 0;
+    uint64_t omittedUploads = 0, omittedVectors = 0, omittedStoreBytes = 0;
     uint32_t busy = 0;
 };
 bool xboxVifRecordGetStats(XboxVifRecordStats &out);

@@ -15,6 +15,16 @@ class XboxVifSourceNativeScope;
 // or allocating another decoder record on its stack.
 void xboxVifSourceInvalidate();
 
+// Borrowed only within the owning synchronous native call. No view may
+// escape that scope. The format and extension flag describe source bytes,
+// not a copy of the expanded VU row.
+struct XboxVifSourceArray
+{
+    const uint8_t *data = nullptr;
+    uint32_t stride = 0, format = 0;
+    bool zeroExtend = false;
+};
+
 class XboxVifSourceScope
 {
 public:
@@ -25,7 +35,7 @@ public:
 
     void beginPrefix(const uint8_t *rdram, const uint8_t *vu);
     void noteUnpack(uint32_t dest, const uint8_t *source, uint32_t count,
-                    uint32_t format, uint32_t cl, uint32_t wl);
+                    uint32_t format, uint32_t cl, uint32_t wl, bool zeroExtend = false);
     void finishPrefix(const uint8_t *terminal, uint32_t code, uint32_t top);
     void command(const uint8_t *source, uint32_t code, uint32_t top);
 
@@ -33,17 +43,23 @@ public:
     // Every requested row must name this prefix's same last writer.
     bool array(const uint8_t *vu, uint32_t row, uint32_t count, bool color,
                const uint8_t *&source, uint32_t &stride) const;
+    // Bone selection reads only lane zero. Unlike floating-point vectors,
+    // that lane may use any standard mode-0 UNPACK width (including V4-5).
+    bool boneArray(const uint8_t *vu, uint32_t row, uint32_t count,
+                   XboxVifSourceArray &view) const;
     bool active(const uint8_t *vu) const;
+    bool active(const uint8_t *vu, uint32_t kind) const;
 
 private:
     friend class XboxVifSourceCallScope;
     friend class XboxVifSourceNativeScope;
+    friend bool xboxVifSourceTryReadRow(const uint8_t *, uint32_t, void *);
     enum Phase : uint8_t { Empty, Collecting, Armed, Command, Permit, Native, Spent };
     struct Upload
     {
         uint32_t offset;
         uint16_t dest, count;
-        uint8_t format, cl, wl, reserved;
+        uint8_t format, cl, wl, zeroExtend;
     };
     static constexpr uint32_t kUploads = 64u, kRows = 1024u;
     const uint8_t *rdram_ = nullptr, *vu_ = nullptr, *terminal_ = nullptr;
@@ -56,6 +72,8 @@ private:
     Upload uploads_[kUploads];
     uint16_t rows_[kRows];
     bool valid() const;
+    bool lookup(const uint8_t *vu, uint32_t row, uint32_t count,
+                XboxVifSourceArray &view) const;
 };
 
 // The permit encloses only fast.native(...), never fast.interpret or the
@@ -84,9 +102,10 @@ private:
 };
 
 // A single complete row for native loadV/loadI, only during the claimed
-// synchronous draw. V4-32 reads all lanes from its current source; V3-32
-// keeps the untouched W lane from the materialized VU image. Compact,
-// partial, wrapped, skipped and unbound rows retain the original reader.
+// synchronous draw. Standard 32/16/8-bit and V4-5 uploads are expanded with
+// their recorded sign/zero-extension rule. Scalar uploads broadcast; V2/V3
+// keep untouched upper lanes from the materialized VU image. Wrapped,
+// skipped and unbound rows retain the original reader.
 // out addresses 16 writable bytes. False leaves them untouched. No borrowed
 // pointer escapes. Diagnostic native readers deliberately do not use this.
 bool xboxVifSourceTryReadRow(const uint8_t *vu, uint32_t row, void *out);

@@ -9,7 +9,7 @@ namespace
 {
 bool exactRowsAndRevocation()
 {
-    for (uint32_t kind : {0u,1u}) for (uint32_t colors : {12u,13u,14u})
+    for (uint32_t kind : {0u,1u,2u,3u}) for (uint32_t colors : {12u,13u,14u})
     {
         const Fixture f = fixture(kind,7u,colors);
         XboxVifSourceScope scope(ram.data(),vu.data(),true);
@@ -21,14 +21,11 @@ bool exactRowsAndRevocation()
             for (const auto &u : f.uploads) for (uint32_t i=0;i<u.count;++i)
             {
                 out = unchanged;
-                const bool expected = u.format == 8u || u.format == 12u;
-                CHECK(xboxVifSourceTryReadRow(vu.data(),u.row+i,out.data()+1u) == expected);
-                if (expected)
-                {
-                    CHECK(std::memcmp(out.data()+1u,vu.data()+(u.row+i)*16u,16u)==0);
-                    CHECK(out.front()==0x6bu && out.back()==0x6bu);
-                }
-                else CHECK(out == unchanged); // Compact color signs must not be guessed.
+                // The upload's extension flag now makes compact color
+                // rows exact too; the legacy fixture uses signed expansion.
+                CHECK(xboxVifSourceTryReadRow(vu.data(),u.row+i,out.data()+1u));
+                CHECK(std::memcmp(out.data()+1u,vu.data()+(u.row+i)*16u,16u)==0);
+                CHECK(out.front()==0x6bu && out.back()==0x6bu);
             }
             out = unchanged;
             CHECK(!xboxVifSourceTryReadRow(vu.data(),1024u,out.data()+1u) && out == unchanged);
@@ -66,7 +63,8 @@ bool overwrittenAndSkippedRows()
         const Fixture f = fixture(0u);
         XboxVifSourceScope scope(ram.data(),vu.data(),true);
         collect(scope,f);
-        scope.noteUnpack(f.vi,ram.data()+0xb000u,1u,format,1u,1u); arm(scope,f);
+        // A latest writer with a skip cycle still cannot lend a row.
+        scope.noteUnpack(f.vi,ram.data()+0xb000u,1u,format,2u,1u); arm(scope,f);
         CHECK(inNative(scope,f,[&]() {
             std::array<uint8_t,16> value; value.fill(0x6bu); const auto before=value;
             CHECK(!xboxVifSourceTryReadRow(vu.data(),f.vi,value.data()) && value==before);

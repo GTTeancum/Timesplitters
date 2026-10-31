@@ -1,5 +1,9 @@
 # Xbox VIF final-state integration checkpoint
 
+Latest source follow-up: [VIF-SOURCE-LAYOUT-CHECKPOINT.md](VIF-SOURCE-LAYOUT-CHECKPOINT.md).
+The record below describes the earlier final-state batch; the follow-up
+adds qualifying Lit/Skinned draws and exact compact-row reads.
+
 Date: 2026-10-30 Eastern. This supplements the historical
 [NATIVE-GEOMETRY-CHECKPOINT.md](NATIVE-GEOMETRY-CHECKPOINT.md); it does not
 replace that record or its remaining full-pipeline work.

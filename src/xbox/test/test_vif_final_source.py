@@ -163,9 +163,9 @@ class FinalSourceAdapterTests(unittest.TestCase):
         text = (XBOX/'xbox_vif_source.cpp').read_text()
         body = text.split('bool xboxVifSourceTryReadRow(', 1)[1].split('bool xboxVifSourceTryDecodeStrip(', 1)[0]
         self.assertIn('row >= 1024u', body)
-        self.assertIn('source->array(vu, row, 1u, false, input, stride)', body)
-        self.assertIn('std::memcpy(value, input, 12u);', body)
-        self.assertIn('stride == 16u ? input + 12u : vu + row * 16u + 12u', body)
+        self.assertIn('source->lookup(vu, row, 1u, view)', body)
+        self.assertIn('sourceLane(view.data + lane * bytes, bytes, view.zeroExtend)', body)
+        self.assertIn('vu + row * 16u + lanes * 4u, (4u - lanes) * 4u', body)
         self.assertLess(body.rindex('return false'), body.index('std::memcpy(out, value'))
         self.assertEqual(body.count('std::memcpy(out,'), 1)
 

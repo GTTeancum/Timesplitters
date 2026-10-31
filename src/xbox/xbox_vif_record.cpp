@@ -338,7 +338,8 @@ namespace
                                       op.cl, op.wl, regs.mode);
 #if TS_VIF_SOURCE
                 if (sourceScope)
-                    sourceScope->noteUnpack(dest, source, op.vectors, op.format, op.cl, op.wl);
+                    sourceScope->noteUnpack(dest, source, op.vectors, op.format, op.cl, op.wl,
+                                            (op.code & 0x4000u) != 0u);
 #endif
                 // Command registers, watched rows and both provenance paths
                 // see EVERY logical upload. Only its dead memory stores go.

@@ -126,7 +126,7 @@ bool same(const GSXfVertex &a, const GSXfVertex &b)
 
 bool referenceAndLifetime()
 {
-    for (uint32_t kind = 0; kind < 2u; ++kind)
+    for (uint32_t kind = 0; kind < 4u; ++kind)
         for (uint32_t colorFormat : {0xcu, 0xdu, 0xeu})
         {
             const Fixture f = fixture(kind, 7u, colorFormat);
@@ -159,59 +159,60 @@ bool referenceAndLifetime()
 
 bool directAndFlatGroups()
 {
-    for (bool direct : {false, true})
-        for (bool previousJoin : {false, true})
-        {
-            if (!direct && previousJoin) continue;
-            const Fixture f = fixture(0u);
-            XboxVifSourceScope scope(ram.data(), vu.data(), true);
-            collect(scope, f);
-            arm(scope, f);
-            std::array<GSXfVertex, 20> ring;
-            std::memset(ring.data(), 0xb6u, sizeof(ring));
-            const auto pristine = ring;
-            GSXfCursor cursor;
-            cursor.direct = direct;
-            cursor.join = previousJoin;
-            cursor.next = ring.data() + 1;
-            cursor.end = ring.data() + ring.size() - 1;
-            cursor.strips = 5u; cursor.vertices = 12u;
-            cursor.last = direct ? f.reference.back() : pristine.front();
-            const GSXfVertex initialLast = cursor.last;
-            const XboxVifSourceStripSpan spans[2]{{f.vi, 3u}, {f.vi + 3u, 4u}};
-            std::vector<GSXfVertex> wanted;
-            if (direct)
+    for (uint32_t kind = 0u; kind < 4u; ++kind)
+        for (bool direct : {false, true})
+            for (bool previousJoin : {false, true})
             {
-                if (previousJoin) { wanted.push_back(cursor.last); wanted.push_back(f.reference[0]); }
-                wanted.insert(wanted.end(), f.reference.begin(), f.reference.begin() + 3);
-                wanted.push_back(f.reference[2]); wanted.push_back(f.reference[3]);
-                wanted.insert(wanted.end(), f.reference.begin() + 3, f.reference.end());
-            }
-            else
-                for (const auto &span : spans)
-                    for (uint32_t v = 2u; v < span.count; ++v)
-                    {
-                        const uint32_t first = span.vi - f.vi;
-                        wanted.push_back(f.reference[first + v]);
-                        wanted.push_back(f.reference[first + v - 2u]);
-                        wanted.push_back(f.reference[first + v - 1u]);
-                    }
-            CHECK(inNative(scope, f, [&]() {
-                // Full-group admission must precede the first store. One
-                // missing slot rejects without changing counters or bytes.
-                cursor.end = cursor.next + wanted.size() - 1u;
-                CHECK(!xboxVifSourceTryWriteGroup(0u, cursor, vu.data(), spans, 2u));
-                CHECK(std::memcmp(ring.data(), pristine.data(), sizeof(ring)) == 0);
-                CHECK(cursor.next == ring.data() + 1 && cursor.strips == 5u && cursor.vertices == 12u);
-                CHECK(cursor.join == previousJoin && same(cursor.last, initialLast));
-                cursor.end = cursor.next + wanted.size();
-                CHECK(xboxVifSourceTryWriteGroup(0u, cursor, vu.data(), spans, 2u));
-                CHECK(cursor.next == ring.data() + 1u + wanted.size());
-                CHECK(cursor.strips == 7u && cursor.vertices == 19u);
-                CHECK(cursor.direct == direct && cursor.join == (direct || previousJoin));
-                CHECK(same(cursor.last, direct ? f.reference.back() : initialLast));
-                CHECK(std::memcmp(ring.data() + 1, wanted.data(), wanted.size() * sizeof(GSXfVertex)) == 0);
-                CHECK(same(ring[0], pristine[0]) && same(ring[1u + wanted.size()], pristine[1u + wanted.size()]));
+                if (!direct && previousJoin) continue;
+                const Fixture f = fixture(kind);
+                XboxVifSourceScope scope(ram.data(), vu.data(), true);
+                collect(scope, f);
+                arm(scope, f);
+                std::array<GSXfVertex, 20> ring;
+                std::memset(ring.data(), 0xb6u, sizeof(ring));
+                const auto pristine = ring;
+                GSXfCursor cursor;
+                cursor.direct = direct;
+                cursor.join = previousJoin;
+                cursor.next = ring.data() + 1;
+                cursor.end = ring.data() + ring.size() - 1;
+                cursor.strips = 5u; cursor.vertices = 12u;
+                cursor.last = direct ? f.reference.back() : pristine.front();
+                const GSXfVertex initialLast = cursor.last;
+                const XboxVifSourceStripSpan spans[2]{{f.vi, 3u}, {f.vi + 3u, 4u}};
+                std::vector<GSXfVertex> wanted;
+                if (direct)
+                {
+                    if (previousJoin) { wanted.push_back(cursor.last); wanted.push_back(f.reference[0]); }
+                    wanted.insert(wanted.end(), f.reference.begin(), f.reference.begin() + 3);
+                    wanted.push_back(f.reference[2]); wanted.push_back(f.reference[3]);
+                    wanted.insert(wanted.end(), f.reference.begin() + 3, f.reference.end());
+                }
+                else
+                    for (const auto &span : spans)
+                        for (uint32_t v = 2u; v < span.count; ++v)
+                        {
+                            const uint32_t first = span.vi - f.vi;
+                            wanted.push_back(f.reference[first + v]);
+                            wanted.push_back(f.reference[first + v - 2u]);
+                            wanted.push_back(f.reference[first + v - 1u]);
+                        }
+                CHECK(inNative(scope, f, [&]() {
+                    // Full-group admission must precede the first store. One
+                    // missing slot rejects without changing counters or bytes.
+                    cursor.end = cursor.next + wanted.size() - 1u;
+                    CHECK(!xboxVifSourceTryWriteGroup(kind, cursor, vu.data(), spans, 2u));
+                    CHECK(std::memcmp(ring.data(), pristine.data(), sizeof(ring)) == 0);
+                    CHECK(cursor.next == ring.data() + 1 && cursor.strips == 5u && cursor.vertices == 12u);
+                    CHECK(cursor.join == previousJoin && same(cursor.last, initialLast));
+                    cursor.end = cursor.next + wanted.size();
+                    CHECK(xboxVifSourceTryWriteGroup(kind, cursor, vu.data(), spans, 2u));
+                    CHECK(cursor.next == ring.data() + 1u + wanted.size());
+                    CHECK(cursor.strips == 7u && cursor.vertices == 19u);
+                    CHECK(cursor.direct == direct && cursor.join == (direct || previousJoin));
+                    CHECK(same(cursor.last, direct ? f.reference.back() : initialLast));
+                    CHECK(std::memcmp(ring.data() + 1, wanted.data(), wanted.size() * sizeof(GSXfVertex)) == 0);
+                    CHECK(same(ring[0], pristine[0]) && same(ring[1u + wanted.size()], pristine[1u + wanted.size()]));
                 return true;
             }));
         }
@@ -382,9 +383,11 @@ bool recordedPrefixIntegration()
 
 bool unsupportedEntriesAndForeignThread()
 {
-    for (uint32_t kind : {2u, 3u})
+    for (uint32_t pc : {0x3af8u, 0x3ce8u, 0x3fe0u, 0x4000u, 0x4d20u})
     {
-        const Fixture f = fixture(kind);
+        Fixture f = fixture(0u);
+        f.pc = pc;
+        store32(ram.data() + kTerminal, code(pc));
         XboxVifSourceScope scope(ram.data(), vu.data(), true);
         collect(scope, f); arm(scope, f);
         CHECK(inNative(scope, f, [&]() {

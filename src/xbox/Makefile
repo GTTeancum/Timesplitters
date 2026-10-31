@@ -78,9 +78,10 @@ TS_GIF_NATIVE ?= 1
 TS_DMA_CHAIN_CACHE ?= 1
 TS_NATIVE_CALL_SLOTS ?= 1
 TS_DRAW_RECORDS ?= 1
+TS_VIF_SOURCE ?= 1
 TS_PERF_BACKEND ?= 0
 OPT_SWITCHES := TS_BG_FAST TS_BG_BATCH TS_VIF_FAST TS_NV2A_MATERIAL_CACHE TS_NV2A_PACK_IDENTITY_CACHE \
-    TS_GIF_NATIVE TS_DMA_CHAIN_CACHE TS_NATIVE_CALL_SLOTS TS_DRAW_RECORDS TS_PERF_BACKEND
+    TS_GIF_NATIVE TS_DMA_CHAIN_CACHE TS_NATIVE_CALL_SLOTS TS_DRAW_RECORDS TS_VIF_SOURCE TS_PERF_BACKEND
 $(foreach v,$(OPT_SWITCHES),$(if $(filter 1,$(words $($(v)))),$(if $(filter 0 1,$($(v))),,$(error $(v) must be 0 or 1)),$(error $(v) must be 0 or 1)))
 ifneq ($(filter optimized,$(MAKECMDGOALS)),)
 ifneq ($(TS_BG_NATIVE),1)
@@ -150,10 +151,24 @@ ifeq ($(TS_GIF_NATIVE),1)
 BG_NATIVE_GAME_SOURCE := $(GIF_NATIVE_COPY)
 GIF_GS_SOURCE := $(GIF_GS_COPY)
 endif
+# A certified prefix may supply source arrays to its immediate native draw.
+# This is the outer native stage, after both pack geometry and GIF routing.
+VIF_SOURCE_NATIVE_INPUT := $(BG_NATIVE_GAME_SOURCE)
+VIF_SOURCE_NATIVE_COPY := $(OUT)/gen/vif-source/vu1_native_ts.cpp
+ifeq ($(TS_VIF_SOURCE),1)
+BG_NATIVE_GAME_SOURCE := $(VIF_SOURCE_NATIVE_COPY)
+endif
 DMA_CHAIN_INPUT := $(BG_NATIVE_MEMORY_SOURCE)
 DMA_CHAIN_COPY := $(OUT)/gen/dma/ps2_memory.cpp
 ifeq ($(TS_DMA_CHAIN_CACHE),1)
 BG_NATIVE_MEMORY_SOURCE := $(DMA_CHAIN_COPY)
+endif
+# Observed linear REF groups reuse the producer's exact descriptor before
+# the ordinary DMA loop. Keep this route independent of the CALL-leaf cache.
+DRAW_RECORD_MEMORY_INPUT := $(BG_NATIVE_MEMORY_SOURCE)
+DRAW_RECORD_MEMORY_COPY := $(OUT)/gen/draw-records/ps2_memory.cpp
+ifeq ($(TS_DRAW_RECORDS),1)
+BG_NATIVE_MEMORY_SOURCE := $(DRAW_RECORD_MEMORY_COPY)
 endif
 
 NATIVE_CALL_NAMES := ts_native_math ts_native_game ts_native_game2 ts_native_game3
@@ -344,7 +359,7 @@ FAST_OBJS = $(filter $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/gs/%.obj $(OBJ)
                      $(OBJ)/project/game/ts_native_game3.obj \
                      $(OBJ)/src/xbox/xbox_bg_runtime.obj $(OBJ)/src/xbox/xbox_bg_xf.obj \
                      $(OBJ)/src/xbox/xbox_gif_native.obj $(OBJ)/src/xbox/xbox_dma_chain.obj \
-                     $(OBJ)/src/xbox/xbox_draw_record.obj $(OBJ)/src/xbox/xbox_vif_record.obj \
+                     $(OBJ)/src/xbox/xbox_draw_record.obj $(OBJ)/src/xbox/xbox_vif_record.obj $(OBJ)/src/xbox/xbox_vif_source.obj \
                      $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_memory.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_vif1_interpreter.obj \
                      $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj \
@@ -440,8 +455,12 @@ $(DRAW_RECORD_VIF_COPY): $(DRAW_RECORD_VIF_INPUT) $(XBOX)/tools/patch_vif_record
 	@mkdir -p $(dir $@)
 	@echo "[ RECORD  ] $(notdir $@)"
 	@$(PYTHON) $(XBOX)/tools/patch_vif_record.py $< $@
+$(DRAW_RECORD_MEMORY_COPY): $(DRAW_RECORD_MEMORY_INPUT) $(XBOX)/tools/patch_draw_record_dma.py $(OUT)/gen/bg_native.flags $(OUT)/gen/native_paths.flags $(OUT)/gen/draw_records.flags
+	@mkdir -p $(dir $@)
+	@echo "[ RECORD  ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_draw_record_dma.py $< $@
 else
-$(DRAW_RECORD_GAME_COPY) $(DRAW_RECORD_VIF_COPY):
+$(DRAW_RECORD_GAME_COPY) $(DRAW_RECORD_VIF_COPY) $(DRAW_RECORD_MEMORY_COPY):
 endif
 
 ifeq ($(TS_GIF_NATIVE),1)
@@ -455,6 +474,15 @@ $(GIF_GS_COPY): $(RUNTIME)/src/lib/gs/gs_frontend.cpp $(XBOX)/tools/patch_native
 	@$(PYTHON) $(XBOX)/tools/patch_native_gif.py gs $< $@
 else
 $(GIF_NATIVE_COPY) $(GIF_GS_COPY):
+endif
+
+ifeq ($(TS_VIF_SOURCE),1)
+$(VIF_SOURCE_NATIVE_COPY): $(VIF_SOURCE_NATIVE_INPUT) $(XBOX)/tools/patch_native_source.py $(OUT)/gen/bg_native.flags $(OUT)/gen/native_paths.flags $(OUT)/gen/vif_source.flags
+	@mkdir -p $(dir $@)
+	@echo "[ VIF SRC ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_source.py $< $@
+else
+$(VIF_SOURCE_NATIVE_COPY):
 endif
 
 ifeq ($(TS_DMA_CHAIN_CACHE),1)
@@ -606,18 +634,31 @@ $(NATIVE_PATH_STAMP): FORCE
 $(NATIVE_PATH_OBJS): $(NATIVE_PATH_STAMP)
 $(NATIVE_PATH_OBJS): RUNTIME_FLAGS += $(NATIVE_PATH_FLAGS)
 
-# Both the producer and the VIF consumer must select the same record mode.
-# The VIF copy is the outermost stage; inner-stage switch stamps above force
-# it to regenerate even when changing to an older original input file.
+# The producer, DMA walker, VIF and native consumers select the same mode.
+# Both runtime copies are outer stages; their inner-stage switch stamps
+# force regeneration even when changing to an older original input file.
 DRAW_RECORD_STAMP := $(OUT)/gen/draw_records.flags
 DRAW_RECORD_FLAGS := -DTS_DRAW_RECORDS=$(TS_DRAW_RECORDS)
-DRAW_RECORD_OBJS := $(DRAW_RECORD_GAME_OBJ) $(BG_NATIVE_VIF_OBJ) \
+DRAW_RECORD_OBJS := $(DRAW_RECORD_GAME_OBJ) $(BG_NATIVE_GAME_OBJ) $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_MEMORY_OBJ) \
     $(OBJ)/src/xbox/xbox_draw_record.obj $(OBJ)/src/xbox/xbox_vif_record.obj $(OBJ)/src/xbox/xbox_main.obj
 $(DRAW_RECORD_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(DRAW_RECORD_FLAGS)' ] || echo '$(DRAW_RECORD_FLAGS)' > $@
 $(DRAW_RECORD_OBJS): $(DRAW_RECORD_STAMP)
 $(DRAW_RECORD_OBJS): RUNTIME_FLAGS += $(DRAW_RECORD_FLAGS)
+
+# A source view is scoped to one admitted prefix and its synchronous native
+# call. Every caller and the backend lending a flat ring span must agree.
+VIF_SOURCE_STAMP := $(OUT)/gen/vif_source.flags
+VIF_SOURCE_FLAGS := -DTS_VIF_SOURCE=$(TS_VIF_SOURCE)
+VIF_SOURCE_OBJS := $(BG_NATIVE_GAME_OBJ) $(BG_NATIVE_VIF_OBJ) \
+    $(OBJ)/src/xbox/xbox_vif_record.obj $(OBJ)/src/xbox/xbox_vif_source.obj \
+    $(OBJ)/src/xbox/gs_nv2a_backend.obj $(OBJ)/src/xbox/xbox_main.obj
+$(VIF_SOURCE_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(VIF_SOURCE_FLAGS)' ] || echo '$(VIF_SOURCE_FLAGS)' > $@
+$(VIF_SOURCE_OBJS): $(VIF_SOURCE_STAMP)
+$(VIF_SOURCE_OBJS): RUNTIME_FLAGS += $(VIF_SOURCE_FLAGS)
 
 # The GIF timing wrapper and its bypass guard must agree. Measurement mode
 # retains the arbiter callback instead of bypassing its per-packet totals.
@@ -657,7 +698,7 @@ $(NATIVE_CAPTURE_STAMP): FORCE
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_CAPTURE_FLAGS)' ] || echo '$(NATIVE_CAPTURE_FLAGS)' > $@
 $(NATIVE_CAPTURE_GAME_OBJ) $(NATIVE_CAPTURE_ADAPTER_OBJ) $(BG_NATIVE_VU_OBJ): $(NATIVE_CAPTURE_STAMP)
 $(NATIVE_CAPTURE_ADAPTER_OBJ): RUNTIME_FLAGS += $(NATIVE_CAPTURE_FLAGS)
-$(BG_NATIVE_VU_OBJ): RUNTIME_FLAGS += -DTS_NATIVE_CAPTURE=$(TS_NATIVE_CAPTURE)
+$(BG_NATIVE_VU_OBJ) $(NATIVE_CAPTURE_GAME_OBJ): RUNTIME_FLAGS += -DTS_NATIVE_CAPTURE=$(TS_NATIVE_CAPTURE)
 ifeq ($(TS_BG_NATIVE),1)
 $(NATIVE_CAPTURE_GAME_OBJ): RUNTIME_FLAGS += -DregisterVu1NativeProgram=xboxBgRegisterVu1NativeProgram
 else ifeq ($(TS_NATIVE_CAPTURE),1)

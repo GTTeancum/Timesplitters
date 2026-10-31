@@ -8,7 +8,7 @@ are Xbox-only. Xbox-specific copies of shared sources are generated under
 **Development is currently source-only.** Finish writing and connecting the
 full planned Xbox optimization implementation before another compilation,
 build or download package. The commands below describe the later build
-stage. The newest draw-record, packet, DMA, geometry-group and native-call source paths
+stage. The newest source-array, draw-record, packet, DMA, geometry-group and native-call paths
 have been reviewed but have not been compiled or executed.
 
 ## Build
@@ -84,7 +84,8 @@ rebuilds its consumers when the switch changes.
 | `TS_GIF_NATIVE` | Reuse of exact PACKED GIF tag/operation plans, with all register and vertex payloads read live. |
 | `TS_DMA_CHAIN_CACHE` | Reuse of validated leaf DMA subchains while retaining the original payload appends, return-stack effects and batch-flush boundaries. |
 | `TS_NATIVE_CALL_SLOTS` | Known guest-call targets in the four native game/math files use the current function-table slot directly. |
-| `TS_DRAW_RECORDS` | Observed game draw chains use fully admitted VIF prefixes at their original stream positions, retaining live payloads and the original MSCAL branch. |
+| `TS_DRAW_RECORDS` | Observed REF groups reuse exact descriptors in the DMA walk; observed draw chains execute fully admitted VIF prefixes at their original stream positions. |
+| `TS_VIF_SOURCE` | An admitted prefix lends source arrays to its immediate fast native Plain/EnvMap draw, after pack geometry misses. Requires an admitted draw record; all VU writes and native admission remain. |
 | `TS_NV2A_MATERIAL_CACHE` | Derived NV2A material registers for exactly matching material inputs. |
 | `TS_NV2A_PACK_IDENTITY_CACHE` | Texture-pack lookup identities across texture cache eviction, invalidated by writes to the source pages. |
 
@@ -129,6 +130,30 @@ can be read with gdb from the addresses in `build/xbox/main.map`
 game assertion) is logged with its cause.
 
 ## Current source-only batch (2026-10-30)
+
+The batch based on `48361f6` connects admitted source arrays to the native
+vertex writer, including direct flat-group output beyond pack-covered
+backgrounds. A bounded view belongs to one decoder invocation and one
+immediately following fast native call. Exact command, TOP, RAM and VU
+identity must match; all required array rows must retain their latest
+supported upload. The arbitrary MSCAL callback, interpreter, capture and
+ring-check paths keep the existing VU-based route. Original VU writes,
+native visibility checks, material application and draw order remain.
+
+The DMA walker can now reuse the same observed linear REF descriptor
+before its first tag has effects. It appends the original raw pieces,
+preserves counters and transfer registers, and reserves the entire fixed
+batch bound before admission can reach a decoder callback. No second
+descriptor cache or synthetic guest commands are introduced.
+
+Source adapters and independent review cover the connected paths. Native
+probe source covers array equivalence, scope expiry, overwrite rejection,
+mixed ring accounting and DMA flush boundaries; execution is deferred.
+These changes do not remove geometry UNPACK writes or finish the planned
+graphics-command replacement. Direct GPU fetch and target performance
+remain unverified. The no-build instruction remains in force.
+
+### Previous REF coverage and flat-group batch
 
 The batch based on `52f38db` adds all three per-frame REF observations,
 payload-only draw-record entry and the compact color/vertex upload formats

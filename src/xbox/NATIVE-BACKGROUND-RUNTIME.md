@@ -60,7 +60,7 @@ it observes the same original input before the wrapped callback.
 
 The additional switches default to `1`: `TS_BG_FAST`, `TS_BG_BATCH`,
 `TS_VIF_FAST`, `TS_GIF_NATIVE`, `TS_DMA_CHAIN_CACHE`, `TS_NATIVE_CALL_SLOTS`,
-`TS_DRAW_RECORDS`,
+`TS_DRAW_RECORDS`, `TS_VIF_SOURCE`,
 `TS_NV2A_MATERIAL_CACHE` and `TS_NV2A_PACK_IDENTITY_CACHE`. Each accepts
 `0` to retain its previous implementation for later comparisons. Native
 background verification and capture still default to off.
@@ -242,8 +242,9 @@ the payload-only CHCR `0x185` transfers recorded in earlier game logs.
 Descriptors cover main-RAM REF/REFS/CNT leaves ending in RET, or a completed
 linear REF span, up to 32 tags, 64 raw pieces and 256 KiB of source data.
 The 16-entry descriptor cache is populated lazily at an observed first
-TTE or indexed first-payload word, retaining or omitting TTE pieces for
-that candidate. A linked payload index retains shared-start origins still
+TTE or indexed first-payload word, or at an exact observed REF origin in
+the DMA walker. Each representation retains or omits TTE pieces for that
+transport. A linked payload index retains shared-start origins still
 present in the hint table; it does not discard all but two objects using
 the same command template. Ordered candidates are bounded to 32 attempts
 per lookup. Only the live reader proof can select a transport/origin.
@@ -257,6 +258,21 @@ observation. A changed first-payload address can miss until observation
 reindexes it. Sixteen offset queries store indexes and generations, and a
 rejected consumer cannot create a permanent miss for other shared starts.
 All producer metadata fits a 40 KiB ceiling with no heap allocation.
+
+The DMA shortcut looks up the actual untouched tag address, without a
+payload candidate scan. It accepts only observed linear REF spans, after
+the original ASP validation and before any current-tag count or decode.
+The current CHCR.TTE mode selects the descriptor; every tag and both byte
+and tag budgets are checked. The caller reserves twice the span's tag
+count in the fixed batch before appending raw pieces through `addSegment`.
+This prevents a decoder callback from changing later tags between
+validation and append, while retaining original coalescing and later
+flush positions. It advances TADR to the observed exclusive end, adds the
+original tag counts and keeps the last tag's CHCR upper bits. ASR/ASP do
+not change for REF tags. Detailed counters, zero-TTE suppression, changed
+metadata and insufficient capacity retain the original walker. The source
+adapter checks the entire skipped loop body, including its existing
+CALL-leaf composition, so an added per-tag effect requires review.
 
 The segmented decoder consults a descriptor only at a command boundary
 after its pending PATH2 image handling. A private copy of the reader must
@@ -287,10 +303,11 @@ and double-buffer transitions, VU code lookup, native callback or interpreter
 fallback, GS effects, and background execution invalidation. No arbitrary
 native/GS callback runs inside the prefix. Workers, detailed command
 counters, unsupported inputs and nonblocking-cache contention keep the
-original decoder. Disabling records removes both source-copy stages.
+original decoder. Disabling records removes the producer, VIF and REF DMA
+source-copy stages.
 
 This route replaces repeated command decoding for admitted prefixes.
-It retains original DMA walking and VU memory effects; it does not yet
+It retains the original DMA stream and VU memory effects; it does not yet
 replace complete display lists or fetch pack vertices directly on NV2A.
 Lazy construction retains more queued draw origins than the full descriptor
 cache alone. Hint collisions, eviction, empty/unsupported first payloads
@@ -301,12 +318,64 @@ reports plan reuse, rejection and accepted command/vector totals. These
 are diagnostic admissions, not evidence of measured target speed.
 The transport counters identify admitted descriptor representations; they
 do not sample CHCR or establish frame coverage.
+DMA counters report prepared descriptors and their tag/byte totals; a
+prepared descriptor may still be declined by the fixed-batch capacity test.
 
 The native record code and its regression probes have not been compiled
 or executed. Python source-adapter checks run without building the game
 and exercise actual source composition, restoration and rejection guards.
 The no-interim-build instruction continues until the entire planned
 implementation is written and connected.
+
+## Source arrays in the native vertex writer
+
+`TS_VIF_SOURCE=1` connects an admitted prefix to its immediately following
+fast native draw. The prefix records up to 64 upload descriptors and the
+latest writer of each of 1024 VU rows in a fixed decoder scope below 4 KiB.
+It holds offsets and metadata, not decoded vertex copies. Original VU
+writes, watched-row observations and VIF state changes still execute.
+
+The view is armed only for a proved contiguous MSCAL/MSCALF command at
+Plain entry `0x0000` or EnvMap entry `0x0d20`. Its command pointer and word,
+pre-toggle TOP, RAM allocation and full VU buffer must match. A permit
+encloses only `fast.native`, ending before either normal bookkeeping or
+interpreter fallback. The native entry claims it once. The arbitrary
+MSCAL callback, workers, constant/kick entries and mismatches cannot claim
+it. Capture and ring self-checks retain their VU-based route. Source-copy
+tests restore every original statement after removing these additions.
+
+The owner pointer is thread-local. Nested or competing decoder work
+revokes the view through an atomic serial without reading another
+thread's stack. Admission checks the serial again before output. This
+depends on the stock synchronous Xbox pipeline: its VIF worker is disabled,
+its installed GIF consumer enters GS, and the native writer calls no guest
+code, allocator or callback while it reads source arrays. This is not a
+general synchronization mechanism for an arbitrary simultaneous writer to
+guest RAM or a replaced callback that mutates that RAM.
+
+Plain and EnvMap accept contiguous mode-0 V3/V4-32 position and STQ/normal
+arrays, and V4-8/16/32 colors. Every requested row must have the same exact
+latest upload; partial, unsupported or interior overwrites reject the
+affected array. Wrapped and skipped arrays decline. Colors preserve the
+original low-byte packing, and either signed zero Q becomes 1.0. Lit and
+Skinned layouts retain the original decoder.
+
+Inside an already accepted GS run, pack geometry is attempted first, then
+the source view, then the original VU decoder. Groups admit at most 24
+consecutive strips and 64 total source vertices. Every source span and the
+complete destination capacity are checked before writing. Joined groups
+retain cached-last vertices and degenerate joins. Flat groups write the
+same `i, i-2, i-1` expansion directly into the existing ring. The backend
+lends flat spans when either pack batching or this source route is enabled,
+takes pending records before legacy strip reservations and fences, and
+releases the borrowed cursor at EndXfRun. It never reads the GPU ring back.
+
+`[TS:vif-source]` separates admitted prefixes, armed views, native claims,
+rejections, groups, strips and vertices for later target observation. No
+acceptance rate or speed is established by this source batch. The native
+visibility/near-plane readers still depend on VU memory. Removing their
+geometry UNPACK writes requires a materialization contract for every
+remaining reader and fallback; that larger replacement is unfinished.
 
 ## Native guest calls
 

@@ -3508,9 +3508,9 @@ struct GSNv2aBackend::Impl
         runKey = key;
         cursor.direct = key.topology == 1u;
         cursor.strips = cursor.vertices = 0u;
-#if TS_BG_NATIVE && TS_BG_BATCH
-        // Xbox-only extension of the flat cursor: XBG may write an admitted
-        // triangle list directly into this segment. direct stays false, so
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        // Xbox-only extension of the flat cursor: admitted pack or source
+        // groups may write their triangle list here. direct stays false, so
         // the original native path still uses EmitXfStrip on every miss.
         // The GS run lock scopes this pointer; it never survives EndXfRun.
         flatXfCursor = cursor.direct ? nullptr : &cursor;
@@ -3538,7 +3538,7 @@ struct GSNv2aBackend::Impl
         }
         cursor.next = xfVertices + xfUsed;
         cursor.end = xfVertices + (xfSegment + 1u) * kXfSegment;
-#if TS_BG_NATIVE && TS_BG_BATCH
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
         cursor.join = cursor.direct && batchCount != 0u;
 #else
         cursor.join = batchCount != 0u;
@@ -3551,7 +3551,7 @@ struct GSNv2aBackend::Impl
         const uint32_t written = uint32_t(cursor.next - (xfVertices + xfUsed));
         xfUsed += written;
         batchCount += written;
-#if TS_BG_NATIVE && TS_BG_BATCH
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
         if (written && cursor.direct)
 #else
         if (written)
@@ -3576,15 +3576,15 @@ struct GSNv2aBackend::Impl
 
     DrawKey runKey{};       // the open run's (beginXfRun)
     GSXfVertex stripLast{}; // last vertex of the current strip batch (joins): a cached copy, the ring is write-combined
-#if TS_BG_NATIVE && TS_BG_BATCH
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
     GSXfCursor *flatXfCursor = nullptr; // borrowed only while the GS run lock is held
 #endif
 
     // A strip of a run that is not direct (flat shading: a triangle list).
     void emitXfStrip(const GSXfVertex *v, uint32_t n)
     {
-#if TS_BG_NATIVE && TS_BG_BATCH
-        // A preceding admitted XBG group may already occupy this segment.
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        // A preceding admitted group may already occupy this segment.
         // Commit it before reserveXf can flush/fence or advance the ring;
         // the legacy array must follow it without overwriting its records.
         if (flatXfCursor)
@@ -3601,9 +3601,9 @@ struct GSNv2aBackend::Impl
             out[1] = v[i - 2];
             out[2] = v[i - 1];
         }
-#if TS_BG_NATIVE && TS_BG_BATCH
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
         // reserveXf may have moved to the next fenced segment. Publish only
-        // that segment's remaining span for the next optional XBG group.
+        // that segment's remaining span for the next optional direct group.
         if (flatXfCursor)
             openXfCursor(*flatXfCursor);
 #endif
@@ -3611,7 +3611,7 @@ struct GSNv2aBackend::Impl
 
     void endXfRun(GSXfCursor &cursor)
     {
-#if TS_BG_NATIVE && TS_BG_BATCH
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
         if (cursor.direct || flatXfCursor == &cursor)
             takeXfCursor(cursor);
         flatXfCursor = nullptr;

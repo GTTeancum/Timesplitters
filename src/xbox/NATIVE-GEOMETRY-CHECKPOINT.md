@@ -40,7 +40,122 @@ reversible choices without check-ins and preserve unrelated work. Pure
 Python source-adapter checks are available without compiling the game;
 native probes, make, compiler, emulator and packaging remain deferred.
 
-## Current state — REF origins, payload-only records and flat groups, 2026-10-30 Eastern
+## Current state — source geometry and observed REF DMA, 2026-10-30 Eastern
+
+Batch baseline: `48361f6404effc3f20a373609825a41aa2f0d63d`.
+This batch connects two existing pieces to their actual consumers: admitted
+UNPACK sources reach the native vertex writer, and completed REF origins
+reach the DMA walker. Three parallel agents implemented and cross-reviewed
+the code while the main agent integrated flags, backend ownership and
+diagnostics. All tracked changes remain inside `src/xbox/`.
+
+### Source arrays reach the native ring
+
+- `TS_VIF_SOURCE=1` is a separate Xbox switch. After a prefix's complete
+  copied-reader admission, `xbox_vif_record` records its upload offsets
+  and destination rows in a bounded decoder scope. Up to 64 descriptors
+  and 1024 last-writer row IDs occupy less than 4 KiB of stack; no decoded
+  vertices or payload copies are retained there. Original VIF registers,
+  watched-row observations and VU writes still execute.
+- The scope matches the exact next MSCAL/MSCALF source pointer, command,
+  pre-toggle TOP, RAM owner and VU buffer. A permit encloses only the
+  synchronous `fast.native` call and expires before result bookkeeping
+  or interpreter fallback. The native entry claims it once, for Plain
+  (`0x0000`) or EnvMap (`0x0d20`). Arbitrary MSCAL callbacks, workers,
+  other native entries, capture and sampled ring-check paths decline.
+  The original MSCAL state changes and dispatch behavior are preserved;
+  its source now contains the narrowly scoped permit additions.
+- Ownership is thread-local; nested/competing decoder work revokes through
+  a saturating atomic serial without dereferencing another thread's stack.
+  The independent legacy VIF decoder also invalidates the view on entry.
+  Full admission checks the serial again before output. This relies on
+  the stock synchronous Xbox runtime: VIF workers are disabled, the
+  installed GIF consumer enters GS, and writer loops call no guest code
+  or callbacks. It does not synchronize arbitrary concurrent RAM writers
+  or certify replacement callbacks that mutate that RAM.
+- Source arrays require contiguous mode-0 V3/V4-32 positions and STQ or
+  normals, plus V4-8/16/32 colors. Every requested row must have the same
+  supported latest writer. Later partial or interior overwrites, skips,
+  wrap, missing rows and unsupported layouts decline before output. Color
+  low bytes, signed-zero Q normalization and all 44 vertex bytes match
+  the existing layout contract. Compile-time assertions bind the helper
+  to the actual Plain/EnvMap layout and vertex field offsets.
+- Pack geometry stays first choice. After a pack miss, admitted source
+  groups write into the already accepted GS run; source misses retain
+  the original VU decoder. Groups contain at most 24 consecutive strips
+  and 64 source vertices. Joined strips retain the cached-last and
+  degenerate-join contract. Flat groups write `i, i-2, i-1` directly into
+  the existing ring. Capacity for the entire group is checked first.
+  The backend lends flat spans independently of pack batching when this
+  switch is enabled and retains pending-write, fence and EndXfRun rules.
+- The source-copy adapter validates native eligibility, state submission,
+  arbiter drain, begin/end run and CPU fallback boundaries. It composes
+  after BG and GIF adapters and preserves all original statements when
+  its additions are removed. `[TS:vif-source]` reports prefix, armed-view,
+  claim, rejection and emitted group/strip/vertex totals for later use.
+
+### Observed REF descriptors reach the DMA walk
+
+- At an untouched tag, after original ASP validation and before the tag
+  count/decode, `xboxDrawRecordPrepareRefs` looks up the exact observed
+  linear REF origin. It reuses the existing 16 lazy descriptors; no
+  payload candidate scan or second metadata cache is added. Current
+  CHCR.TTE selects the representation. Every origin/tag byte, byte budget
+  and tag budget is checked before an owning piece list is returned.
+- The generated DMA hook reserves twice the span's tag count in the
+  fixed batch before appending unchanged raw pieces through the original
+  `addSegment`. No decoder callback can intervene during those appends.
+  Original coalescing and later flush boundaries remain. It advances to
+  the observed exclusive end and retains tag totals and CHCR upper bits;
+  REF spans do not change ASR/ASP. Detailed counters, zero-TTE suppression,
+  changed metadata and capacity misses use the original walk.
+- Changed-origin discovery now retires both transport descriptors in DMA
+  and VIF lookups, including when a hint was already evicted. Restoring
+  old origin bytes cannot revive an interior descriptor without a fresh
+  observation. Ordinary hint eviction still permits exact resident hits;
+  leaf-only changes retain the later-rebuild rule.
+- The REF adapter validates the entire skipped loop against the original
+  and existing CALL-leaf composition, so new per-tag effects cannot be
+  silently bypassed. Its outer memory copy follows BG and DMA stages and
+  uses all relevant flag stamps. The native object now receives the draw
+  record flag as well as the new source flag, allowing its claim guard
+  to participate. DMA diagnostics explicitly report prepared descriptors;
+  fixed-batch capacity may still reject a prepared span.
+
+### Verification performed and deferred
+
+The main integration pass executed **25 pure Python source-adapter tests**:
+
+| Selected class | Passed |
+| --- | ---: |
+| `test_vif_record_patch.VifRecordPatcherTests` | 4 |
+| `test_vif_source_patch.SourceNativePatcherTests` | 4 |
+| `test_draw_record.DrawRecordPatcherTests` | 3 |
+| `test_draw_record_ref.DrawRecordRefPatcherTests` | 5 |
+| `test_draw_record_dma.DrawRecordDmaPatcherTests` | 6 |
+| `test_xbg_xf.PatcherTests` | 3 |
+
+These check real source composition, restoration, semantic drift rejection,
+line endings, alias protection and atomic failed output. All 10 changed/new
+Python files passed AST parsing, and `git diff --check` was clean. The
+Makefile was reviewed without invoking make. Native probe source covers
+direct/flat equivalence, a real-prefix-to-native-writer integration case,
+overwrite and lifetime rejection, cross-thread ownership at boundaries,
+cross-transport invalidation and DMA batch flush mutation.
+The ring-accounting and build-routing fixtures include the new switch.
+Native probes and routing fixtures remain unexecuted. No compiler, make,
+native executable, emulator, XBE/ISO or download package was run or made.
+
+The full optimization implementation is still unfinished. In particular,
+the native visibility/near-plane path and fallback readers still consume
+the original VU image, so this batch deliberately retains geometry UNPACK
+writes. The next larger blocker is an explicit materialization contract
+covering every such read and fallback before those writes can be removed.
+Lit/Skinned source decoding, complete graphics-command replacement and
+direct NV2A array fetch also remain open. No target coverage, memory saving
+or frame-rate improvement is claimed from these source checks.
+
+## Previous REF origins, payload-only records and flat groups, 2026-10-30 Eastern
 
 Batch baseline: `52f38db8a988d94ac5707d2ed2967ec0c21fd290`.
 The actual source exposed three connected gaps in the prior record path:

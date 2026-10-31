@@ -21,6 +21,7 @@
 #include "xbox_dma_chain.h"
 #include "xbox_draw_record.h"
 #include "xbox_vif_record.h"
+#include "xbox_vif_source.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
@@ -250,6 +251,8 @@ namespace
                       << "/" << records.busy << " accepted=" << records.accepted
                       << " payload/tte=" << records.transportAccepted[0] << "/" << records.transportAccepted[1]
                       << " candidates/capped=" << records.candidates << "/" << records.candidateLimits
+                      << " dma prepared/lookup=" << records.dmaAccepted << "/" << records.dmaLookups
+                      << " dma tags/bytes=" << records.dmaTags << "/" << records.dmaBytes
                       << std::endl;
         XboxVifRecordStats prefixes;
         if (xboxVifRecordGetStats(prefixes))
@@ -257,6 +260,15 @@ namespace
                       << "/" << prefixes.built << " reject/busy=" << prefixes.rejected << "/" << prefixes.busy
                       << " prefixes/commands/vectors/bytes=" << prefixes.prefixes << "/" << prefixes.commands
                       << "/" << prefixes.vectors << "/" << prefixes.bytes << std::endl;
+#endif
+#if TS_VIF_SOURCE
+        XboxVifSourceStats sources;
+        if (xboxVifSourceGetStats(sources))
+            std::cout << "[TS:vif-source] prefixes/armed/claimed=" << sources.prefixes << "/"
+                      << sources.armed << "/" << sources.claims
+                      << " reject/busy=" << sources.rejected << "/" << sources.busy
+                      << " groups/strips/vertices=" << sources.groups << "/" << sources.strips
+                      << "/" << sources.vertices << std::endl;
 #endif
     }
 
@@ -360,7 +372,7 @@ int main()
               << " geometry-fast=" << TS_BG_FAST << " geometry-batch=" << TS_BG_BATCH
               << " vif-fast=" << TS_VIF_FAST << " gif-native=" << TS_GIF_NATIVE
               << " dma-chain=" << TS_DMA_CHAIN_CACHE << " native-call-slots=" << TS_NATIVE_CALL_SLOTS
-              << " draw-records=" << TS_DRAW_RECORDS
+              << " draw-records=" << TS_DRAW_RECORDS << " vif-source=" << TS_VIF_SOURCE
               << " material-cache=" << TS_NV2A_MATERIAL_CACHE
               << " texture-identity=" << TS_NV2A_PACK_IDENTITY_CACHE
               << " profile-backend=" << TS_PERF_BACKEND

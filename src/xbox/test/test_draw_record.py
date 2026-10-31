@@ -1011,7 +1011,12 @@ class DrawRecordPatcherTests(unittest.TestCase):
                     self.assertEqual(result.count("XboxVifRecordContext"), 2)
                     restored = result.removeprefix(self.vif.GENERATED)
                     restored = restored.replace(self.vif.INCLUDE + self.vif.ADAPTER_INCLUDE, self.vif.INCLUDE)
+                    restored = restored.replace(self.vif.SOURCE_INCLUDE, '', 1)
                     restored = restored.replace(self.vif.HOOK, "")
+                    for insertion in (self.vif.SOURCE_SCOPE, self.vif.SOURCE_COMMAND,
+                                      self.vif.SOURCE_TRACK, self.vif.SOURCE_LEGACY):
+                        restored = restored.replace(insertion, '', 1)
+                    restored = restored.replace(self.vif.FAST_REPLACEMENT, self.vif.FAST_CALL, 1)
                     self.assertEqual(restored, source)
 
     def test_upstream_shape_changes_and_duplicate_insertion_fail_closed(self):

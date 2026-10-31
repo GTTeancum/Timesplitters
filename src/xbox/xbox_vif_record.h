@@ -5,6 +5,7 @@
 #include <cstdint>
 
 struct VIFRegisters;
+class XboxVifSourceScope;
 
 // Reject commands that cannot start an admitted prefix before touching the
 // descriptor caches. Reads no payload, advances no reader and changes no
@@ -54,7 +55,7 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
                             uint8_t *vuData, XboxVifRecordMatch match,
                             XboxVifRecordObserve observe, void *user,
                             uint32_t &consumedBytes, uint32_t &vectors,
-                            uint32_t &commands);
+                            uint32_t &commands, XboxVifSourceScope *sourceScope = nullptr);
 
 struct XboxVifRecordStats
 {

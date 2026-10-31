@@ -188,13 +188,15 @@ class CursorLifecycleTests(unittest.TestCase):
                     str(ROOT / "source/PS2Recomp/ps2xRuntime/include")]
         command += shlex.split(os.environ.get("TS_XBG_CXXFLAGS", ""))
         cls.probes = {}
-        for native, batch in ((1, 1), (0, 1), (1, 0)):
-            executable = directory / f"cursor_{native}_{batch}"
+        for native, batch, source in ((1, 1, 0), (0, 1, 0), (1, 0, 0),
+                                      (0, 0, 1), (0, 1, 1), (1, 0, 1), (1, 1, 1)):
+            executable = directory / f"cursor_{native}_{batch}_{source}"
             subprocess.run(command + [f"-DTS_BG_NATIVE={native}", f"-DTS_BG_BATCH={batch}",
+                                      f"-DTS_VIF_SOURCE={source}",
                                       str(probe), "-o", str(executable)], check=True)
-            cls.probes[native, batch] = executable
+            cls.probes[native, batch, source] = executable
 
-    def run_probe(self, mode, flags=(1, 1)):
+    def run_probe(self, mode, flags=(1, 1, 0)):
         result = subprocess.run([str(self.probes[flags]), mode], capture_output=True, text=True)
         self.assertEqual(result.stderr, "", result.stderr)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -205,13 +207,20 @@ class CursorLifecycleTests(unittest.TestCase):
     def test_pending_records_are_accounted_before_segment_handoff(self):
         self.run_probe("rollover")
 
+    def test_source_route_lends_flat_span_independently_of_bg_switches(self):
+        for flags in self.probes:
+            if flags[2]:
+                with self.subTest(flags=flags):
+                    self.run_probe("mixed", flags)
+                    self.run_probe("rollover", flags)
+
     def test_joined_cursor_accounting_retains_existing_behavior(self):
         for flags in self.probes:
             with self.subTest(flags=flags):
                 self.run_probe("joined", flags)
 
     def test_either_disabled_switch_retains_original_flat_cursor(self):
-        for flags in ((0, 1), (1, 0)):
+        for flags in ((0, 1, 0), (1, 0, 0)):
             with self.subTest(flags=flags):
                 self.run_probe("disabled", flags)
 

@@ -1,7 +1,7 @@
 """Connect exact partGfx VIF-prefix records in an Xbox decoder source copy.
 
 Composes after the existing background-observer and fast-UNPACK stages.
-The original DMA pieces and MSCAL branch remain unchanged. Whole-prefix
+The original DMA pieces and MSCAL dispatch semantics remain unchanged. Whole-prefix
 admission uses a copied reader before any VIF/VU write; unsupported input
 immediately keeps the original command loop. No synthetic guest commands.
 """
@@ -16,12 +16,46 @@ import tempfile
 GENERATED = '// Xbox build copy made by src/xbox/tools/patch_vif_record.py; do not edit.\n'
 INCLUDE = '#include <xmmintrin.h> // the row copies and prefetches below (SSE1)\n'
 ADAPTER_INCLUDE = '#include "xbox_vif_record.h"\n'
+SOURCE_INCLUDE = '#include "xbox_vif_source.h"\n'
+LEGACY = '''void PS2Memory::processVIF1Data(const uint8_t *data, uint32_t sizeBytes)
+{
+'''
+SOURCE_LEGACY = '''#if TS_VIF_SOURCE
+    xboxVifSourceInvalidate();
+#endif
+'''
 DECODE = '''uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes, bool chainEnd)
 {
     static_assert(PS2_VU1_DATA_SIZE == 1024u * 16u, "UNPACK writes wrap at 1024 quadwords");
 '''
 COMMAND = '''        uint32_t cmd;
         if (!in.word(cmd))
+'''
+SOURCE_SCOPE = '''#if TS_DRAW_RECORDS && TS_VIF_SOURCE && TS_RENDER_COUNTERS < 2
+    XboxVifSourceScope xboxSourceScope(m_rdram, m_vu1Data, !PS2Memory::onVif1Worker());
+#endif
+'''
+SOURCE_COMMAND = '''#if TS_DRAW_RECORDS && TS_VIF_SOURCE && TS_RENDER_COUNTERS < 2
+        const uint8_t *xboxSourceCommand = in.avail() >= 4u ? in.here() : nullptr;
+#endif
+'''
+SOURCE_TRACK = '''#if TS_DRAW_RECORDS && TS_VIF_SOURCE && TS_RENDER_COUNTERS < 2
+        xboxSourceScope.command(xboxSourceCommand, cmd, vif1_regs.tops & 0x3ffu);
+#endif
+'''
+FAST_CALL = '''                        if (fast.native(startPC, m_vu1Data, PS2_VU1_DATA_SIZE, runTop, this, *fast.gs))
+'''
+FAST_REPLACEMENT = '''#if TS_DRAW_RECORDS && TS_VIF_SOURCE && TS_RENDER_COUNTERS < 2
+                        bool xboxSourceHandled;
+                        {
+                            // Only this synchronous native call may claim
+                            // the loan. It expires before either result path.
+                            XboxVifSourceCallScope xboxSourceCall(xboxSourceScope, startPC, runTop);
+                            xboxSourceHandled = fast.native(startPC, m_vu1Data, PS2_VU1_DATA_SIZE, runTop, this, *fast.gs);
+                        }
+                        if (xboxSourceHandled)
+#else
+''' + FAST_CALL + '''#endif
 '''
 REGISTERS = '''        else if (opcode == VIF_NOP)
         {
@@ -210,7 +244,11 @@ HOOK = '''#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2
                 Vif1PieceReader *reader;
                 const uint8_t *first;
                 uint32_t bytes = 0, vectors = 0, commands = 0;
+                XboxVifSourceScope *sourceScope = nullptr;
             } context{this, &in, in.here()};
+#if TS_VIF_SOURCE
+            context.sourceScope = &xboxSourceScope;
+#endif
             const auto consume = [](const XboxDrawRecordChain &chain,
                                     const uint8_t *ram, void *opaque) {
                 auto &context = *static_cast<XboxVifRecordContext *>(opaque);
@@ -245,7 +283,8 @@ HOOK = '''#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2
                                                context.memory->vif1_regs,
                                                context.memory->getVU1Data(),
                                                match, observe, &probe,
-                                               context.bytes, context.vectors, context.commands);
+                                               context.bytes, context.vectors, context.commands,
+                                               context.sourceScope);
             };
             if (xboxDrawRecordWithChain(m_rdram, context.first, consume, &context))
             {
@@ -269,20 +308,27 @@ def patch_source(source: str) -> str:
     if '\x00' in source or source.startswith('\ufeff'):
         raise ValueError('unsupported source encoding')
     if any(marker in normalized for marker in
-           (GENERATED, ADAPTER_INCLUDE, 'XboxVifRecordContext', 'xboxVifRecordTryPrefix(')):
+           (GENERATED, ADAPTER_INCLUDE, SOURCE_INCLUDE, 'XboxVifRecordContext',
+            'xboxVifRecordTryPrefix(', 'XboxVifSourceScope')):
         raise ValueError('VIF source already contains the Xbox record consumer')
-    for label, anchor in (('Xbox SSE include', INCLUDE), ('segmented decoder', DECODE),
+    for label, anchor in (('Xbox SSE include', INCLUDE), ('legacy decoder', LEGACY),
+                          ('segmented decoder', DECODE),
                           ('segmented command read', COMMAND), ('register semantics', REGISTERS),
                           ('command register tracking', TRACK_COMMAND), ('VU write observer', OBSERVER),
                           ('MARK/FLUSH semantics', MARK_FLUSH), ('payload register semantics', PAYLOAD_REGISTERS),
                           ('compact UNPACK extension', UNPACK_EXTEND), ('compact UNPACK writers', UNPACK_COMPACT),
-                          ('UNPACK layout and padding', UNPACK_LAYOUT)):
+                          ('UNPACK layout and padding', UNPACK_LAYOUT),
+                          ('direct fast native call', FAST_CALL)):
         if normalized.count(anchor) != 1:
             raise ValueError(f'expected exactly one {label} anchor')
     if not normalized.index(DECODE) < normalized.index(COMMAND) < normalized.index(REGISTERS):
         raise ValueError('unexpected segmented decoder/command/register order')
-    normalized = normalized.replace(INCLUDE, INCLUDE + ADAPTER_INCLUDE)
-    normalized = normalized.replace(COMMAND, HOOK + COMMAND)
+    normalized = normalized.replace(INCLUDE, INCLUDE + ADAPTER_INCLUDE + SOURCE_INCLUDE)
+    normalized = normalized.replace(LEGACY, LEGACY + SOURCE_LEGACY)
+    normalized = normalized.replace(DECODE, DECODE + SOURCE_SCOPE)
+    normalized = normalized.replace(COMMAND, HOOK + SOURCE_COMMAND + COMMAND)
+    normalized = normalized.replace(TRACK_COMMAND, TRACK_COMMAND + SOURCE_TRACK)
+    normalized = normalized.replace(FAST_CALL, FAST_REPLACEMENT)
     return (GENERATED + normalized).replace('\n', newline)
 
 

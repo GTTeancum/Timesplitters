@@ -1,6 +1,6 @@
 #pragma once
 // Side descriptors for the Xbox's original partGfx CALLs and REF groups. Guest list
-// bytes stay unchanged; these records only offer a checked decoder shortcut.
+// bytes stay unchanged; these records offer checked DMA/VIF shortcuts.
 #include <cstdint>
 
 #ifndef TS_DRAW_RECORDS
@@ -51,7 +51,8 @@ void xboxDrawRecordNoteRefs(const uint8_t *rdram, uint32_t firstTagAddress,
 // miss retains the original decoder. Every current origin and leaf tag
 // is checked before the callback. Changed resident leaf
 // tags decline that lookup; a later origin-entry lookup may rebuild only while
-// its origin hint is still exact. Changed origin bytes require a fresh Note.
+// its origin hint is still exact. Changed origin bytes retire both transport
+// descriptors and require a fresh Note, even if its hint was already evicted.
 // A changed first payload address may miss until another Note reindexes it.
 // A separate nonblocking lease pins descriptor metadata throughout the
 // callback; reentrant requests decline. No descriptor pointer may escape.
@@ -64,6 +65,35 @@ using XboxDrawRecordConsumer = bool (*)(const XboxDrawRecordChain &,
                                         const uint8_t *rdram, void *user);
 bool xboxDrawRecordWithChain(const uint8_t *rdram, const uint8_t *data,
                             XboxDrawRecordConsumer consumer, void *user);
+
+struct XboxDrawRecordDmaSpan
+{
+    // Own the raw append sequence: no descriptor or payload pointer escapes
+    // the cache lease. The original addSegment still controls coalescing.
+    XboxDrawRecordChain chain;
+    uint32_t endAddress = 0, lastTagUpper = 0;
+};
+
+// At an untouched DMA tag, reuse only an exactly observed linear REF span.
+// The actual CHCR.TTE mode selects its representation; no payload-pointer
+// candidates or synthetic CALL/RET are needed. All origin/tag bytes and both
+// remaining budgets are checked before exposing output. No IRQ, non-REF,
+// noncanonical nonempty payload, wrap or unobserved span can be admitted.
+// Changed resident tags decline this lookup; an exact surviving origin may
+// rebuild later. False leaves out, guest state and the pending stream intact.
+//
+// Call before incrementing the current tag's control-state count. The caller
+// must reserve 2 * chain.tagCount raw batch slots before appending, so no
+// decoder/guest callback occurs between validation and the final append.
+// Append raw pieces through the original addSegment, add chain.tagCount to
+// both tag counts, set the next tag address to endAddress and update
+// lastTagUpper, then continue the original loop. REF spans never change
+// ASR/ASP. Keep detailed tag counters
+// and zero-TTE suppression on the original walk.
+bool xboxDrawRecordPrepareRefs(const uint8_t *rdram, uint32_t ramBytes,
+                               uint32_t firstTagAddress, bool transferTagData,
+                               uint32_t remainingTags, uint32_t remainingBytes,
+                               XboxDrawRecordDmaSpan &out);
 
 // Resets are optional invalidation hints. Exact live bytes and RAM identity
 // remain mandatory even when callers do not have a lifecycle notification.
@@ -78,6 +108,10 @@ struct XboxDrawRecordStats
     uint64_t hintHits = 0, consumers = 0, accepted = 0;
     uint64_t payloadLookups = 0, candidates = 0, candidateLimits = 0;
     uint64_t transportAccepted[2] = {}; // [0] payload-only, [1] includes TTE
+    // DMA descriptor admissions, separate from VIF consumer execution. A
+    // caller may still decline a prepared span for insufficient batch slots.
+    uint64_t dmaLookups = 0, dmaAccepted = 0, dmaMisses = 0;
+    uint64_t dmaTags = 0, dmaBytes = 0;
     uint32_t busy = 0;
 };
 bool xboxDrawRecordGetStats(XboxDrawRecordStats &out);

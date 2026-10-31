@@ -47,12 +47,19 @@ class VifRecordPatcherTests(unittest.TestCase):
                     source = fast.patch_source(source) if quick else source
                     before_mscal = mscal_block(source)
                     patched = records.patch_source(source)
-                    self.assertEqual(mscal_block(patched), before_mscal)
+                    self.assertEqual(mscal_block(patched).replace(records.FAST_REPLACEMENT,
+                                                                  records.FAST_CALL), before_mscal)
                     self.assertEqual(patched.count(records.HOOK), 1)
                     self.assertEqual(patched.count(records.ADAPTER_INCLUDE), 1)
                     restored = patched.removeprefix(records.GENERATED)
                     restored = restored.replace(records.ADAPTER_INCLUDE, '', 1)
+                    restored = restored.replace(records.SOURCE_INCLUDE, '', 1)
+                    restored = restored.replace(records.SOURCE_LEGACY, '', 1)
                     restored = restored.replace(records.HOOK, '', 1)
+                    restored = restored.replace(records.SOURCE_SCOPE, '', 1)
+                    restored = restored.replace(records.SOURCE_COMMAND, '', 1)
+                    restored = restored.replace(records.SOURCE_TRACK, '', 1)
+                    restored = restored.replace(records.FAST_REPLACEMENT, records.FAST_CALL, 1)
                     self.assertEqual(restored, source)
                     self.assertIn('#if TS_DRAW_RECORDS && TS_RENDER_COUNTERS < 2', patched)
                     self.assertIn('!PS2Memory::onVif1Worker()', patched)
@@ -65,13 +72,23 @@ class VifRecordPatcherTests(unittest.TestCase):
                     self.assertLess(pending, hook)
                     self.assertLess(hook, patched.index(records.COMMAND, hook))
                     self.assertIn('in.skip(context.bytes);', records.HOOK)
+                    self.assertLess(patched.index(records.SOURCE_SCOPE), pending)
+                    self.assertLess(patched.index(records.SOURCE_COMMAND),
+                                    patched.index(records.SOURCE_TRACK))
+                    permit = patched.index('XboxVifSourceCallScope xboxSourceCall(')
+                    invoked = patched.index('xboxSourceHandled = fast.native(', permit)
+                    expired = patched.index('                        }\n', invoked)
+                    self.assertLess(invoked, expired)
+                    self.assertLess(expired, patched.index('if (xboxSourceHandled)', expired))
+                    self.assertLess(expired, patched.index('fast.interpret(', expired))
 
     def test_semantic_anchor_drift_duplicate_or_double_patch_rejects(self):
         source = SOURCE.read_bytes().decode('utf-8').replace('\r\n', '\n')
-        for anchor in (records.INCLUDE, records.DECODE, records.COMMAND,
+        for anchor in (records.INCLUDE, records.LEGACY, records.DECODE, records.COMMAND,
                        records.REGISTERS, records.TRACK_COMMAND, records.OBSERVER,
                        records.MARK_FLUSH, records.PAYLOAD_REGISTERS,
-                       records.UNPACK_EXTEND, records.UNPACK_COMPACT, records.UNPACK_LAYOUT):
+                       records.UNPACK_EXTEND, records.UNPACK_COMPACT, records.UNPACK_LAYOUT,
+                       records.FAST_CALL):
             for changed in (source.replace(anchor, '// upstream drift\n', 1), source + '\n' + anchor):
                 with self.subTest(anchor=anchor[:50]), self.assertRaises(ValueError):
                     records.patch_source(changed)

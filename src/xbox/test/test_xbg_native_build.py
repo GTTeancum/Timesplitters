@@ -71,6 +71,7 @@ with (Path(__file__).parent / "commands.jsonl").open("a") as log:
                             "dma_adapter": "src/xbox/xbox_dma_chain.cpp",
                             "draw_adapter": "src/xbox/xbox_draw_record.cpp",
                             "vif_record": "src/xbox/xbox_vif_record.cpp",
+                            "vif_source": "src/xbox/xbox_vif_source.cpp",
                             "perf": "src/xbox/xbox_perf.cpp"})
             for name, relative in sources.items():
                 if name in routed:
@@ -86,7 +87,8 @@ with (Path(__file__).parent / "commands.jsonl").open("a") as log:
             tool_dir.mkdir()
             patch_tools = ("patch_bg_native.py", "patch_bg_runtime.py", "patch_vif_fast.py",
                            "patch_native_gif.py", "patch_dma_chain.py", "patch_native_calls.py",
-                           "patch_draw_record_game.py", "patch_vif_record.py")
+                           "patch_draw_record_game.py", "patch_vif_record.py",
+                           "patch_draw_record_dma.py", "patch_native_source.py")
             for name in patch_tools + ("direct_calls.py", "compact_function_table.py"):
                 shutil.copyfile(XBOX / "tools" / name, tool_dir / name)
             shutil.copyfile(XBOX / "xbox_vif_fast.h", root / "src/xbox/xbox_vif_fast.h")
@@ -116,13 +118,15 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
             opt_consumers = {"vif", "vif_record", "backend", "main"}
             path_consumers = {"native", "memory", "gs", "gif_adapter", "dma_adapter", "main"} | native_calls
             perf_consumers = {"perf", "gif_adapter", "main"}
-            draw_consumers = {"native_game2", "vif", "draw_adapter", "vif_record", "main"}
+            draw_consumers = {"native", "native_game2", "vif", "memory", "draw_adapter", "vif_record", "main"}
+            source_consumers = {"native", "vif", "vif_record", "vif_source", "backend", "main"}
             defaults = {
                 "TS_BG_NATIVE": 0, "TS_BG_VERIFY": 0, "TS_BG_FAST": 1, "TS_BG_BATCH": 1,
                 "TS_VIF_FAST": 1, "TS_NV2A_MATERIAL_CACHE": 1, "TS_NV2A_PACK_IDENTITY_CACHE": 1,
                 "TS_GIF_NATIVE": 1, "TS_DMA_CHAIN_CACHE": 1, "TS_NATIVE_CALL_SLOTS": 1,
                 "TS_NATIVE_CAPTURE": 0, "TS_PERF_BACKEND": 0,
                 "TS_DRAW_RECORDS": 1,
+                "TS_VIF_SOURCE": 1,
             }
             environment = dict(os.environ, PATH=str(bindir) + os.pathsep + os.environ.get("PATH", ""))
             for name in ("MAKEFLAGS", "MFLAGS", "TS_GEN_PCH", *defaults):
@@ -151,7 +155,8 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
                     (path_consumers, ("TS_GIF_NATIVE", "TS_DMA_CHAIN_CACHE", "TS_NATIVE_CALL_SLOTS")),
                     (perf_consumers, ("TS_PERF_BACKEND",)),
                     (draw_consumers, ("TS_DRAW_RECORDS",)),
-                    ({"bg_vu", "capture"}, ("TS_NATIVE_CAPTURE",)),
+                    (source_consumers, ("TS_VIF_SOURCE",)),
+                    ({"native", "bg_vu", "capture"}, ("TS_NATIVE_CAPTURE",)),
                 )
                 for consumers, switches in groups:
                     for name in consumers:
@@ -185,8 +190,12 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
                 if settings["TS_GIF_NATIVE"]:
                     paths["native"] = generated / "gif/vu1_native_ts.cpp"
                     paths["gs"] = generated / "gif/gs_frontend.cpp"
+                if settings["TS_VIF_SOURCE"]:
+                    paths["native"] = generated / "vif-source/vu1_native_ts.cpp"
                 if settings["TS_DMA_CHAIN_CACHE"]:
                     paths["memory"] = generated / "dma/ps2_memory.cpp"
+                if settings["TS_DRAW_RECORDS"]:
+                    paths["memory"] = generated / "draw-records/ps2_memory.cpp"
                 if settings["TS_NATIVE_CALL_SLOTS"]:
                     for name in native_calls:
                         paths[name] = generated / "native-calls" / Path(routed[name]).name
@@ -210,6 +219,8 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
                     ("native_game2", "xboxDrawRecordNoteRefs(", "TS_DRAW_RECORDS"),
                     ("memory", '#include "xbox_bg_runtime.h"', "TS_BG_NATIVE"),
                     ("memory", "xboxDmaChainPrepare(", "TS_DMA_CHAIN_CACHE"),
+                    ("memory", "xboxDrawRecordPrepareRefs(", "TS_DRAW_RECORDS"),
+                    ("native", '#include "xbox_vif_source.h"', "TS_VIF_SOURCE"),
                     ("gs", "xboxGifWithNativePlan(", "TS_GIF_NATIVE"),
                 )
                 for name, marker, switch in markers:
@@ -236,7 +247,7 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
             asset_dir = root / "build/xbox/iso/native-bg"
             stamps = [root / "build/xbox/gen" / name for name in
                       ("bg_native.flags", "optimizations.flags", "native_paths.flags", "perf_backend.flags",
-                       "draw_records.flags")]
+                       "draw_records.flags", "vif_source.flags")]
             build(set(sources))
             self.assertFalse(asset_dir.exists())
             self.assertEqual(asset_invocations(), [])
@@ -275,6 +286,8 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
                                     ("patch_vif_fast.py", {"vif"}),
                                     ("patch_draw_record_game.py", {"native_game2"}),
                                     ("patch_vif_record.py", {"vif"}),
+                                    ("patch_draw_record_dma.py", {"memory"}),
+                                    ("patch_native_source.py", {"native"}),
                                     ("patch_native_calls.py", native_calls)):
                 with (tool_dir / tool).open("a") as stream:
                     stream.write("\n# Synthetic build-dependency change.\n")
@@ -291,6 +304,8 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
             # even when its newly selected original input has an older mtime.
             build(draw_consumers, **enabled, TS_DRAW_RECORDS=0)
             build(draw_consumers, **enabled)
+            build(source_consumers, **enabled, TS_VIF_SOURCE=0)
+            build(source_consumers, **enabled)
             build(path_consumers, **enabled, TS_NATIVE_CALL_SLOTS=0)
             build(path_consumers, **enabled)
             build(opt_consumers, **enabled, TS_VIF_FAST=0)
@@ -299,9 +314,10 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
             # Each outer stage can be disabled while the BG observers and
             # geometry adapter stay enabled underneath it.
             outer_off = dict(enabled, TS_GIF_NATIVE=0, TS_DMA_CHAIN_CACHE=0,
-                             TS_NATIVE_CALL_SLOTS=0, TS_VIF_FAST=0, TS_DRAW_RECORDS=0)
-            build(path_consumers | opt_consumers | draw_consumers, **outer_off)
-            build(path_consumers | opt_consumers | draw_consumers, **enabled)
+                             TS_NATIVE_CALL_SLOTS=0, TS_VIF_FAST=0, TS_DRAW_RECORDS=0,
+                             TS_VIF_SOURCE=0)
+            build(path_consumers | opt_consumers | draw_consumers | source_consumers, **outer_off)
+            build(path_consumers | opt_consumers | draw_consumers | source_consumers, **enabled)
 
             # Old enabled-build dependencies still name copies. Disabling
             # must use originals even if those copies or patchers are gone.
@@ -314,7 +330,7 @@ with (Path(__file__).parent / "asset-calls.jsonl").open("a") as log:
             for tool in patch_tools:
                 (tool_dir / tool).write_text('raise SystemExit("must not patch while disabled")\n')
             disabled = {name: 0 for name in defaults}
-            build(bg_consumers | opt_consumers | path_consumers | draw_consumers | {"capture"}, **disabled)
+            build(bg_consumers | opt_consumers | path_consumers | draw_consumers | source_consumers | {"capture"}, **disabled)
             self.assertFalse(asset_dir.exists(), "disabled ISO staging must not retain prior XBG files")
             self.assertEqual(len(asset_invocations()), 2)
             build(set(), **disabled)

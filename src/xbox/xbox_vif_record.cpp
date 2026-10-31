@@ -1,6 +1,7 @@
 #include "xbox_vif_record.h"
 #include "runtime/ps2_memory.h"
 #include "xbox_vif_fast.h"
+#include "xbox_vif_source.h"
 
 #if TS_DRAW_RECORDS
 #include <atomic>
@@ -278,8 +279,12 @@ namespace
     }
 
     void execute(const Plan &plan, const uint8_t *ram, VIFRegisters &regs,
-                  uint8_t *vu, XboxVifRecordObserve observe, void *user)
+                  uint8_t *vu, XboxVifRecordObserve observe, void *user,
+                  XboxVifSourceScope *sourceScope)
     {
+#if !TS_VIF_SOURCE
+        (void)sourceScope;
+#endif
         for (uint32_t i = 0; i < plan.count; ++i)
         {
             const Operation &op = plan.operations[i];
@@ -294,6 +299,10 @@ namespace
                 const uint8_t *source = ram + op.payloadOffset;
                 if (observe) observe(user, dest, source, op.vectors, op.format,
                                       op.cl, op.wl, regs.mode);
+#if TS_VIF_SOURCE
+                if (sourceScope)
+                    sourceScope->noteUnpack(dest, source, op.vectors, op.format, op.cl, op.wl);
+#endif
                 if (op.format & 3u)
                 {
                     switch (op.format & 3u)
@@ -362,7 +371,7 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
                             uint8_t *vuData, XboxVifRecordMatch match,
                             XboxVifRecordObserve observe, void *user,
                             uint32_t &consumedBytes, uint32_t &vectors,
-                            uint32_t &commands)
+                            uint32_t &commands, XboxVifSourceScope *sourceScope)
 {
     consumedBytes = vectors = commands = 0;
 #if TS_DRAW_RECORDS
@@ -415,7 +424,15 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
         ++cache.stats.rejected;
         return false;
     }
-    execute(*plan, rdram, registers, vuData, observe, user);
+#if TS_VIF_SOURCE
+    if (sourceScope) sourceScope->beginPrefix(rdram, vuData);
+#endif
+    execute(*plan, rdram, registers, vuData, observe, user, sourceScope);
+#if TS_VIF_SOURCE
+    if (sourceScope)
+        sourceScope->finishPrefix(rdram + plan->terminalOffset, plan->terminalCode,
+                                  registers.tops & 0x3ffu);
+#endif
     consumedBytes = plan->bytes;
     vectors = plan->vectors;
     commands = plan->count;
@@ -426,7 +443,7 @@ bool xboxVifRecordTryPrefix(const XboxDrawRecordChain &chain, const uint8_t *rdr
     return true;
 #else
     (void)chain; (void)rdram; (void)firstData; (void)registers; (void)vuData;
-    (void)match; (void)observe; (void)user;
+    (void)match; (void)observe; (void)user; (void)sourceScope;
     return false;
 #endif
 }

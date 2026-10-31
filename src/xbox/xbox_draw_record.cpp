@@ -201,6 +201,19 @@ namespace
         unlinkPayload(index);
         state.hints[index].valid = false;
     }
+    void retireOrigin(uint32_t address)
+    {
+        const uint16_t index = findHint(address);
+        if (index != kNoHint) invalidateHint(index);
+        // Any lookup can discover a changed origin before the other
+        // transport is tried. Retire both, even if its hint was evicted,
+        // so restored caller bytes cannot revive an interior hit without
+        // a Note. Ordinary hint eviction never calls this helper.
+        for (auto &record : state.records)
+            if (record.valid && record.chain.chainAddress == address)
+                record.valid = false;
+        clearQueries();
+    }
     void linkPayload(uint16_t index)
     {
         Hint &hint = state.hints[index];
@@ -282,8 +295,8 @@ namespace
             const uint32_t payload = id == 3u || id == 4u
                                          ? word(tag.bytes + 4u) & 0x7FFFFFFFu
                                          : address + 16u;
-            // Preserve raw TTE/payload order. Actual DMA and its original
-            // coalescing still run; the decoder later proves the live prefix.
+            // Preserve raw TTE/payload order. Only the original DMA
+            // addSegment may coalesce; the decoder proves its live prefix.
             if ((record.transferTagData && !append(record, address + 8u, 8u)) ||
                 !append(record, payload, bytes))
                 return false;
@@ -359,12 +372,15 @@ namespace
         const bool callerCurrent = !std::memcmp(record.caller, ram + record.chain.callAddress, 16u);
         if (!callerCurrent || !leafCurrent(record, ram))
         {
-            record.valid = false;
             const uint16_t index = findHint(record.chain.chainAddress);
-            if (index != kNoHint && (!callerCurrent ||
+            if (!callerCurrent || (index != kNoHint &&
                 std::memcmp(state.hints[index].call.bytes, ram + state.hints[index].call.callAddress, 16u)))
-                invalidateHint(index);
-            clearQueries();
+                retireOrigin(record.chain.chainAddress);
+            else
+            {
+                record.valid = false;
+                clearQueries();
+            }
             ++state.stats.changed;
             // Do not reconstruct changed resident metadata in this lookup.
             return Attempt::Changed;
@@ -385,7 +401,7 @@ namespace
         if (!hint.valid) return Attempt::Declined;
         if (std::memcmp(hint.call.bytes, ram + hint.call.callAddress, 16u))
         {
-            invalidateHint(index);
+            retireOrigin(hint.call.chainAddress);
             ++state.stats.changed;
             return Attempt::Declined;
         }
@@ -575,6 +591,74 @@ bool xboxDrawRecordWithChain(const uint8_t *rdram, const uint8_t *data,
     return false;
 #else
     (void)rdram; (void)data; (void)consumer; (void)user;
+    return false;
+#endif
+}
+
+bool xboxDrawRecordPrepareRefs(const uint8_t *rdram, uint32_t ramBytes,
+                               uint32_t firstTagAddress, bool transferTagData,
+                               uint32_t remainingTags, uint32_t remainingBytes,
+                               XboxDrawRecordDmaSpan &out)
+{
+#if TS_DRAW_RECORDS
+    if (!rdram || ramBytes != Chain::kRamBytes || (firstTagAddress & 15u) ||
+        !within(firstTagAddress, 16u) || remainingTags == 0u)
+        return false;
+    Lease lease;
+    if (!lease.held) return false;
+    ++state.stats.dmaLookups;
+    const auto miss = [] { ++state.stats.dmaMisses; return false; };
+    // A lookup cannot manufacture an origin in a different RAM allocation.
+    // A producer Note is the only operation that selects/replaces its owner.
+    if (state.ram != rdram) return miss();
+    const uint16_t index = findHint(firstTagAddress);
+    if (index == kNoHint || state.hints[index].call.endAddress == 0u)
+        return miss();
+    Hint &hint = state.hints[index];
+    if (std::memcmp(hint.call.bytes, rdram + hint.call.callAddress, 16u))
+    {
+        retireOrigin(firstTagAddress);
+        ++state.stats.changed;
+        return miss();
+    }
+    uint32_t slot = kAbsent;
+    for (uint32_t i = 0; i < kRecords; ++i)
+        if (state.records[i].valid &&
+            state.records[i].chain.chainAddress == firstTagAddress &&
+            state.records[i].endAddress == hint.call.endAddress &&
+            state.records[i].transferTagData == transferTagData)
+        { slot = i; break; }
+    if (slot == kAbsent) slot = lazyRecord(rdram, index, transferTagData);
+    if (slot == kAbsent) return miss();
+    Record &record = state.records[slot];
+    const bool callerCurrent = !std::memcmp(record.caller,
+                                            rdram + record.chain.callAddress, 16u);
+    if (!callerCurrent || !leafCurrent(record, rdram))
+    {
+        record.valid = false;
+        if (!callerCurrent) retireOrigin(firstTagAddress);
+        else clearQueries();
+        ++state.stats.changed;
+        // Preserve the VIF lookup's changed-resident rule: reconstructing
+        // the still-observed range is allowed only on a later attempt.
+        return miss();
+    }
+    if (record.chain.tagCount > remainingTags || record.chain.totalBytes > remainingBytes)
+        return miss();
+
+    XboxDrawRecordDmaSpan prepared{};
+    prepared.chain = record.chain;
+    prepared.endAddress = record.endAddress;
+    prepared.lastTagUpper =
+        (word(record.tags[record.chain.tagCount - 1u].bytes) >> 16u) & 0xFFFFu;
+    out = prepared;
+    ++state.stats.dmaAccepted;
+    state.stats.dmaTags += record.chain.tagCount;
+    state.stats.dmaBytes += record.chain.totalBytes;
+    return true;
+#else
+    (void)rdram; (void)ramBytes; (void)firstTagAddress; (void)transferTagData;
+    (void)remainingTags; (void)remainingBytes; (void)out;
     return false;
 #endif
 }

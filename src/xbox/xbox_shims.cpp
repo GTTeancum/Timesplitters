@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <fenv.h>
 #include <xmmintrin.h>
 
@@ -30,6 +31,25 @@ int fesetround(int mode)
     // MXCSR rounding control is bits 13-14 in the same order.
     _mm_setcsr((_mm_getcsr() & ~0x6000u) | (static_cast<unsigned>(mode) << 3));
     return 0;
+}
+
+// The calling thread's SSE unit flushes denormal results to zero (FTZ, MXCSR
+// bit 15) and, where the CPU supports it (MXCSR_MASK bit 6, from FXSAVE),
+// reads denormal operands as zero (DAZ, bit 6): the PS2 FPU and VUs have no
+// denormals, and on the Pentium III each one is a microcode assist. MXCSR is
+// per thread (saved on a switch); fesetround above keeps both bits.
+void xboxFlushDenormals()
+{
+    alignas(16) unsigned char area[512] = {};
+    __asm__ __volatile__("fxsave %0" : "=m"(area));
+    uint32_t mask;
+    std::memcpy(&mask, area + 28, sizeof(mask));
+    if (mask == 0u)
+        mask = 0xFFBFu; // no MXCSR_MASK given: DAZ is not there
+    uint32_t csr = _mm_getcsr() | 0x8000u;
+    if (mask & 0x40u)
+        csr |= 0x40u;
+    _mm_setcsr(csr);
 }
 
 extern "C"

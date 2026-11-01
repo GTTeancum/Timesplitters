@@ -159,6 +159,7 @@ namespace
         uint32_t samples = 0;
         uint32_t mxcsr = 0, x87 = 0;          // flags seen since boot (OR)
         uint32_t denormal = 0, underflow = 0; // samples with DE / UE (either unit)
+        uint32_t control = 0;                 // the last sample's MXCSR control bits (FTZ 8000, DAZ 40)
     };
     ThreadFlags g_gameFlags, g_mainFlags;
 
@@ -169,6 +170,7 @@ namespace
         __asm__ volatile("fnstsw %0" : "=m"(status));
         ++flags.samples;
         flags.mxcsr |= csr & 0x3Fu;
+        flags.control = csr & ~0x3Fu;
         flags.x87 |= status & 0x3Fu;
         const uint32_t raised = (csr | status) & 0x1Fu;
         flags.denormal += (raised & 0x02u) ? 1u : 0u;
@@ -1052,8 +1054,8 @@ void xboxPerfReport(const XboxPerfInputs &in)
         line.add(" tscK=%u", unsigned((now.tsc - was.tsc) / 1000u / f));
         line.add(" kidle=%u/%u%s", now.idleTicks - was.idleTicks, now.ticks - was.ticks, g_idleCounted ? "" : "?");
         auto flags = [&line](const char *name, const ThreadFlags &a, const ThreadFlags &b) {
-            line.add(" %s=%02x/%02x/%u/%u/%u", name, a.mxcsr, a.x87, a.denormal - b.denormal, a.underflow - b.underflow,
-                     a.samples - b.samples);
+            line.add(" %s=%02x/%02x/%u/%u/%u/%04x", name, a.mxcsr, a.x87, a.denormal - b.denormal,
+                     a.underflow - b.underflow, a.samples - b.samples, a.control);
         };
         flags("fpgame", now.gameFlags, was.gameFlags);
         flags("fpmain", now.mainFlags, was.mainFlags);

@@ -39,6 +39,12 @@ static_assert(PS2X_GUEST_DISPATCH_CYCLES == EeScheduler::kGuestDispatchCycles,
 void *xboxThreadStart(uint32_t stackBytes, void (*entry)(void *), void *arg);
 void xboxThreadJoin(void *thread);
 void xboxStackReport();
+// TS_FLUSH_DENORMALS 1 (src/xbox/Makefile): the game thread flushes
+// denormals to zero as the PS2 does (src/xbox/xbox_shims.cpp).
+#ifndef TS_FLUSH_DENORMALS
+#define TS_FLUSH_DENORMALS 0
+#endif
+void xboxFlushDenormals();
 #endif
 #include "ThreadNaming.h"
 #include "Kernel/Stubs/Audio.h"
@@ -2734,6 +2740,9 @@ void PS2Runtime::run()
     auto gameMain = [&]()
                            {
         ThreadNaming::SetCurrentThreadName("GameThread");
+#if defined(PLATFORM_XBOX) && TS_FLUSH_DENORMALS
+        xboxFlushDenormals();
+#endif
         PS2X_TRY
         {
             m_eeScheduler->reset(m_memory.getRDRAM(), m_cpuContext);

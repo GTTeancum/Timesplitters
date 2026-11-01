@@ -1097,6 +1097,25 @@ $(STACK_STAMP): FORCE
 $(STACK_OBJS): $(STACK_STAMP)
 $(STACK_OBJS): RUNTIME_FLAGS += $(STACK_FLAGS)
 
+# make TS_FLUSH_DENORMALS=1: the game thread sets MXCSR flush-to-zero and
+# (where the CPU has it) denormals-are-zero, as the PS2's FPU and VUs always
+# behave: the game makes denormals in nearly every frame, and each costs the
+# Pentium III a microcode assist (ps2_runtime.cpp, xbox_shims.cpp). Off: no
+# gain in xemu 4P (2026-11-01: 30.7/35.5 FPS on, 36.7/32.9 off; xemu has
+# FTZ but no DAZ, MXCSR 9f80); not yet measured on the hardware.
+TS_FLUSH_DENORMALS ?= 0
+ifneq ($(filter-out 0 1,$(TS_FLUSH_DENORMALS)),)
+$(error TS_FLUSH_DENORMALS must be 0 or 1)
+endif
+DENORMAL_FLAGS := -DTS_FLUSH_DENORMALS=$(TS_FLUSH_DENORMALS)
+DENORMAL_STAMP := $(OUT)/gen/denormals.flags
+DENORMAL_OBJS := $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj
+$(DENORMAL_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(DENORMAL_FLAGS)' ] || echo '$(DENORMAL_FLAGS)' > $@
+$(DENORMAL_OBJS): $(DENORMAL_STAMP)
+$(DENORMAL_OBJS): RUNTIME_FLAGS += $(DENORMAL_FLAGS)
+
 # What the link depends on besides the objects: a switch that leaves objects
 # out (TS_VU1_RECOMPILED) or changes the link (the stack) relinks.
 LINK_STAMP := $(OUT)/gen/link.flags

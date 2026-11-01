@@ -44,7 +44,7 @@ class TexturePackTests(unittest.TestCase):
         cls.addClassCleanup(cls.temp.cleanup)
         cls.folder = Path(cls.temp.name)
         cls.exe = cls.folder / "texture_pack_test"
-        command = shlex.split(os.environ.get("CXX", "c++")) + ["-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror", "-pthread", "-D__stdcall="]
+        command = shlex.split(os.environ.get("CXX", "c++")) + ["-std=c++17", "-O2", "-Wall", "-Wextra", "-Werror", "-pthread", "-U__stdcall", "-D__stdcall="]
         command += shlex.split(os.environ.get("TS_XTP_CXXFLAGS", ""))
         command += ["-I" + str(ROOT / "src/xbox/test/texture_pack_host"),
                     "-I" + str(ROOT / "source/PS2Recomp/ps2xRuntime/include"),

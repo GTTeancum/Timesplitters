@@ -327,8 +327,10 @@ def patch_source(source: str) -> str:
             raise ValueError(f'expected exactly one {label} anchor')
     if not normalized.index(DECODE) < normalized.index(COMMAND) < normalized.index(REGISTERS):
         raise ValueError('unexpected segmented decoder/command/register order')
-    normalized = normalized.replace(INCLUDE, INCLUDE + ADAPTER_INCLUDE + SOURCE_INCLUDE)
-    normalized = normalized.replace(LEGACY, LEGACY + SOURCE_LEGACY)
+    normalized = normalized.replace(INCLUDE, INCLUDE + ADAPTER_INCLUDE)
+    # The legacy decoder precedes the SSE include; its revocation call needs
+    # the declaration first.
+    normalized = normalized.replace(LEGACY, SOURCE_INCLUDE + LEGACY + SOURCE_LEGACY)
     normalized = normalized.replace(DECODE, DECODE + SOURCE_SCOPE)
     normalized = normalized.replace(COMMAND, HOOK + SOURCE_COMMAND + COMMAND)
     normalized = normalized.replace(TRACK_COMMAND, TRACK_COMMAND + SOURCE_TRACK)

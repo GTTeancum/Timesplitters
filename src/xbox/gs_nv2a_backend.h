@@ -112,6 +112,12 @@ struct GSNv2aLookupStats
     // page writes; these counters do not claim a measured frame-time gain.
     uint32_t drawKeyHits = 0, drawKeyMisses = 0;
     uint32_t packSourceHits = 0, packSourceMisses = 0, packSourceInvalidations = 0;
+    // Texture source keys (TS_TEXTURE_SOURCE_KEYS): misses whose source key
+    // found a pack entry or not, of those keyed from an upload's hash (the
+    // rest read GS memory back); uploads hashed; palettes logged for the
+    // builder; full CLUT loads that repeated the last one.
+    uint32_t sourceHits = 0, sourceMisses = 0, sourceFromUpload = 0, sourceUploads = 0, sourceVariants = 0;
+    uint32_t clutRepeats = 0;
 };
 GSNv2aLookupStats nv2aLookupStats();
 
@@ -142,6 +148,9 @@ public:
 
     void Submit(const GSPrimitiveBatch &batch) override;
     bool SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count) override;
+    // TS_GIF_DIRECT: prims primitives of per vertices and one state drawn as
+    // that many Submit calls; false for an off-screen target (xbox_gif_direct.h).
+    bool SubmitRun(const GSDrawState &state, const GSVertex *vertices, uint32_t per, uint32_t prims);
     bool BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, GSXfCursor &cursor) override;
     void GrowXfCursor(GSXfCursor &cursor, uint32_t count) override;
     void EmitXfStrip(const GSXfVertex *vertices, uint32_t count) override;

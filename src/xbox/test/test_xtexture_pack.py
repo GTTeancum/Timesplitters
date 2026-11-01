@@ -16,11 +16,15 @@ import unittest
 ROOT = Path(__file__).resolve().parents[3]
 HEADER = struct.Struct("<4s7I")
 ENTRY = struct.Struct("<QIIHHBBBB")
+SOURCE = struct.Struct("<QIBBBB")
 
 
-def pack_bytes(entries):
-    """Synthetic (key, format, width, levels) entries with known payloads."""
-    offset = (HEADER.size + len(entries) * ENTRY.size + 127) & ~127
+def pack_bytes(entries, sources=None):
+    """Synthetic (key, format, width, levels) entries with known payloads;
+    with sources ((key, entry, kind) records), format version 2."""
+    sources = sources or []
+    source_offset = HEADER.size + len(entries) * ENTRY.size
+    offset = (source_offset + len(sources) * SOURCE.size + 127) & ~127
     data_start = offset
     index, data = [], bytearray()
     for key, fmt, width, levels in entries:
@@ -33,7 +37,11 @@ def pack_bytes(entries):
         data += bytes(at - offset) + bytes([key & 255]) * size
         index.append(ENTRY.pack(key, at, size, width, width, fmt, levels, 1, 0))
         offset = at + size
-    head = HEADER.pack(b"XTP1", 1, 1, len(entries), HEADER.size, data_start, 0, 0) + b"".join(index)
+    if sources:
+        head = HEADER.pack(b"XTP1", 2, 1, len(entries), HEADER.size, data_start, len(sources), source_offset)
+    else:
+        head = HEADER.pack(b"XTP1", 1, 1, len(entries), HEADER.size, data_start, 0, 0)
+    head += b"".join(index) + b"".join(SOURCE.pack(key, entry, kind, 0, 0, 0) for key, entry, kind in sources)
     return head + bytes(data_start - len(head)) + data
 
 
@@ -57,6 +65,9 @@ class TexturePackTests(unittest.TestCase):
         cls.normal.write_bytes(pack_bytes([(0x10, 0, 8, 2), (0x11, 1, 8, 2), (0x12, 2, 8, 4), (0x13, 3, 8, 4)]))
         cls.other = cls.folder / "other.xtp"
         cls.other.write_bytes(pack_bytes([(0x80, 2, 8, 1)]))
+        cls.sources = cls.folder / "sources.xtp"
+        cls.sources.write_bytes(pack_bytes([(0x10, 0, 8, 2), (0x11, 1, 8, 2), (0x12, 2, 8, 4)],
+                                           [(0x100, 1, 0), (0x200, 2, 1), (0x300, 0, 0)]))
         cls.room = cls.folder / "room.xtp"
         cls.room.write_bytes(pack_bytes([(0x10, 0, 4, 1), (0x11, 0, 4, 1), (0x12, 0, 4, 1), (0x13, 2, 8, 1)]))
 
@@ -76,6 +87,24 @@ class TexturePackTests(unittest.TestCase):
     def test_close_waits_for_pending_read(self): self.run_case("pending-close")
     def test_read_failure_invalidates_cached_no_room(self): self.run_case("failed-room", path=self.room)
     def test_read_completion_invalidates_cached_no_room(self): self.run_case("completed-room", path=self.room)
+    def test_version_2_source_table(self): self.run_case("sources", path=self.sources)
+    def test_version_1_has_no_sources(self): self.run_case("no-sources")
+
+    def test_rejects_malformed_source_table(self):
+        source = self.sources.read_bytes()
+        table = HEADER.size + 3 * ENTRY.size
+        patches = [("version 3", 4, "<I", 3), ("offset without count", 24, "<I", 0),
+                   ("count past data", 24, "<I", 20), ("table over index", 28, "<I", table - 16),
+                   ("unaligned table", 28, "<I", table + 4), ("unknown kind", table + 12, "<B", 2),
+                   ("record reserved", table + 13, "<B", 1), ("no such entry", table + 8, "<I", 3),
+                   ("unsorted keys", table + 16, "<Q", 0x50), ("key twice", table + 16, "<Q", 0x100)]
+        for label, offset, fmt, value in patches:
+            with self.subTest(label=label):
+                altered = bytearray(source)
+                struct.pack_into(fmt, altered, offset, value)
+                path = self.folder / "bad-source.xtp"
+                path.write_bytes(altered)
+                self.run_case("reject", path=path)
 
     def test_rejects_malformed_native_metadata(self):
         source = self.normal.read_bytes()

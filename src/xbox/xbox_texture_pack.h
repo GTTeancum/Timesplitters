@@ -10,10 +10,15 @@
 // (render targets, palettes made at run time) keep the runtime path.
 //
 // File layout (little-endian):
-//   header, 32 bytes: char magic[4] "XTP1"; u32 version (1); u32 hashVersion
-//     (gs_texture_hash::kVersion); u32 count; u32 indexOffset;
-//     u32 dataOffset; u32 reserved[2]
+//   header, 32 bytes: char magic[4] "XTP1"; u32 version (1 or 2); u32
+//     hashVersion (gs_texture_hash::kVersion); u32 count; u32 indexOffset;
+//     u32 dataOffset; version 1: u32 reserved[2] (0); version 2: u32
+//     sourceCount; u32 sourceOffset (0 when sourceCount is 0)
 //   index at indexOffset: count Entry records, sorted by key
+//   version 2, at sourceOffset (after the index, before the data):
+//     sourceCount Source records, sorted by key: the entries again by
+//     their source keys (xbox_texture_source.h, kVersion 1), which the
+//     renderer works out without decoding a texture (TS_TEXTURE_SOURCE_KEYS)
 //   data: each entry's levels back to back from level 0, each entry
 //     128-byte aligned. DXT levels in plain block order (the NV2A reads
 //     compressed textures block by block, not swizzled), the others in the
@@ -60,6 +65,21 @@ public:
     };
     static_assert(sizeof(Entry) == 24, "index record layout");
 
+    enum SourceKind : uint8_t
+    {
+        kSourceExact = 0, // this image with this CLUT (or a CLUT-less format): the entry is the texture
+        kSourceImage = 1, // these indices with some CLUT: the entry is one palette's (not the texture)
+    };
+    // One source-table record (version 2), exactly as on the disc.
+    struct Source
+    {
+        uint64_t key;   // xbox_texture_source::exactKey or imageOnlyKey
+        uint32_t entry; // index into the entries
+        uint8_t kind;   // SourceKind
+        uint8_t reserved[3];
+    };
+    static_assert(sizeof(Source) == 16, "source record layout");
+
     // What acquire found.
     enum Status : uint8_t
     {
@@ -103,6 +123,10 @@ public:
 
     // The entry with this key, or -1.
     int find(uint64_t key) const;
+    // The entry with this source key (and its kind), or -1. Always -1 for a
+    // version 1 pack.
+    int findSource(uint64_t key, uint8_t &kind) const;
+    uint32_t sourceCount() const { return uint32_t(sources_.size()); }
     const Entry &entry(int index) const { return index_[size_t(index)]; }
 
     // The entry's levels in the pool (status kReady), else null. An entry
@@ -175,6 +199,7 @@ private:
 
     void *file_ = nullptr; // HANDLE
     std::vector<Entry> index_;
+    std::vector<Source> sources_;  // version 2's source table
     std::vector<Slot> slots_;      // per entry
     std::vector<int> resident_;    // entries in the pool (queued or resident)
     std::vector<Range> free_;      // free pool ranges, by offset

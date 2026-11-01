@@ -83,12 +83,14 @@ Makefile rebuilds its consumers when the switch changes.
 | `TS_BG_BATCH` | One validated pack access for a complete accepted geometry group; applies when native backgrounds are enabled. |
 | `TS_VIF_FAST` | Repeated UNPACK size calculations and contiguous 32-bit vector copy loops. |
 | `TS_GIF_NATIVE` | Reuse of exact PACKED GIF tag/operation plans, with all register and vertex payloads read live. |
+| `TS_GIF_DIRECT` | Complete PACKED/REGLIST GIF packets (sprites, triangles, strips, fans, fills and the state writes between them) decoded straight into per-state runs for the renderer instead of per-register GS calls and per-primitive submits; other packets keep the original route. Host-tested equal to the original route (test/test_gif_direct.py). Not yet run. |
 | `TS_DMA_CHAIN_CACHE` | Reuse of validated leaf DMA subchains while retaining the original payload appends, return-stack effects and batch-flush boundaries. |
 | `TS_NATIVE_CALL_SLOTS` | Known guest-call targets in the four native game/math files use the current function-table slot directly. |
 | `TS_DRAW_RECORDS` | Observed REF groups reuse exact descriptors in the DMA walk; observed draw chains execute fully admitted VIF prefixes at their original stream positions. |
 | `TS_VIF_SOURCE` | An admitted prefix lends source arrays to its immediate fast native Plain/EnvMap draw, after pack geometry misses. Requires an admitted draw record; all VU writes and native admission remain. |
 | `TS_NV2A_MATERIAL_CACHE` | Derived NV2A material registers for exactly matching material inputs. |
 | `TS_NV2A_PACK_IDENTITY_CACHE` | Texture-pack lookup identities across texture cache eviction, invalidated by writes to the source pages. |
+| `TS_TEXTURE_SOURCE_KEYS` | A texture-cache miss finds its pack entry by source key (8-bit indices plus the CLUT hash, or 32-bit texels; hashed at upload or read back) instead of a palette decode and RGBA hash; a repeated full CLUT load is one compare. Builds the pack with its source table. Not yet run. |
 
 These paths are designed to preserve live colors, transforms, texture
 residency and draw ordering. They do not replace the complete PS2 DMA/VIF
@@ -153,6 +155,17 @@ own python has neither; the build looks for a python.org install, or set
 it. `build.sh textures` builds only the pack;
 `XTP_FLAGS="--replacements textures/replacements --dump textures/dump"`
 (absolute paths) adds HD replacements, `--preview DIR` writes .dds files.
+
+With `TS_TEXTURE_SOURCE_KEYS=1` the pack is format version 2
+(`xtpbuild.py --source-keys`, about 36 KB more on the disc and in the
+Xbox's memory): every entry also under the key of what GS memory holds for
+it (`xbox_texture_source.h`), so the renderer finds it without decoding the
+texture. 2,244 of MISC.PAK's 2,254 entries are 8-bit indexed; none shares
+its indices with another palette. A palette the game makes at run time
+for known indices misses and takes the decode as before; to put those in
+the pack, build once with `XTP_FLAGS="--variant-keys"` (the Xbox then logs
+each such palette as `[TS:texvariant]` lines, at most 32), then with
+`XTP_FLAGS="--variants /abs/path/to/the.log"`.
 
 ## Test in xemu
 
@@ -281,6 +294,10 @@ world textures of 256+ halved (lossy), VIF1 commands over 256 KB that straddle c
   drops from 1 MB to 512 KB only while the pack is seen to carry the world
   textures. Without the file, textures come from the runtime path only, as
   before.
+- `xbox_texture_source.h` (`TS_TEXTURE_SOURCE_KEYS`): the pack's second key,
+  worked out from GS memory without a decode (indices and CLUT hash, or
+  32-bit texels); `tools/xtpbuild.py` computes the same from MISC.PAK
+  (`test/test_xtexture_source.py` checks the two agree).
 - `shaders/`: the vertex program and the pixel-program variants (TFX/TCC,
   and TCC for one-bit-alpha textures whose 1.0 is GS 0x80), compiled by
   nxdk's Cg tools (`gs_*.inl` under `build/xbox/gen/shaders`).

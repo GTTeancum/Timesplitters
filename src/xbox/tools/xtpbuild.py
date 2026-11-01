@@ -15,6 +15,7 @@ under build/ (gitignored), never committed.
 
 usage: xtpbuild.py MISC.PAK OUT.xtp [--replacements DIR] [--dump DIR]
                    [--from-dump] [--preview DIR] [--jobs N]
+                   [--source-keys] [--variants LOG ...]
 
   --replacements DIR  HD PNGs named <16 hex key>.png (as the PC port's
                       textures/replacements); capped at twice the original
@@ -26,6 +27,12 @@ usage: xtpbuild.py MISC.PAK OUT.xtp [--replacements DIR] [--dump DIR]
                       art kept in other containers), checked by re-hashing
   --preview DIR       also write each entry as a loose .dds for inspection
   --jobs N            encoder processes (default: up to 8)
+  --source-keys       format version 2, with the source table below
+  --variant-keys      also indices-only keys, so that the Xbox logs the
+                      palettes it meets that the pack lacks (implies
+                      --source-keys)
+  --variants LOG      an Xbox log: add the palettes it lists ([TS:texvariant])
+                      for indices MISC.PAK has (implies --variant-keys)
 
 Pack format (little-endian); the runtime reader must follow it exactly:
   header, 32 bytes: char magic[4] = "XTP1"; u32 version = 1;
@@ -43,6 +50,19 @@ Pack format (little-endian); the runtime reader must follow it exactly:
     standard BC1/BC3 block order (the NV2A reads compressed textures
     block-linear, not swizzled), swizzled formats in NV2A Morton order per
     level; each entry starts 128-byte aligned.
+
+  Version 2 (--source-keys) is version 1 with header reserved[0] =
+  sourceCount and reserved[1] = sourceOffset (0 when there are none), and
+  at sourceOffset, after the index and before the data, sourceCount
+  records of 16 bytes sorted by key ascending: u64 key; u32 entry (its
+  position in the sorted index); u8 kind (0 exact: the entry is this
+  texture; 1 indices only: the entry has these indices with another
+  palette; --variant-keys only); u8 reserved[3] = 0. The keys are src/xbox/
+  xbox_texture_source.h's (version 1): an 8-bit indexed texture's by its
+  indices and its CLUT buffer's hash, a 32-bit one's by its texels, which
+  the Xbox works out without decoding the texture (TS_TEXTURE_SOURCE_KEYS).
+  --variants LOG adds the palettes the Xbox logged for indices the pack
+  already has ([TS:texvariant] lines: palette swaps made at run time).
 """
 import argparse
 import os
@@ -55,9 +75,11 @@ from PIL import Image
 
 PACK_MAGIC = b"XTP1"
 PACK_VERSION = 1
+PACK_VERSION_SOURCES = 2  # with the source table (--source-keys)
 HASH_VERSION = 1  # gs_texture_replacement::hash, FNV-1a over texel pairs
 HEADER = struct.Struct("<4sIIIIIII")
 ENTRY = struct.Struct("<QIIHHBBBB")
+SOURCE = struct.Struct("<QIBBBB")
 ALIGN = 128
 
 FMT_DXT1, FMT_DXT5, FMT_ARGB8888, FMT_ARGB1555 = 0, 1, 2, 3
@@ -101,8 +123,11 @@ def read_pak(path):
 
 def parse_qpm(data):
     """Texels of a .qpm as the GS decode gives them: one uint32 per texel,
-    bytes R, G, B, A, alpha in GS scale (0x80 = 1.0). Returns (kind, levels)
-    with levels a list of (h, w) arrays, or None for an unknown kind.
+    bytes R, G, B, A, alpha in GS scale (0x80 = 1.0). Returns (kind, levels,
+    source) with levels a list of (h, w) arrays and source what GS memory
+    holds for them (source keys): (PSM_T8, index levels as (h, w) uint8
+    arrays, the 256-entry palette) or (PSM_CT32, None, None); None for an
+    unknown kind.
 
       Q8  "Q8\\n<w> <h>\\n255 v 256\\n", a 256-entry RGBA palette, w*h indices
       M8  the same with a level count after "256", then the game's own
@@ -121,20 +146,21 @@ def parse_qpm(data):
         fields = parts[2].split()
         count = int(fields[3]) if kind == b"M8" and len(fields) > 3 else 1
         palette = np.frombuffer(body[:1024], "<u4")
-        levels, pos, lw, lh = [], 1024, w, h
+        levels, index_levels, pos, lw, lh = [], [], 1024, w, h
         for _ in range(count):
             indices = np.frombuffer(body[pos:pos + lw * lh], np.uint8)
             if len(indices) < lw * lh:
                 break
             levels.append(palette[indices].reshape(lh, lw))
+            index_levels.append(indices.reshape(lh, lw))
             pos += lw * lh
             lw, lh = max(1, lw // 2), max(1, lh // 2)
-        return (kind.decode(), levels) if levels else None
+        return (kind.decode(), levels, (PSM_T8, index_levels, palette)) if levels else None
     if kind == b"Q6":
         texels = np.frombuffer(body[:w * h * 4], "<u4")
         if len(texels) < w * h:
             return None
-        return "Q6", [texels.reshape(h, w)]
+        return "Q6", [texels.reshape(h, w)], (PSM_CT32, None, None)
     return None
 
 
@@ -164,6 +190,118 @@ def pc_keys(images):
         for i, value in zip(members, state.tolist()):
             keys[i] = value
     return keys
+
+
+# ------------------------------------------------------------ source keys
+# src/xbox/xbox_texture_source.h, which the renderer uses with
+# TS_TEXTURE_SOURCE_KEYS: a texture named by what GS memory holds (indices
+# and CLUT, or 32-bit texels), found without decoding it. Bit for bit the
+# same as the header; test_xtexture_source.py checks the two against each
+# other.
+
+PSM_CT32, PSM_T8 = 0x00, 0x13
+SOURCE_VERSION = 1  # xbox_texture_source::kVersion
+SOURCE_EXACT, SOURCE_IMAGE = 0, 1
+M32, M64 = 0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF
+FNV32, LANE_B = np.uint32(16777619), np.uint32(0x85EBCA6B)
+
+
+def _two_lanes(words, a, b):
+    """ImageHasher's (and GSCpuBackend::HashClut's Xbox) lanes over the
+    columns of words (one row a hash), from start values a and b."""
+    shift = np.uint32(13)
+    with np.errstate(over="ignore"):
+        for column in np.ascontiguousarray(words.T):
+            a, b = (a ^ column) * FNV32, (b ^ column) * LANE_B + (b >> shift)
+    return a, b
+
+
+def source_image_keys(images):
+    """ImageHasher(psm, w, h) over each (psm, w, h, bytes) image (bytes a
+    uint8 array: indices or 32-bit texels in texel order), every image of
+    the same shape and length in one vector."""
+    keys = [0] * len(images)
+    groups = {}
+    for i, (psm, w, h, data) in enumerate(images):
+        groups.setdefault((psm, w, h, len(data)), []).append(i)
+    for (psm, w, h, n), members in groups.items():
+        flat = np.zeros((len(members), -(-n // 4) * 4), np.uint8)
+        for row, i in enumerate(members):
+            flat[row, :n] = images[i][3]
+        a0 = (2166136261 ^ ((w * 0x9E3779B1) & M32) ^ h) & M32
+        b0 = (0x9E3779B9 ^ ((psm << 24) & M32) ^ ((h * 0x85EBCA6B) & M32) ^ w) & M32
+        a, b = _two_lanes(flat.view("<u4"), np.full(len(members), a0, np.uint32), np.full(len(members), b0, np.uint32))
+        with np.errstate(over="ignore"):
+            a = (a ^ np.uint32(n & M32)) * FNV32
+        for i, x, y in zip(members, a.tolist(), b.tolist()):
+            keys[i] = (x << 32) | y
+    return keys
+
+
+def image_bytes(psm, image):
+    """The bytes an image hashes: (h, w) uint8 indices or uint32 texels."""
+    return np.ascontiguousarray(image.astype(np.uint8 if psm == PSM_T8 else "<u4")).reshape(-1).view(np.uint8)
+
+
+def hash_cluts(palettes):
+    """GSCpuBackend::HashClut (the Xbox variant) of the CLUT buffer a full
+    32-bit load of each 256-entry palette leaves: 512 halfwords, the low
+    halves of the entries, then the high ones, hashed as 32-bit words."""
+    if not len(palettes):
+        return []
+    palettes = np.stack([np.asarray(p, np.uint32) for p in palettes])
+    buffers = np.ascontiguousarray(np.concatenate([palettes & 0xFFFF, palettes >> 16], axis=1).astype("<u2"))
+    a, b = _two_lanes(buffers.view("<u4"), np.full(len(palettes), 2166136261, np.uint32),
+                      np.full(len(palettes), 0x9E3779B9, np.uint32))
+    return [(x << 32) | y for x, y in zip(a.tolist(), b.tolist())]
+
+
+def hash_clut(palette):
+    return hash_cluts([palette])[0]
+
+
+def _rotl(v, s):
+    return ((v << s) | (v >> (64 - s))) & M64
+
+
+def exact_key(image, clut):
+    return image ^ _rotl(clut, 29) ^ 0x5851F42D4C957F2D
+
+
+def image_only_key(image):
+    return image ^ 0xA0761D6478BD642F
+
+
+def read_variants(paths):
+    """Palettes the renderer met for indices the pack has, from its logs:
+    "[TS:texvariant] <image> <clut> <w>x<h> <part>/8 <32 entries>" lines
+    (hex), eight parts a palette. {(image, clut): (w, h, palette)} for the
+    complete ones whose entries hash to the logged CLUT."""
+    parts = {}
+    for path in paths:
+        with open(path, "r", errors="replace") as f:
+            for line in f:
+                at = line.find("[TS:texvariant] ")
+                if at < 0:
+                    continue
+                fields = line[at:].split()
+                try:
+                    image, clut = int(fields[1], 16), int(fields[2], 16)
+                    w, h = map(int, fields[3].split("x"))
+                    part = int(fields[4].split("/")[0])
+                    entries = [int(fields[5][i:i + 8], 16) for i in range(0, 256, 8)]
+                except (IndexError, ValueError):
+                    continue
+                if 0 <= part < 8 and len(fields[5]) == 256:
+                    parts.setdefault((image, clut, w, h), {})[part] = entries
+    found = {}
+    for (image, clut, w, h), pieces in parts.items():
+        if len(pieces) != 8:
+            continue
+        palette = np.array([e for p in range(8) for e in pieces[p]], np.uint32)
+        if hash_clut(palette) == clut:
+            found[(image, clut)] = (w, h, palette)
+    return found
 
 
 def dump_keys(dump_dir):
@@ -874,7 +1012,17 @@ def main():
     parser.add_argument("--from-dump", action="store_true", help="also pack textures found only in --dump")
     parser.add_argument("--preview", help="write loose .dds files here")
     parser.add_argument("--jobs", type=int, default=min(8, os.cpu_count() or 1), help="encoder processes")
+    parser.add_argument("--source-keys", action="store_true",
+                        help="write format version 2: the entries also by source key (TS_TEXTURE_SOURCE_KEYS)")
+    parser.add_argument("--variant-keys", action="store_true",
+                        help="also the indices-only keys, so the Xbox logs palettes the pack lacks "
+                             "(implies --source-keys; 16 bytes of the Xbox's memory a texture)")
+    parser.add_argument("--variants", action="append", default=[],
+                        help="an Xbox log with [TS:texvariant] lines: add those palettes of known indices "
+                             "(implies --variant-keys; may be given more than once)")
     args = parser.parse_args()
+    args.variant_keys = args.variant_keys or bool(args.variants)
+    args.source_keys = args.source_keys or args.variant_keys
     started = time.time()
     clock = {}
 
@@ -891,16 +1039,56 @@ def main():
             sources.append((name,) + parsed)
     skipped = {"non-power-of-two": 0, "alpha above 0x80": 0, "duplicate": 0}  # files
     pow2 = []
-    for name, kind, levels in sources:
+    for name, kind, levels, source in sources:
         h, w = levels[0].shape
         if w & (w - 1) or h & (h - 1):
             skipped["non-power-of-two"] += 1
         else:
-            pow2.append((name, kind, levels))
-    keys = pc_keys([levels[0] for _, _, levels in pow2])
+            pow2.append((name, kind, levels, source))
+    # Source keys (--source-keys): each texture's image key, and for the
+    # indexed ones the palettes the Xbox logged for the same indices
+    # (--variants), expanded here as textures of their own.
+    image_keys = []
+    variants_added = 0
+    if args.source_keys:
+        image_keys = source_image_keys([(src[0], lv[0].shape[1], lv[0].shape[0],
+                                         image_bytes(src[0], src[1][0] if src[0] == PSM_T8 else lv[0]))
+                                        for _, _, lv, src in pow2])
+        if args.variants:
+            by_image = {}
+            for item, image in zip(pow2, image_keys):
+                if item[3][0] == PSM_T8:
+                    by_image.setdefault(image, item)
+            for (image, clut), (w, h, palette) in sorted(read_variants(args.variants).items()):
+                base = by_image.get(image)
+                if base is None or base[2][0].shape != (h, w):
+                    print("[xtp] variant %016x/%016x: indices not in MISC.PAK; skipped" % (image, clut))
+                    continue
+                name, kind, _, (psm, index_levels, _) = base
+                pow2.append(("%s (palette %016x)" % (name, clut), kind,
+                             [palette[indices] for indices in index_levels], (psm, index_levels, palette)))
+                image_keys.append(image)
+                variants_added += 1
+    keys = pc_keys([levels[0] for _, _, levels, _ in pow2])
+    # Source key -> (kind, texture key). A key two different textures claim
+    # (a hash collision) is dropped; an indices-only key keeps its first.
+    source_map, source_conflicts = {}, set()
+    cluts = iter(hash_cluts([src[2] for _, _, _, src in pow2 if src[0] == PSM_T8]) if image_keys else [])
+    for (name, kind, levels, (psm, _, palette)), key, image in zip(pow2, keys, image_keys):
+        claims = [(exact_key(image, next(cluts) if psm == PSM_T8 else 0), SOURCE_EXACT)]
+        if psm == PSM_T8 and args.variant_keys:
+            claims.append((image_only_key(image), SOURCE_IMAGE))
+        for skey, skind in claims:
+            known = source_map.get(skey)
+            if known is None:
+                source_map[skey] = (skind, key)
+            elif known[0] != skind or (skind == SOURCE_EXACT and known[1] != key):
+                source_conflicts.add(skey)
+    for skey in source_conflicts:
+        del source_map[skey]
     textures = {}
     order = []
-    for (name, kind, levels), key in zip(pow2, keys):
+    for (name, kind, levels, _), key in zip(pow2, keys):
         known = textures.get(key)
         if known is not None:
             if not np.array_equal(known.gs0, levels[0]):
@@ -1056,11 +1244,17 @@ def main():
             tex.data = b"".join(tex.preview)
     clock["DXT encode"] = time.time() - t
 
-    # 7. Write the pack: index sorted by key, data in MISC.PAK order.
+    # 7. Write the pack: index sorted by key, then (version 2) the source
+    #    table sorted by key, data in MISC.PAK order. Source keys of
+    #    textures that were left out (alpha above 0x80) go with them.
     t = time.time()
     index = []
     count = len(order)
-    data_offset = -(-(HEADER.size + ENTRY.size * count) // ALIGN) * ALIGN
+    position = {key: i for i, key in enumerate(sorted(order))}
+    source_records = [SOURCE.pack(skey, position[key], skind, 0, 0, 0)
+                      for skey, (skind, key) in sorted(source_map.items()) if key in position]
+    source_offset = HEADER.size + ENTRY.size * count
+    data_offset = -(-(source_offset + SOURCE.size * len(source_records)) // ALIGN) * ALIGN
     pos = data_offset
     chunks = []
     for key in order:
@@ -1072,8 +1266,12 @@ def main():
         chunks.append(tex.data)
         pos += len(tex.data)
     index_sorted = [entry for _, entry in sorted(zip(order, index))]
-    header = HEADER.pack(PACK_MAGIC, PACK_VERSION, HASH_VERSION, count, HEADER.size, data_offset, 0, 0)
-    head = header + b"".join(index_sorted)
+    if args.source_keys:
+        header = HEADER.pack(PACK_MAGIC, PACK_VERSION_SOURCES, HASH_VERSION, count, HEADER.size, data_offset,
+                             len(source_records), source_offset if source_records else 0)
+    else:
+        header = HEADER.pack(PACK_MAGIC, PACK_VERSION, HASH_VERSION, count, HEADER.size, data_offset, 0, 0)
+    head = header + b"".join(index_sorted) + b"".join(source_records)
     head += b"\0" * (data_offset - len(head))
     os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
     temp = args.output + ".tmp"
@@ -1119,6 +1317,10 @@ def main():
             scored[0], scored[len(scored) // 2], fallbacks))
     if args.dump:
         print("[xtp]   PC dump: %d of %d dumped textures have the same key here" % (dump_hits, len(dumped)))
+    if args.source_keys:
+        kinds = [SOURCE.unpack(r)[2] for r in source_records]
+        print("[xtp]   source keys: %d exact, %d indices only, %d palette variants from logs, %d dropped as collisions" % (
+            kinds.count(SOURCE_EXACT), kinds.count(SOURCE_IMAGE), variants_added, len(source_conflicts)))
     print("[xtp]   time: " + ", ".join("%s %.1f s" % item for item in clock.items()) + ", total %.1f s" % (time.time() - started))
 
 

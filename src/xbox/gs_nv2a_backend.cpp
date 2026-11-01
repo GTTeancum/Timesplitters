@@ -2,7 +2,9 @@
 #include "gs_nv2a_backend.h"
 #include "gs_nv2a_clip.h"
 #include "xbox_texture_pack.h"
+#include "xbox_texture_source.h"
 #include "runtime/gs/gs_texture_hash.h"
+#include "runtime/gs/ps2_gs_memory.h"
 
 // Split screen (REWRITE-PLAN.md M2.3). Each switch at 0 restores the old path.
 // TS_NV2A_DISPLAY_HEIGHT 1: the GS frame's height (its mapping onto the
@@ -82,6 +84,16 @@
 // Off by itself when the boot self-test of the load order fails.
 #ifndef TS_CLUT_IDENTITY
 #define TS_CLUT_IDENTITY 1
+#endif
+// TS_TEXTURE_SOURCE_KEYS 1 (make TS_TEXTURE_SOURCE_KEYS=1, which also builds
+// the pack with its source table): a texture-cache miss finds its pack entry
+// by what GS memory holds (8-bit indices and the CLUT's hash, or 32-bit
+// texels; xbox_texture_source.h), hashed as the game uploads it or read
+// back, instead of decoding it through its palette and hashing the RGBA;
+// a full CLUT load that repeats the last one costs a compare. Misses (and
+// packs without the table) take the decode as before. 0: as before.
+#ifndef TS_TEXTURE_SOURCE_KEYS
+#define TS_TEXTURE_SOURCE_KEYS 0
 #endif
 // TS_XF_DIRTY_ROWS 1: only the transform-constant rows the native pipeline
 // says changed (nv2aXfConstantsChanged) are rebuilt and compared, and only
@@ -174,6 +186,14 @@ namespace
     // scratch, a multiple of 8 (whole 2x2 pairs and whole block rows of the
     // halved texture). At least 16: textures are at most 1,024 wide.
     constexpr uint32_t streamRows(uint32_t width) { return (kScratchTexels / width) & ~7u; }
+#endif
+#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_TEXTURE_STREAM
+#error "TS_TEXTURE_SOURCE_KEYS reads GS memory back through TS_NV2A_TEXTURE_STREAM's scratch"
+#endif
+#if TS_TEXTURE_SOURCE_KEYS
+    // Palettes the pack lacks for indices it has, logged for the builder
+    // (xtpbuild.py --variants) once each, at most this many.
+    constexpr uint32_t kVariantLogs = 32u;
 #endif
 // TS_NV2A_MISS_KEYS_FIXED 1: the miss statistics' key sets are fixed tables
 // (Impl::KeySet), not std::sets allocating as the frame goes. 0: the sets.
@@ -490,7 +510,12 @@ std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &s)
                << "/" << s.oldVersions << " fill=" << s.clutFills << " cdiff=" << s.clutDiffs << " krows=" << s.constRows
                << " kup=" << s.constUploads << " matkey=" << s.drawKeyHits << "/" << s.drawKeyMisses
                << " packsrc=" << s.packSourceHits << "/" << s.packSourceMisses
-               << " inv=" << s.packSourceInvalidations;
+               << " inv=" << s.packSourceInvalidations
+#if TS_TEXTURE_SOURCE_KEYS
+               << " texsrc=" << s.sourceHits << "/" << s.sourceMisses << " up=" << s.sourceFromUpload << "/"
+               << s.sourceUploads << " var=" << s.sourceVariants << " crep=" << s.clutRepeats
+#endif
+        ;
 }
 
 // Guest RAM, for the local player count (TS_NV2A_MP_TEXTURE_BUDGET).
@@ -817,9 +842,40 @@ struct GSNv2aBackend::Impl
         return clutIdentity && vram && GSCpuBackend::FullClutLoad(t) && t.cbp <= GSCpuBackend::kLastContiguousClutCbp;
     }
 
+#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_SELFCHECK
+    // The last full load (TS_TEXTURE_SOURCE_KEYS), while no other CLUT load
+    // has reached the CPU renderer since (forgetFullClut). The same source,
+    // CLD and GS pages again would leave the CPU renderer's state as it is:
+    // the CLD mirror the same, the buffer the same content (deferred, or
+    // filled from unchanged pages), the same hash. The game reloads a
+    // palette for each strip of a model.
+    struct LastFullClut
+    {
+        bool valid = false;
+        uint32_t key = 0, cld = 0, epoch = 0;
+        uint64_t versions = 0, hash = 0;
+    };
+    LastFullClut lastFullClut;
+    void forgetFullClut() { lastFullClut.valid = false; }
+#else
+    void forgetFullClut() {}
+#endif
+
     void loadFullClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
     {
         const uint32_t key = tex0.cbp | (uint32_t(tex0.cpsm) << 16);
+#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_SELFCHECK
+        if (lastFullClut.valid && lastFullClut.key == key && lastFullClut.cld == tex0.cld &&
+            (lastFullClut.epoch == pageEpoch || versionSum(GSCpuBackend::ClutRange(tex0)) == lastFullClut.versions))
+        {
+            lastFullClut.epoch = pageEpoch;
+            ++s_lookupStats.clutHits;
+            ++s_lookupStats.clutRepeats;
+            ++g_nv2aTextureStats.paletteHits;
+            clutHash = lastFullClut.hash;
+            return;
+        }
+#endif
         const uint64_t versions = versionSum(GSCpuBackend::ClutRange(tex0));
         OldPaletteTag &old = oldPaletteTags[(tex0.cbp ^ (tex0.cbp >> 7)) % kPalettes]; // (its slot)
         if (old.key != key)
@@ -862,6 +918,9 @@ struct GSNv2aBackend::Impl
         entry->lastUse = ++paletteTick;
         cpu.DeferClutLoad(tex0, entry->hash);
         clutHash = entry->hash;
+#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_SELFCHECK
+        lastFullClut = {true, key, tex0.cld, pageEpoch, versions, entry->hash};
+#endif
 #if TS_NV2A_SELFCHECK
         // The CPU renderer's own load over the deferred one: the same buffer
         // and hash (DebugClutState's parts; the CLD mirrors are shared).
@@ -1364,6 +1423,43 @@ struct GSNv2aBackend::Impl
                 ++g_nv2aTextureStats.packMisses;
         }
 #endif
+#if TS_TEXTURE_SOURCE_KEYS
+        // By source key (TS_TEXTURE_SOURCE_KEYS): a hit needs no decode for
+        // the pack (nor the RGBA hash); while its entry is on its way the
+        // texture is decoded for the runtime path only, as a known one. A
+        // miss takes the decoded key as before.
+        uint64_t sourceImageKey = 0;
+        if (packed && !knownPackSource && pack.sourceCount() != 0u && sourceKeyed(tex) &&
+            sourceImage(tex, t, sourceImageKey))
+        {
+            uint8_t kind = 0;
+            const int index = pack.findSource(xbox_texture_source::exactKey(sourceImageKey, indexed ? hash : 0u), kind);
+            if (index >= 0 && kind == XboxTexturePack::kSourceExact)
+            {
+                ++s_lookupStats.sourceHits;
+                ++g_nv2aTextureStats.packHits;
+                knownPackSource = true;
+#if TS_NV2A_PACK_IDENTITY_CACHE
+                rememberPackSource(t, index);
+#endif
+                if (usePack(t, index))
+                {
+                    Texture &added = addTexture(t);
+                    noteUse(added);
+                    return &added;
+                }
+            }
+            else
+            {
+                ++s_lookupStats.sourceMisses;
+                // These indices with another palette are in the pack: this
+                // palette is one for the builder.
+                if (indexed && pack.findSource(xbox_texture_source::imageOnlyKey(sourceImageKey), kind) >= 0 &&
+                    kind == XboxTexturePack::kSourceImage)
+                    logVariant(sourceImageKey, hash, w, h);
+            }
+        }
+#endif
 #if TS_NV2A_TEXTURE_STREAM
         // Decoded once when it fits the scratch (TexelPlan), else streamed.
         TexelPlan plan;
@@ -1564,6 +1660,182 @@ struct GSNv2aBackend::Impl
              p < (t.range.end + kPageBytes - 1u) / kPageBytes; ++p)
             packSourcePages[p] |= bit;
         packSourceValid |= bit;
+    }
+#endif
+
+#if TS_TEXTURE_SOURCE_KEYS
+    // TS_TEXTURE_SOURCE_KEYS: a miss looks its pack entry up by source key
+    // (xbox_texture_source.h) before any decode. The image part is the hash
+    // of the upload that wrote the texture, taken as the upload went by,
+    // while the texture's GS pages keep the versions that upload left them;
+    // else it is read back from GS memory (indices or texels: no palette,
+    // no TEXA). The CLUT part is the hash the CLUT load already has.
+    struct UploadSource
+    {
+        uint32_t dbp = UINT32_MAX, dbw = 0, dpsm = 0, size = 0; // size: width | height << 16
+        uint32_t lastUse = 0;
+        uint64_t versions = 0, image = 0;
+    };
+    static constexpr uint32_t kUploadSets = 128u, kUploadWays = 2u; // 10 KB, about a level's textures
+    std::array<UploadSource, kUploadSets * kUploadWays> uploadSources{};
+    uint32_t uploadTick = 0;
+    UploadSource uploadPending{}; // the IMAGE transfer being hashed
+    uint32_t uploadRemaining = 0; // its bytes still to come (0: none is)
+    xbox_texture_source::ImageHasher uploadHasher;
+    std::array<uint64_t, kVariantLogs> variantsLogged{};
+    uint32_t variantCount = 0;
+
+    // The formats that decode without TEXA or anything but the CLUT buffer.
+    static bool sourceKeyed(const GSTex0Reg &t)
+    {
+        return (t.psm == GS_PSM_T8 && t.cpsm == GS_PSM_CT32 && (t.csa & 0x0Fu) == 0u) || t.psm == GS_PSM_CT32;
+    }
+
+    static uint32_t uploadSet(uint32_t dbp, uint32_t psm)
+    {
+        return (((dbp ^ (psm << 14)) * 0x9E3779B1u) >> 25) * kUploadWays;
+    }
+
+    // BeginTransfer: an upload of exactly one texture's image (from its
+    // origin, in its own format, in the usual pixel order) is hashed as it
+    // comes; any other transfer ends the one before.
+    void beginUploadSource(const GSTransferCommand &c)
+    {
+        uploadRemaining = 0;
+        const GSBitBltBuf &b = c.bitbltbuf;
+        const uint32_t w = c.trxreg.rrw, h = c.trxreg.rrh;
+        if (c.direction != 0u || (b.dpsm != GS_PSM_T8 && b.dpsm != GS_PSM_CT32) || c.trxpos.dsax != 0u ||
+            c.trxpos.dsay != 0u || c.trxpos.dir != 0u || b.dbw == 0u || w == 0u || h == 0u || w > 1024u || h > 1024u)
+            return;
+        uploadPending = {b.dbp, b.dbw, b.dpsm, w | (h << 16)};
+        uploadRemaining = w * h * (b.dpsm == GS_PSM_CT32 ? 4u : 1u);
+        uploadHasher.reset(b.dpsm, w, h);
+    }
+
+    // UploadImage, once the pages' versions have moved: the image's next
+    // part and, when it is all there, its record (the versions it left).
+    void noteUploadSource(const uint8_t *data, uint32_t bytes)
+    {
+        if (uploadRemaining == 0u)
+            return;
+        const uint32_t n = std::min(bytes, uploadRemaining);
+        uploadHasher.add(data, n);
+        uploadRemaining -= n;
+        if (uploadRemaining != 0u)
+            return;
+        UploadSource s = uploadPending;
+        // The range textureLookup works out for this texture (clamp 0).
+        GSDrawState state{};
+        state.context.tex0.tbp0 = s.dbp;
+        state.context.tex0.tbw = uint8_t(s.dbw);
+        state.context.tex0.psm = uint8_t(s.dpsm);
+        state.textureWidth = uint16_t(s.size & 0xFFFFu);
+        state.textureHeight = uint16_t(s.size >> 16);
+        const GSCpuBackend::VramRange range = GSCpuBackend::TextureRange(state);
+        if (range.begin >= range.end || range.end > kPageCount * kPageBytes)
+            return;
+        s.versions = versionSum(range);
+        s.image = uploadHasher.value();
+        s.lastUse = ++uploadTick;
+        UploadSource *const set = &uploadSources[uploadSet(s.dbp, s.dpsm)];
+        UploadSource *slot = set;
+        for (uint32_t way = 0; way < kUploadWays; ++way)
+        {
+            if (set[way].dbp == s.dbp && set[way].dpsm == s.dpsm)
+            {
+                slot = &set[way];
+                break;
+            }
+            if (set[way].lastUse < slot->lastUse)
+                slot = &set[way];
+        }
+        *slot = s;
+        ++s_lookupStats.sourceUploads;
+    }
+
+    // The image part of t's source key (t a miss of a sourceKeyed format,
+    // not a render target): its upload's, else read back.
+    bool sourceImage(const GSTex0Reg &tex, const Texture &t, uint64_t &image)
+    {
+        const UploadSource *const set = &uploadSources[uploadSet(tex.tbp0, tex.psm)];
+        const uint32_t size = t.width | (t.height << 16);
+        for (uint32_t way = 0; way < kUploadWays; ++way)
+        {
+            const UploadSource &s = set[way];
+            if (s.dbp == tex.tbp0 && s.dpsm == tex.psm && s.dbw == tex.tbw && s.size == size && s.versions == t.versions)
+            {
+                image = s.image;
+                ++s_lookupStats.sourceFromUpload;
+                return true;
+            }
+        }
+        if (!vram)
+            return false;
+        // GS memory read as the decode reads it, without the palette: the
+        // indices packed to a byte each (in place: byte i is behind word i).
+        const bool indexed = tex.psm == GS_PSM_T8;
+        xbox_texture_source::ImageHasher hasher(tex.psm, t.width, t.height);
+        const uint32_t w = t.width, band = std::max<uint32_t>(kScratchTexels / w, 1u);
+        uint8_t *const bytes = reinterpret_cast<uint8_t *>(texScratch);
+        for (uint32_t y = 0; y < t.height; y += band)
+        {
+            const uint32_t rows = std::min(band, t.height - y);
+            for (uint32_t r = 0; r < rows; ++r)
+                if (!GSMem::ReadRow(tex.psm, vram, tex.tbp0, tex.tbw, 0u, y + r, w, texScratch + size_t(r) * w))
+                    return false;
+            const size_t count = size_t(rows) * w;
+            if (indexed)
+            {
+                for (size_t i = 0; i < count; ++i)
+                    bytes[i] = uint8_t(texScratch[i]);
+                hasher.add(bytes, count);
+            }
+            else
+                hasher.add(bytes, count * 4u);
+        }
+        image = hasher.value();
+        return true;
+    }
+
+    // Indices the pack has with another palette: this one, for the builder
+    // (xtpbuild.py --variants), as eight lines of 32 entries, once a pair.
+    void logVariant(uint64_t image, uint64_t clut, uint32_t w, uint32_t h)
+    {
+        const uint64_t key = xbox_texture_source::exactKey(image, clut);
+        for (uint32_t i = 0; i < variantCount; ++i)
+            if (variantsLogged[i] == key)
+                return;
+        if (variantCount >= kVariantLogs)
+            return;
+        variantsLogged[variantCount++] = key;
+        std::array<uint16_t, 512> buffer;
+        std::array<uint32_t, 2> mirror;
+        cpu.GetClutState(buffer, mirror);
+        if (GSCpuBackend::HashClut(buffer.data()) != clut)
+            return;
+        ++s_lookupStats.sourceVariants;
+        static const char kHex[] = "0123456789abcdef";
+        const auto hex = [](char *out, uint64_t v, int digits) {
+            for (int i = digits - 1; i >= 0; --i, v >>= 4)
+                out[i] = kHex[v & 15u];
+        };
+        for (uint32_t part = 0; part < 8u; ++part)
+        {
+            char line[400];
+            char *p = line;
+            std::memcpy(p, "[TS:texvariant] ", 16);
+            p += 16;
+            hex(p, image, 16);
+            p += 16;
+            *p++ = ' ';
+            hex(p, clut, 16);
+            p += 16;
+            p += std::snprintf(p, 32, " %ux%u %u/8 ", unsigned(w), unsigned(h), unsigned(part));
+            for (uint32_t e = part * 32u; e < part * 32u + 32u; ++e, p += 8)
+                hex(p, buffer[e] | (uint32_t(buffer[e + 256u]) << 16), 8);
+            *p = '\0';
+            std::cout << line << std::endl;
+        }
     }
 #endif
 
@@ -3214,8 +3486,11 @@ struct GSNv2aBackend::Impl
     }
 
     // A primitive from the GS front end (count = its vertices) or a whole
-    // triangle strip from the native vertex pipeline (SubmitStrip).
-    void submitScreenVerts(const GSDrawState &state, const GSVertex *verts, uint32_t count)
+    // triangle strip from the native vertex pipeline (SubmitStrip). prims
+    // above 1: a run of primitives of count (2 or 3) vertices each, one
+    // after another in verts (the direct GIF decoder, SubmitRun), drawn as
+    // that many calls would draw them with one frame, texture and key lookup.
+    void submitScreenVerts(const GSDrawState &state, const GSVertex *verts, uint32_t count, uint32_t prims = 1u)
     {
         if (frameOpen && state.context.frame.fbp != frameFbp)
             finishFrame();
@@ -3236,7 +3511,7 @@ struct GSNv2aBackend::Impl
         g_nv2aTextureStats.test = uint32_t(ctx.test >> 16) & 0xFu;
         g_nv2aTextureStats.zmask = ctx.zbuf.zmask ? 1u : 0u;
         if (((ctx.test >> 17) & 3u) >= 2u) // depth-compared draws only
-            for (uint32_t i = 0; i < count && i < 3u; ++i)
+            for (uint32_t i = 0; i < count * prims && i % count < 3u; ++i)
             {
                 const uint32_t z = uint32_t(std::min(verts[i].z, 4294967295.0));
                 if (g_nv2aTextureStats.zmax == 0u || z > g_nv2aTextureStats.zmax) g_nv2aTextureStats.zmax = z;
@@ -3281,12 +3556,13 @@ struct GSNv2aBackend::Impl
                 return;
             if (count == 3)
             {
-                GpuVertex *out = reserve(key, 3);
-                for (int i = 0; i < 3; ++i)
-                {
-                    const GSVertex &v = verts[i];
-                    emit(out[i], v, state.prim.iip ? v : verts[2], v.x, v.y);
-                }
+                GpuVertex *out = reserve(key, 3u * prims);
+                for (uint32_t p = 0; p < prims; ++p, verts += 3, out += 3)
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        const GSVertex &v = verts[i];
+                        emit(out[i], v, state.prim.iip ? v : verts[2], v.x, v.y);
+                    }
                 break;
             }
             // A whole strip: each vertex converted once, the triangles as a
@@ -3310,25 +3586,28 @@ struct GSNv2aBackend::Impl
         {
             if (count < 2)
                 return;
-            const GSVertex &a = verts[0], &b = verts[1];
-            // Two triangles; colour, depth and fog come from the second vertex.
-            GSVertex corners[4] = {a, a, a, a};
-            corners[1].x = b.x; corners[1].u = b.u; corners[1].s = b.s;
-            corners[2].x = b.x; corners[2].y = b.y; corners[2].u = b.u; corners[2].v = b.v; corners[2].s = b.s; corners[2].t = b.t;
-            corners[3].y = b.y; corners[3].v = b.v; corners[3].t = b.t;
-            for (GSVertex &c : corners)
+            GpuVertex *out = reserve(key, 6u * prims);
+            for (uint32_t p = 0; p < prims; ++p, verts += count, out += 6)
             {
-                c.z = b.z;
-                c.q = b.q;
-            }
-            // Perspective-correct s/t use q per corner; sprites take the second's.
-            corners[0].q = corners[1].q = corners[2].q = corners[3].q = b.q;
-            static const int kOrder[6] = {0, 1, 2, 0, 2, 3};
-            GpuVertex *out = reserve(key, 6);
-            for (int i = 0; i < 6; ++i)
-            {
-                const GSVertex &c = corners[kOrder[i]];
-                emit(out[i], c, b, c.x, c.y);
+                const GSVertex &a = verts[0], &b = verts[1];
+                // Two triangles; colour, depth and fog come from the second vertex.
+                GSVertex corners[4] = {a, a, a, a};
+                corners[1].x = b.x; corners[1].u = b.u; corners[1].s = b.s;
+                corners[2].x = b.x; corners[2].y = b.y; corners[2].u = b.u; corners[2].v = b.v; corners[2].s = b.s; corners[2].t = b.t;
+                corners[3].y = b.y; corners[3].v = b.v; corners[3].t = b.t;
+                for (GSVertex &c : corners)
+                {
+                    c.z = b.z;
+                    c.q = b.q;
+                }
+                // Perspective-correct s/t use q per corner; sprites take the second's.
+                corners[0].q = corners[1].q = corners[2].q = corners[3].q = b.q;
+                static const int kOrder[6] = {0, 1, 2, 0, 2, 3};
+                for (int i = 0; i < 6; ++i)
+                {
+                    const GSVertex &c = corners[kOrder[i]];
+                    emit(out[i], c, b, c.x, c.y);
+                }
             }
             break;
         }
@@ -3858,6 +4137,14 @@ void xboxNv2aWaitIdle()
 }
 #endif
 
+#if TS_GIF_DIRECT
+#include "xbox_gif_direct.h"
+namespace
+{
+    GSNv2aBackend *g_runBackend = nullptr; // the GS's renderer (Create), for xboxNv2aSubmitRun
+}
+#endif
+
 // ------------------------------------------------------------------------
 std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
 {
@@ -3916,11 +4203,20 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     if (unsigned char *old = XVideoGetFB())
         MmFreeContiguousMemory(old);
     xboxGpuOwnsDisplay(true);
+#if TS_GIF_DIRECT
+    g_runBackend = backend.get();
+#endif
     return backend;
 }
 
 GSNv2aBackend::GSNv2aBackend() : m(std::make_unique<Impl>()) {}
-GSNv2aBackend::~GSNv2aBackend() = default;
+GSNv2aBackend::~GSNv2aBackend()
+{
+#if TS_GIF_DIRECT
+    if (g_runBackend == this)
+        g_runBackend = nullptr;
+#endif
+}
 
 void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
 {
@@ -3947,6 +4243,9 @@ void GSNv2aBackend::Reset()
     m->textureFlushPending = false; // the reset invalidated the page cache
     m->bumpPages({0, UINT64_MAX});
     m->clutCbp[0] = m->clutCbp[1] = UINT32_MAX;
+#if TS_CLUT_IDENTITY
+    m->forgetFullClut(); // the CPU renderer's CLUT state went with the reset
+#endif
     m->targetPages.reset();
 }
 
@@ -3995,6 +4294,26 @@ bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertic
     return true;
 }
 
+#if TS_GIF_DIRECT
+// As Submit for each primitive: off-screen targets go back to the caller
+// (the CPU renderer's path), points and lines only open the frame.
+bool GSNv2aBackend::SubmitRun(const GSDrawState &state, const GSVertex *vertices, uint32_t per, uint32_t prims)
+{
+    g_nv2aStep = 80;
+    if (!m->isScreenTarget(state))
+        return false;
+    m->submitScreenVerts(state, vertices, per, prims);
+    return true;
+}
+
+bool xboxNv2aSubmitRun(GSRasterBackend *backend, const GSDrawState &state, const GSVertex *vertices,
+                       uint32_t per, uint32_t prims)
+{
+    // A wrapped renderer (TS_PERF_BACKEND) is not this one: its Submit calls.
+    return g_runBackend && backend == g_runBackend && g_runBackend->SubmitRun(state, vertices, per, prims);
+}
+#endif
+
 void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
 {
     if (!m->clutLoads(tex0))
@@ -4025,6 +4344,7 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
     {
         // Not a full load, or its source wraps the end of GS memory.
         ++s_lookupStats.clutOther;
+        m->forgetFullClut();
         m->cpu.LoadClut(tex0, texclut);
         m->refreshClutHash();
         return;
@@ -4103,6 +4423,9 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
                                            uint32_t(command.trxpos.ssay) + command.trxreg.rrh + 1u);
         m->markTargetPages(dest, m->renderTarget(source));
     }
+#if TS_TEXTURE_SOURCE_KEYS
+    m->beginUploadSource(command);
+#endif
 }
 
 void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
@@ -4113,6 +4436,9 @@ void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
                                      uint32_t(c.trxpos.dsay) + c.trxreg.rrh + 1u);
     m->noteCpuWrite({dest.begin, dest.end == UINT64_MAX ? UINT64_MAX : dest.end + 2u * kPageBytes});
     m->markTargetPages(dest, false); // uploaded texels: textures again
+#if TS_TEXTURE_SOURCE_KEYS
+    m->noteUploadSource(data, sizeBytes);
+#endif
 }
 
 void GSNv2aBackend::Flush() { m->flushBatch(); }

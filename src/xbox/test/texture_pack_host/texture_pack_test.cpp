@@ -44,7 +44,9 @@ namespace
     }
     void closed(Pack &pack)
     {
-        check(!pack.enabled() && pack.count() == 0 && pack.find(0x10) == -1, "closed state retained");
+        uint8_t kind = 0;
+        check(!pack.enabled() && pack.count() == 0 && pack.find(0x10) == -1 && pack.sourceCount() == 0 &&
+              pack.findSource(0x100, kind) == -1, "closed state retained");
         check(pack.stats().usedBytes == 0 && pack.stats().loads == 0, "closed counters retained");
         check(texture_pack_host::handles.load() == 0, "handles leaked");
     }
@@ -64,6 +66,22 @@ namespace
             check(pack.count() == 4 && pack.find(0x12) == 2 && pack.find(999) == -1, "index lookup");
             for (int i = 0; i != 4; ++i) payload(pack, i, 10);
             check(pack.stats().loads == 4 && pack.stats().usedBytes == 896, "load accounting");
+        }
+        else if (mode == "sources" || mode == "no-sources")
+        {
+            start(pack, path, 1024);
+            uint8_t kind = 0xFF;
+            if (mode == "no-sources")
+                check(pack.sourceCount() == 0 && pack.findSource(0x10, kind) == -1 && kind == 0xFF, "version 1 sources");
+            else
+            {
+                check(pack.count() == 3 && pack.sourceCount() == 3, "source count");
+                check(pack.findSource(0x100, kind) == 1 && kind == Pack::kSourceExact, "exact source");
+                check(pack.findSource(0x200, kind) == 2 && kind == Pack::kSourceImage, "image source");
+                check(pack.findSource(0x300, kind) == 0 && kind == Pack::kSourceExact, "last source");
+                check(pack.findSource(0x10, kind) == -1 && pack.findSource(0x301, kind) == -1, "source keys are not entry keys");
+                payload(pack, pack.findSource(0x100, kind), 10);
+            }
         }
         else if (mode == "reopen" || mode == "missing")
         {

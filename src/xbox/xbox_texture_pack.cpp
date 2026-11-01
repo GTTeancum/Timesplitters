@@ -22,6 +22,8 @@ namespace
     // Far above any disc (2,303 textures); a corrupt count fails here
     // instead of asking for gigabytes.
     constexpr uint32_t kMaxEntries = 65536u;
+    // A few keys an entry (an image with each palette, and without one).
+    constexpr uint32_t kMaxSources = 4u * kMaxEntries;
 
     // Eviction. Entries used in this frame or the last are never taken (the
     // GPU may still read them, and the next frame draws them again). Of the
@@ -104,6 +106,7 @@ void XboxTexturePack::close()
     // starts at request zero with stop_ cleared. The join above must
     // precede every reset of storage visible to the loader.
     std::vector<Entry>().swap(index_);
+    std::vector<Source>().swap(sources_);
     std::vector<Slot>().swap(slots_);
     std::vector<int>().swap(resident_);
     std::vector<Range>().swap(free_);
@@ -166,11 +169,14 @@ bool XboxTexturePack::open(const char *path)
         return fail("header unreadable");
     if (std::memcmp(header.magic, "XTP1", 4) != 0)
         return fail("not a texture pack");
-    if (header.version != 1u)
+    if (header.version != 1u && header.version != 2u)
         return fail("format version", header.version);
     if (header.hashVersion != gs_texture_hash::kVersion)
         return fail("texture key version", header.hashVersion);
-    if (header.reserved[0] != 0u || header.reserved[1] != 0u)
+    // Version 2: the source table's count and offset.
+    const uint32_t sourceCount = header.version == 2u ? header.reserved[0] : 0u;
+    const uint32_t sourceOffset = header.version == 2u ? header.reserved[1] : 0u;
+    if (header.version == 1u && (header.reserved[0] != 0u || header.reserved[1] != 0u))
         return fail("unsupported header flags");
     if (header.count == 0u || header.count > kMaxEntries)
         return fail("entry count", header.count);
@@ -205,11 +211,37 @@ bool XboxTexturePack::open(const char *path)
         if (e.offset % kAlign != 0u || e.offset < header.dataOffset || uint64_t(e.offset) + e.size > size)
             return fail("data offset: entry", i);
     }
+    // The source table: between the index and the data, each record naming
+    // an entry that exists.
+    if (sourceCount == 0u ? sourceOffset != 0u : sourceCount > kMaxSources)
+        return fail("source count", sourceCount);
+    if (sourceCount != 0u)
+    {
+        const uint64_t sourceEnd = uint64_t(sourceOffset) + uint64_t(sourceCount) * sizeof(Source);
+        if (sourceOffset < indexEnd || sourceOffset % 8u != 0u || sourceEnd > header.dataOffset)
+            return fail("source table outside the space between index and data", sourceOffset);
+        sources_.resize(sourceCount);
+        if (!readAt(sourceOffset, sources_.data(), sourceCount * uint32_t(sizeof(Source))))
+            return fail("source table unreadable");
+        for (uint32_t i = 0; i < sourceCount; ++i)
+        {
+            const Source &s = sources_[i];
+            if (s.kind > kSourceImage || s.reserved[0] != 0u || s.reserved[1] != 0u || s.reserved[2] != 0u)
+                return fail("unsupported source record: source", i);
+            if (s.entry >= header.count)
+                return fail("source names no entry: source", i);
+            if (i > 0 && s.key <= sources_[i - 1u].key)
+                return fail("source table not sorted by key, or a key twice: source", i);
+        }
+    }
     slots_.assign(header.count, Slot{});
     LARGE_INTEGER frequency{};
     QueryPerformanceFrequency(&frequency);
     ticksPerSecond_ = frequency.QuadPart;
-    std::cout << "[TS:xbox] texture pack: " << header.count << " textures in " << path << std::endl;
+    std::cout << "[TS:xbox] texture pack: " << header.count << " textures";
+    if (sourceCount != 0u)
+        std::cout << " (" << sourceCount << " source keys)";
+    std::cout << " in " << path << std::endl;
     return true;
 }
 
@@ -313,6 +345,16 @@ int XboxTexturePack::find(uint64_t key) const
     const auto it = std::lower_bound(index_.begin(), index_.end(), key,
                                      [](const Entry &e, uint64_t k) { return e.key < k; });
     return it != index_.end() && it->key == key ? int(it - index_.begin()) : -1;
+}
+
+int XboxTexturePack::findSource(uint64_t key, uint8_t &kind) const
+{
+    const auto it = std::lower_bound(sources_.begin(), sources_.end(), key,
+                                     [](const Source &s, uint64_t k) { return s.key < k; });
+    if (it == sources_.end() || it->key != key)
+        return -1;
+    kind = it->kind;
+    return int(it->entry);
 }
 
 // First fit: the pool holds a few hundred entries, the free list a handful

@@ -215,6 +215,21 @@ BG_NATIVE_VIF_SOURCE := $(NATIVE_MODELS_VIF_COPY)
 BG_NATIVE_MEMORY_SOURCE := $(NATIVE_MODELS_MEMORY_COPY)
 endif
 
+# Direct GIF decoder (xbox_gif_direct.h): complete PACKED/REGLIST packets of
+# sprites, triangles, strips, fans and state writes decoded straight into
+# runs for the renderer, skipping the GS front end's per-register state
+# machine; anything else keeps the original route. The outermost stage of
+# the GS front end copy (after TS_GIF_NATIVE's).
+TS_GIF_DIRECT ?= 0
+ifneq ($(filter-out 0 1,$(TS_GIF_DIRECT)),)
+$(error TS_GIF_DIRECT must be 0 or 1)
+endif
+GIF_DIRECT_GS_INPUT := $(GIF_GS_SOURCE)
+GIF_DIRECT_GS_COPY := $(OUT)/gen/gif-direct/gs_frontend.cpp
+ifeq ($(TS_GIF_DIRECT),1)
+GIF_GS_SOURCE := $(GIF_DIRECT_GS_COPY)
+endif
+
 NATIVE_CALL_NAMES := ts_native_math ts_native_game ts_native_game2 ts_native_game3
 NATIVE_CALL_DIR := $(OUT)/gen/native-calls
 NATIVE_CALL_COPIES := $(addprefix $(NATIVE_CALL_DIR)/,$(addsuffix .cpp,$(NATIVE_CALL_NAMES)))
@@ -520,6 +535,15 @@ else
 $(GIF_NATIVE_COPY) $(GIF_GS_COPY):
 endif
 
+ifeq ($(TS_GIF_DIRECT),1)
+$(GIF_DIRECT_GS_COPY): $(GIF_DIRECT_GS_INPUT) $(XBOX)/tools/patch_gif_direct.py $(OUT)/gen/native_paths.flags $(OUT)/gen/gif_direct.flags
+	@mkdir -p $(dir $@)
+	@echo "[ GIF DIR ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_gif_direct.py $< $@
+else
+$(GIF_DIRECT_GS_COPY):
+endif
+
 ifeq ($(TS_VIF_SOURCE),1)
 $(VIF_SOURCE_NATIVE_COPY): $(VIF_SOURCE_NATIVE_INPUT) $(XBOX)/tools/patch_native_source.py $(OUT)/gen/bg_native.flags $(OUT)/gen/native_paths.flags $(OUT)/gen/vif_source.flags
 	@mkdir -p $(dir $@)
@@ -749,6 +773,17 @@ $(PERF_BACKEND_STAMP): FORCE
 $(PERF_BACKEND_OBJS): $(PERF_BACKEND_STAMP)
 $(PERF_BACKEND_OBJS): RUNTIME_FLAGS += $(PERF_BACKEND_FLAGS)
 
+# The direct GIF decoder: the GS front end copy that runs it, its counters
+# and run buffer, the renderer's run entry and the status line.
+GIF_DIRECT_STAMP := $(OUT)/gen/gif_direct.flags
+GIF_DIRECT_FLAGS := -DTS_GIF_DIRECT=$(TS_GIF_DIRECT)
+GIF_DIRECT_OBJS := $(GIF_GS_OBJ) $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_gif_direct gs_nv2a_backend xbox_main))
+$(GIF_DIRECT_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(GIF_DIRECT_FLAGS)' ] || echo '$(GIF_DIRECT_FLAGS)' > $@
+$(GIF_DIRECT_OBJS): $(GIF_DIRECT_STAMP)
+$(GIF_DIRECT_OBJS): RUNTIME_FLAGS += $(GIF_DIRECT_FLAGS)
+
 # make TS_NATIVE_CAPTURE=1: record bounded native VU1 draw inputs for the
 # Xbox-layout geometry converter. Off by default; the normal build registers
 # the original callback directly. Rename registration ONLY in the native game
@@ -833,6 +868,33 @@ $(OUT)/iso/ps2disc.iso: $(ROOT)/project/disc/TimeSplitters.iso
 	@echo "[ COPY    ] $@"
 	@cp $< $@
 
+# make TS_TEXTURE_SOURCE_KEYS=1: a texture-cache miss finds its pack entry by
+# what GS memory holds (8-bit indices and the CLUT's hash, or 32-bit texels;
+# xbox_texture_source.h), hashed as the game uploads it or read back, not by
+# decoding it through its palette; repeated full CLUT loads cost a compare.
+# The pack is then built with its source table (xtpbuild.py --source-keys,
+# format version 2; the reader takes both versions). Off by default: the
+# renderer and the pack are as before. With it, XTP_FLAGS="--variant-keys"
+# makes the Xbox log palettes the pack lacks ([TS:texvariant]), and
+# XTP_FLAGS="--variants /abs/path/xbox.log" adds them to the pack.
+TS_TEXTURE_SOURCE_KEYS ?= 0
+ifneq ($(TS_TEXTURE_SOURCE_KEYS),0)
+ifneq ($(TS_TEXTURE_SOURCE_KEYS),1)
+$(error TS_TEXTURE_SOURCE_KEYS must be 0 or 1)
+endif
+endif
+TEXTURE_SOURCE_STAMP := $(OUT)/gen/texture_source.flags
+TEXTURE_SOURCE_FLAGS := -DTS_TEXTURE_SOURCE_KEYS=$(TS_TEXTURE_SOURCE_KEYS)
+TEXTURE_SOURCE_OBJS := $(OBJ)/src/xbox/gs_nv2a_backend.obj
+$(TEXTURE_SOURCE_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(TEXTURE_SOURCE_FLAGS)' ] || echo '$(TEXTURE_SOURCE_FLAGS)' > $@
+$(TEXTURE_SOURCE_OBJS): $(TEXTURE_SOURCE_STAMP)
+$(TEXTURE_SOURCE_OBJS): RUNTIME_FLAGS += $(TEXTURE_SOURCE_FLAGS)
+XTP_SOURCE_FLAGS := $(if $(filter 1,$(TS_TEXTURE_SOURCE_KEYS)),--source-keys)
+# The pack builder's options (as XTP_FLAGS alone while the switch is off).
+XTP_BUILD_FLAGS = $(strip $(XTP_FLAGS) $(XTP_SOURCE_FLAGS))
+
 # The texture pack (tools/xtpbuild.py): the disc's textures at full size with
 # mip chains, DXT-compressed offline and looked up by the PC port's texture
 # key; the runtime keeps its own path for anything not in it. Built from the
@@ -850,10 +912,11 @@ XTP_PYTHON ?=
 XTP_STAMP  := $(OUT)/gen/xtp.flags
 XTP_DEP    := $(if $(wildcard $(MISC_PAK)),$(XTP))
 
-# Rewritten only when XTP_FLAGS changes, so the pack rebuilds only then.
+# Rewritten only when XTP_FLAGS (or TS_TEXTURE_SOURCE_KEYS) changes, so the
+# pack rebuilds only then.
 $(XTP_STAMP): FORCE
 	@mkdir -p $(dir $@)
-	@[ -f $@ ] && [ "$$(cat $@)" = '$(XTP_FLAGS)' ] || echo '$(XTP_FLAGS)' > $@
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(XTP_BUILD_FLAGS)' ] || echo '$(XTP_BUILD_FLAGS)' > $@
 
 $(XTP): $(MISC_PAK) $(XBOX)/tools/xtpbuild.py $(XTP_STAMP)
 	@mkdir -p $(dir $@)
@@ -868,7 +931,7 @@ $(XTP): $(MISC_PAK) $(XBOX)/tools/xtpbuild.py $(XTP_STAMP)
 	if [ -z "$$py" ]; then \
 	    echo "[ XTP     ] skipped: no Python with numpy and Pillow (set XTP_PYTHON); runtime textures only"; rm -f $@; \
 	else \
-	    "$$py" $(XBOX)/tools/xtpbuild.py $(XTP_FLAGS) $< $@; \
+	    "$$py" $(XBOX)/tools/xtpbuild.py $(XTP_BUILD_FLAGS) $< $@; \
 	fi
 
 # Optional source-derived geometry, built only under build/ from the user's

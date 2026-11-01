@@ -242,9 +242,9 @@ XBOX_ROUTED_OBJS := $(BG_NATIVE_ROUTED_OBJS) $(GIF_GS_OBJ) $(NATIVE_CALL_OBJS)
 # run in blocks between envelope and sweep steps; output bit-identical to the
 # shared source (test/test_sound_native.py). The copy of ps2_spu2.cpp it
 # builds from compiles the original decode and mix out. TS_SOUND_NATIVE_SETS:
-# cache sets of two 80-byte blocks (2048: 320 KB), a power of two.
+# cache sets of two 80-byte blocks (1024: 160 KB), a power of two.
 TS_SOUND_NATIVE ?= 0
-TS_SOUND_NATIVE_SETS ?= 2048
+TS_SOUND_NATIVE_SETS ?= 1024
 ifneq ($(filter-out 0 1,$(TS_SOUND_NATIVE)),)
 $(error TS_SOUND_NATIVE must be 0 or 1)
 endif

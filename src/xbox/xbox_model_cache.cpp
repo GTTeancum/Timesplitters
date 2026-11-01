@@ -206,6 +206,7 @@ namespace
     constexpr uint32_t kFileMagic = 0x31434D58u; // 'XMC1'
     constexpr uint32_t kFileVersion = 2u; // 2: replay steps and their data, Draw's extent, no markers in Model
     constexpr uint32_t kFileQuietWalks = 30000u; // walks without a new capture before a save
+    constexpr uint32_t kFileMinNew = 16u;        // captures since the last save (or load) worth a new one
     constexpr const char *kFileDir = "E:\\TimeSplitters\\models";
     constexpr const char *kDiscFileDir = "D:\\models"; // harvested files shipped on the disc
     struct FileHeader
@@ -1401,7 +1402,7 @@ namespace
             g_quietWalks = 0;
             return;
         }
-        if (++g_quietWalks >= kFileQuietWalks && g_stats.captured != g_capturedAtSave && !g_walk.model &&
+        if (++g_quietWalks >= kFileQuietWalks && g_stats.captured >= g_capturedAtSave + kFileMinNew && !g_walk.model &&
             !g_decode.model)
         {
             g_quietWalks = 0;

@@ -32,8 +32,8 @@ namespace
     // Records stay until the ring comes round: several frames of lists (about
     // 1,200 models a frame at four players, 3 to 21 pairs a prologue and 12
     // to 14 a batch), so a list walked a frame late still finds its records.
-    constexpr uint32_t kPairs = 1u << 16;  // 512 KB
-    constexpr uint32_t kRecords = 1u << 14; // divides 2^24: the index survives the sequence's wrap
+    constexpr uint32_t kPairs = 1u << 15;  // 256 KB: 128 KB lost records in busy frames
+    constexpr uint32_t kRecords = 1u << 13; // divides 2^24: the index survives the sequence's wrap
     // A run longer than this closes at its next batch (partGfx then opens
     // another token after it); one that reaches kPairs / 2 is dropped.
     constexpr uint32_t kRunLimit = 4096u;

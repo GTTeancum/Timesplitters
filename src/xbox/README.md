@@ -145,7 +145,7 @@ vertex records instead of the PS2 DMA/VIF/VU1 path:
   at the loop's end or before a mid-loop yield, after which the translated
   resume writes its REFs as usual). The token's record lists the (address,
   QWC) pairs; the DMA walker appends the same payloads in order. Records
-  live in a 512 KB ring; a token whose record was overwritten expands to
+  live in a 256 KB ring; a token whose record was overwritten expands to
   nothing and is counted (`[TS:prologue]` lost=).
 - `TS_MODEL_FILES=1` (default `0`) saves a level's captured models to
   `E:\TimeSplitters\models\<chain>-<hash>.xmc` once its captures settle,

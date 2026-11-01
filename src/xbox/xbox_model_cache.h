@@ -29,6 +29,9 @@
 #ifndef TS_NATIVE_MODELS
 #define TS_NATIVE_MODELS 0
 #endif
+#ifndef TS_MODEL_FILES
+#define TS_MODEL_FILES 0 // save and load captured models (needs TS_NATIVE_MODELS)
+#endif
 
 class PS2Memory;
 class GS;
@@ -85,6 +88,22 @@ bool xboxNativeApplyMaterial(const void *material, GS &gs);
 void xboxNativeSubmitState(const uint8_t *block, uint32_t bytes, PS2Memory *memory, GS &gs);
 void xboxNativeDrainArbiter(PS2Memory *memory);
 
+// --- partGfx prologue tokens (xbox_part_prologue.cpp) ------------------
+// A QWC-0 REF whose ADDR is kXboxPrologueTag | index stands for the model's
+// header, matrix and light REFs.
+constexpr uint32_t kXboxPrologueTag = 0x7E000000u;
+constexpr uint32_t kXboxPrologueIndexMask = 0x00FFFFFFu;
+// partGfx (ts_native_game2.cpp copy): the token's ADDR field (lights 0: none).
+uint32_t xboxPrologueRecord(uint32_t matrix, uint32_t lightA, uint32_t lightB);
+// The walker: the payloads the token stands for, in order (0: not a token,
+// or its record is gone).
+uint32_t xboxPrologueExpand(uint32_t addr, uint32_t addrs[9], uint32_t qwcs[9]);
+struct XboxPrologueStats
+{
+    uint64_t tokens = 0, expanded = 0, lost = 0;
+};
+void xboxPrologueGetStats(XboxPrologueStats &out);
+
 // --- status ------------------------------------------------------------
 struct XboxModelStats
 {
@@ -92,6 +111,7 @@ struct XboxModelStats
     uint64_t captures = 0, captured = 0, failures[8] = {};
     uint64_t replays = 0, replayDraws = 0, replayRuns = 0, replayVertices = 0;
     uint64_t replayDeclined = 0, replayMissing = 0, stale = 0, flushes = 0, verifies = 0;
+    uint32_t fileLoads = 0, fileSaves = 0, fileFailures = 0; // TS_MODEL_FILES
     uint32_t vertexBytes = 0, vertexCapacity = 0;
 };
 void xboxModelGetStats(XboxModelStats &out);

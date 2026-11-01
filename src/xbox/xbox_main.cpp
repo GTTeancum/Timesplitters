@@ -281,7 +281,12 @@ namespace
                   << " replays/draws/runs/verts=" << models.replays << "/" << models.replayDraws << "/"
                   << models.replayRuns << "/" << models.replayVertices << " declined/missing=" << models.replayDeclined
                   << "/" << models.replayMissing << " stale/verify/flush=" << models.stale << "/" << models.verifies
-                  << "/" << models.flushes << " vtxKB=" << models.vertexBytes / 1024u << std::endl;
+                  << "/" << models.flushes << " vtxKB=" << models.vertexBytes / 1024u << " files load/save/fail="
+                  << models.fileLoads << "/" << models.fileSaves << "/" << models.fileFailures << std::endl;
+        XboxPrologueStats prologues;
+        xboxPrologueGetStats(prologues);
+        std::cout << "[TS:prologue] tokens/expanded/lost=" << prologues.tokens << "/" << prologues.expanded << "/"
+                  << prologues.lost << std::endl;
 #endif
     }
 

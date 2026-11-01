@@ -72,9 +72,10 @@ SDK's headers and tools are being reused read-only.
 preparing a build that compares the converted geometry with live vertices.
 It adds diagnostic work and should be off for eventual speed comparisons.
 
-The following independent Xbox optimization switches default to `1`. Set
-one to `0` to compile its previous path for a comparison; the Makefile
-rebuilds its consumers when the switch changes.
+The following independent Xbox optimization switches default to `0`
+(measured 2026-11-01 in xemu at four players: none of them, alone or
+together, beat the all-off build). Set one to `1` to compile it; the
+Makefile rebuilds its consumers when the switch changes.
 
 | Switch | Work reused or reduced |
 | --- | --- |
@@ -100,6 +101,40 @@ and the exact boundaries. Current development is source-only until the full
 planned optimization implementation is written and connected. Do not make
 interim builds or download packages; the build commands here are retained
 for that later stage. Target execution and FPS remain uncompleted checks.
+
+### Native models (`TS_NATIVE_MODELS`, `TS_MODEL_FILES`)
+
+`TS_NATIVE_MODELS=1` (default `0`; needs `TS_BG_NATIVE`, `TS_DRAW_RECORDS`,
+`TS_VIF_SOURCE` and `TS_DMA_CHAIN_CACHE` at `0`) draws every model the game
+sends through partGfx (level rooms, props, weapons, characters) from Xbox
+vertex records instead of the PS2 DMA/VIF/VU1 path:
+
+- `xbox_model_cache.cpp`: the first walk of a model's precalculated VIF
+  chain is decoded as usual and its native draws are recorded in Xbox form;
+  later walks skip the chain and replay the records at its stream position
+  with the live matrices and lights. Records are packed per vertex program
+  (28 bytes plain or env-mapped, 40 lit, 44 skinned) in 128 KB blocks of
+  one format in the renderer's own memory (2 MB), drawn where they lie.
+  Chains are re-hashed against guest memory every 32 replays and captured
+  again when they change. Anything the replay cannot reproduce exactly keeps
+  its chain on the original path.
+- `xbox_part_prologue.cpp`: partGfx writes one token per model in place of
+  its three (or, lit, nine) header, matrix and light REF tags; the DMA walker
+  appends the same payloads when it reaches the token.
+- `TS_MODEL_FILES=1` (default `0`) saves a level's captured models to
+  `E:\TimeSplitters\models\<chain>-<hash>.xmc` once its captures settle,
+  and loads them when the level starts again. Loaded models are re-hashed
+  before their first replay.
+
+Copies patched by `tools/patch_native_models.py`: `ps2_memory.cpp`
+(walker), `ps2_vif1_interpreter.cpp` (decoder), `vu1_native_ts.cpp` (native
+VU1 program) and `ts_native_game2.cpp` (partGfx). The status line
+`[TS:models]` counts captures, replays, failures and file loads;
+`[TS:prologue]` counts tokens.
+
+Measured 2026-11-01, xemu, four players, scripted stretch, alternating
+discs: 38 ms a frame with the model cache against 54 ms without. The
+prologue tokens and model files are compiled but not yet measured.
 
 ### Disc and texture output
 

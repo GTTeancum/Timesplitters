@@ -181,6 +181,15 @@ endif
 # stage of all three copies. It replaces those paths, so the switches that
 # add work around them stay off with it.
 TS_NATIVE_MODELS ?= 0
+# Model files: a level's captured models saved to E:\TimeSplitters\models once
+# its captures settle, and loaded when it starts again (xbox_model_cache.cpp).
+TS_MODEL_FILES ?= 0
+ifneq ($(filter-out 0 1,$(TS_MODEL_FILES)),)
+$(error TS_MODEL_FILES must be 0 or 1)
+endif
+ifeq ($(TS_MODEL_FILES)$(TS_NATIVE_MODELS),10)
+$(error TS_MODEL_FILES=1 needs TS_NATIVE_MODELS=1)
+endif
 ifneq ($(filter-out 0 1,$(TS_NATIVE_MODELS)),)
 $(error TS_NATIVE_MODELS must be 0 or 1)
 endif
@@ -195,7 +204,12 @@ NATIVE_MODELS_MEMORY_INPUT := $(BG_NATIVE_MEMORY_SOURCE)
 NATIVE_MODELS_GAME_COPY := $(OUT)/gen/models/vu1_native_ts.cpp
 NATIVE_MODELS_VIF_COPY := $(OUT)/gen/models/ps2_vif1_interpreter.cpp
 NATIVE_MODELS_MEMORY_COPY := $(OUT)/gen/models/ps2_memory.cpp
+# partGfx (ts_native_game2.cpp) writes one prologue token per model in place
+# of its header, matrix and light REFs (xbox_part_prologue.cpp).
+NATIVE_MODELS_PARTGFX_INPUT := $(DRAW_RECORD_GAME_SOURCE)
+NATIVE_MODELS_PARTGFX_COPY := $(OUT)/gen/models/ts_native_game2.cpp
 ifeq ($(TS_NATIVE_MODELS),1)
+DRAW_RECORD_GAME_SOURCE := $(NATIVE_MODELS_PARTGFX_COPY)
 BG_NATIVE_GAME_SOURCE := $(NATIVE_MODELS_GAME_COPY)
 BG_NATIVE_VIF_SOURCE := $(NATIVE_MODELS_VIF_COPY)
 BG_NATIVE_MEMORY_SOURCE := $(NATIVE_MODELS_MEMORY_COPY)
@@ -530,8 +544,12 @@ $(NATIVE_MODELS_MEMORY_COPY): $(NATIVE_MODELS_MEMORY_INPUT) $(NATIVE_MODELS_DEPS
 	@mkdir -p $(dir $@)
 	@echo "[ MODELS  ] $(notdir $@)"
 	@$(PYTHON) $(XBOX)/tools/patch_native_models.py memory $< $@
+$(NATIVE_MODELS_PARTGFX_COPY): $(NATIVE_MODELS_PARTGFX_INPUT) $(NATIVE_MODELS_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ MODELS  ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_models.py partgfx $< $@
 else
-$(NATIVE_MODELS_GAME_COPY) $(NATIVE_MODELS_VIF_COPY) $(NATIVE_MODELS_MEMORY_COPY):
+$(NATIVE_MODELS_GAME_COPY) $(NATIVE_MODELS_VIF_COPY) $(NATIVE_MODELS_MEMORY_COPY) $(NATIVE_MODELS_PARTGFX_COPY):
 endif
 
 ifeq ($(TS_DMA_CHAIN_CACHE),1)
@@ -711,9 +729,9 @@ $(VIF_SOURCE_OBJS): RUNTIME_FLAGS += $(VIF_SOURCE_FLAGS)
 
 # The walker, decoder and native program copies, the cache and its status line.
 NATIVE_MODELS_STAMP := $(OUT)/gen/native_models.flags
-NATIVE_MODELS_FLAGS := -DTS_NATIVE_MODELS=$(TS_NATIVE_MODELS)
+NATIVE_MODELS_FLAGS := -DTS_NATIVE_MODELS=$(TS_NATIVE_MODELS) -DTS_MODEL_FILES=$(TS_MODEL_FILES)
 NATIVE_MODELS_OBJS := $(BG_NATIVE_GAME_OBJ) $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_MEMORY_OBJ) \
-    $(OBJ)/src/xbox/xbox_model_cache.obj $(OBJ)/src/xbox/xbox_main.obj $(OBJ)/src/xbox/gs_nv2a_backend.obj
+    $(OBJ)/src/xbox/xbox_model_cache.obj $(OBJ)/src/xbox/xbox_main.obj $(OBJ)/src/xbox/gs_nv2a_backend.obj     $(DRAW_RECORD_GAME_OBJ) $(OBJ)/src/xbox/xbox_part_prologue.obj
 $(NATIVE_MODELS_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_MODELS_FLAGS)' ] || echo '$(NATIVE_MODELS_FLAGS)' > $@

@@ -1,10 +1,13 @@
 """Connect the native model cache (src/xbox/xbox_model_cache.*) to Xbox copies.
 
-patch_native_models.py memory|vif|game SOURCE OUTPUT
+patch_native_models.py memory|vif|game|partgfx SOURCE OUTPUT
 
 - memory: the VIF1 DMA walker (ps2_memory.cpp) asks the cache at each
   zero-QWC CALL, appends its 16-byte marker pieces, and reports the chain's
-  tags and pieces for the capture's source hash;
+  tags and pieces for the capture's source hash; it also expands partGfx's
+  prologue tokens;
+- partgfx: partGfx (ts_native_game2.cpp) writes one prologue token per model
+  in place of its header, matrix and light REFs (xbox_part_prologue.cpp);
 - vif: the segmented decoder (ps2_vif1_interpreter.cpp) hands markers to the
   cache and reports MSCAL/MSCNT, non-native runs, DIRECT and MPG inside a
   capture;
@@ -78,6 +81,17 @@ def patch_memory(s: str) -> str:
                             endChain = true;
 '''
     s = replace_once(s, a, '''#if defined(PLATFORM_XBOX) && TS_NATIVE_MODELS
+                        // partGfx's prologue token (xbox_part_prologue.cpp):
+                        // the payloads of the REFs it stands for, after its
+                        // own upper half.
+                        if (id == 3u && tagQwc == 0u)
+                        {
+                            uint32_t xboxPrologueAddrs[9], xboxPrologueQwcs[9];
+                            const uint32_t xboxPrologueCount =
+                                xboxPrologueExpand(addr, xboxPrologueAddrs, xboxPrologueQwcs);
+                            for (uint32_t k = 0; k < xboxPrologueCount; ++k)
+                                appendData(xboxPrologueAddrs[k], xboxPrologueQwcs[k]);
+                        }
                         if (id == 6u && recordSegments)
                             if (const uint8_t *xboxModelEnd = xboxModelWalkAfterRet(asp))
                                 addSegment(xboxModelEnd, 16u);
@@ -213,8 +227,68 @@ void xboxNativeDrainArbiter(PS2Memory *memory)
     return s
 
 
+PROLOGUE_TOKEN = '''    L_261048:
+        {
+            // Xbox (patch_native_models.py): one QWC-0 REF token in place of
+            // the header, matrix and light REFs (xbox_part_prologue.cpp; the
+            // walker expands it). The registers end as the original's, but
+            // for list pointers, which every path from here reloads.
+            const uint32_t xboxSlot = LW(lo32(r.gp) - 0x6c60u);
+            r.t2 = addiu(0u, 1);                                 // 26104c
+            r.t3 = addiu(0u, 4);                                 // 261058
+            r.a1 = 0x358ff0u;                                    // 261064
+            r.t4 = LW(lo32(r.sp) + 0x2b8u);                      // 261094
+            r.v1 = LW(lo32(r.t4));                               // 26109c
+            r.a0 = LW(lo32(r.v1) + 0x8u);                        // 2610a8
+            uint32_t xboxLightA = 0u, xboxLightB = 0u;
+            if (r.a0 != 0u && LW(lo32(r.t4) + 0x18u) != 0u && LW(lo32(r.t4) + 0x1cu) != 0u)
+            {
+                xboxLightA = LW(lo32(r.t4) + 0x18u);
+                xboxLightB = LW(lo32(r.t4) + 0x1cu);
+            }
+            WRITE8(xboxSlot + 0x3u, static_cast<uint8_t>(r.t1));
+            WRITE32(xboxSlot + 0x4u, xboxPrologueRecord(lo32(r.s2), xboxLightA, xboxLightB));
+            WRITE16(xboxSlot, static_cast<uint16_t>(0u));
+            WRITE32(lo32(r.gp) - 0x6c60u, xboxSlot + 16u);
+            r.v0 = xboxSlot;
+            r.a2 = xboxSlot + 16u;
+            if (xboxLightA == 0u)
+                WRITE8(xboxSlot + 16u + 0x3u, static_cast<uint8_t>(r.t1)); // 261090: the next tag's ID
+            else
+            {
+                r.t0 = xboxLightA;                               // 2610e4
+                r.a0 = xboxLightB;                               // 261140
+                r.a1 = 0x358f90u;                                // 2610e0
+                r.a2 = 0x358f70u;                                // 2610f8
+                r.a3 = 0x358f80u;                                // 261108
+                r.v1 = xboxSlot + 16u;
+            }
+        }
+'''
+
+
+def patch_partgfx(s: str) -> str:
+    """partGfx's prologue REFs (0x261048-0x261180) become one token."""
+    start = '    L_261048:\n'
+    end_line = '// 261180 sw $v1, -0x6C60($gp)\n'
+    if s.count(start) != 1 or s.count(end_line) != 1:
+        raise ValueError('partGfx prologue: anchors not found once')
+    a = s.index(start)
+    b = s.index(end_line) + len(end_line)
+    block = s[a:b]
+    # The block must be the one this replacement was written from.
+    expected = ('// 261050 sb $t1, 0x3($v0)', '// 2610b0 beqz $a0', '// 2610e4 lw $t0, 0x18($t4)',
+                '// 261140 lw $a0, 0x1C($t4)', 'goto L_261184;', 'goto L_261188;')
+    for e in expected:
+        if e not in block:
+            raise ValueError(f'partGfx prologue: block lacks {e!r}')
+    if block.count('WRITE32(lo32(r.gp) - 0x6c60u') != 9:
+        raise ValueError('partGfx prologue: expected nine list-pointer stores')
+    return s[:a] + PROLOGUE_TOKEN + s[b:]
+
+
 def main() -> int:
-    if len(sys.argv) != 4 or sys.argv[1] not in ('memory', 'vif', 'game'):
+    if len(sys.argv) != 4 or sys.argv[1] not in ('memory', 'vif', 'game', 'partgfx'):
         print(__doc__, file=sys.stderr)
         return 2
     mode, source, output = sys.argv[1], Path(sys.argv[2]), Path(sys.argv[3])
@@ -226,7 +300,7 @@ def main() -> int:
         text = raw.replace('\r\n', '\n')
         if INCLUDE in text:
             raise ValueError('source already contains the model cache')
-        text = {'memory': patch_memory, 'vif': patch_vif, 'game': patch_game}[mode](text)
+        text = {'memory': patch_memory, 'vif': patch_vif, 'game': patch_game, 'partgfx': patch_partgfx}[mode](text)
         # The include goes first: the inserted calls precede most of the file.
         text = GENERATED + INCLUDE + text
         output.parent.mkdir(parents=True, exist_ok=True)

@@ -8,8 +8,12 @@
 #include "runtime/gs/gs_frontend.h"
 #include "../../project/game/vu1_native_xf.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#if TS_MODEL_FILES
+#include <windows.h>
+#endif
 
 // The Xbox renderer's store for these records (gs_nv2a_backend.cpp).
 uint8_t *xboxNv2aAllocResident(uint32_t bytes);
@@ -115,6 +119,7 @@ namespace
         uint32_t firstDraw = 0, draws = 0;
         uint32_t hash = 0, replays = 0;
         uint32_t mscals = 0;
+        uint32_t verified = 0; // 0: loaded from a model file, re-hashed before its first replay
         // The registers the chain sets (bit per field in `sets`), as it left them.
         uint32_t cycle = 0, mode = 0, mask = 0, itops = 0, row[4]{}, col[4]{}, code = 0, num = 0;
         uint8_t sets = 0;
@@ -139,6 +144,34 @@ namespace
     uint32_t g_generation = 1;
     bool g_flushRequested = false;
     XboxModelStats g_stats;
+
+#if TS_MODEL_FILES
+    // Model files (make TS_MODEL_FILES=1): a level's captured models, saved
+    // once its captures settle and loaded the next time it starts, so its
+    // models replay from the first frame without capturing. A file is named
+    // after the level's first capture (its chain address and hash); loaded
+    // models are re-hashed against guest memory before their first replay, so
+    // a file that does not match the level only costs the captures.
+    constexpr uint32_t kFileMagic = 0x31434D58u; // 'XMC1'
+    constexpr uint32_t kFileVersion = 1u;
+    constexpr uint32_t kFileQuietWalks = 30000u; // walks without a new capture before a save
+    constexpr const char *kFileDir = "E:\\TimeSplitters\\models";
+    struct FileHeader
+    {
+        uint32_t magic, version, slots, storeBytes, blockBytes, blocks, strips, runs, draws, stateBytes,
+            stateSlots, resident;
+        uint32_t anchorTarget, anchorHash;
+        uint32_t usedStore, usedStrips, usedRuns, usedDraws, usedStateBytes, blocksUsed;
+        int32_t openBlock[4];
+        uint32_t blockUsed[kBlocks];
+        uint32_t modelBytes;
+    };
+    bool g_haveAnchor = false, g_loadPending = false;
+    uint32_t g_anchorTarget = 0, g_anchorHash = 0;
+    uint32_t g_lastLoadTarget = 0, g_lastLoadHash = 0; // loaded once per boot, not again after a flush
+    uint64_t g_capturedSeen = 0, g_capturedAtSave = 0;
+    uint32_t g_quietWalks = 0;
+#endif
 
     // Walker side: the chain being captured.
     struct WalkCapture
@@ -206,6 +239,11 @@ namespace
         g_decode = {};
         g_flushRequested = false;
         ++g_stats.flushes;
+#if TS_MODEL_FILES
+        g_haveAnchor = g_loadPending = false;
+        g_quietWalks = 0;
+        g_capturedSeen = g_capturedAtSave = g_stats.captured;
+#endif
     }
 
     Model *find(uint32_t target, bool create)
@@ -451,8 +489,195 @@ namespace
         m.code = end.code;
         m.num = end.num;
         m.state = Ready;
+        m.verified = 1u;
         ++g_stats.captured;
+#if TS_MODEL_FILES
+        if (!g_haveAnchor)
+        {
+            // The level's first capture names its file: loaded at the next walk.
+            g_haveAnchor = true;
+            g_anchorTarget = m.target;
+            g_anchorHash = m.hash;
+            g_loadPending = !(m.target == g_lastLoadTarget && m.hash == g_lastLoadHash);
+        }
+#endif
     }
+
+#if TS_MODEL_FILES
+    void fileName(char *out, size_t size, uint32_t target, uint32_t hash)
+    {
+        std::snprintf(out, size, "%s\\%08x-%08x.xmc", kFileDir, static_cast<unsigned>(target),
+                      static_cast<unsigned>(hash));
+    }
+
+    void fillHeader(FileHeader &h)
+    {
+        std::memset(&h, 0, sizeof(h));
+        h.magic = kFileMagic;
+        h.version = kFileVersion;
+        h.slots = kSlots;
+        h.storeBytes = kStoreBytes;
+        h.blockBytes = kBlockBytes;
+        h.blocks = kBlocks;
+        h.strips = kStrips;
+        h.runs = kRuns;
+        h.draws = kDraws;
+        h.stateBytes = kStateBytes;
+        h.stateSlots = kStateSlots;
+        h.resident = g_resident ? 1u : 0u;
+        h.modelBytes = sizeof(Model);
+    }
+
+    bool writeAll(HANDLE f, const void *data, uint32_t bytes)
+    {
+        DWORD written = 0;
+        return bytes == 0u || (WriteFile(f, data, bytes, &written, nullptr) && written == bytes);
+    }
+
+    bool readAll(HANDLE f, void *data, uint32_t bytes)
+    {
+        DWORD got = 0;
+        return bytes == 0u || (ReadFile(f, data, bytes, &got, nullptr) && got == bytes);
+    }
+
+    // Everything captured so far, under the level's first capture's name.
+    // The records are read back from the renderer's (write-combined) memory
+    // once: two megabytes at most, when the level has settled.
+    void saveFile()
+    {
+        CreateDirectoryA("E:\\TimeSplitters", nullptr);
+        CreateDirectoryA(kFileDir, nullptr);
+        char name[96];
+        fileName(name, sizeof(name), g_anchorTarget, g_anchorHash);
+        HANDLE f = CreateFileA(name, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (f == INVALID_HANDLE_VALUE)
+        {
+            ++g_stats.fileFailures;
+            return;
+        }
+        FileHeader h;
+        fillHeader(h);
+        h.anchorTarget = g_anchorTarget;
+        h.anchorHash = g_anchorHash;
+        h.usedStore = g_usedStore;
+        h.usedStrips = g_usedStrips;
+        h.usedRuns = g_usedRuns;
+        h.usedDraws = g_usedDraws;
+        h.usedStateBytes = g_usedStateBytes;
+        h.blocksUsed = g_blocksUsed;
+        std::memcpy(h.openBlock, g_openBlock, sizeof(h.openBlock));
+        std::memcpy(h.blockUsed, g_blockUsed, sizeof(h.blockUsed));
+        bool ok = writeAll(f, &h, sizeof(h)) && writeAll(f, g_models, kSlots * sizeof(Model)) &&
+                  writeAll(f, g_strips, g_usedStrips * sizeof(Strip)) && writeAll(f, g_runs, g_usedRuns * sizeof(Run)) &&
+                  writeAll(f, g_draws, g_usedDraws * sizeof(Draw)) && writeAll(f, g_stateBytes, g_usedStateBytes) &&
+                  writeAll(f, g_stateIndex, kStateSlots * sizeof(uint32_t));
+        for (uint32_t b = 0; ok && b < g_blocksUsed; ++b)
+            ok = writeAll(f, g_store + b * kBlockBytes, g_blockUsed[b]);
+        CloseHandle(f);
+        if (!ok)
+        {
+            DeleteFileA(name);
+            ++g_stats.fileFailures;
+            return;
+        }
+        g_capturedAtSave = g_stats.captured;
+        ++g_stats.fileSaves;
+    }
+
+    // The anchor's file, if one was saved: the cache is emptied (the GPU done
+    // with the old records) and takes the file's models, ready but re-hashed
+    // before their first replay.
+    void loadFile()
+    {
+        g_loadPending = false;
+        char name[96];
+        fileName(name, sizeof(name), g_anchorTarget, g_anchorHash);
+        HANDLE f = CreateFileA(name, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (f == INVALID_HANDLE_VALUE)
+            return; // none yet: saved once this level settles
+        g_lastLoadTarget = g_anchorTarget;
+        g_lastLoadHash = g_anchorHash;
+        FileHeader h, want;
+        fillHeader(want);
+        bool ok = readAll(f, &h, sizeof(h)) && h.magic == want.magic && h.version == want.version &&
+                  h.slots == want.slots && h.storeBytes == want.storeBytes && h.blockBytes == want.blockBytes &&
+                  h.blocks == want.blocks && h.strips == want.strips && h.runs == want.runs &&
+                  h.draws == want.draws && h.stateBytes == want.stateBytes && h.stateSlots == want.stateSlots &&
+                  h.resident == want.resident && h.modelBytes == want.modelBytes &&
+                  h.anchorTarget == g_anchorTarget && h.anchorHash == g_anchorHash && h.usedStrips <= kStrips &&
+                  h.usedRuns <= kRuns && h.usedDraws <= kDraws && h.usedStateBytes <= kStateBytes &&
+                  h.blocksUsed <= kBlocks;
+        for (uint32_t b = 0; ok && b < kBlocks; ++b)
+            ok = h.blockUsed[b] <= kBlockBytes;
+        if (!ok)
+        {
+            CloseHandle(f);
+            ++g_stats.fileFailures;
+            return;
+        }
+        const uint32_t anchorTarget = g_anchorTarget, anchorHash = g_anchorHash;
+        flush();
+        ok = readAll(f, g_models, kSlots * sizeof(Model)) && readAll(f, g_strips, h.usedStrips * sizeof(Strip)) &&
+             readAll(f, g_runs, h.usedRuns * sizeof(Run)) && readAll(f, g_draws, h.usedDraws * sizeof(Draw)) &&
+             readAll(f, g_stateBytes, h.usedStateBytes) && readAll(f, g_stateIndex, kStateSlots * sizeof(uint32_t));
+        for (uint32_t b = 0; ok && b < h.blocksUsed; ++b)
+            ok = readAll(f, g_store + b * kBlockBytes, h.blockUsed[b]);
+        CloseHandle(f);
+        if (!ok)
+        {
+            flush(); // a part-read file: start empty
+            ++g_stats.fileFailures;
+            return;
+        }
+        g_usedStore = h.usedStore;
+        g_usedStrips = h.usedStrips;
+        g_usedRuns = h.usedRuns;
+        g_usedDraws = h.usedDraws;
+        g_usedStateBytes = h.usedStateBytes;
+        g_blocksUsed = h.blocksUsed;
+        std::memcpy(g_openBlock, h.openBlock, sizeof(g_openBlock));
+        std::memcpy(g_blockUsed, h.blockUsed, sizeof(g_blockUsed));
+        for (uint32_t i = 0; i < kSlots; ++i)
+        {
+            Model &m = g_models[i];
+            if (m.state != Ready)
+            {
+                m = Model{}; // failed or unfinished ones are tried again
+                continue;
+            }
+            m.gen = g_generation;
+            m.replays = 0;
+            m.verified = 0u;
+            setMarkers(m);
+        }
+        g_haveAnchor = true;
+        g_anchorTarget = anchorTarget;
+        g_anchorHash = anchorHash;
+        g_capturedSeen = g_capturedAtSave = g_stats.captured;
+        ++g_stats.fileLoads;
+    }
+
+    // Each walk: a pending load, or a save once the level's captures settle.
+    void fileTick()
+    {
+        if (g_loadPending)
+            loadFile();
+        if (!g_haveAnchor)
+            return;
+        if (g_stats.captured != g_capturedSeen)
+        {
+            g_capturedSeen = g_stats.captured;
+            g_quietWalks = 0;
+            return;
+        }
+        if (++g_quietWalks >= kFileQuietWalks && g_stats.captured != g_capturedAtSave && !g_walk.model &&
+            !g_decode.model)
+        {
+            g_quietWalks = 0;
+            saveFile();
+        }
+    }
+#endif
 }
 
 // ---------------------------------------------------------------- walker
@@ -466,13 +691,17 @@ XboxModelWalk xboxModelWalkCall(const uint8_t *rdram, uint32_t target, uint32_t 
     // models do not all fit keeps the rest on the original path between.
     if (g_flushRequested && g_walksSinceFlush >= kFlushSpacing)
         flush();
+#if TS_MODEL_FILES
+    fileTick();
+#endif
     Model *m = find(target & 0x7FFFFFF0u, true);
     if (!m)
         return XboxModelWalkNormal;
     if (m->state == Ready)
     {
-        if ((++m->replays % kVerifyEvery) == 0u)
+        if ((++m->replays % kVerifyEvery) == 0u || !m->verified)
         {
+            m->verified = 1u;
             ++g_stats.verifies;
             uint32_t hash = 0;
             if (!hashChain(rdram, m->target, hash) || hash != m->hash)

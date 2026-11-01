@@ -11,6 +11,11 @@
 #include <cstdlib>
 #include <cstring>
 
+// The Xbox renderer's store for these records (gs_nv2a_backend.cpp).
+GSXfVertex *xboxNv2aAllocResident(uint32_t count);
+void xboxNv2aDrawResident(const GSXfVertex *first, uint32_t count);
+void xboxNv2aWaitIdle();
+
 namespace
 {
     // Budgets (bytes are allocated once, at the first capture). A full arena
@@ -24,11 +29,14 @@ namespace
     constexpr uint32_t kStateSlots = 1024u;       // their index (power of two)
     constexpr uint32_t kMaxVerifyTags = 4096u;    // a chain longer than this is not kept
     constexpr uint32_t kVerifyEvery = 32u;        // replays between re-hashes
+    constexpr uint32_t kFlushSpacing = 400000u;   // walks between flushes (a full store)
 
     enum State : uint8_t { Empty = 0, Capturing = 1, Ready = 2, Failed = 3 };
 
     struct Strip { uint32_t first; uint16_t n; uint16_t pad; };
-    struct Run { uint32_t firstStrip; uint16_t strips; uint16_t prim; };
+    // A run's strips lie joined (two repeated records between strips), as
+    // one strip the NV2A draws where it lies: [first, first + count).
+    struct Run { uint32_t firstStrip; uint16_t strips; uint16_t prim; uint32_t first, count; };
     struct Draw
     {
         uint32_t firstRun;
@@ -59,7 +67,8 @@ namespace
     Draw *g_draws = nullptr;
     uint8_t *g_stateBytes = nullptr;
     uint32_t *g_stateIndex = nullptr; // offset + 1 (0: empty)
-    bool g_allocated = false, g_disabled = false;
+    bool g_allocated = false, g_disabled = false, g_resident = false;
+    uint32_t g_walksSinceFlush = 0;
     uint32_t g_usedVertices = 0, g_usedStrips = 0, g_usedRuns = 0, g_usedDraws = 0,
              g_usedStateBytes = 0;
     uint32_t g_generation = 1;
@@ -92,7 +101,12 @@ namespace
             return !g_disabled;
         g_allocated = true;
         g_models = static_cast<Model *>(std::calloc(kSlots, sizeof(Model)));
-        g_vertices = static_cast<GSXfVertex *>(std::malloc(kVertices * sizeof(GSXfVertex)));
+        // In the renderer's memory when it has room (drawn in place), else
+        // copied into its ring at each replay.
+        g_vertices = xboxNv2aAllocResident(kVertices);
+        g_resident = g_vertices != nullptr;
+        if (!g_resident)
+            g_vertices = static_cast<GSXfVertex *>(std::malloc(kVertices * sizeof(GSXfVertex)));
         g_strips = static_cast<Strip *>(std::malloc(kStrips * sizeof(Strip)));
         g_runs = static_cast<Run *>(std::malloc(kRuns * sizeof(Run)));
         g_draws = static_cast<Draw *>(std::malloc(kDraws * sizeof(Draw)));
@@ -101,7 +115,7 @@ namespace
         if (!g_models || !g_vertices || !g_strips || !g_runs || !g_draws || !g_stateBytes ||
             !g_stateIndex)
         {
-            std::free(g_models); std::free(g_vertices); std::free(g_strips); std::free(g_runs);
+            std::free(g_models); if (!g_resident) std::free(g_vertices); std::free(g_strips); std::free(g_runs);
             std::free(g_draws); std::free(g_stateBytes); std::free(g_stateIndex);
             g_disabled = true;
             return false;
@@ -112,6 +126,9 @@ namespace
 
     void flush()
     {
+        if (g_resident)
+            xboxNv2aWaitIdle(); // the GPU may still read the records being replaced
+        g_walksSinceFlush = 0;
         std::memset(g_models, 0, kSlots * sizeof(Model));
         std::memset(g_stateIndex, 0, kStateSlots * sizeof(uint32_t));
         g_usedVertices = g_usedStrips = g_usedRuns = g_usedDraws = g_usedStateBytes = 0;
@@ -375,7 +392,10 @@ XboxModelWalk xboxModelWalkCall(const uint8_t *rdram, uint32_t target, uint32_t 
     marker = nullptr;
     if (g_walk.model || !allocate())
         return XboxModelWalkNormal; // nested CALL inside a capture: as usual
-    if (g_flushRequested)
+    ++g_walksSinceFlush;
+    // A full store empties at most every kFlushSpacing walks: a level whose
+    // models do not all fit keeps the rest on the original path between.
+    if (g_flushRequested && g_walksSinceFlush >= kFlushSpacing)
         flush();
     Model *m = find(target & 0x7FFFFFF0u, true);
     if (!m)
@@ -533,20 +553,33 @@ void xboxModelCaptureDraw(uint32_t kind, const uint8_t *data, const uint8_t *sta
         run.firstStrip = g_usedStrips;
         run.strips = static_cast<uint16_t>(j - i);
         run.prim = static_cast<uint16_t>(prim);
+        run.first = g_usedVertices;
+        GSXfVertex strip[64], last{};
         for (uint32_t k = i; k < j; ++k)
         {
             const uint32_t *t = strips + k * strideWords;
             const uint32_t n = t[4], vi = t[5];
-            if (g_usedVertices + n > kVertices)
+            const uint32_t join = k > i ? 2u : 0u;
+            if (g_usedVertices + join + n > kVertices)
             {
                 g_flushRequested = true;
                 failDecode(7u);
                 return;
             }
-            ts_native_xf::decodeXfStrip(kind, data, vi, n, g_vertices + g_usedVertices);
-            g_strips[g_usedStrips++] = {g_usedVertices, static_cast<uint16_t>(n), 0};
-            g_usedVertices += n;
+            ts_native_xf::decodeXfStrip(kind, data, vi, n, strip);
+            GSXfVertex *out = g_vertices + g_usedVertices; // (write-combined: written once, in order)
+            if (join)
+            {
+                std::memcpy(out, &last, sizeof(GSXfVertex));
+                std::memcpy(out + 1, strip, sizeof(GSXfVertex));
+                out += 2;
+            }
+            std::memcpy(out, strip, n * sizeof(GSXfVertex));
+            g_strips[g_usedStrips++] = {static_cast<uint32_t>(out - g_vertices), static_cast<uint16_t>(n), 0};
+            g_usedVertices += join + n;
+            last = strip[n - 1u];
         }
+        run.count = g_usedVertices - run.first;
         ++d.runs;
         i = j;
     }
@@ -586,33 +619,42 @@ namespace
                     continue;
                 }
                 ++g_stats.replayRuns;
-                for (uint32_t si = 0; si < run.strips; ++si)
+                const GSXfVertex *v = g_vertices + run.first;
+                if (cursor.direct && g_resident)
                 {
-                    const Strip &s = g_strips[run.firstStrip + si];
-                    const GSXfVertex *v = g_vertices + s.first;
-                    const uint32_t n = s.n;
-                    if (cursor.direct)
-                    {
-                        if (cursor.next + (n + 2u) > cursor.end)
-                            gs.growXfCursor(cursor, n + 2u);
-                        GSXfVertex *out = cursor.next;
-                        if (cursor.join)
-                        {
-                            std::memcpy(out, &cursor.last, sizeof(GSXfVertex));
-                            std::memcpy(out + 1, v, sizeof(GSXfVertex));
-                            out += 2;
-                        }
-                        std::memcpy(out, v, n * sizeof(GSXfVertex));
-                        cursor.last = v[n - 1u];
-                        cursor.next = out + n;
-                        cursor.join = true;
-                        ++cursor.strips;
-                        cursor.vertices += n;
-                    }
-                    else
-                        gs.emitXfStrip(v, n);
-                    g_stats.replayVertices += n;
+                    xboxNv2aDrawResident(v, run.count);
+                    cursor.strips += run.strips;
+                    cursor.vertices += run.count;
                 }
+                else if (cursor.direct)
+                {
+                    const uint32_t n = run.count;
+                    if (cursor.next + (n + 2u) > cursor.end)
+                        gs.growXfCursor(cursor, n + 2u);
+                    GSXfVertex *out = cursor.next;
+                    if (cursor.join)
+                    {
+                        std::memcpy(out, &cursor.last, sizeof(GSXfVertex));
+                        std::memcpy(out + 1, v, sizeof(GSXfVertex));
+                        out += 2;
+                    }
+                    std::memcpy(out, v, n * sizeof(GSXfVertex));
+                    cursor.last = v[n - 1u];
+                    cursor.next = out + n;
+                    cursor.join = true;
+                    cursor.strips += run.strips;
+                    cursor.vertices += n;
+                }
+                else
+                {
+                    // Flat shading: the renderer lays the strips out itself.
+                    for (uint32_t si = 0; si < run.strips; ++si)
+                    {
+                        const Strip &st = g_strips[run.firstStrip + si];
+                        gs.emitXfStrip(g_vertices + st.first, st.n);
+                    }
+                }
+                g_stats.replayVertices += run.count;
                 gs.endXfRun(cursor);
             }
         }

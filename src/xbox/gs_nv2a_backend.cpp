@@ -3757,38 +3757,69 @@ struct GSNv2aBackend::Impl
     GSTransferCommand transfer{};
 
 #if TS_NATIVE_MODELS
-    // Native model cache (xbox_model_cache.cpp): stored 44-byte records the
-    // NV2A reads where they lie, one joined strip per run, inside a run the
+    // Native model cache (xbox_model_cache.cpp): stored records the NV2A
+    // reads where they lie, one joined strip per run, inside a run the
     // caller opened (beginXfRun) and closes (endXfRun) without writing to
-    // the ring. The raw attributes point at the store while its draws go.
-    GSXfVertex *residentBase = nullptr;
+    // the ring. Records come in four formats (xboxNv2aResidentStride): the
+    // full GSXfVertex, and three that leave out what a layout's vertex
+    // program never reads (plain: normal; environment map: texture
+    // coordinates; lit: the bone). The raw attributes point at the run;
+    // the next ring batch binds the ring again (setAttributes).
+    uint8_t *residentBase = nullptr;
     bool residentBound = false;
+    uint32_t residentFormat = ~0u;
+    const uint8_t *residentBlock = nullptr; // the attributes' base while bound
 
-    void drawResident(const GSXfVertex *first, uint32_t count)
+    struct ResidentFormat
     {
-        if (!residentBase || count < 3u || runKey.topology != 1u)
+        uint32_t stride;
+        int8_t pos, nrm, col, tex; // byte offsets (-1: not stored)
+        uint8_t texComponents;
+    };
+    static constexpr ResidentFormat kResidentFormats[4] = {
+        {44, 0, 12, 24, 28, 4}, // full (skinned)
+        {28, 0, -1, 12, 16, 3}, // plain
+        {28, 0, 12, 24, -1, 0}, // environment map
+        {40, 0, 12, 24, 28, 3}, // lit
+    };
+
+    void drawResident(const uint8_t *block, uint32_t index, uint32_t count, uint32_t format)
+    {
+        if (!residentBase || count < 3u || runKey.topology != 1u || format > 3u)
             return;
         flushBatch(); // the ring's vertices before it go first
         uint32_t *p = openCursor();
         if (!stateValid || !(applied == runKey))
             p = applyState(p, runKey);
-        if (!residentBound)
+        const ResidentFormat &f = kResidentFormats[format];
+        const int8_t at[4] = {f.pos, f.nrm, f.col, f.tex};
+        static const uint32_t attribute[4] = {0, 2, 3, 9};
+        // One binding per block and format: the runs in it are drawn by index.
+        if (!residentBound || residentFormat != format || residentBlock != block)
         {
-            static const uint32_t index[4] = {0, 2, 3, 9}, offset[4] = {0, 12, 24, 28};
-            const uint8_t *base = reinterpret_cast<const uint8_t *>(residentBase);
+            const uint32_t types[4] = {NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F | (3u << 4),
+                                       NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F | (3u << 4),
+                                       NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D | (4u << 4),
+                                       NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F | (uint32_t(f.texComponents) << 4)};
             for (int i = 0; i < 4; ++i)
-                p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * index[i], physical(base + offset[i]));
-            residentBound = true;
+                p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4 * attribute[i],
+                          at[i] < 0 ? NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F // size 0: the default value
+                                    : types[i] | (f.stride << 8));
+            for (int i = 0; i < 4; ++i)
+                if (at[i] >= 0)
+                    p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * attribute[i], physical(block + at[i]));
+            residentFormat = format;
+            residentBlock = block;
         }
-        const uint32_t start = uint32_t(first - residentBase);
+        residentBound = true;
         p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
-        for (uint32_t at = 0;;)
+        for (uint32_t done = 0;;)
         {
-            const uint32_t n = std::min<uint32_t>(count - at, 256u);
-            p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (start + at));
-            if (at + n >= count)
+            const uint32_t n = std::min<uint32_t>(count - done, 256u);
+            p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (index + done));
+            if (done + n >= count)
                 break;
-            at += n - 2u;
+            done += n - 2u;
         }
         p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
         cursor = p;
@@ -3805,19 +3836,19 @@ namespace
     GSNv2aBackend::Impl *g_residentImpl = nullptr;
 }
 
-GSXfVertex *xboxNv2aAllocResident(uint32_t count)
+uint8_t *xboxNv2aAllocResident(uint32_t bytes)
 {
     if (!g_residentImpl)
         return nullptr;
     if (!g_residentImpl->residentBase)
-        g_residentImpl->residentBase = static_cast<GSXfVertex *>(allocGpu(size_t(count) * sizeof(GSXfVertex)));
+        g_residentImpl->residentBase = static_cast<uint8_t *>(allocGpu(bytes));
     return g_residentImpl->residentBase;
 }
 
-void xboxNv2aDrawResident(const GSXfVertex *first, uint32_t count)
+void xboxNv2aDrawResident(const uint8_t *block, uint32_t index, uint32_t count, uint32_t format)
 {
     if (g_residentImpl)
-        g_residentImpl->drawResident(first, count);
+        g_residentImpl->drawResident(block, index, count, format);
 }
 
 void xboxNv2aWaitIdle()

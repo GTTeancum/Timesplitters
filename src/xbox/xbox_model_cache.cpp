@@ -12,8 +12,8 @@
 #include <cstring>
 
 // The Xbox renderer's store for these records (gs_nv2a_backend.cpp).
-GSXfVertex *xboxNv2aAllocResident(uint32_t count);
-void xboxNv2aDrawResident(const GSXfVertex *first, uint32_t count);
+uint8_t *xboxNv2aAllocResident(uint32_t bytes);
+void xboxNv2aDrawResident(const uint8_t *block, uint32_t index, uint32_t count, uint32_t format);
 void xboxNv2aWaitIdle();
 
 namespace
@@ -21,7 +21,11 @@ namespace
     // Budgets (bytes are allocated once, at the first capture). A full arena
     // fails the capture and asks for a flush at the next walk.
     constexpr uint32_t kSlots = 1024u;            // models (power of two)
-    constexpr uint32_t kVertices = 36u * 1024u;   // 44-byte records: 1.5 MB
+    constexpr uint32_t kStoreBytes = 2048u * 1024u; // the records (28-44 bytes each)
+    // The store is cut into blocks of one format each: the renderer binds a
+    // block once and draws its runs by index. A run never spans blocks.
+    constexpr uint32_t kBlockBytes = 128u * 1024u;
+    constexpr uint32_t kBlocks = kStoreBytes / kBlockBytes;
     constexpr uint32_t kStrips = 24u * 1024u;
     constexpr uint32_t kRuns = 8u * 1024u;
     constexpr uint32_t kDraws = 8u * 1024u;
@@ -35,8 +39,66 @@ namespace
 
     struct Strip { uint32_t first; uint16_t n; uint16_t pad; };
     // A run's strips lie joined (two repeated records between strips), as
-    // one strip the NV2A draws where it lies: [first, first + count).
+    // one strip the NV2A draws where it lies: `count` records from byte
+    // `first` of the store, in the draw's format.
     struct Run { uint32_t firstStrip; uint16_t strips; uint16_t prim; uint32_t first, count; };
+
+    // Record formats (gs_nv2a_backend.cpp's kResidentFormats): what each
+    // layout's vertex program reads. Full is GSXfVertex itself.
+    enum Format : uint8_t { Full = 0, PlainFormat = 1, EnvFormat = 2, LitFormat = 3 };
+    constexpr uint32_t kStride[4] = {44u, 28u, 28u, 40u};
+
+    uint32_t formatFor(uint32_t kind)
+    {
+        const ts_native_xf::Layout &L = ts_native_xf::kLayouts[kind];
+        return L.skinned ? Full : L.envMap ? EnvFormat : L.lit ? LitFormat : PlainFormat;
+    }
+
+    void packRecord(uint32_t format, const GSXfVertex &v, uint8_t *out)
+    {
+        const uint8_t *in = reinterpret_cast<const uint8_t *>(&v);
+        switch (format)
+        {
+        case PlainFormat: // position, colour, s t q
+            std::memcpy(out, in, 12);
+            std::memcpy(out + 12, in + 24, 4);
+            std::memcpy(out + 16, in + 28, 12);
+            break;
+        case EnvFormat: // position, normal, colour
+            std::memcpy(out, in, 28);
+            break;
+        case LitFormat: // all but the bone
+            std::memcpy(out, in, 40);
+            break;
+        default:
+            std::memcpy(out, in, 44);
+            break;
+        }
+    }
+
+    void unpackRecord(uint32_t format, const uint8_t *in, GSXfVertex &v)
+    {
+        uint8_t *out = reinterpret_cast<uint8_t *>(&v);
+        std::memset(out, 0, sizeof(v));
+        switch (format)
+        {
+        case PlainFormat:
+            std::memcpy(out, in, 12);
+            std::memcpy(out + 24, in + 12, 4);
+            std::memcpy(out + 28, in + 16, 12);
+            break;
+        case EnvFormat:
+            std::memcpy(out, in, 28);
+            v.q = 1.0f;
+            break;
+        case LitFormat:
+            std::memcpy(out, in, 40);
+            break;
+        default:
+            std::memcpy(out, in, 44);
+            break;
+        }
+    }
     struct Draw
     {
         uint32_t firstRun;
@@ -61,7 +123,7 @@ namespace
     enum Sets : uint8_t { SetCycle = 1, SetMode = 2, SetMask = 4, SetItops = 8, SetRow = 16, SetCol = 32 };
 
     Model *g_models = nullptr;
-    GSXfVertex *g_vertices = nullptr;
+    uint8_t *g_store = nullptr;
     Strip *g_strips = nullptr;
     Run *g_runs = nullptr;
     Draw *g_draws = nullptr;
@@ -69,7 +131,10 @@ namespace
     uint32_t *g_stateIndex = nullptr; // offset + 1 (0: empty)
     bool g_allocated = false, g_disabled = false, g_resident = false;
     uint32_t g_walksSinceFlush = 0;
-    uint32_t g_usedVertices = 0, g_usedStrips = 0, g_usedRuns = 0, g_usedDraws = 0,
+    uint32_t g_blocksUsed = 0;
+    int32_t g_openBlock[4] = {-1, -1, -1, -1}; // per format: the block being filled
+    uint32_t g_blockUsed[kBlocks] = {};
+    uint32_t g_usedStore = 0, g_usedStrips = 0, g_usedRuns = 0, g_usedDraws = 0,
              g_usedStateBytes = 0;
     uint32_t g_generation = 1;
     bool g_flushRequested = false;
@@ -103,24 +168,24 @@ namespace
         g_models = static_cast<Model *>(std::calloc(kSlots, sizeof(Model)));
         // In the renderer's memory when it has room (drawn in place), else
         // copied into its ring at each replay.
-        g_vertices = xboxNv2aAllocResident(kVertices);
-        g_resident = g_vertices != nullptr;
+        g_store = xboxNv2aAllocResident(kStoreBytes);
+        g_resident = g_store != nullptr;
         if (!g_resident)
-            g_vertices = static_cast<GSXfVertex *>(std::malloc(kVertices * sizeof(GSXfVertex)));
+            g_store = static_cast<uint8_t *>(std::malloc(kStoreBytes));
         g_strips = static_cast<Strip *>(std::malloc(kStrips * sizeof(Strip)));
         g_runs = static_cast<Run *>(std::malloc(kRuns * sizeof(Run)));
         g_draws = static_cast<Draw *>(std::malloc(kDraws * sizeof(Draw)));
         g_stateBytes = static_cast<uint8_t *>(std::malloc(kStateBytes));
         g_stateIndex = static_cast<uint32_t *>(std::calloc(kStateSlots, sizeof(uint32_t)));
-        if (!g_models || !g_vertices || !g_strips || !g_runs || !g_draws || !g_stateBytes ||
+        if (!g_models || !g_store || !g_strips || !g_runs || !g_draws || !g_stateBytes ||
             !g_stateIndex)
         {
-            std::free(g_models); if (!g_resident) std::free(g_vertices); std::free(g_strips); std::free(g_runs);
+            std::free(g_models); if (!g_resident) std::free(g_store); std::free(g_strips); std::free(g_runs);
             std::free(g_draws); std::free(g_stateBytes); std::free(g_stateIndex);
             g_disabled = true;
             return false;
         }
-        g_stats.vertexCapacity = kVertices * sizeof(GSXfVertex);
+        g_stats.vertexCapacity = kStoreBytes;
         return true;
     }
 
@@ -129,9 +194,13 @@ namespace
         if (g_resident)
             xboxNv2aWaitIdle(); // the GPU may still read the records being replaced
         g_walksSinceFlush = 0;
+        g_blocksUsed = 0;
+        for (int32_t &b : g_openBlock)
+            b = -1;
+        std::memset(g_blockUsed, 0, sizeof(g_blockUsed));
         std::memset(g_models, 0, kSlots * sizeof(Model));
         std::memset(g_stateIndex, 0, kStateSlots * sizeof(uint32_t));
-        g_usedVertices = g_usedStrips = g_usedRuns = g_usedDraws = g_usedStateBytes = 0;
+        g_usedStore = g_usedStrips = g_usedRuns = g_usedDraws = g_usedStateBytes = 0;
         ++g_generation;
         g_walk = {};
         g_decode = {};
@@ -553,39 +622,56 @@ void xboxModelCaptureDraw(uint32_t kind, const uint8_t *data, const uint8_t *sta
         run.firstStrip = g_usedStrips;
         run.strips = static_cast<uint16_t>(j - i);
         run.prim = static_cast<uint16_t>(prim);
-        run.first = g_usedVertices;
+        // Without the renderer's store the replay copies full records into the ring.
+        const uint32_t format = g_resident ? formatFor(kind) : Full, stride = kStride[format];
+        uint32_t total = 0;
+        for (uint32_t k = i; k < j; ++k)
+            total += strips[k * strideWords + 4u] + (k > i ? 2u : 0u);
+        const uint32_t bytes = total * stride;
+        int32_t &open = g_openBlock[format];
+        if (open < 0 || g_blockUsed[open] + bytes > kBlockBytes)
+        {
+            if (bytes > kBlockBytes || g_blocksUsed >= kBlocks)
+            {
+                g_flushRequested = true;
+                failDecode(7u);
+                return;
+            }
+            open = static_cast<int32_t>(g_blocksUsed++);
+        }
+        // (A block's records sit at multiples of its format's stride.)
+        run.first = static_cast<uint32_t>(open) * kBlockBytes + g_blockUsed[open];
+        g_blockUsed[open] += bytes;
+        g_usedStore += bytes;
+        uint32_t at = run.first;
+        run.count = 0;
         GSXfVertex strip[64], last{};
         for (uint32_t k = i; k < j; ++k)
         {
             const uint32_t *t = strips + k * strideWords;
             const uint32_t n = t[4], vi = t[5];
             const uint32_t join = k > i ? 2u : 0u;
-            if (g_usedVertices + join + n > kVertices)
-            {
-                g_flushRequested = true;
-                failDecode(7u);
-                return;
-            }
             ts_native_xf::decodeXfStrip(kind, data, vi, n, strip);
-            GSXfVertex *out = g_vertices + g_usedVertices; // (write-combined: written once, in order)
+            uint8_t *out = g_store + at; // (write-combined: written once, in order)
             if (join)
             {
-                std::memcpy(out, &last, sizeof(GSXfVertex));
-                std::memcpy(out + 1, strip, sizeof(GSXfVertex));
-                out += 2;
+                packRecord(format, last, out);
+                packRecord(format, strip[0], out + stride);
+                out += 2u * stride;
             }
-            std::memcpy(out, strip, n * sizeof(GSXfVertex));
-            g_strips[g_usedStrips++] = {static_cast<uint32_t>(out - g_vertices), static_cast<uint16_t>(n), 0};
-            g_usedVertices += join + n;
+            g_strips[g_usedStrips++] = {static_cast<uint32_t>(out - g_store), static_cast<uint16_t>(n), 0};
+            for (uint32_t v = 0; v < n; ++v)
+                packRecord(format, strip[v], out + v * stride);
+            at += (join + n) * stride;
+            run.count += join + n;
             last = strip[n - 1u];
         }
-        run.count = g_usedVertices - run.first;
         ++d.runs;
         i = j;
     }
     ++g_usedDraws;
     ++m.draws;
-    g_stats.vertexBytes = g_usedVertices * sizeof(GSXfVertex);
+    g_stats.vertexBytes = g_usedStore;
 }
 
 namespace
@@ -619,15 +705,19 @@ namespace
                     continue;
                 }
                 ++g_stats.replayRuns;
-                const GSXfVertex *v = g_vertices + run.first;
+                const uint32_t format = g_resident ? formatFor(d.kind) : Full;
+                const uint8_t *records = g_store + run.first;
                 if (cursor.direct && g_resident)
                 {
-                    xboxNv2aDrawResident(v, run.count);
+                    const uint32_t block = run.first / kBlockBytes;
+                    xboxNv2aDrawResident(g_store + block * kBlockBytes, (run.first % kBlockBytes) / kStride[format],
+                                         run.count, format);
                     cursor.strips += run.strips;
                     cursor.vertices += run.count;
                 }
                 else if (cursor.direct)
                 {
+                    const GSXfVertex *v = reinterpret_cast<const GSXfVertex *>(records); // (full records)
                     const uint32_t n = run.count;
                     if (cursor.next + (n + 2u) > cursor.end)
                         gs.growXfCursor(cursor, n + 2u);
@@ -651,7 +741,10 @@ namespace
                     for (uint32_t si = 0; si < run.strips; ++si)
                     {
                         const Strip &st = g_strips[run.firstStrip + si];
-                        gs.emitXfStrip(g_vertices + st.first, st.n);
+                        GSXfVertex v[64];
+                        for (uint32_t k = 0; k < st.n; ++k)
+                            unpackRecord(format, g_store + st.first + k * kStride[format], v[k]);
+                        gs.emitXfStrip(v, st.n);
                     }
                 }
                 g_stats.replayVertices += run.count;
@@ -718,7 +811,7 @@ void xboxModelGetStats(XboxModelStats &out)
             if (g_models[i].state == Failed)
                 ++out.failed;
         }
-    out.vertexBytes = g_usedVertices * sizeof(GSXfVertex);
+    out.vertexBytes = g_usedStore;
 }
 
 #else

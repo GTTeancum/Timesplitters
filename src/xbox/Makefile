@@ -69,16 +69,20 @@ endif
 # ordering remain the same when their input is an Xbox-generated source copy.
 TS_BG_NATIVE ?= 0
 TS_BG_VERIFY ?= 0
-TS_BG_FAST ?= 1
-TS_BG_BATCH ?= 1
-TS_VIF_FAST ?= 1
-TS_NV2A_MATERIAL_CACHE ?= 1
-TS_NV2A_PACK_IDENTITY_CACHE ?= 1
-TS_GIF_NATIVE ?= 1
-TS_DMA_CHAIN_CACHE ?= 1
-TS_NATIVE_CALL_SLOTS ?= 1
-TS_DRAW_RECORDS ?= 1
-TS_VIF_SOURCE ?= 1
+# The switches below default off: measured 2026-11-01 in xemu (4-player
+# arcade-4p.pad, reads 1500-2700), none was faster than all-off on its own,
+# TS_DRAW_RECORDS made a frame ~3x longer, and all of them together ~4x.
+# They add checks around the original VIF/VU1 work without removing it.
+TS_BG_FAST ?= 0
+TS_BG_BATCH ?= 0
+TS_VIF_FAST ?= 0
+TS_NV2A_MATERIAL_CACHE ?= 0
+TS_NV2A_PACK_IDENTITY_CACHE ?= 0
+TS_GIF_NATIVE ?= 0
+TS_DMA_CHAIN_CACHE ?= 0
+TS_NATIVE_CALL_SLOTS ?= 0
+TS_DRAW_RECORDS ?= 0
+TS_VIF_SOURCE ?= 0
 TS_PERF_BACKEND ?= 0
 OPT_SWITCHES := TS_BG_FAST TS_BG_BATCH TS_VIF_FAST TS_NV2A_MATERIAL_CACHE TS_NV2A_PACK_IDENTITY_CACHE \
     TS_GIF_NATIVE TS_DMA_CHAIN_CACHE TS_NATIVE_CALL_SLOTS TS_DRAW_RECORDS TS_VIF_SOURCE TS_PERF_BACKEND

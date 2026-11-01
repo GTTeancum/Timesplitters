@@ -640,9 +640,25 @@ namespace
 void xboxPerfInit()
 {
     g_bootTsc = rdtsc();
+    // KeQueryPerformanceCounter is the 3.375 MHz ACPI timer, not the TSC:
+    // calibrate rdtsc against it over 10 ms (frequency / 1e6 gave 3 on the
+    // console, and xemu's TSC runs at the host's rate, not 733 MHz).
     const uint64_t frequency = KeQueryPerformanceFrequency();
-    if (frequency >= 1000000u)
-        g_tscPerUs = frequency / 1000000u;
+    if (frequency >= 1000u)
+    {
+        const uint64_t qpcStart = KeQueryPerformanceCounter();
+        const uint64_t tscStart = rdtsc();
+        const uint64_t qpcTarget = qpcStart + frequency / 100u;
+        uint64_t qpcNow = qpcStart;
+        while (qpcNow < qpcTarget)
+            qpcNow = KeQueryPerformanceCounter();
+        const uint64_t tscDelta = rdtsc() - tscStart;
+        const uint64_t usElapsed = (qpcNow - qpcStart) * 1000000ull / frequency;
+        if (usElapsed > 0)
+            g_tscPerUs = tscDelta / usElapsed;
+    }
+    if (g_tscPerUs < 100u || g_tscPerUs > 10000u)
+        g_tscPerUs = 733u;
     const uint32_t current = fsDword(kPcrCurrentThread);
     const uint32_t idle = fsDword(kPcrIdleThread);
     if (current == reinterpret_cast<uint32_t>(KeGetCurrentThread()) && idle >= 0x80000000u && idle != current)

@@ -21,6 +21,7 @@
 #include "xbox_dma_chain.h"
 #include "xbox_draw_record.h"
 #include "xbox_vif_record.h"
+#include "xbox_model_cache.h"
 #include "xbox_vif_source.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
@@ -269,6 +270,18 @@ namespace
                       << " reject/busy=" << sources.rejected << "/" << sources.busy
                       << " groups/strips/vertices=" << sources.groups << "/" << sources.strips
                       << "/" << sources.vertices << std::endl;
+#endif
+#if TS_NATIVE_MODELS
+        XboxModelStats models;
+        xboxModelGetStats(models);
+        std::cout << "[TS:models] models/ready/failed=" << models.models << "/" << models.ready << "/" << models.failed
+                  << " captures/ok=" << models.captures << "/" << models.captured << " fail=" << models.failures[1]
+                  << "," << models.failures[2] << "," << models.failures[3] << "," << models.failures[4] << ","
+                  << models.failures[5] << "," << models.failures[6] << "," << models.failures[7]
+                  << " replays/draws/runs/verts=" << models.replays << "/" << models.replayDraws << "/"
+                  << models.replayRuns << "/" << models.replayVertices << " declined/missing=" << models.replayDeclined
+                  << "/" << models.replayMissing << " stale/verify/flush=" << models.stale << "/" << models.verifies
+                  << "/" << models.flushes << " vtxKB=" << models.vertexBytes / 1024u << std::endl;
 #endif
     }
 

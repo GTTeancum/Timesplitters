@@ -175,6 +175,32 @@ ifeq ($(TS_DRAW_RECORDS),1)
 BG_NATIVE_MEMORY_SOURCE := $(DRAW_RECORD_MEMORY_COPY)
 endif
 
+# Native model cache (xbox_model_cache.cpp): models' precalculated VIF chains
+# captured once in Xbox vertex form and replayed straight to the renderer,
+# skipping the DMA walk, VIF decode and VU1 program for them. The outermost
+# stage of all three copies. It replaces those paths, so the switches that
+# add work around them stay off with it.
+TS_NATIVE_MODELS ?= 0
+ifneq ($(filter-out 0 1,$(TS_NATIVE_MODELS)),)
+$(error TS_NATIVE_MODELS must be 0 or 1)
+endif
+ifeq ($(TS_NATIVE_MODELS),1)
+ifneq ($(TS_BG_NATIVE)$(TS_DRAW_RECORDS)$(TS_VIF_SOURCE)$(TS_DMA_CHAIN_CACHE),0000)
+$(error TS_NATIVE_MODELS=1 needs TS_BG_NATIVE, TS_DRAW_RECORDS, TS_VIF_SOURCE and TS_DMA_CHAIN_CACHE at 0)
+endif
+endif
+NATIVE_MODELS_GAME_INPUT := $(BG_NATIVE_GAME_SOURCE)
+NATIVE_MODELS_VIF_INPUT := $(BG_NATIVE_VIF_SOURCE)
+NATIVE_MODELS_MEMORY_INPUT := $(BG_NATIVE_MEMORY_SOURCE)
+NATIVE_MODELS_GAME_COPY := $(OUT)/gen/models/vu1_native_ts.cpp
+NATIVE_MODELS_VIF_COPY := $(OUT)/gen/models/ps2_vif1_interpreter.cpp
+NATIVE_MODELS_MEMORY_COPY := $(OUT)/gen/models/ps2_memory.cpp
+ifeq ($(TS_NATIVE_MODELS),1)
+BG_NATIVE_GAME_SOURCE := $(NATIVE_MODELS_GAME_COPY)
+BG_NATIVE_VIF_SOURCE := $(NATIVE_MODELS_VIF_COPY)
+BG_NATIVE_MEMORY_SOURCE := $(NATIVE_MODELS_MEMORY_COPY)
+endif
+
 NATIVE_CALL_NAMES := ts_native_math ts_native_game ts_native_game2 ts_native_game3
 NATIVE_CALL_DIR := $(OUT)/gen/native-calls
 NATIVE_CALL_COPIES := $(addprefix $(NATIVE_CALL_DIR)/,$(addsuffix .cpp,$(NATIVE_CALL_NAMES)))
@@ -489,6 +515,25 @@ else
 $(VIF_SOURCE_NATIVE_COPY):
 endif
 
+ifeq ($(TS_NATIVE_MODELS),1)
+NATIVE_MODELS_DEPS := $(XBOX)/tools/patch_native_models.py $(OUT)/gen/bg_native.flags $(OUT)/gen/optimizations.flags \
+    $(OUT)/gen/native_paths.flags $(OUT)/gen/draw_records.flags $(OUT)/gen/vif_source.flags $(OUT)/gen/native_models.flags
+$(NATIVE_MODELS_GAME_COPY): $(NATIVE_MODELS_GAME_INPUT) $(NATIVE_MODELS_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ MODELS  ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_models.py game $< $@
+$(NATIVE_MODELS_VIF_COPY): $(NATIVE_MODELS_VIF_INPUT) $(NATIVE_MODELS_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ MODELS  ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_models.py vif $< $@
+$(NATIVE_MODELS_MEMORY_COPY): $(NATIVE_MODELS_MEMORY_INPUT) $(NATIVE_MODELS_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ MODELS  ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_models.py memory $< $@
+else
+$(NATIVE_MODELS_GAME_COPY) $(NATIVE_MODELS_VIF_COPY) $(NATIVE_MODELS_MEMORY_COPY):
+endif
+
 ifeq ($(TS_DMA_CHAIN_CACHE),1)
 $(DMA_CHAIN_COPY): $(DMA_CHAIN_INPUT) $(XBOX)/tools/patch_dma_chain.py $(OUT)/gen/bg_native.flags $(OUT)/gen/native_paths.flags
 	@mkdir -p $(dir $@)
@@ -663,6 +708,17 @@ $(VIF_SOURCE_STAMP): FORCE
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(VIF_SOURCE_FLAGS)' ] || echo '$(VIF_SOURCE_FLAGS)' > $@
 $(VIF_SOURCE_OBJS): $(VIF_SOURCE_STAMP)
 $(VIF_SOURCE_OBJS): RUNTIME_FLAGS += $(VIF_SOURCE_FLAGS)
+
+# The walker, decoder and native program copies, the cache and its status line.
+NATIVE_MODELS_STAMP := $(OUT)/gen/native_models.flags
+NATIVE_MODELS_FLAGS := -DTS_NATIVE_MODELS=$(TS_NATIVE_MODELS)
+NATIVE_MODELS_OBJS := $(BG_NATIVE_GAME_OBJ) $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_MEMORY_OBJ) \
+    $(OBJ)/src/xbox/xbox_model_cache.obj $(OBJ)/src/xbox/xbox_main.obj $(OBJ)/src/xbox/gs_nv2a_backend.obj
+$(NATIVE_MODELS_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_MODELS_FLAGS)' ] || echo '$(NATIVE_MODELS_FLAGS)' > $@
+$(NATIVE_MODELS_OBJS): $(NATIVE_MODELS_STAMP)
+$(NATIVE_MODELS_OBJS): RUNTIME_FLAGS += $(NATIVE_MODELS_FLAGS)
 
 # The GIF timing wrapper and its bypass guard must agree. Measurement mode
 # retains the arbiter callback instead of bypassing its per-packet totals.

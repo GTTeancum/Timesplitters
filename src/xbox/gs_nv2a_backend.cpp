@@ -2475,6 +2475,9 @@ struct GSNv2aBackend::Impl
     // Vertex array formats for a vertex mode (0: GpuVertex, else GSXfVertex).
     uint32_t *setAttributes(uint32_t *p, uint32_t mode)
     {
+#if TS_NATIVE_MODELS
+        residentBound = false;
+#endif
         p = pushMethod(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
         for (int i = 0; i < 16; ++i)
             *p++ = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F; // size 0: disabled
@@ -3145,6 +3148,10 @@ struct GSNv2aBackend::Impl
         uint32_t *p = openCursor();
         if (!stateValid || !(applied == batchKey))
             p = applyState(p, batchKey);
+#if TS_NATIVE_MODELS
+        if (residentBound && batchKey.vertexMode)
+            p = setAttributes(p, batchKey.vertexMode);
+#endif
         if (batchKey.topology == 1u)
         {
             // One strip; a draw takes at most 256 vertices, so consecutive
@@ -3748,7 +3755,77 @@ struct GSNv2aBackend::Impl
     }
 
     GSTransferCommand transfer{};
+
+#if TS_NATIVE_MODELS
+    // Native model cache (xbox_model_cache.cpp): stored 44-byte records the
+    // NV2A reads where they lie, one joined strip per run, inside a run the
+    // caller opened (beginXfRun) and closes (endXfRun) without writing to
+    // the ring. The raw attributes point at the store while its draws go.
+    GSXfVertex *residentBase = nullptr;
+    bool residentBound = false;
+
+    void drawResident(const GSXfVertex *first, uint32_t count)
+    {
+        if (!residentBase || count < 3u || runKey.topology != 1u)
+            return;
+        flushBatch(); // the ring's vertices before it go first
+        uint32_t *p = openCursor();
+        if (!stateValid || !(applied == runKey))
+            p = applyState(p, runKey);
+        if (!residentBound)
+        {
+            static const uint32_t index[4] = {0, 2, 3, 9}, offset[4] = {0, 12, 24, 28};
+            const uint8_t *base = reinterpret_cast<const uint8_t *>(residentBase);
+            for (int i = 0; i < 4; ++i)
+                p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * index[i], physical(base + offset[i]));
+            residentBound = true;
+        }
+        const uint32_t start = uint32_t(first - residentBase);
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
+        for (uint32_t at = 0;;)
+        {
+            const uint32_t n = std::min<uint32_t>(count - at, 256u);
+            p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (start + at));
+            if (at + n >= count)
+                break;
+            at += n - 2u;
+        }
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+        cursor = p;
+        if (size_t(cursor - openBlock) >= kBlockDwords)
+            closeBlock();
+        screenGpuNewer = true;
+    }
+#endif
 };
+
+#if TS_NATIVE_MODELS
+namespace
+{
+    GSNv2aBackend::Impl *g_residentImpl = nullptr;
+}
+
+GSXfVertex *xboxNv2aAllocResident(uint32_t count)
+{
+    if (!g_residentImpl)
+        return nullptr;
+    if (!g_residentImpl->residentBase)
+        g_residentImpl->residentBase = static_cast<GSXfVertex *>(allocGpu(size_t(count) * sizeof(GSXfVertex)));
+    return g_residentImpl->residentBase;
+}
+
+void xboxNv2aDrawResident(const GSXfVertex *first, uint32_t count)
+{
+    if (g_residentImpl)
+        g_residentImpl->drawResident(first, count);
+}
+
+void xboxNv2aWaitIdle()
+{
+    if (g_residentImpl)
+        g_residentImpl->waitIdle();
+}
+#endif
 
 // ------------------------------------------------------------------------
 std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
@@ -3772,6 +3849,9 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
         return nullptr;
     }
     Impl &impl = *backend->m;
+#if TS_NATIVE_MODELS
+    g_residentImpl = &impl;
+#endif
     impl.vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));       // 288 KB
     impl.xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex))); // 352 KB
     impl.fence = static_cast<volatile uint32_t *>(allocGpu(64));

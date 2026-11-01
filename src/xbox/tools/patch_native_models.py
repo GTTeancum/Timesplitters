@@ -5,7 +5,8 @@ patch_native_models.py memory|vif|game|partgfx SOURCE OUTPUT
 - memory: the VIF1 DMA walker (ps2_memory.cpp) asks the cache at each
   zero-QWC CALL, appends its 16-byte marker pieces, and reports the chain's
   tags and pieces for the capture's source hash; it also expands partGfx's
-  list tokens;
+  list tokens (with TS_NATIVE_REPLAY a model prologue's token becomes one
+  marker piece the decoder runs natively, xbox_part_prologue.cpp);
 - partgfx: partGfx (ts_native_game2.cpp) writes one list token in place of
   each of its REF runs (xbox_part_prologue.cpp): the three prologues of
   header, matrix and light REFs before a model's CALL (precalc or Dbuf) or
@@ -104,10 +105,20 @@ def patch_memory(s: str) -> str:
                         // after its own upper half (theirs are left out).
                         if (id == 3u && tagQwc == 0u)
                         {
-                            uint32_t xboxPrologueCount = 0u;
-                            if (const XboxPrologueRef *xboxPrologueRefs = xboxPrologueExpand(addr, xboxPrologueCount))
-                                for (uint32_t k = 0; k < xboxPrologueCount; ++k)
-                                    appendData(xboxPrologueRefs[k].addr, xboxPrologueRefs[k].qwc);
+#if TS_NATIVE_REPLAY
+                            // A model prologue: one marker piece, which the
+                            // decoder runs natively at this stream position.
+                            const uint8_t *xboxPrologueMarker = recordSegments ? xboxPrologueNative(addr) : nullptr;
+                            if (xboxPrologueMarker)
+                                addSegment(xboxPrologueMarker, 16u);
+                            else
+#endif
+                            {
+                                uint32_t xboxPrologueCount = 0u;
+                                if (const XboxPrologueRef *xboxPrologueRefs = xboxPrologueExpand(addr, xboxPrologueCount))
+                                    for (uint32_t k = 0; k < xboxPrologueCount; ++k)
+                                        appendData(xboxPrologueRefs[k].addr, xboxPrologueRefs[k].qwc);
+                            }
                         }
                         if (id == 6u && recordSegments)
                             if (const uint8_t *xboxModelEnd = xboxModelWalkAfterRet(asp))

@@ -41,6 +41,17 @@
 #ifndef TS_MODEL_FILES
 #define TS_MODEL_FILES 0 // save and load captured models (needs TS_NATIVE_MODELS)
 #endif
+// make TS_NATIVE_REPLAY=1 (needs TS_NATIVE_MODELS): a stored model's replay
+// with its per-run work done once. partGfx's model prologues run natively at
+// their stream position (xboxPrologueNative / xboxPrologueDecode: the
+// headers' STCYCL and UNPACKs written straight into VU1 memory, their MSCALs
+// run as the decoder runs them); a replayed draw applies its state block
+// decoded once per stored block; each replayed run names its renderer
+// segment (xboxNv2aUseSegment), which keeps the run's texture, material key
+// and draw commands while the inputs they came from are unchanged.
+#ifndef TS_NATIVE_REPLAY
+#define TS_NATIVE_REPLAY 0
+#endif
 
 class PS2Memory;
 class GS;
@@ -76,7 +87,9 @@ const uint8_t *xboxModelWalkChainEnd(uint32_t tagAddr, uint32_t asp, uint32_t as
 // --- VIF decoder (ps2_vif1_interpreter.cpp copy) -----------------------
 constexpr uint32_t kXboxModelMarkerOpcode = 0x7Eu; // no VIFcode uses it
 constexpr uint32_t kXboxModelMagic = 0x4D4E5354u;  // 'TSNM'
-enum XboxModelMarker : uint32_t { XboxModelBegin = 1, XboxModelEnd = 2, XboxModelReplay = 3 };
+// XboxModelPrologue (TS_NATIVE_REPLAY): a partGfx prologue token run
+// natively (xboxPrologueDecode; words[1] its record's sequence).
+enum XboxModelMarker : uint32_t { XboxModelBegin = 1, XboxModelEnd = 2, XboxModelReplay = 3, XboxModelPrologue = 4 };
 // The decoder's own steps for the replay (built in the decoder copy, which
 // can reach PS2Memory's MSCAL state): an MSCAL or MSCNT run as the decoder
 // runs it (after its register steps), what a native run leaves in the VU1
@@ -161,9 +174,22 @@ uint32_t xboxPrologueRecord(uint32_t matrix, uint32_t lightA, uint32_t lightB);
 // The walker: the REFs the token stands for, in order, `count` of them
 // (nullptr: not a token, or its record is gone).
 const XboxPrologueRef *xboxPrologueExpand(uint32_t addr, uint32_t &count);
+// TS_NATIVE_REPLAY, the walker (VIF1 piece list): a 16-byte marker piece to
+// append in place of the token's payloads when its record is a model
+// prologue (only the static headers, each UNPACK header followed by its four
+// data qwords in main RAM), else null (expand it as usual).
+const uint8_t *xboxPrologueNative(uint32_t addr);
+// The decoder, at the marker (xboxModelDecodeMarker): the prologue's
+// commands as the decoder would run them from the payloads, with VU1
+// memory, the VIF1 registers and the MSCALs' effects the same. Headers that
+// no longer hold the static commands, MODE other than 0 or an open capture
+// decode the payloads from guest memory instead.
+void xboxPrologueDecode(const uint32_t words[4], uint8_t *vuData, VIFRegisters &regs, PS2Memory *memory,
+                        const XboxModelVif &vif);
 struct XboxPrologueStats
 {
     uint64_t tokens = 0, refs = 0, expanded = 0, lost = 0;
+    uint64_t native = 0, nativeDecoded = 0, nativeInline = 0, nativeLost = 0; // TS_NATIVE_REPLAY
 };
 void xboxPrologueGetStats(XboxPrologueStats &out);
 

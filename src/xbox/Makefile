@@ -193,6 +193,18 @@ endif
 ifneq ($(filter-out 0 1,$(TS_NATIVE_MODELS)),)
 $(error TS_NATIVE_MODELS must be 0 or 1)
 endif
+# Native replay: a stored model's replay with its per-run work done once
+# (xbox_model_cache.h): partGfx's model prologues run natively at their
+# stream position instead of through the VIF decoder, replayed draws apply
+# their state blocks decoded once, and replayed runs keep their renderer
+# segment (texture, material key, draw commands) while its inputs stand.
+TS_NATIVE_REPLAY ?= 0
+ifneq ($(filter-out 0 1,$(TS_NATIVE_REPLAY)),)
+$(error TS_NATIVE_REPLAY must be 0 or 1)
+endif
+ifeq ($(TS_NATIVE_REPLAY)$(TS_NATIVE_MODELS),10)
+$(error TS_NATIVE_REPLAY=1 needs TS_NATIVE_MODELS=1)
+endif
 ifeq ($(TS_NATIVE_MODELS),1)
 ifneq ($(TS_BG_NATIVE)$(TS_DRAW_RECORDS)$(TS_VIF_SOURCE)$(TS_DMA_CHAIN_CACHE),0000)
 $(error TS_NATIVE_MODELS=1 needs TS_BG_NATIVE, TS_DRAW_RECORDS, TS_VIF_SOURCE and TS_DMA_CHAIN_CACHE at 0)
@@ -228,6 +240,37 @@ GIF_DIRECT_GS_INPUT := $(GIF_GS_SOURCE)
 GIF_DIRECT_GS_COPY := $(OUT)/gen/gif-direct/gs_frontend.cpp
 ifeq ($(TS_GIF_DIRECT),1)
 GIF_GS_SOURCE := $(GIF_DIRECT_GS_COPY)
+endif
+
+# Native 2D emitters (xbox_native_2d.h): dlTextureRectangle(+Float),
+# dlFillRectangle(+Float), dlSetZB, dlSetDitherMatrix and dlSetClip write no
+# packets; one list token per batch of consecutive calls stands for their
+# REFs, and its kicks reach the direct GIF decoder as one piece in the
+# token's place (a string of glyphs: one run). The outermost stage of the
+# walker and decoder copies (after the native models') and of the GS front
+# end copy (after the direct GIF decoder's). Off by default.
+TS_NATIVE_2D ?= 0
+ifneq ($(filter-out 0 1,$(TS_NATIVE_2D)),)
+$(error TS_NATIVE_2D must be 0 or 1)
+endif
+ifeq ($(TS_NATIVE_2D),1)
+ifneq ($(TS_GIF_DIRECT),1)
+$(error TS_NATIVE_2D=1 needs TS_GIF_DIRECT=1)
+endif
+ifneq ($(TS_BG_NATIVE)$(TS_DRAW_RECORDS)$(TS_VIF_SOURCE)$(TS_DMA_CHAIN_CACHE)$(TS_VIF_FAST),00000)
+$(error TS_NATIVE_2D=1 needs TS_BG_NATIVE, TS_DRAW_RECORDS, TS_VIF_SOURCE, TS_DMA_CHAIN_CACHE and TS_VIF_FAST at 0)
+endif
+endif
+NATIVE_2D_MEMORY_INPUT := $(BG_NATIVE_MEMORY_SOURCE)
+NATIVE_2D_VIF_INPUT := $(BG_NATIVE_VIF_SOURCE)
+NATIVE_2D_GS_INPUT := $(GIF_GS_SOURCE)
+NATIVE_2D_MEMORY_COPY := $(OUT)/gen/native-2d/ps2_memory.cpp
+NATIVE_2D_VIF_COPY := $(OUT)/gen/native-2d/ps2_vif1_interpreter.cpp
+NATIVE_2D_GS_COPY := $(OUT)/gen/native-2d/gs_frontend.cpp
+ifeq ($(TS_NATIVE_2D),1)
+BG_NATIVE_MEMORY_SOURCE := $(NATIVE_2D_MEMORY_COPY)
+BG_NATIVE_VIF_SOURCE := $(NATIVE_2D_VIF_COPY)
+GIF_GS_SOURCE := $(NATIVE_2D_GS_COPY)
 endif
 
 NATIVE_CALL_NAMES := ts_native_math ts_native_game ts_native_game2 ts_native_game3
@@ -367,6 +410,67 @@ TS_DEMOTE_NATIVE_TWINS ?= 1
 ifeq ($(TS_DEMOTE_NATIVE_TWINS),1)
 GEN_FAST_NAMES := $(filter-out $(NATIVE_TWINS),$(GEN_FAST_NAMES))
 endif
+
+# ---- TS_NATIVE_LOGIC, part 1 of 2: the generated game functions ----------
+# make TS_NATIVE_LOGIC=1: the game-logic rewrite (src/xbox/xbox_logic.h).
+# - Every generated function (LOGIC_LITE_ALL=1) is rewritten by
+#   tools/promote_registers.py: the guest pc is stored only where something
+#   can read it (not before every instruction), the delay-slot flags only
+#   where an exception can read them, the resume switch is skipped on a
+#   normal call, constant calls use the lean protocol (one compare after the
+#   call; a stop request is seen at the next checkpoint instead) and calls to
+#   the six hottest leaf natives (sceVu0MulMatrix and five more) run their
+#   copies directly. Same statements in the same order: exact, and 10-15%
+#   less code. test/test_native_logic.py runs functions against their
+#   originals. Functions it does not understand (mostly stub wrappers) stay
+#   as they were, with only the resume-switch skip.
+# - LOGIC_PROMOTE_NAMES (the profile's hot game functions) are also built
+#   -O2; a refusal of one of them is reported ("[ LOGIC ] ... kept
+#   unpromoted"). LOGIC_PROMOTE_MODE=full keeps their registers in host
+#   variables instead (exact too, but 1.5-2x the code on the Pentium III).
+# - The native game files (part 2) call through the same lean protocol and
+#   the same leaf copies; the C library's memcpy/memset/memcmp use plain
+#   moves (xbox_string.cpp).
+# Replaces TS_NATIVE_CALL_SLOTS (leave that at 0). Off by default.
+TS_NATIVE_LOGIC ?= 0
+ifneq ($(filter-out 0 1,$(TS_NATIVE_LOGIC)),)
+$(error TS_NATIVE_LOGIC must be 0 or 1)
+endif
+LOGIC_LITE_ALL ?= 1
+LOGIC_PROMOTE_MODE ?= lite
+$(if $(filter-out 0 1,$(LOGIC_LITE_ALL)),$(error LOGIC_LITE_ALL must be 0 or 1))
+$(if $(filter-out lite full,$(LOGIC_PROMOTE_MODE)),$(error LOGIC_PROMOTE_MODE must be lite or full))
+LOGIC_PROMOTE_NAMES ?= playerTick_0x281248 MoveTestWall_0x27cce0 propMoveTestRoom_0x270e08 pickupPropTick_0x26a330 \
+    propTickBefore_0x26f500 findpadslinked2pad_0x264a18 calMatrices_0x212e08 \
+    propTickAfter_0x26f9e8 propTickPlayer_0x26fc20 lvTickPlayer_0x2265a8 enemyTick_0x2bb470 gunTick_0x2946c0 \
+    obInstLineTest_0x263768 bgGetRoomsTick_0x256c58 setAnim_0x214d68 camTick_0x27e320 findweapon_0x2c4d70 \
+    remotePropTick_0x26c440 carPropTick_0x276678 gunUpdateParts_0x2911e0 chrLineTestChr_0x286700 \
+    propFindFloorHeightRoom_0x2714e0 bgFloorBBIntersectionXZ_0x2571c8 calGlobalMatrices_0x2149b0
+LOGIC_STAMP := $(OUT)/gen/native_logic.flags
+LOGIC_STAMP_TEXT := TS_NATIVE_LOGIC=$(TS_NATIVE_LOGIC)$(if $(filter 1,$(TS_NATIVE_LOGIC)), all=$(LOGIC_LITE_ALL) mode=$(LOGIC_PROMOTE_MODE) promote=$(strip $(LOGIC_PROMOTE_NAMES)))
+LOGIC_GEN_ARGS :=
+ifeq ($(TS_NATIVE_LOGIC),1)
+ifeq ($(TS_NATIVE_CALL_SLOTS),1)
+$(error TS_NATIVE_LOGIC=1 replaces TS_NATIVE_CALL_SLOTS; leave TS_NATIVE_CALL_SLOTS at 0)
+endif
+LOGIC_EMPTY :=
+LOGIC_COMMA := ,
+LOGIC_GEN_ARGS := --mode=$(LOGIC_PROMOTE_MODE) $(if $(filter 1,$(LOGIC_LITE_ALL)),--all) --promote=$(subst $(LOGIC_EMPTY) $(LOGIC_EMPTY),$(LOGIC_COMMA),$(strip $(LOGIC_PROMOTE_NAMES)))
+# xbox_logic.h, searched last.
+GEN_FLAGS += -I$(XBOX) -DTS_NATIVE_LOGIC=1
+GEN_FAST_FLAGS += -I$(XBOX) -DTS_NATIVE_LOGIC=1
+GEN_FAST_NAMES += $(filter-out $(GEN_FAST_NAMES),$(LOGIC_PROMOTE_NAMES))
+endif
+LOGIC_GEN_DEPS := $(LOGIC_STAMP) $(if $(LOGIC_GEN_ARGS),$(addprefix $(XBOX)/tools/,logic_generated.py promote_registers.py))
+# Written only when the text changes. A first stamp with the switch off is
+# dated 1970, so adding it does not re-patch an existing build.
+$(LOGIC_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(LOGIC_STAMP_TEXT)' ] || { new=1; [ -f $@ ] && new=0; \
+	    printf '%s\n' '$(LOGIC_STAMP_TEXT)' > $@; \
+	    if [ "$$new" = 1 ] && [ '$(TS_NATIVE_LOGIC)' = 0 ]; then touch -d @0 $@; fi; }
+# ---- end of TS_NATIVE_LOGIC part 1 ----------------------------------------
+
 GEN_FAST_MISSING := $(filter-out $(notdir $(basename $(GEN_PATCHED))),$(GEN_FAST_NAMES))
 $(if $(and $(GEN_FAST_MISSING),$(filter-out clean,$(MAKECMDGOALS))),$(error GEN_FAST_NAMES not in project/generated: $(GEN_FAST_MISSING)))
 GEN_FAST_OBJS := $(foreach n,$(GEN_FAST_NAMES),$(OBJ)/build/xbox/gen/$(n).obj)
@@ -618,6 +722,38 @@ else
 $(NATIVE_CALL_COPIES):
 endif
 
+# ---- TS_NATIVE_LOGIC, part 2 of 2: the native game files, runtime pieces --
+# The four native game files compile from tools/patch_native_logic.py copies:
+# their literal guest calls use the lean protocol and the leaf copies, and
+# ts_native_math.cpp publishes its natives to the leaf copies. ts_native_game2
+# is copied from the outermost earlier stage (TS_NATIVE_MODELS' partGfx copy
+# or the draw-record copy), so this stage comes after those.
+NATIVE_LOGIC_DIR := $(OUT)/gen/native-logic
+NATIVE_LOGIC_COPIES := $(addprefix $(NATIVE_LOGIC_DIR)/,$(addsuffix .cpp,$(NATIVE_CALL_NAMES)))
+NATIVE_LOGIC_GAME2_COPY := $(NATIVE_LOGIC_DIR)/ts_native_game2.cpp
+LOGIC_OBJS := $(NATIVE_CALL_OBJS) $(OBJ)/src/xbox/xbox_logic.obj $(OBJ)/src/xbox/xbox_string.obj
+ifeq ($(TS_NATIVE_LOGIC),1)
+# Later than the routing above, so these target variables win.
+$(NATIVE_CALL_OBJS): $(OBJ)/project/game/%.obj: $(NATIVE_LOGIC_DIR)/%.cpp
+$(NATIVE_CALL_OBJS): XBOX_COMPILE_SOURCE = $(NATIVE_LOGIC_DIR)/$(notdir $(basename $@)).cpp
+$(filter-out $(NATIVE_LOGIC_GAME2_COPY),$(NATIVE_LOGIC_COPIES)): $(NATIVE_LOGIC_DIR)/%.cpp: $(GAME)/%.cpp
+$(NATIVE_LOGIC_GAME2_COPY): $(DRAW_RECORD_GAME_SOURCE) $(OUT)/gen/draw_records.flags $(OUT)/gen/native_models.flags
+$(NATIVE_LOGIC_COPIES): NATIVE_LOGIC_INPUT = $(GAME)/$(notdir $@)
+$(NATIVE_LOGIC_GAME2_COPY): NATIVE_LOGIC_INPUT := $(DRAW_RECORD_GAME_SOURCE)
+$(NATIVE_LOGIC_COPIES): $(GEN_TABLE) $(XBOX)/tools/patch_native_logic.py $(XBOX)/tools/patch_native_calls.py \
+    $(XBOX)/tools/direct_calls.py $(LOGIC_STAMP)
+	@mkdir -p $(dir $@)
+	@echo "[ LOGIC   ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_logic.py $(NATIVE_LOGIC_INPUT) $(GEN_TABLE) $@
+else
+$(NATIVE_LOGIC_COPIES):
+endif
+$(LOGIC_OBJS): $(LOGIC_STAMP)
+$(LOGIC_OBJS): RUNTIME_FLAGS += -DTS_NATIVE_LOGIC=$(TS_NATIVE_LOGIC)
+# The leaf bodies run thousands of times a frame (the later -O2 wins).
+$(OBJ)/src/xbox/xbox_logic.obj: RUNTIME_FLAGS += -O2
+# ---- end of TS_NATIVE_LOGIC part 2 ----------------------------------------
+
 $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function_table.py
 	@mkdir -p $(dir $@)
 	@echo "[ TABLE   ] $@"
@@ -625,10 +761,12 @@ $(GEN_TABLE): $(GENERATED)/register_functions.cpp $(XBOX)/tools/compact_function
 
 # The patcher reads the call targets' slots from the compact table, so a
 # regenerated table re-patches (and recompiles) every game function.
-$(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(GEN_TABLE) $(XBOX)/tools/patch_generated.py $(XBOX)/tools/direct_calls.py
+$(GEN_PATCHED): $(OUT)/gen/%.cpp: $(GENERATED)/%.cpp $(GEN_TABLE) $(XBOX)/tools/patch_generated.py $(XBOX)/tools/direct_calls.py \
+    $(LOGIC_GEN_DEPS)
 	@mkdir -p $(dir $@)
 	@echo "[ PATCH   ] $(notdir $@)"
 	@$(PYTHON) $(XBOX)/tools/patch_generated.py $< $(GEN_TABLE) $@
+	$(if $(LOGIC_GEN_ARGS),@$(PYTHON) $(XBOX)/tools/logic_generated.py $@ $(GEN_TABLE) $(LOGIC_GEN_ARGS))
 
 # Fixed copies of nxdk C sources, built in place of the library's
 # (pbkit: double-buffered; winapi/sync: condition-variable timeouts).
@@ -782,6 +920,18 @@ $(NATIVE_MODELS_STAMP): FORCE
 $(NATIVE_MODELS_OBJS): $(NATIVE_MODELS_STAMP)
 $(NATIVE_MODELS_OBJS): RUNTIME_FLAGS += $(NATIVE_MODELS_FLAGS)
 
+# Native replay: the walker copy (prologue markers), the cache and prologue
+# runner, the renderer's segments and the status line.
+NATIVE_REPLAY_STAMP := $(OUT)/gen/native_replay.flags
+NATIVE_REPLAY_FLAGS := -DTS_NATIVE_REPLAY=$(TS_NATIVE_REPLAY)
+NATIVE_REPLAY_OBJS := $(BG_NATIVE_MEMORY_OBJ) $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,\
+    xbox_model_cache xbox_part_prologue gs_nv2a_backend xbox_main))
+$(NATIVE_REPLAY_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_REPLAY_FLAGS)' ] || echo '$(NATIVE_REPLAY_FLAGS)' > $@
+$(NATIVE_REPLAY_OBJS): $(NATIVE_REPLAY_STAMP)
+$(NATIVE_REPLAY_OBJS): RUNTIME_FLAGS += $(NATIVE_REPLAY_FLAGS)
+
 # The GIF timing wrapper and its bypass guard must agree. Measurement mode
 # retains the arbiter callback instead of bypassing its per-packet totals.
 PERF_BACKEND_STAMP := $(OUT)/gen/perf_backend.flags
@@ -804,6 +954,40 @@ $(GIF_DIRECT_STAMP): FORCE
 $(GIF_DIRECT_OBJS): $(GIF_DIRECT_STAMP)
 $(GIF_DIRECT_OBJS): RUNTIME_FLAGS += $(GIF_DIRECT_FLAGS)
 
+# The native 2D emitters: the walker, decoder and GS front end copies, the
+# emitters themselves (-O2: every glyph passes through them), the
+# renderer's sprite route and the status line. The copies list the inner
+# stages' stamps, so a switch change regenerates them from the new input.
+NATIVE_2D_STAMP := $(OUT)/gen/native_2d.flags
+NATIVE_2D_FLAGS := -DTS_NATIVE_2D=$(TS_NATIVE_2D)
+NATIVE_2D_OBJS := $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_MEMORY_OBJ) $(GIF_GS_OBJ) \
+    $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_native_2d gs_nv2a_backend xbox_main))
+$(NATIVE_2D_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_2D_FLAGS)' ] || echo '$(NATIVE_2D_FLAGS)' > $@
+$(OBJ)/src/xbox/xbox_native_2d.obj: RUNTIME_FLAGS := $(COMMON) -O2 $(SDL_FLAGS) -DPS2_RUNTIME_LOGS=1 -DPS2X_POINT_SAMPLING=1
+$(NATIVE_2D_OBJS): $(NATIVE_2D_STAMP)
+$(NATIVE_2D_OBJS): RUNTIME_FLAGS += $(NATIVE_2D_FLAGS)
+ifeq ($(TS_NATIVE_2D),1)
+NATIVE_2D_DEPS := $(XBOX)/tools/patch_native_2d.py $(NATIVE_2D_STAMP) $(OUT)/gen/bg_native.flags \
+    $(OUT)/gen/optimizations.flags $(OUT)/gen/native_paths.flags $(OUT)/gen/draw_records.flags \
+    $(OUT)/gen/vif_source.flags $(OUT)/gen/native_models.flags $(OUT)/gen/gif_direct.flags
+$(NATIVE_2D_MEMORY_COPY): $(NATIVE_2D_MEMORY_INPUT) $(NATIVE_2D_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ 2D      ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_2d.py memory $< $@
+$(NATIVE_2D_VIF_COPY): $(NATIVE_2D_VIF_INPUT) $(NATIVE_2D_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ 2D      ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_2d.py vif $< $@
+$(NATIVE_2D_GS_COPY): $(NATIVE_2D_GS_INPUT) $(NATIVE_2D_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ 2D      ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_2d.py gs $< $@
+else
+$(NATIVE_2D_MEMORY_COPY) $(NATIVE_2D_VIF_COPY) $(NATIVE_2D_GS_COPY):
+endif
+
 # The Xbox sound path: the SPU2 object builds from the original or the
 # patch_sound_native.py copy; the stamp rebuilds it (and the copy) when the
 # switch or the cache size changes.
@@ -824,6 +1008,30 @@ $(SOUND_NATIVE_STAMP): FORCE
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(SOUND_NATIVE_FLAGS)' ] || echo '$(SOUND_NATIVE_FLAGS)' > $@
 $(SOUND_NATIVE_OBJ): $(SOUND_NATIVE_STAMP)
 $(SOUND_NATIVE_OBJ): RUNTIME_FLAGS += $(SOUND_NATIVE_FLAGS)
+
+# make TS_SOUND_HW=1 (with TS_SOUND_NATIVE=1): the fast SPU2 mixer
+# (xbox_sound_hw.inl, included by xbox_sound_native.inl in the native copy
+# above, so no copy of its own). Voices mixed in spans of 32-256 frames with
+# each envelope run exactly and its gain ramped across the span; registers,
+# positions, loops and pitch exact, samples within about -65 dB of the
+# shared model (test/test_sound_hw.py). The audio feeder also wakes every
+# 16 ms instead of 5. Named for the MCPX APU route it was evaluated against
+# (not used: see the file). Off: both objects build as before.
+TS_SOUND_HW ?= 0
+ifneq ($(filter-out 0 1,$(TS_SOUND_HW)),)
+$(error TS_SOUND_HW must be 0 or 1)
+endif
+ifeq ($(TS_SOUND_HW)$(TS_SOUND_NATIVE),10)
+$(error TS_SOUND_HW=1 needs TS_SOUND_NATIVE=1)
+endif
+SOUND_HW_STAMP := $(OUT)/gen/sound_hw.flags
+SOUND_HW_FLAGS := -DTS_SOUND_HW=$(TS_SOUND_HW)
+SOUND_HW_OBJS := $(SOUND_NATIVE_OBJ) $(OBJ)/src/xbox/xbox_raylib.obj
+$(SOUND_HW_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(SOUND_HW_FLAGS)' ] || echo '$(SOUND_HW_FLAGS)' > $@
+$(SOUND_HW_OBJS): $(SOUND_HW_STAMP)
+$(SOUND_HW_OBJS): RUNTIME_FLAGS += $(SOUND_HW_FLAGS)
 
 # make TS_NATIVE_CAPTURE=1: record bounded native VU1 draw inputs for the
 # Xbox-layout geometry converter. Off by default; the normal build registers

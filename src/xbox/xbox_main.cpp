@@ -23,6 +23,7 @@
 #include "xbox_draw_record.h"
 #include "xbox_vif_record.h"
 #include "xbox_model_cache.h"
+#include "xbox_native_2d.h"
 #include "xbox_vif_source.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
@@ -242,6 +243,22 @@ namespace
                   << " declined=" << direct.declined[XboxGifDirectStats::Format] << "/"
                   << direct.declined[XboxGifDirectStats::Partial] << "/"
                   << direct.declined[XboxGifDirectStats::Debug] << "/" << direct.declined[XboxGifDirectStats::Busy]
+#if TS_NATIVE_2D
+                  << " deferred=" << direct.deferred
+#endif
+                  << std::endl;
+#endif
+#if TS_NATIVE_2D
+        // Cumulative. nested: batches decoded as the original stream, by
+        // reason (parse/rows/program/arbiter/cycle/other); kept: builder calls
+        // in a kept list (dlPushDmaTag), run as originals.
+        XboxNative2dStats native2d;
+        xboxNative2dGetStats(native2d);
+        std::cout << "[TS:2d] items/tokens/walked/lost=" << native2d.items << "/" << native2d.tokens << "/"
+                  << native2d.walked << "/" << native2d.lost << " fast/kicks=" << native2d.fast << "/" << native2d.kicks
+                  << " nested=" << native2d.nested << " (" << native2d.declined[0] << "/" << native2d.declined[1] << "/"
+                  << native2d.declined[2] << "/" << native2d.declined[3] << "/" << native2d.declined[4] << "/"
+                  << native2d.declined[5] << ") kept=" << native2d.pushed << " gs-fallback=" << native2d.gsFallback
                   << std::endl;
 #endif
 #if TS_DMA_CHAIN_CACHE
@@ -299,7 +316,12 @@ namespace
         XboxPrologueStats prologues;
         xboxPrologueGetStats(prologues);
         std::cout << "[TS:prologue] tokens/expanded/lost=" << prologues.tokens << "/" << prologues.expanded << "/"
-                  << prologues.lost << " refs=" << prologues.refs << std::endl;
+                  << prologues.lost << " refs=" << prologues.refs
+#if TS_NATIVE_REPLAY
+                  << " native/run/inline/lost=" << prologues.native << "/" << prologues.nativeDecoded << "/"
+                  << prologues.nativeInline << "/" << prologues.nativeLost
+#endif
+                  << std::endl;
 #endif
     }
 
@@ -402,7 +424,7 @@ int main()
     std::cout << "[TS:opt] background=" << TS_BG_NATIVE
               << " geometry-fast=" << TS_BG_FAST << " geometry-batch=" << TS_BG_BATCH
               << " vif-fast=" << TS_VIF_FAST << " gif-native=" << TS_GIF_NATIVE
-              << " gif-direct=" << TS_GIF_DIRECT
+              << " gif-direct=" << TS_GIF_DIRECT << " native-2d=" << TS_NATIVE_2D
               << " dma-chain=" << TS_DMA_CHAIN_CACHE << " native-call-slots=" << TS_NATIVE_CALL_SLOTS
               << " draw-records=" << TS_DRAW_RECORDS << " vif-source=" << TS_VIF_SOURCE
               << " material-cache=" << TS_NV2A_MATERIAL_CACHE
@@ -419,6 +441,9 @@ int main()
 #if TS_BG_NATIVE
     xboxBgConfigure("D:\\native-bg", 4u * 1024u * 1024u);
     xboxBgInstallGameHooks(rt);
+#endif
+#if TS_NATIVE_2D
+    xboxNative2dInstall(rt); // after the game's own overrides (dlSetClip's twin among them)
 #endif
     logMemory("game loaded");
 

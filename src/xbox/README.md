@@ -161,6 +161,41 @@ vertex records instead of the PS2 DMA/VIF/VU1 path:
   levels (one player) need their own scripts; until then they save to the
   hard disk on first play.
 
+`TS_NATIVE_REPLAY=1` (default `0`; needs `TS_NATIVE_MODELS=1`) makes a
+stored model's replay do its per-run work once:
+
+- prologue tokens run natively: a token whose record is a model prologue
+  (only the static headers at 0x358F40-0x358FF0, each UNPACK header followed
+  by its four data qwords in main RAM) becomes one 16-byte marker piece in
+  the walk, and the decoder, reaching it at the same stream position, runs
+  the prologue itself (`xboxPrologueDecode`): STCYCL and the UNPACKs as
+  register writes and four VU1 rows copied from the data (with the decoder's
+  watched-row note), the MSCALs with the decoder's register steps and run of
+  the constant programs. VU1 memory, the VIF1 registers (CYCLE, CODE, NUM,
+  TOP, ITOP, TOPS, DBF) and the programs' effects are what decoding the
+  payloads leaves. Headers read at the decode no longer holding their static
+  commands, MODE other than 0 or an open capture decode the payloads from
+  guest memory instead; a record overwritten before its decode sends nothing
+  (`[TS:prologue] native/run/inline/lost=`). Host test:
+  `test/test_prologue_native.py` (against a reference of the decoder's
+  commands, random registers, rows wrapping at 1024).
+- replayed draws apply their state block decoded once per stored block (no
+  lookup by its bytes; serials with the top bit set so the GS's repeat test
+  never confuses one with the native program's blocks);
+- each replayed run names its renderer segment (`xboxNv2aUseSegment`, the
+  model cache's run index, 2,048 direct-mapped, about 470 KB once used): the
+  run's texture and material key are taken again while every GS field
+  `texture()` and `buildMaterialKey` read (the CLUT hash included) is the
+  same, the texture is still cached (any retire invalidates), its pages
+  unchanged and its pack state and flags the same, with `texture()`'s screen
+  write-back and use counts; the window clip comes from `clipFor` afresh.
+  Its DRAW_ARRAYS commands are built once per index and count and copied;
+- the constant rows' comparison and the MPG check of replays (skipped while
+  the VU1 code generation is unchanged since the last match) no longer call
+  `memcmp`.
+
+Written, syntax-checked and host-tested (prologues); not yet built or run.
+
 Copies patched by `tools/patch_native_models.py`: `ps2_memory.cpp`
 (walker), `ps2_vif1_interpreter.cpp` (decoder), `vu1_native_ts.cpp` (native
 VU1 program) and `ts_native_game2.cpp` (partGfx). The status line

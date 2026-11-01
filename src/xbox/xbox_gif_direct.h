@@ -57,6 +57,7 @@ struct XboxGifDirectStats
     uint32_t writes = 0, skipped = 0; // register writes passed to the GS, equal ones skipped
     uint32_t images = 0, carried = 0; // IMAGE uploads; packets ending inside a tag or qword
     uint32_t declined[kDeclines] = {};
+    uint32_t deferred = 0; // stores applied inside an open run (deferStores: TS_NATIVE_2D's token packets)
 };
 extern XboxGifDirectStats g_xboxGifDirectStats;
 
@@ -172,6 +173,46 @@ namespace xbox_gif_direct
         return XboxGifDirectStats::None;
     }
 
+    // Registers whose GS write (GS::writeRegisterUnlocked) only stores the
+    // value in the draw state: with deferStores (TS_NATIVE_2D's token
+    // packets), a changed one is applied without ending the open run, and the
+    // run ends at its next draw only if the draw state differs from the run's.
+    inline bool deferrable(uint32_t reg)
+    {
+        switch (reg)
+        {
+        case GS_REG_ZBUF_1: case GS_REG_ZBUF_2: case GS_REG_SCISSOR_1: case GS_REG_SCISSOR_2:
+        case GS_REG_TEST_1: case GS_REG_TEST_2: case GS_REG_ALPHA_1: case GS_REG_ALPHA_2: case GS_REG_FBA_1:
+        case GS_REG_FBA_2: case GS_REG_PABE: case GS_REG_DIMX: case GS_REG_DTHE: case GS_REG_COLCLAMP:
+        case GS_REG_SCANMSK:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    // The value the GS holds for a deferrable register is `v` already.
+    template <class Gs>
+    bool sameDeferrable(Gs &a, uint32_t reg, uint64_t v)
+    {
+        switch (reg)
+        {
+        case GS_REG_ZBUF_1: case GS_REG_ZBUF_2:
+        {
+            const GSZbufReg &z = a.ctx()[reg - GS_REG_ZBUF_1].zbuf;
+            return z.zbp == (v & 0x1FFu) && z.psm == (((v >> 24) & 0xFu) | 0x30u) && z.zmask == ((v >> 32) & 1u);
+        }
+        case GS_REG_SCISSOR_1: case GS_REG_SCISSOR_2:
+        {
+            const GSScissorReg &s = a.ctx()[reg - GS_REG_SCISSOR_1].scissor;
+            return s.x0 == (v & 0x7FFu) && s.x1 == ((v >> 16) & 0x7FFu) && s.y0 == ((v >> 32) & 0x7FFu) &&
+                   s.y1 == ((v >> 48) & 0x7FFu);
+        }
+        default:
+            return sameStore(a, reg, v);
+        }
+    }
+
     template <class Gs>
     struct Decoder
     {
@@ -180,6 +221,22 @@ namespace xbox_gif_direct
         GSDrawState state{};
         uint32_t per = 0, prims = 0;
         bool wide = false;
+        bool defer = false;   // deferStores (see deferrable)
+        bool pending = false; // a deferred store changed the GS since the run's last primitive
+
+        // The open run's draw state is still the GS's: only deferrable
+        // registers can have changed since its last primitive.
+        bool sameRunState()
+        {
+            const GSContext &now = a.ctx()[state.prim.ctxt ? 1 : 0];
+            const GSContext &was = state.context;
+            return now.zbuf.zbp == was.zbuf.zbp && now.zbuf.psm == was.zbuf.psm && now.zbuf.zmask == was.zbuf.zmask &&
+                   now.scissor.x0 == was.scissor.x0 && now.scissor.x1 == was.scissor.x1 &&
+                   now.scissor.y0 == was.scissor.y0 && now.scissor.y1 == was.scissor.y1 && now.test == was.test &&
+                   now.alpha == was.alpha && now.fba == was.fba && a.pabe() == state.pabe &&
+                   a.dimx() == state.dimx && a.dthe() == state.dthe && a.colclamp() == state.colclamp &&
+                   a.scanmsk() == state.scanmsk;
+        }
 
         // The open run to the renderer: what vertexKick does for each
         // drawing kick after building its batch (widescreen HUD narrowing,
@@ -272,6 +329,12 @@ namespace xbox_gif_direct
                 return;
             if (drawing)
             {
+                if (pending)
+                {
+                    if (prims && !sameRunState())
+                        flush();
+                    pending = false;
+                }
                 if (prims && uint32_t(needed) != per)
                     flush();
                 if (!prims)
@@ -392,6 +455,19 @@ namespace xbox_gif_direct
             default:
                 break;
             }
+            if (defer && deferrable(reg))
+            {
+                if (sameDeferrable(a, reg, v))
+                {
+                    ++g_xboxGifDirectStats.skipped;
+                    return;
+                }
+                ++g_xboxGifDirectStats.writes;
+                ++g_xboxGifDirectStats.deferred;
+                a.write(uint8_t(reg), v);
+                pending = true;
+                return;
+            }
             switch (kindOf(reg))
             {
             case Nop:
@@ -485,13 +561,15 @@ namespace xbox_gif_direct
     // original way). packedOnly, emptyTagResetsQ: the native PACKED entry,
     // which takes only complete PACKED packets (on a fresh stream) and, but
     // with TS_GIF_NATIVE's plans, sets Q at every tag even without writes;
-    // the stream sets it at a tag's first write.
+    // the stream sets it at a tag's first write. deferStores: see deferrable
+    // (TS_NATIVE_2D's token packets: several kicks' packets in one piece).
     template <class Gs, class Stream>
-    bool run(Gs &a, Stream &st, const uint8_t *data, uint32_t size, bool packedOnly, bool emptyTagResetsQ)
+    bool run(Gs &a, Stream &st, const uint8_t *data, uint32_t size, bool packedOnly, bool emptyTagResetsQ,
+             bool deferStores = false)
     {
         XboxGifDirectStats &stats = g_xboxGifDirectStats;
 #if defined(AGRESSIVE_LOGS) && AGRESSIVE_LOGS
-        (void)st; (void)packedOnly; (void)emptyTagResetsQ; (void)data; (void)size; (void)a;
+        (void)st; (void)packedOnly; (void)emptyTagResetsQ; (void)data; (void)size; (void)a; (void)deferStores;
         ++stats.declined[XboxGifDirectStats::Debug];
         return false;
 #else
@@ -516,6 +594,7 @@ namespace xbox_gif_direct
         }
         Decoder<Gs> dec{a, s.vertices};
         dec.wide = hostSettings().widescreen.load(std::memory_order_relaxed) && !gsSplitScreen();
+        dec.defer = deferStores;
         uint32_t at = 0;
         while (at < size)
         {

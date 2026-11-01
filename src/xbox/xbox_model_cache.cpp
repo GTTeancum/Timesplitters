@@ -20,6 +20,9 @@
 uint8_t *xboxNv2aAllocResident(uint32_t bytes);
 void xboxNv2aDrawResident(const uint8_t *block, uint32_t index, uint32_t count, uint32_t format);
 void xboxNv2aWaitIdle();
+#if TS_NATIVE_REPLAY
+void xboxNv2aUseSegment(uint32_t handle); // the next run's renderer segment (gs_nv2a_backend.cpp)
+#endif
 
 bool g_xboxModelCaptureOpen = false; // a capture is open and still good (the hooks' test)
 
@@ -284,6 +287,61 @@ namespace
     using Piece = PS2Memory::Vif1Piece;
     Piece g_pieces[kMaxPieces];
 
+#if TS_NATIVE_REPLAY
+    // Stored state blocks decoded once (GS::decodeStateBlock, what the native
+    // program's materialFor decodes them to), found by the block's offset in
+    // g_stateBytes: no byte comparison a replayed draw. Serials have the top
+    // bit set: materialFor's count up from 1, so the GS's repeat test never
+    // takes one of these for one of its blocks (a block decoded both ways
+    // is applied in full once, as a new block). Cleared whenever the offsets
+    // change (flush, compaction, a model file).
+    constexpr uint32_t kDecodedStates = 768u;
+    constexpr uint16_t kNotDecodable = 0xFFFFu;
+    GS::StateBlock *g_decoded = nullptr;
+    uint16_t g_decodedIndex[kStateBytes / 16u]; // 1 + its decoded block, kNotDecodable, 0: not yet
+    uint32_t g_usedDecoded = 0, g_decodedSerial = 0;
+    // The VU1 code generation each model's MPG steps were last found
+    // unchanged at (~0: not since a move): equal, the code is still the
+    // capture's and the comparison is skipped.
+    uint64_t g_mpgChecked[kSlots];
+
+    void resetReplayCaches()
+    {
+        std::memset(g_decodedIndex, 0, sizeof(g_decodedIndex));
+        g_usedDecoded = 0;
+        std::memset(g_mpgChecked, 0xFF, sizeof(g_mpgChecked));
+    }
+
+    // The decoded block of the stored state at `state` (null: not one the
+    // GS takes directly, or no room: the caller's usual route).
+    const GS::StateBlock *decodedState(uint32_t state, const uint8_t *block, uint32_t bytes, bool &known)
+    {
+        known = true;
+        uint16_t &slot = g_decodedIndex[(state / 16u) % (kStateBytes / 16u)];
+        if (slot == kNotDecodable)
+            return nullptr;
+        if (slot != 0u)
+            return &g_decoded[slot - 1u];
+        if (!g_decoded || g_usedDecoded >= kDecodedStates)
+        {
+            known = false;
+            return nullptr;
+        }
+        GS::StateBlock &out = g_decoded[g_usedDecoded];
+        if (!GS::decodeStateBlock(block, bytes, out))
+        {
+            slot = kNotDecodable;
+            return nullptr;
+        }
+        g_decodedSerial = (g_decodedSerial + 1u) & 0x7FFFFFFFu;
+        if (g_decodedSerial == 0u)
+            g_decodedSerial = 1u;
+        out.serial = 0x80000000u | g_decodedSerial;
+        slot = static_cast<uint16_t>(++g_usedDecoded);
+        return &out;
+    }
+#endif
+
     void syncOpen() { g_xboxModelCaptureOpen = g_decode.model != nullptr && g_decode.ok; }
 
     bool allocate()
@@ -315,6 +373,11 @@ namespace
             return false;
         }
         g_stats.vertexCapacity = kStoreBytes;
+#if TS_NATIVE_REPLAY
+        // (Without it, replayed draws find their blocks as before.)
+        g_decoded = static_cast<GS::StateBlock *>(std::malloc(kDecodedStates * sizeof(GS::StateBlock)));
+        resetReplayCaches();
+#endif
         return true;
     }
 
@@ -336,6 +399,9 @@ namespace
         syncOpen();
         g_compactRequested = false;
         ++g_stats.flushes;
+#if TS_NATIVE_REPLAY
+        resetReplayCaches();
+#endif
 #if TS_MODEL_FILES
         g_haveAnchor = g_loadPending = false;
         g_quietWalks = 0;
@@ -508,6 +574,9 @@ namespace
         g_walk.hash = kHashSeed;
         g_walk.tie = tie;
         ++g_stats.captures;
+#if TS_NATIVE_REPLAY
+        g_mpgChecked[static_cast<uint32_t>(&m - g_models) & (kSlots - 1u)] = ~0ull; // new steps: compared again
+#endif
     }
 
     void hashPiece(const uint8_t *data, uint32_t bytes)
@@ -1216,6 +1285,9 @@ namespace
         // models after them, are what the order above refers to).
         if (!rebuildStates() || !rehash(s_evict))
             flush();
+#if TS_NATIVE_REPLAY
+        resetReplayCaches(); // (state offsets and model slots moved)
+#endif
     }
 
 #if TS_MODEL_FILES
@@ -1980,23 +2052,40 @@ namespace
     // chain, the code its MPGs leave, and (another starting buffer) no batch
     // that would wrap past the end of VU1 memory and no FLG UNPACK that would
     // land on the transform constants' rows where the capture's did not.
+    inline bool sameWords4(const uint32_t a[4], const uint32_t b[4])
+    {
+        return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+    }
+
     bool canReplay(const Model &m, const VIFRegisters &regs, PS2Memory *memory)
     {
         if (((m.deps & DepCycle) && regs.cycle != m.startCycle) || ((m.deps & DepMode) && regs.mode != m.startMode) ||
             ((m.deps & DepMask) && regs.mask != m.startMask) ||
-            ((m.deps & DepRow) && std::memcmp(regs.row, m.startRow, 16) != 0) ||
-            ((m.deps & DepCol) && std::memcmp(regs.col, m.startCol, 16) != 0))
+            ((m.deps & DepRow) && !sameWords4(regs.row, m.startRow)) ||
+            ((m.deps & DepCol) && !sameWords4(regs.col, m.startCol)))
             return false;
         if (m.flags & HasMpg)
         {
             const uint8_t *code = memory->getVU1Code();
             if (!code)
                 return false;
-            for (uint32_t si = 0; si < m.steps; ++si)
+#if TS_NATIVE_REPLAY
+            // Every write to VU1 code moves the generation: unmoved since
+            // the last match, the code is still the capture's.
+            const uint64_t generation = memory->getVU1CodeGeneration();
+            uint64_t &checked = g_mpgChecked[static_cast<uint32_t>(&m - g_models) & (kSlots - 1u)];
+            if (checked != generation)
+#endif
             {
-                const Step &s = g_steps[m.firstStep + si];
-                if (s.type == StepMpg && std::memcmp(code + s.a, g_blob + s.b, s.count) != 0)
-                    return false;
+                for (uint32_t si = 0; si < m.steps; ++si)
+                {
+                    const Step &s = g_steps[m.firstStep + si];
+                    if (s.type == StepMpg && std::memcmp(code + s.a, g_blob + s.b, s.count) != 0)
+                        return false;
+                }
+#if TS_NATIVE_REPLAY
+                checked = generation;
+#endif
             }
         }
         if ((regs.base & 0x3FFu) == m.startBase && (regs.ofst & 0x3FFu) == m.startOfst &&
@@ -2047,9 +2136,23 @@ namespace
     {
         const uint8_t *block = g_stateBytes + d.state + 4u;
         xboxNativeDrainArbiter(memory);
+#if TS_NATIVE_REPLAY
+        // The block decoded once for the store (no lookup by its bytes).
+        bool known = true;
+        const GS::StateBlock *decoded = decodedState(d.state, block, d.stateBytes, known);
+        if (!known)
+        {
+            const void *material = xboxNativeMaterialFor(block, d.stateBytes);
+            if (!material || !xboxNativeApplyMaterial(material, gs))
+                xboxNativeSubmitState(block, d.stateBytes, memory, gs);
+        }
+        else if (!decoded || gs.applyStateBlock(*decoded) == GS::StateBlockResult::NotApplied)
+            xboxNativeSubmitState(block, d.stateBytes, memory, gs);
+#else
         const void *material = xboxNativeMaterialFor(block, d.stateBytes);
         if (!material || !xboxNativeApplyMaterial(material, gs))
             xboxNativeSubmitState(block, d.stateBytes, memory, gs);
+#endif
         const ts_native_xf::Layout &L = ts_native_xf::kLayouts[d.kind];
         GSXfConstants &xc = xboxNativeTransformConstants(vuData);
         xc.variant = L.envMap ? GSXfConstants::EnvMap
@@ -2063,6 +2166,9 @@ namespace
             const Run &run = g_runs[d.firstRun + ri];
             xboxNativeDrainArbiter(memory);
             GSXfCursor cursor;
+#if TS_NATIVE_REPLAY
+            xboxNv2aUseSegment(d.firstRun + ri); // its texture, key and commands, while their inputs stand
+#endif
             if (!gs.beginXfRun(run.prim, xc, cursor))
             {
                 // (The state block applied again by the decode changes nothing.)
@@ -2211,6 +2317,15 @@ void xboxModelDecodeMarker(const uint32_t words[4], uint8_t *vuData, VIFRegister
     const uint32_t type = words[0] & 0xFFu, slot = (words[0] >> 8) & 0x1FFFu, target = words[1], gen = words[3];
     const bool tie = ((words[0] >> 21) & 1u) != 0u;
     const uint32_t asp = (words[0] >> 22) & 3u;
+#if TS_NATIVE_REPLAY
+    if (type == XboxModelPrologue && words[2] == kXboxModelMagic)
+    {
+        // A partGfx prologue token (xbox_part_prologue.cpp), on either thread.
+        (void)onWorker;
+        xboxPrologueDecode(words, vuData, regs, memory, vif);
+        return;
+    }
+#endif
     if (words[2] != kXboxModelMagic || !g_models)
         return;
     if (onWorker)

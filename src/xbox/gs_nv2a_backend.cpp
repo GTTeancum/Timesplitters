@@ -45,6 +45,7 @@
 #include <cstring>
 #include <iostream>
 #include <list>
+#include <new>
 #include <set>
 #include <vector>
 
@@ -996,6 +997,9 @@ struct GSNv2aBackend::Impl
     // GPU has finished the frame (finishFrame), so no stall here.
     void retireTexture(std::list<Texture>::iterator it)
     {
+#if TS_NATIVE_MODELS && TS_NATIVE_REPLAY
+        ++segmentGen; // renderer segments may hold it
+#endif
         if (lastTexture == &*it)
             lastTexture = nullptr;
         if (batchCount && batchKey.texture == &*it)
@@ -3936,6 +3940,60 @@ struct GSNv2aBackend::Impl
             if (count < 2)
                 return;
             GpuVertex *out = reserve(key, 6u * prims);
+#if TS_NATIVE_2D
+            // Two triangles; colour, depth and q come from the second vertex
+            // (as the corner route below): each corner's values computed once
+            // per sprite instead of once per emitted vertex. The rows reached
+            // are the largest of the two edges' (emit's update only grows).
+            const uint32_t rowLimit = std::min<uint32_t>(frameHeight, kDisplayRows);
+            const bool fst = state.prim.fst;
+            for (uint32_t p = 0; p < prims; ++p, verts += count, out += 6)
+            {
+                const GSVertex &a = verts[0], &b = verts[1];
+                const float rows[2] = {a.y - ofy + 1.0f, b.y - ofy + 1.0f};
+                for (const float row : rows)
+                    if (row > float(gpuRows))
+                        gpuRows = row >= float(rowLimit) ? rowLimit : uint32_t(row);
+                const float xa = (a.x - ofx) * sx, xb = (b.x - ofx) * sx;
+                const float ya = (a.y - ofy) * sy, yb = (b.y - ofy) * sy;
+                const float z = depth24(b.z, zpsm);
+                const uint32_t color = d3dColor(b.r, b.g, b.b, b.a);
+                float sa, ta, sb, tb, q;
+                if (fst)
+                {
+                    sa = float(a.u) / 16.0f / texW;
+                    ta = float(a.v) / 16.0f / texH;
+                    sb = float(b.u) / 16.0f / texW;
+                    tb = float(b.v) / 16.0f / texH;
+                    q = 1.0f;
+                }
+                else
+                {
+                    sa = a.s;
+                    ta = a.t;
+                    sb = b.s;
+                    tb = b.t;
+                    q = b.q != 0.0f ? b.q : 1.0f;
+                }
+                auto put = [&](GpuVertex &o, float x, float y, float s, float t) {
+                    o.x = x;
+                    o.y = y;
+                    o.z = z;
+                    o.w = 1.0f;
+                    o.color = color;
+                    o.s = s;
+                    o.t = t;
+                    o.r = 0.0f;
+                    o.q = q;
+                };
+                put(out[0], xa, ya, sa, ta);
+                put(out[1], xb, ya, sb, ta);
+                put(out[2], xb, yb, sb, tb);
+                out[3] = out[0];
+                out[4] = out[2];
+                put(out[5], xa, yb, sa, tb);
+            }
+#else
             for (uint32_t p = 0; p < prims; ++p, verts += count, out += 6)
             {
                 const GSVertex &a = verts[0], &b = verts[1];
@@ -3958,6 +4016,7 @@ struct GSNv2aBackend::Impl
                     emit(out[i], c, b, c.x, c.y);
                 }
             }
+#endif
             break;
         }
         default:
@@ -4032,6 +4091,11 @@ struct GSNv2aBackend::Impl
     // sends no strip of fewer than three vertices.
     bool beginXfRun(const GSDrawState &state, const GSXfConstants &c, GSXfCursor &cursor)
     {
+#if TS_NATIVE_REPLAY
+        const uint32_t segmentHandle = pendingSegment; // (this run's only)
+        pendingSegment = 0u;
+        runSegment = nullptr;
+#endif
         if (state.prim.type != GS_PRIM_TRISTRIP || state.prim.fst || c.variant > 3u || !isScreenTarget(state))
             return false;
         if (frameOpen && state.context.frame.fbp != frameFbp)
@@ -4041,10 +4105,41 @@ struct GSNv2aBackend::Impl
         else if (screenVramNewer)
             loadScreenFromVram();
 
+#if TS_NATIVE_REPLAY
+        // A stored model's run (xboxNv2aUseSegment): its texture and key as
+        // last built, while what they were built from stands.
+        Segment *seg = takeSegment(segmentHandle, c.check != 0u);
+        const Texture *tex = nullptr;
+        DrawKey key;
+        SegmentInputs inputs{};
+        if (seg)
+            inputs = segmentInputs(state);
+        if (seg && seg->handle == segmentHandle && seg->gen == segmentGen && seg->inputs == inputs &&
+            segmentTexture(*seg))
+        {
+            tex = seg->tex;
+            key = seg->key;
+#if TS_NV2A_SCISSOR
+            clipFor(state.context.scissor, key.clipX, key.clipY); // (keyFor's, afresh)
+#endif
+            ++segmentHits;
+        }
+        else
+        {
+            checkRun = c.check != 0u;
+            tex = state.prim.tme ? texture(state) : nullptr;
+            checkRun = false;
+            key = keyFor(state, tex, c.check != 0u);
+            if (seg)
+                storeSegment(*seg, segmentHandle, inputs, tex, key);
+        }
+        runSegment = seg;
+#else
         checkRun = c.check != 0u;
         const Texture *tex = state.prim.tme ? texture(state) : nullptr;
         checkRun = false;
         DrawKey key = keyFor(state, tex, c.check != 0u);
+#endif
         key.vertexMode = 1u + c.variant;
         key.topology = state.prim.iip ? 1u : 0u; // flat shading needs the list's vertex order
 #if TS_NV2A_SCISSOR
@@ -4102,8 +4197,13 @@ struct GSNv2aBackend::Impl
                     continue;
                 float row[4];
                 xfRow(c, map, r, row);
+#if TS_NATIVE_REPLAY
+                if (sameRow(row, xfK[r])) // (a dozen rows a model: memcmp calls were a hot spot)
+                    continue;
+#else
                 if (std::memcmp(row, xfK[r], 16) == 0)
                     continue;
+#endif
                 if (!changed && batchCount)
                     flushBatch(); // the batch so far uses the old constants
                 changed = true;
@@ -4440,6 +4540,28 @@ struct GSNv2aBackend::Impl
             residentBlock = block;
         }
         residentBound = true;
+#if TS_NATIVE_REPLAY
+        // The run's draw commands as its segment keeps them (built the first
+        // time, for this index and count), else built here.
+        Segment *seg = runSegment;
+        if (seg && seg->words != 0u && seg->index == index && seg->count == count)
+        {
+            std::memcpy(p, seg->command, seg->words * 4u);
+            p += seg->words;
+            cursor = p;
+            if (size_t(cursor - openBlock) >= kBlockDwords)
+                closeBlock();
+            screenGpuNewer = true;
+            return;
+        }
+        // Built in cached memory (the push buffer is write-combined: never
+        // read back), then copied out; one past 60 draws is built in place.
+        uint32_t built[64];
+        uint32_t *const out = p;
+        const bool local = count <= 254u * 29u;
+        if (local)
+            p = built;
+#endif
         p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
         for (uint32_t done = 0;;)
         {
@@ -4450,11 +4572,166 @@ struct GSNv2aBackend::Impl
             done += n - 2u;
         }
         p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+#if TS_NATIVE_REPLAY
+        if (local)
+        {
+            const uint32_t words = uint32_t(p - built);
+            std::memcpy(out, built, words * 4u);
+            p = out + words;
+            if (seg)
+            {
+                seg->index = index;
+                seg->count = count;
+                seg->words = words <= kSegmentWords ? words : 0u; // (a long run: built each time)
+                if (seg->words)
+                    std::memcpy(seg->command, built, words * 4u);
+            }
+        }
+#endif
         cursor = p;
         if (size_t(cursor - openBlock) >= kBlockDwords)
             closeBlock();
         screenGpuNewer = true;
     }
+
+#if TS_NATIVE_REPLAY
+    // Renderer segments of stored model runs (make TS_NATIVE_REPLAY=1): what
+    // beginXfRun derives for a run from the GS state (its texture, by the
+    // lookup texture() makes, and keyFor's material key) and drawResident's
+    // draw commands, kept per run (the model cache's run index, direct-mapped)
+    // and taken again while every input they came from is the same:
+    //  - the GS fields texture() and buildMaterialKey read (SegmentInputs),
+    //    the CLUT hash included;
+    //  - the texture still in the cache (segmentGen: every retire or free of
+    //    textures moves it), with the pages it was decoded from unchanged
+    //    (pageEpoch, else its versions, as the recent table's test), not due
+    //    for the pack, and its levels, alpha and filter flags as when built;
+    //  - the window clip comes from clipFor afresh; constants, frame and
+    //    batch handling are beginXfRun's own.
+    // A hit has texture()'s side effects (the screen write-back its range
+    // asks for, the use counts); anything else builds the segment again.
+    struct SegmentInputs
+    {
+        uint64_t tex0 = 0, clut = 0, clamp = 0, alpha = 0, test = 0;
+        uint32_t texa = 0, size = 0, fbmsk = 0, flags = 0;
+        bool operator==(const SegmentInputs &) const = default;
+    };
+    static constexpr uint32_t kSegments = 2048u, kSegmentWords = 12u;
+    struct Segment
+    {
+        uint32_t handle = 0;    // 1 + the run's index (0: empty)
+        uint32_t gen = 0;       // segmentGen when built
+        uint32_t epoch = 0;     // pageEpoch when the texture was last found current
+        SegmentInputs inputs{};
+        const Texture *tex = nullptr;
+        uint32_t texLevels = 0;
+        bool texUnitAlpha = false, texForceLinear = false;
+        DrawKey key{}; // keyFor's
+        uint32_t index = 0, count = 0, words = 0; // drawResident's commands for this index and count
+        uint32_t command[kSegmentWords] = {};
+    };
+    Segment *segments = nullptr;   // allocated at the first xboxNv2aUseSegment
+    bool segmentsFailed = false;
+    uint32_t pendingSegment = 0;   // 1 + the next run's handle (xboxNv2aUseSegment)
+    Segment *runSegment = nullptr; // the open run's
+    uint32_t segmentGen = 1;
+    uint64_t segmentHits = 0;
+
+    void useSegment(uint32_t handle)
+    {
+        if (!segments && !segmentsFailed)
+        {
+            segments = new (std::nothrow) Segment[kSegments];
+            segmentsFailed = segments == nullptr;
+        }
+        pendingSegment = segments ? handle + 1u : 0u;
+    }
+
+    Segment *takeSegment(uint32_t handle, bool check)
+    {
+        if (!handle || !segments || check || TS_NV2A_SELFCHECK)
+            return nullptr; // (a self-check run takes the full path)
+        return &segments[(handle - 1u) & (kSegments - 1u)];
+    }
+
+    static bool sameRow(const float a[4], const float b[4])
+    {
+        uint32_t x[4], y[4];
+        std::memcpy(x, a, 16);
+        std::memcpy(y, b, 16);
+        return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3];
+    }
+
+    SegmentInputs segmentInputs(const GSDrawState &state) const
+    {
+        SegmentInputs in;
+        const GSTex0Reg &tex = state.context.tex0;
+        if (state.prim.tme)
+        {
+            // texture()'s key: TEX0's fields, TEXA, the CLUT, the size.
+            in.tex0 = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                      (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+            in.clut = isIndexed(tex.psm) ? clutHash : 0u;
+            in.texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
+            in.size = std::max<uint32_t>(state.textureWidth, 1u) | (std::max<uint32_t>(state.textureHeight, 1u) << 16);
+        }
+        // buildMaterialKey's.
+        in.clamp = state.context.clamp;
+        in.alpha = state.context.alpha;
+        in.test = state.context.test;
+        in.fbmsk = state.context.frame.fbmsk;
+        in.flags = uint32_t(state.context.frame.psm) | (uint32_t(state.context.zbuf.zmask) << 8) |
+                   (uint32_t(state.prim.tme) << 9) | (uint32_t(state.prim.abe) << 10) | (uint32_t(state.prim.iip) << 11) |
+                   (uint32_t(tex.tfx & 3u) << 12) | (uint32_t(tex.tcc & 1u) << 14) | (uint32_t(state.linearFilter) << 15);
+        return in;
+    }
+
+    // The segment's texture still the one texture() would return, with its
+    // side effects when it is.
+    bool segmentTexture(Segment &s)
+    {
+        if (!s.tex)
+            return !(s.inputs.flags & (1u << 9)); // untextured; a texture not found is looked up again
+        Texture &t = *const_cast<Texture *>(s.tex);
+        if (t.levels != s.texLevels || t.unitAlpha != s.texUnitAlpha || t.forceLinear != s.texForceLinear)
+            return false;
+        // texture()'s order: the write-back its range asks for, then whether
+        // the pages it was decoded from changed (the write-back may move them).
+        if (screenGpuNewer && overlaps(t.range, gpuRange()))
+        {
+            ++g_nv2aTextureStats.wbTexture;
+            writeBackScreen();
+        }
+        if (t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame)
+            return false; // the pack's copy may be in: the full lookup swaps it in
+        if (s.epoch != pageEpoch)
+        {
+            if (versionSum(t.range) != t.versions)
+                return false;
+            s.epoch = pageEpoch;
+        }
+        ++s_lookupStats.textures;
+        t.lastUse = ++textureTick;
+        noteUse(t);
+        ++g_nv2aTextureStats.textureFast;
+        return true;
+    }
+
+    void storeSegment(Segment &s, uint32_t handle, const SegmentInputs &inputs, const Texture *tex, const DrawKey &key)
+    {
+        if (s.handle != handle)
+            s.words = 0u; // (another run's commands)
+        s.handle = handle;
+        s.gen = segmentGen;
+        s.epoch = pageEpoch;
+        s.inputs = inputs;
+        s.tex = tex;
+        s.texLevels = tex ? tex->levels : 0u;
+        s.texUnitAlpha = tex && tex->unitAlpha;
+        s.texForceLinear = tex && tex->forceLinear;
+        s.key = key;
+    }
+#endif
 #endif
 };
 
@@ -4463,6 +4740,14 @@ namespace
 {
     GSNv2aBackend::Impl *g_residentImpl = nullptr;
 }
+
+#if TS_NATIVE_REPLAY
+void xboxNv2aUseSegment(uint32_t handle)
+{
+    if (g_residentImpl)
+        g_residentImpl->useSegment(handle);
+}
+#endif
 
 uint8_t *xboxNv2aAllocResident(uint32_t bytes)
 {

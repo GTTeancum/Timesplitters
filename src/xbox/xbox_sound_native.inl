@@ -181,6 +181,7 @@ void Spu2::decodeBlock(Voice &v)
 #endif
 }
 
+#if !TS_SOUND_HW
 void Spu2::mix(int16_t *out, unsigned frames)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -354,3 +355,9 @@ void Spu2::mix(int16_t *out, unsigned frames)
     (void)voiceSamples;
 #endif
 }
+#endif // !TS_SOUND_HW
+
+#if TS_SOUND_HW
+// The fast mixer replaces the mix above; the decode cache stays.
+#include "xbox_sound_hw.inl"
+#endif

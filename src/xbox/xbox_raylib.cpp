@@ -140,6 +140,15 @@ namespace
     constexpr unsigned kAudioFrames = 1024; // per buffer: 21 ms
     constexpr unsigned kAudioRing = 8;      // DMA buffers (the descriptor ring is 32)
     constexpr unsigned kAudioAhead = 5;     // queued, about 0.1 s
+    // How long the feeder sleeps once the queue is full. 5 ms: 200 wakeups a
+    // second for 47 buffers. With the fast mixer (TS_SOUND_HW) 16 ms: about
+    // 60, each refilling about one buffer, and still 90 ms of sound queued
+    // when it wakes (a disc read of the music player can hold it longer).
+#if defined(TS_SOUND_HW) && TS_SOUND_HW
+    constexpr DWORD kAudioFeederSleepMs = 16;
+#else
+    constexpr DWORD kAudioFeederSleepMs = 5;
+#endif
     struct AudioOut
     {
         int16_t *buffers = nullptr; // kAudioRing x kAudioFrames stereo frames
@@ -205,7 +214,7 @@ namespace
                 ++g_audioBuffers;
                 provideAudio(buffer);
             }
-            Sleep(5);
+            Sleep(kAudioFeederSleepMs);
         }
     }
 

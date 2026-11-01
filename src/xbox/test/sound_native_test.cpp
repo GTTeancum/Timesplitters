@@ -11,6 +11,11 @@
 //   sound_native_test <steps> [seed]
 //   sound_native_test <voices> <seed> bench   (a steady load, for timing)
 //
+// TS_SOUND_TEST_PCM=<file> (test_sound_hw.py): the output goes to that file
+// (raw stereo s16) instead of into the printed hashes, which then cover the
+// read-back registers only, so a build whose samples may differ can be held
+// to exact registers and compared on its sound separately.
+//
 // stderr: the time spent in mix (and the cache counters in the Xbox copy).
 
 #include SPU2_SOURCE
@@ -18,6 +23,7 @@
 #include <chrono>
 #include <cinttypes>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <random>
 #include <vector>
@@ -25,6 +31,16 @@
 namespace
 {
     constexpr uint32_t kRam = 2u * 1024u * 1024u;
+
+    // TS_SOUND_TEST_PCM: where the output goes instead of the hashes.
+    FILE *pcmFile()
+    {
+        static FILE *file = [] {
+            const char *path = std::getenv("TS_SOUND_TEST_PCM");
+            return path && *path ? std::fopen(path, "wb") : nullptr;
+        }();
+        return file;
+    }
 
     uint32_t entry(unsigned id, unsigned voice, unsigned core)
     {
@@ -42,6 +58,14 @@ namespace
         }
         void add32(uint32_t v) { add(&v, 4); }
     };
+
+    void addOutput(Fnv &state, const int16_t *samples, size_t count)
+    {
+        if (FILE *file = pcmFile())
+            std::fwrite(samples, 2u, count, file);
+        else
+            state.add(samples, count * 2u);
+    }
 
     struct Script
     {
@@ -254,7 +278,7 @@ namespace
             const auto start = std::chrono::steady_clock::now();
             spu.mix(out.data(), frames);
             mixSeconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-            state.add(out.data(), out.size() * 2u);
+            addOutput(state, out.data(), out.size());
 
             for (unsigned c = 0; c < 2; ++c)
             {
@@ -319,7 +343,7 @@ int main(int argc, char **argv)
         for (unsigned b = 0; b < kBuffers; ++b)
         {
             Fnv state;
-            state.add(out.data() + size_t(b) * 1024u * 2u, 1024u * 4u);
+            addOutput(state, out.data() + size_t(b) * 1024u * 2u, 1024u * 2u);
             std::printf("%u %016" PRIx64 "\n", b, state.h);
         }
     }

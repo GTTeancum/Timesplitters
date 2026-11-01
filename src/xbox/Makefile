@@ -180,7 +180,15 @@ endif
 # skipping the DMA walk, VIF decode and VU1 program for them. The outermost
 # stage of all three copies. It replaces those paths, so the switches that
 # add work around them stay off with it.
+# On by default (measured 2026-11-01, xemu, four players, alternating
+# discs): with TS_NATIVE_REPLAY, TS_NATIVE_LOGIC and TS_SOUND_NATIVE about
+# 31 FPS uncapped against 23 with all off. Native backgrounds (the
+# optimized target) replace the same path, so they turn it off.
+ifeq ($(TS_BG_NATIVE),1)
 TS_NATIVE_MODELS ?= 0
+else
+TS_NATIVE_MODELS ?= 1
+endif
 # Model files: a level's captured models saved to E:\TimeSplitters\models once
 # its captures settle, and loaded when it starts again (xbox_model_cache.cpp).
 TS_MODEL_FILES ?= 0
@@ -198,7 +206,7 @@ endif
 # stream position instead of through the VIF decoder, replayed draws apply
 # their state blocks decoded once, and replayed runs keep their renderer
 # segment (texture, material key, draw commands) while its inputs stand.
-TS_NATIVE_REPLAY ?= 0
+TS_NATIVE_REPLAY ?= $(TS_NATIVE_MODELS)
 ifneq ($(filter-out 0 1,$(TS_NATIVE_REPLAY)),)
 $(error TS_NATIVE_REPLAY must be 0 or 1)
 endif
@@ -286,7 +294,7 @@ XBOX_ROUTED_OBJS := $(BG_NATIVE_ROUTED_OBJS) $(GIF_GS_OBJ) $(NATIVE_CALL_OBJS)
 # shared source (test/test_sound_native.py). The copy of ps2_spu2.cpp it
 # builds from compiles the original decode and mix out. TS_SOUND_NATIVE_SETS:
 # cache sets of two 80-byte blocks (1024: 160 KB), a power of two.
-TS_SOUND_NATIVE ?= 0
+TS_SOUND_NATIVE ?= 1
 TS_SOUND_NATIVE_SETS ?= 1024
 ifneq ($(filter-out 0 1,$(TS_SOUND_NATIVE)),)
 $(error TS_SOUND_NATIVE must be 0 or 1)
@@ -432,7 +440,7 @@ endif
 #   the same leaf copies; the C library's memcpy/memset/memcmp use plain
 #   moves (xbox_string.cpp).
 # Replaces TS_NATIVE_CALL_SLOTS (leave that at 0). Off by default.
-TS_NATIVE_LOGIC ?= 0
+TS_NATIVE_LOGIC ?= 1
 ifneq ($(filter-out 0 1,$(TS_NATIVE_LOGIC)),)
 $(error TS_NATIVE_LOGIC must be 0 or 1)
 endif

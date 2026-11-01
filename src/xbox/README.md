@@ -104,6 +104,24 @@ planned optimization implementation is written and connected. Do not make
 interim builds or download packages; the build commands here are retained
 for that later stage. Target execution and FPS remain uncompleted checks.
 
+### Default Xbox path (measured 2026-11-01)
+
+xemu, four players, scripted stretch, alternating saved discs, busy time
+per frame (the game caps at 30 FPS, so busy time is the measure):
+
+| Build | FPS without the cap |
+| --- | --- |
+| All switches off | about 23 |
+| `TS_NATIVE_MODELS` alone | about 27.5 |
+| + `TS_NATIVE_REPLAY`, `TS_NATIVE_LOGIC`, `TS_SOUND_NATIVE` (default) | about 31-34 |
+
+On by default: `TS_NATIVE_MODELS`, `TS_NATIVE_REPLAY`, `TS_NATIVE_LOGIC`,
+`TS_SOUND_NATIVE` (sound 3.1 -> 0.85 ms a frame). Off, because they showed
+no gain against that set: `TS_TEXTURE_SOURCE_KEYS`, `TS_GIF_DIRECT`,
+`TS_NATIVE_2D` (and its 0.45 MB), `TS_SOUND_HW`; `TS_MODEL_FILES` only
+shortens a level's first seconds. The `optimized` target (native
+backgrounds) turns the model path off.
+
 ### Native models (`TS_NATIVE_MODELS`, `TS_MODEL_FILES`)
 
 `TS_NATIVE_MODELS=1` (default `0`; needs `TS_BG_NATIVE`, `TS_DRAW_RECORDS`,

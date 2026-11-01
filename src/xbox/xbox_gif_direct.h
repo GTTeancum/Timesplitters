@@ -1,10 +1,9 @@
 #pragma once
-// Xbox-only direct GIF decoder (TS_GIF_DIRECT=1). Complete PACKED and
-// REGLIST GIF packets of the common shapes - sprites, triangles, strips and
-// fans with RGBAQ/ST/UV/FOG (HUD, text, fills, particles, decals) and the
-// drawing-state writes between them - go from the packet to the renderer
-// without the GS front end's per-register calls, per-vertex kicks and
-// per-primitive batches. The primitives of one draw state go to the Xbox
+// Xbox-only direct GIF decoder (TS_GIF_DIRECT=1). GIF packets - sprites,
+// triangles, strips and fans with RGBAQ/ST/UV/FOG (HUD, text, fills,
+// particles, decals), the state writes between them, IMAGE uploads - go
+// from the packet to the renderer without the GS front end's per-register
+// calls, per-vertex kicks and per-primitive batches. The primitives of one draw state go to the Xbox
 // renderer as one run (xboxNv2aSubmitRun, gs_nv2a_backend.cpp): one frame,
 // texture and material lookup and one vertex reservation per run instead of
 // per primitive.
@@ -14,12 +13,17 @@
 // inside them: a local class has its method's access, so the shared header
 // stays as it is). It leaves that state as processGIFPacket would: the same
 // colour/ST/UV/Q/fog, PRIM, vertex queue, draw counters and display-copy
-// source, the same register writes in the same order, the same primitives
-// drawn in the same order. Admission reads the whole packet first; anything
-// it does not take declines the whole packet before its first effect, and
-// the original route draws it: IMAGE tags, a packet that ends inside a tag,
-// transfer, privileged and unknown registers, SIGNAL/FINISH/LABEL, FRAME or
-// ZBUF writes that change the target, a running GS debug history.
+// source, the same register writes, uploads and draws in the same order,
+// and the path's GIF stream (a tag, qword or IMAGE transfer a packet ends
+// inside goes on in the next packet of that path, as in the GS's stream).
+// Registers without a decode here (CLUT loads, TEXFLUSH, FRAME/ZBUF,
+// BITBLTBUF/TRXPOS/TRXREG/TRXDIR, HWREG, SIGNAL/FINISH/LABEL, privileged,
+// unknown) end the open run and go to GS::writeRegisterUnlocked in order;
+// IMAGE data ends it and goes to the renderer's upload as one piece. The
+// original route remains only for a running GS debug history (it records
+// every tag, register and draw), a second GS using the run buffer at the
+// same time, and, on the native PACKED entry, the packets that method
+// itself declines (REGLIST, IMAGE, ending inside a tag).
 //
 // Not done: a cache of decoded packets by content. Decoding a qword here
 // costs about what hashing and comparing it would, and a cached decode is
@@ -40,17 +44,18 @@
 // The Xbox renderer's run entry: prims primitives of `per` vertices each
 // (1 point, 2 line or sprite, 3 triangle, as GS::vertexKick hands them
 // over), all of one draw state, drawn as that many Submit calls would draw
-// them. False when backend is not the Xbox renderer or the state draws off
-// screen (the caller submits them one by one).
+// them. False when backend is not the Xbox renderer (the caller submits
+// them one by one).
 bool xboxNv2aSubmitRun(GSRasterBackend *backend, const GSDrawState &state, const GSVertex *vertices,
                        uint32_t per, uint32_t prims);
 
 // Counters for the status line (xbox_main.cpp), written under the GS lock.
 struct XboxGifDirectStats
 {
-    enum Decline : uint8_t { None, Format, Partial, Register, Target, Debug, Busy, kDeclines };
+    enum Decline : uint8_t { None, Format, Partial, Debug, Busy, kDeclines };
     uint32_t packets = 0, runs = 0, gpuRuns = 0, prims = 0;
-    uint32_t writes = 0, skipped = 0; // state writes passed to the GS, equal ones skipped
+    uint32_t writes = 0, skipped = 0; // register writes passed to the GS, equal ones skipped
+    uint32_t images = 0, carried = 0; // IMAGE uploads; packets ending inside a tag or qword
     uint32_t declined[kDeclines] = {};
 };
 extern XboxGifDirectStats g_xboxGifDirectStats;
@@ -82,12 +87,11 @@ namespace xbox_gif_direct
 
     // A register written by address (A+D, REGLIST, a PACKED descriptor that
     // writes its register as it is): Native, decoded here; Store, a plain
-    // value the draw state holds (an equal write is skipped); Call, passed
-    // to GS::writeRegisterUnlocked after the open run (CLUT loads, texture
-    // flushes, everything with more than a stored value); Target, FRAME and
-    // ZBUF (taken only when equal); Nop, nothing in the GS; Refuse: the
-    // packet goes the original way.
-    enum Kind : uint8_t { Refuse, Nop, Native, Store, Call, Target };
+    // value the draw state holds (an equal write is skipped); Nop, nothing
+    // in the GS; Call, everything else, passed to GS::writeRegisterUnlocked
+    // after the open run (CLUT loads, texture flushes, FRAME/ZBUF, transfers,
+    // HWREG, SIGNAL/FINISH/LABEL, privileged and unknown registers).
+    enum Kind : uint8_t { Call, Nop, Native, Store };
     inline Kind kindOf(uint32_t reg)
     {
         switch (reg)
@@ -101,16 +105,8 @@ namespace xbox_gif_direct
         case GS_REG_FBA_2: case GS_REG_PABE: case GS_REG_DIMX: case GS_REG_DTHE: case GS_REG_COLCLAMP:
         case GS_REG_SCANMSK:
             return Store;
-        case GS_REG_TEX0_1: case GS_REG_TEX0_2: case GS_REG_CLAMP_1: case GS_REG_CLAMP_2: case GS_REG_TEX1_1:
-        case GS_REG_TEX1_2: case GS_REG_TEX2_1: case GS_REG_TEX2_2: case GS_REG_XYOFFSET_1: case GS_REG_XYOFFSET_2:
-        case GS_REG_PRMODECONT: case GS_REG_PRMODE: case GS_REG_TEXCLUT: case GS_REG_MIPTBP1_1: case GS_REG_MIPTBP1_2:
-        case GS_REG_MIPTBP2_1: case GS_REG_MIPTBP2_2: case GS_REG_TEXA: case GS_REG_FOGCOL: case GS_REG_TEXFLUSH:
-        case GS_REG_SCISSOR_1: case GS_REG_SCISSOR_2:
-            return Call;
-        case GS_REG_FRAME_1: case GS_REG_FRAME_2: case GS_REG_ZBUF_1: case GS_REG_ZBUF_2:
-            return Target;
         default:
-            return Refuse; // transfers, HWREG, SIGNAL/FINISH/LABEL, privileged, unknown
+            return Call;
         }
     }
 
@@ -136,19 +132,6 @@ namespace xbox_gif_direct
                a.aa1 == b.aa1 && a.fst == b.fst && a.ctxt == b.ctxt && a.fix == b.fix;
     }
 
-    // FRAME/ZBUF value equal to what the context holds (the write would
-    // store the same fields).
-    template <class Gs>
-    bool sameTarget(Gs &a, uint32_t reg, uint64_t v)
-    {
-        const GSContext &c = a.ctx()[reg & 1u]; // FRAME_1 0x4C, FRAME_2 0x4D, ZBUF_1 0x4E, ZBUF_2 0x4F
-        if (reg == GS_REG_FRAME_1 || reg == GS_REG_FRAME_2)
-            return c.frame.fbp == uint32_t(v & 0x1FFu) && c.frame.fbw == uint32_t((v >> 16) & 0x3Fu) &&
-                   c.frame.psm == uint8_t((v >> 24) & 0x3Fu) && c.frame.fbmsk == uint32_t(v >> 32);
-        return c.zbuf.zbp == uint32_t(v & 0x1FFu) && c.zbuf.psm == uint8_t(((v >> 24) & 0xFu) | 0x30u) &&
-               c.zbuf.zmask == (((v >> 32) & 1u) != 0u);
-    }
-
     template <class Gs>
     bool sameStore(Gs &a, uint32_t reg, uint64_t v)
     {
@@ -166,53 +149,24 @@ namespace xbox_gif_direct
         }
     }
 
-    // Whole-packet admission, before any effect. packedOnly: the native
-    // PACKED entry (GS::processNativePackedGIFPacket), which declines
-    // REGLIST packets itself.
-    template <class Gs>
-    XboxGifDirectStats::Decline admit(Gs &a, const uint8_t *data, uint32_t size, bool packedOnly)
+    // The native PACKED entry (GS::processNativePackedGIFPacket) takes only
+    // complete PACKED packets; it declines the others itself. Read before
+    // any effect.
+    inline XboxGifDirectStats::Decline admitPacked(const uint8_t *data, uint32_t size)
     {
         uint32_t at = 0;
         while (at < size)
         {
             if (size - at < 16u)
                 return XboxGifDirectStats::Partial;
-            const uint64_t lo = load64(data + at), hi = load64(data + at + 8u);
+            const uint64_t lo = load64(data + at);
             at += 16u;
-            const uint32_t flg = uint32_t(lo >> 58) & 3u;
-            if (flg >= GIF_FMT_IMAGE || (packedOnly && flg == GIF_FMT_REGLIST))
+            if (((lo >> 58) & 3u) != GIF_FMT_PACKED)
                 return XboxGifDirectStats::Format;
-            const uint32_t nloop = uint32_t(lo) & 0x7FFFu;
             const uint32_t nreg = (uint32_t(lo >> 60) & 15u) ? uint32_t(lo >> 60) & 15u : 16u;
-            const uint32_t words = nloop * nreg; // at most 32767 * 16
-            if (flg == GIF_FMT_REGLIST)
-            {
-                // Every 4-bit REGLIST register is one we know (A+D is a no-op there).
-                const uint32_t bytes = words * 8u + (words & 1u) * 8u;
-                if (bytes > size - at)
-                    return XboxGifDirectStats::Partial;
-                at += bytes;
-                continue;
-            }
+            const uint32_t words = (uint32_t(lo) & 0x7FFFu) * nreg; // at most 32767 * 16
             if (words > (size - at) / 16u)
                 return XboxGifDirectStats::Partial;
-            uint32_t adMask = 0; // the A+D descriptors: their addresses are in the payload
-            for (uint32_t r = 0; r < nreg; ++r)
-                if (((hi >> (r * 4u)) & 15u) == 0xEu)
-                    adMask |= 1u << r;
-            if (adMask)
-                for (uint32_t i = 0; i < words; ++i)
-                {
-                    if (!(adMask >> (i % nreg) & 1u))
-                        continue;
-                    const uint8_t *q = data + at + i * 16u;
-                    const uint32_t reg = q[8];
-                    const Kind kind = kindOf(reg);
-                    if (kind == Refuse)
-                        return XboxGifDirectStats::Register;
-                    if (kind == Target && !sameTarget(a, reg, load64(q)))
-                        return XboxGifDirectStats::Target;
-                }
             at += words * 16u;
         }
         return XboxGifDirectStats::None;
@@ -442,9 +396,6 @@ namespace xbox_gif_direct
             {
             case Nop:
                 return;
-            case Target: // admitted only when equal: the write would store the same fields
-                ++g_xboxGifDirectStats.skipped;
-                return;
             case Store:
                 if (sameStore(a, reg, v))
                 {
@@ -526,33 +477,37 @@ namespace xbox_gif_direct
         }
     };
 
-    // Draws one complete packet directly; false: declined before any effect
-    // (the caller goes on the original way). The caller holds the GS lock
-    // and has checked that this path's GIF stream is between tags.
-    // emptyTagResetsQ: a tag without writes still sets Q to 1.0 (the
-    // original native PACKED method); processGIFPacket's stream sets it at
-    // the tag's first write.
-    template <class Gs>
-    bool run(Gs &a, const uint8_t *data, uint32_t size, bool packedOnly, bool emptyTagResetsQ)
+    // Takes one packet of a GIF path through to its end: what the GS's
+    // processGIFPacket loop does with it, on the same stream state `st` (a
+    // tag, qword, REGLIST padding or IMAGE transfer it ends inside goes on
+    // in the path's next packet, by either route). The caller holds the GS
+    // lock. False: declined before any effect (the caller goes on the
+    // original way). packedOnly, emptyTagResetsQ: the native PACKED entry,
+    // which takes only complete PACKED packets (on a fresh stream) and, but
+    // with TS_GIF_NATIVE's plans, sets Q at every tag even without writes;
+    // the stream sets it at a tag's first write.
+    template <class Gs, class Stream>
+    bool run(Gs &a, Stream &st, const uint8_t *data, uint32_t size, bool packedOnly, bool emptyTagResetsQ)
     {
         XboxGifDirectStats &stats = g_xboxGifDirectStats;
 #if defined(AGRESSIVE_LOGS) && AGRESSIVE_LOGS
-        (void)packedOnly; (void)emptyTagResetsQ; (void)data; (void)size; (void)a;
+        (void)st; (void)packedOnly; (void)emptyTagResetsQ; (void)data; (void)size; (void)a;
         ++stats.declined[XboxGifDirectStats::Debug];
         return false;
 #else
-        if (!data || size < 16u || !a.backend())
+        if (!data || !size || !a.backend())
             return false;
         if (!a.paused())
         {
             ++stats.declined[XboxGifDirectStats::Debug]; // the history records every tag, register and draw
             return false;
         }
-        if (const XboxGifDirectStats::Decline d = admit(a, data, size, packedOnly))
-        {
-            ++stats.declined[d];
-            return false;
-        }
+        if (packedOnly)
+            if (const XboxGifDirectStats::Decline d = admitPacked(data, size))
+            {
+                ++stats.declined[d];
+                return false;
+            }
         Scratch &s = scratch();
         if (s.busy.test_and_set(std::memory_order_acquire))
         {
@@ -564,32 +519,135 @@ namespace xbox_gif_direct
         uint32_t at = 0;
         while (at < size)
         {
-            const uint64_t lo = load64(data + at), hi = load64(data + at + 8u);
-            at += 16u;
-            const uint32_t nloop = uint32_t(lo) & 0x7FFFu;
-            const uint32_t nreg = (uint32_t(lo >> 60) & 15u) ? uint32_t(lo >> 60) & 15u : 16u;
-            uint8_t regs[16];
-            for (uint32_t r = 0; r < nreg; ++r)
-                regs[r] = uint8_t((hi >> (r * 4u)) & 15u);
-            if (((lo >> 58) & 3u) == GIF_FMT_REGLIST)
+            const uint32_t left = size - at;
+            if (st.remaining && st.format >= GIF_FMT_IMAGE)
             {
-                const uint32_t words = nloop * nreg;
-                for (uint32_t i = 0, r = 0; i < words; ++i, at += 8u)
+                // IMAGE (and disabled) data goes up when complete, after the
+                // draws before it; a transfer split over packets is gathered.
+                const uint32_t n = st.remaining < left ? st.remaining : left;
+                if (n == st.remaining && st.image.empty())
                 {
-                    dec.write(regs[r], load64(data + at));
-                    r = r + 1u == nreg ? 0u : r + 1u;
+                    dec.flush();
+                    a.image(data + at, n);
+                    ++stats.images;
                 }
-                at += (words & 1u) * 8u;
+                else
+                {
+                    st.image.insert(st.image.end(), data + at, data + at + n);
+                    if (n == st.remaining)
+                    {
+                        dec.flush();
+                        a.image(st.image.data(), uint32_t(st.image.size()));
+                        st.image.clear();
+                        ++stats.images;
+                    }
+                }
+                at += n;
+                st.remaining -= n;
                 continue;
             }
-            if (emptyTagResetsQ || nloop)
-                a.q() = 1.0f; // the tag's Q, taken at its first PACKED write
-            if ((lo >> 46) & 1u) // PRE
-                dec.prim((lo >> 47) & 0x7FFu);
-            for (uint32_t loop = 0; loop < nloop; ++loop)
-                for (uint32_t r = 0; r < nreg; ++r, at += 16u)
-                    dec.packed(regs[r], load64(data + at), load64(data + at + 8u));
+            if (st.padding)
+            {
+                const uint32_t n = st.padding < left ? st.padding : left;
+                st.padding -= n;
+                at += n;
+                continue;
+            }
+            if (st.remaining && !st.unitBytes)
+            {
+                // The open tag's whole registers in this packet, in one loop.
+                const uint32_t unit = st.format == GIF_FMT_PACKED ? 16u : 8u;
+                const uint32_t n = left / unit < st.remaining ? left / unit : st.remaining;
+                if (n)
+                {
+                    uint8_t regs[16];
+                    for (uint32_t r = 0; r < st.nreg; ++r)
+                        regs[r] = uint8_t((st.registers >> (r * 4u)) & 15u);
+                    uint32_t r = st.regIndex;
+                    if (unit == 16u)
+                    {
+                        // Each write starts from the stream's Q and leaves its
+                        // own; nothing else changes Q between them.
+                        a.q() = st.q;
+                        for (uint32_t i = 0; i < n; ++i, at += 16u)
+                        {
+                            dec.packed(regs[r], load64(data + at), load64(data + at + 8u));
+                            r = r + 1u == st.nreg ? 0u : r + 1u;
+                        }
+                        st.q = a.q();
+                    }
+                    else
+                        for (uint32_t i = 0; i < n; ++i, at += 8u)
+                        {
+                            dec.write(regs[r], load64(data + at));
+                            r = r + 1u == st.nreg ? 0u : r + 1u;
+                        }
+                    st.regIndex = r;
+                    st.remaining -= n;
+                    if (!st.remaining)
+                        st.padding = st.endPadding;
+                    continue;
+                }
+            }
+            // One tag, or one register split over packets (st.unit gathers it).
+            const bool tag = st.remaining == 0;
+            const uint32_t needed = (tag || st.format == GIF_FMT_PACKED) ? 16u : 8u;
+            uint64_t lo, hi = 0;
+            if (!st.unitBytes && left >= needed)
+            {
+                lo = load64(data + at);
+                if (needed == 16u)
+                    hi = load64(data + at + 8u);
+                at += needed;
+            }
+            else
+            {
+                const uint32_t n = needed - st.unitBytes < left ? needed - st.unitBytes : left;
+                std::memcpy(st.unit.data() + st.unitBytes, data + at, n);
+                at += n;
+                st.unitBytes += n;
+                if (st.unitBytes < needed)
+                    continue;
+                lo = load64(st.unit.data());
+                if (needed == 16u)
+                    hi = load64(st.unit.data() + 8u);
+                st.unitBytes = 0;
+            }
+            if (tag)
+            {
+                const uint32_t nloop = uint32_t(lo) & 0x7FFFu;
+                st.format = uint8_t((lo >> 58) & 3u);
+                st.nreg = uint32_t(lo >> 60) & 15u;
+                if (!st.nreg)
+                    st.nreg = 16u;
+                st.registers = hi;
+                st.regIndex = 0;
+                st.q = 1.0f;
+                st.endPadding = st.format == GIF_FMT_REGLIST && ((nloop * st.nreg) & 1u) ? 8u : 0u;
+                if (emptyTagResetsQ)
+                    a.q() = 1.0f;
+                if (st.format == GIF_FMT_PACKED && ((lo >> 46) & 1u)) // PRE
+                    dec.prim((lo >> 47) & 0x7FFu);
+                st.remaining = nloop * (st.format >= GIF_FMT_IMAGE ? 16u : st.nreg);
+                if (st.format >= GIF_FMT_IMAGE)
+                    st.image.clear();
+                continue;
+            }
+            const uint32_t reg = uint32_t(st.registers >> (4u * st.regIndex)) & 15u;
+            if (st.format == GIF_FMT_PACKED)
+            {
+                a.q() = st.q;
+                dec.packed(reg, lo, hi);
+                st.q = a.q();
+            }
+            else
+                dec.write(reg, lo);
+            st.regIndex = (st.regIndex + 1u) % st.nreg;
+            if (!--st.remaining)
+                st.padding = st.endPadding;
         }
+        if (st.remaining || st.padding || st.unitBytes)
+            ++stats.carried;
         dec.flush();
         s.busy.clear(std::memory_order_release);
         ++stats.packets;
@@ -635,6 +693,7 @@ namespace xbox_gif_direct
         GSRasterBackend *backend() { return gs.m_backend.get(); }                         \
         bool paused() const { return gs.m_debugHistoryPaused; }                           \
         void write(uint8_t reg, uint64_t value) { gs.writeRegisterUnlocked(reg, value); } \
+        void image(const uint8_t *data, uint32_t size) { gs.processImageData(data, size); } \
         GSDrawState state() const { return gs.buildDrawBatch(0).state; }                  \
         void hud(GSPrimitiveBatch &batch) { gs.adjustWidescreenHud(batch); }              \
     }

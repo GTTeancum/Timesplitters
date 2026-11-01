@@ -19,6 +19,16 @@
 //     sourceCount Source records, sorted by key: the entries again by
 //     their source keys (xbox_texture_source.h, kVersion 1), which the
 //     renderer works out without decoding a texture (TS_TEXTURE_SOURCE_KEYS)
+//   version 3: version 2 with a 32-byte extension after the header (the
+//     index from offset 64 on): u32 preloadCount; u32 preloadOffset; u32
+//     preloadDataOffset; u32 preloadDataBytes; u32 reserved[4] (0). At
+//     preloadOffset (between the index and the data) preloadCount Preload
+//     records sorted by entry; at preloadDataOffset (128-byte aligned,
+//     before the data) their texels: for each, one small level of its
+//     entry (its own format, 128-byte aligned), read once at start-up into
+//     memory of their own and drawn while the entry is on its way from the
+//     disc. Format kI8 entries (version 3 only) are 8-bit index textures,
+//     drawn with a palette the renderer makes (SZ_I8_A8R8G8B8).
 //   data: each entry's levels back to back from level 0, each entry
 //     128-byte aligned. DXT levels in plain block order (the NV2A reads
 //     compressed textures block by block, not swizzled), the others in the
@@ -43,6 +53,7 @@ public:
         kDxt5 = 1,
         kA8R8G8B8 = 2, // swizzled
         kA1R5G5B5 = 3, // swizzled
+        kI8 = 4,       // swizzled 8-bit indices; drawn with a palette (version 3)
     };
     enum Flags : uint8_t
     {
@@ -79,6 +90,17 @@ public:
         uint8_t reserved[3];
     };
     static_assert(sizeof(Source) == 16, "source record layout");
+
+    // One preload record (version 3), exactly as on the disc.
+    struct Preload
+    {
+        uint32_t entry;         // index into the entries
+        uint32_t offset;        // from preloadDataOffset, 128-byte aligned
+        uint16_t width, height; // the level's size, powers of two
+        uint8_t format;         // the entry's
+        uint8_t reserved[3];
+    };
+    static_assert(sizeof(Preload) == 16, "preload record layout");
 
     // What acquire found.
     enum Status : uint8_t
@@ -127,6 +149,14 @@ public:
     // version 1 pack.
     int findSource(uint64_t key, uint8_t &kind) const;
     uint32_t sourceCount() const { return uint32_t(sources_.size()); }
+    // Version 3's preloads: the bytes of their texels (0: none), read into
+    // `dest` (128-byte aligned, GPU memory) once, after open and before
+    // attachPool (the loader then owns the file). False on a read error:
+    // the caller then does without them.
+    uint32_t preloadBytes() const { return preloadDataBytes_; }
+    bool readPreloads(uint8_t *dest);
+    // The entry's preload once readPreloads succeeded, else null.
+    const Preload *preload(int index) const;
     const Entry &entry(int index) const { return index_[size_t(index)]; }
 
     // The entry's levels in the pool (status kReady), else null. An entry
@@ -200,6 +230,9 @@ private:
     void *file_ = nullptr; // HANDLE
     std::vector<Entry> index_;
     std::vector<Source> sources_;  // version 2's source table
+    std::vector<Preload> preloads_; // version 3's preloads
+    uint32_t preloadDataOffset_ = 0, preloadDataBytes_ = 0;
+    bool preloadsRead_ = false;
     std::vector<Slot> slots_;      // per entry
     std::vector<int> resident_;    // entries in the pool (queued or resident)
     std::vector<Range> free_;      // free pool ranges, by offset

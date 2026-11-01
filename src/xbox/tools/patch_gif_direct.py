@@ -1,10 +1,11 @@
 """Route complete GIF packets through the direct decoder in an Xbox GS copy.
 
 The input is the GS front end as the earlier stages leave it (the shared
-source, or patch_native_gif.py's copy). processGIFPacket tries the direct
-decoder (src/xbox/xbox_gif_direct.h) when its path's stream is between
-tags; processNativePackedGIFPacket tries it, for PACKED-only packets, when
-every stream is. A declined packet goes on through the method's own body.
+source, or patch_native_gif.py's copy). processGIFPacket hands every packet
+to the direct decoder (src/xbox/xbox_gif_direct.h) on its path's stream,
+after the existing whole-upload check; processNativePackedGIFPacket tries
+it, for complete PACKED packets on a fresh stream, when every path's stream
+is between tags. A declined packet goes on through the method's own body.
 No shared header or source is modified. Every anchor is exact and unique.
 """
 from __future__ import annotations
@@ -24,11 +25,10 @@ STREAM = '''    auto &stream = m_gifStreams[index - 1];
         return;
 '''
 STREAM_DIRECT = '''#if TS_GIF_DIRECT
-    if (!stream.remaining && !stream.padding && !stream.unitBytes)
     {
         XBOX_GIF_DIRECT_GS_ACCESS;
         DirectAccess access{*this};
-        if (xbox_gif_direct::run(access, data, sizeBytes, false, false))
+        if (xbox_gif_direct::run(access, stream, data, sizeBytes, false, false))
             return;
     }
 #endif
@@ -48,12 +48,13 @@ NATIVE_DIRECT = '''#if TS_GIF_DIRECT
         {
             XBOX_GIF_DIRECT_GS_ACCESS;
             DirectAccess access{*this};
+            GifStreamState fresh{}; // the method keeps no stream
 #if defined(TS_GIF_NATIVE) && TS_GIF_NATIVE
             constexpr bool emptyTagResetsQ = false;
 #else
             constexpr bool emptyTagResetsQ = true;
 #endif
-            if (xbox_gif_direct::run(access, data, sizeBytes, true, emptyTagResetsQ))
+            if (xbox_gif_direct::run(access, fresh, data, sizeBytes, true, emptyTagResetsQ))
             {
                 ++m_nativePackedGIFPacketCount;
                 return true;

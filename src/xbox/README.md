@@ -83,14 +83,14 @@ Makefile rebuilds its consumers when the switch changes.
 | `TS_BG_BATCH` | One validated pack access for a complete accepted geometry group; applies when native backgrounds are enabled. |
 | `TS_VIF_FAST` | Repeated UNPACK size calculations and contiguous 32-bit vector copy loops. |
 | `TS_GIF_NATIVE` | Reuse of exact PACKED GIF tag/operation plans, with all register and vertex payloads read live. |
-| `TS_GIF_DIRECT` | Complete PACKED/REGLIST GIF packets (sprites, triangles, strips, fans, fills and the state writes between them) decoded straight into per-state runs for the renderer instead of per-register GS calls and per-primitive submits; other packets keep the original route. Host-tested equal to the original route (test/test_gif_direct.py). Not yet run. |
+| `TS_GIF_DIRECT` | GIF packets (sprites, triangles, strips, fans, fills, IMAGE uploads and all register writes between them, including packets split anywhere across transfers) decoded straight into per-state runs for the renderer instead of per-register GS calls and per-primitive submits; registers without a decode pass through in order. Only a running GS debug history keeps the original route. Host-tested equal to the original route (test/test_gif_direct.py). Not yet run. |
 | `TS_DMA_CHAIN_CACHE` | Reuse of validated leaf DMA subchains while retaining the original payload appends, return-stack effects and batch-flush boundaries. |
 | `TS_NATIVE_CALL_SLOTS` | Known guest-call targets in the four native game/math files use the current function-table slot directly. |
 | `TS_DRAW_RECORDS` | Observed REF groups reuse exact descriptors in the DMA walk; observed draw chains execute fully admitted VIF prefixes at their original stream positions. |
 | `TS_VIF_SOURCE` | An admitted prefix lends source arrays to its immediate fast native Plain/EnvMap draw, after pack geometry misses. Requires an admitted draw record; all VU writes and native admission remain. |
 | `TS_NV2A_MATERIAL_CACHE` | Derived NV2A material registers for exactly matching material inputs. |
 | `TS_NV2A_PACK_IDENTITY_CACHE` | Texture-pack lookup identities across texture cache eviction, invalidated by writes to the source pages. |
-| `TS_TEXTURE_SOURCE_KEYS` | A texture-cache miss finds its pack entry by source key (8-bit indices plus the CLUT hash, or 32-bit texels; hashed at upload or read back) instead of a palette decode and RGBA hash; a repeated full CLUT load is one compare. Builds the pack with its source table. Not yet run. |
+| `TS_TEXTURE_SOURCE_KEYS` | A texture-cache miss finds its pack entry by source key (indices plus palette, or colour plus TEXA, every GS format; hashed at upload or read back) instead of a decode and RGBA hash; unseen palettes draw an index texture with a GPU palette; an entry still loading draws its preload; a repeated full CLUT load is one compare. Builds the pack as version 3. `TS_TEXTURE_DUMP=1` (development) dumps textures the pack lacks. Not yet run. |
 
 These paths are designed to preserve live colors, transforms, texture
 residency and draw ordering. They do not replace the complete PS2 DMA/VIF
@@ -118,15 +118,48 @@ vertex records instead of the PS2 DMA/VIF/VU1 path:
   (28 bytes plain or env-mapped, 40 lit, 44 skinned) in 128 KB blocks of
   one format in the renderer's own memory (2 MB), drawn where they lie.
   Chains are re-hashed against guest memory every 32 replays and captured
-  again when they change. Anything the replay cannot reproduce exactly keeps
-  its chain on the original path.
-- `xbox_part_prologue.cpp`: partGfx writes one token per model in place of
-  its three (or, lit, nine) header, matrix and light REF tags; the DMA walker
-  appends the same payloads when it reaches the token.
+  again when they change. Everything else the chain does is recorded as
+  replay steps in stream order: MSCALs of the constant and kick entries,
+  MSCALs the program declines or the interpreter runs, MSCNT, and draws with
+  CPU-path strips run again at the replay (the VU1 rows the chain wrote that
+  they read restored where the chain would write them, then the MSCAL as the
+  decoder runs it); UNPACKs into the transform constants' rows; DIRECT and
+  DIRECTHL packets (and their IMAGE data); MPG (checked unchanged at the
+  replay); BASE, OFFSET, ITOP and MSKPATH3; the rows the chain leaves that
+  none of its programs read; the registers it leaves (MARK and the I bit
+  included). A chain ending inside the CALL (END tag, or IRQ with TIE) ends
+  the replayed walk in the same state. A replay the steps cannot reproduce
+  (UNPACK registers the chain took from before it now different, its MPG
+  code no longer in VU1 memory, a batch that would now wrap past the end of
+  VU1 memory or land on the constants' rows, the renderer declining the
+  first run, no native program, the VIF1 worker, a model evicted meanwhile)
+  decodes the chain from guest memory instead (`inline=`). A full arena
+  evicts the models not replayed for 20,000 walks, least recent first, and
+  moves the rest down (`evict/compact=`). Still on the original path:
+  chains with scratchpad data, UNPACKs with write-protected mask lanes,
+  overlapping MPGs, walks that stop at a tag they cannot read, and chains
+  over 16,384 tags or 1,024 TOPS changes.
+- `xbox_part_prologue.cpp`: partGfx writes one token in place of each run
+  of REF tags it builds: its three model prologues (header, matrix and
+  light REFs, up to 21) and its three REF loops (one token per loop, closed
+  at the loop's end or before a mid-loop yield, after which the translated
+  resume writes its REFs as usual). The token's record lists the (address,
+  QWC) pairs; the DMA walker appends the same payloads in order. Records
+  live in a 512 KB ring; a token whose record was overwritten expands to
+  nothing and is counted (`[TS:prologue]` lost=).
 - `TS_MODEL_FILES=1` (default `0`) saves a level's captured models to
   `E:\TimeSplitters\models\<chain>-<hash>.xmc` once its captures settle,
   and loads them when the level starts again. Loaded models are re-hashed
   before their first replay.
+- Shipping model files on the disc: `tools/make_level_pads.py OUTDIR N`
+  writes one four-player arcade script per level (the Select Level cursor
+  moved 0..N-1 times), and `tools/harvest_models.sh OUTDIR/*.pad` plays each
+  in xemu, then copies `E:\TimeSplitters\models` out of xemu's hard disk
+  image (`tools/xbox_hdd.py`, read-only qcow2/FATX reader) into
+  `build/model-files`. A disc built with `TS_MODEL_FILES=1` carries those as
+  `D:\models`, read when the hard disk has no file for the level. Story
+  levels (one player) need their own scripts; until then they save to the
+  hard disk on first play.
 
 Copies patched by `tools/patch_native_models.py`: `ps2_memory.cpp`
 (walker), `ps2_vif1_interpreter.cpp` (decoder), `vu1_native_ts.cpp` (native
@@ -156,16 +189,26 @@ it. `build.sh textures` builds only the pack;
 `XTP_FLAGS="--replacements textures/replacements --dump textures/dump"`
 (absolute paths) adds HD replacements, `--preview DIR` writes .dds files.
 
-With `TS_TEXTURE_SOURCE_KEYS=1` the pack is format version 2
-(`xtpbuild.py --source-keys`, about 36 KB more on the disc and in the
-Xbox's memory): every entry also under the key of what GS memory holds for
-it (`xbox_texture_source.h`), so the renderer finds it without decoding the
-texture. 2,244 of MISC.PAK's 2,254 entries are 8-bit indexed; none shares
-its indices with another palette. A palette the game makes at run time
-for known indices misses and takes the decode as before; to put those in
-the pack, build once with `XTP_FLAGS="--variant-keys"` (the Xbox then logs
-each such palette as `[TS:texvariant]` lines, at most 32), then with
-`XTP_FLAGS="--variants /abs/path/to/the.log"`.
+With `TS_TEXTURE_SOURCE_KEYS=1` the pack is format version 3
+(`xtpbuild.py --source-keys --preload-bytes 128 --palette-textures`, about
+32 MB): every entry also under the key of what GS memory holds for it
+(`xbox_texture_source.h`: indices and palette, or colour and TEXA, in every
+GS texture format), so the renderer finds it without decoding the texture;
+every 8-bit indexed texture also as an NV2A index texture, drawn with a GPU
+palette made from whatever palette the game loads (palette swaps the pack
+has no copy of); and every entry's level of at most 128 bytes, read at
+start-up and drawn while the entry is on its way from the disc. It costs
+the Xbox about 280 KB of GPU memory for the preloads, 32 KB for palettes
+and about 270 KB of index and tables. 2,244 of MISC.PAK's 2,254 entries
+are 8-bit indexed; none shares its indices with another palette.
+Textures that are in no game file the builder reads (4-bit or 16-bit
+palettes, other containers) can be added from the Xbox's own dumps: build
+the XBE with `TS_TEXTURE_DUMP=1` (development: each such texture is
+written once to `E:\TimeSplitters\texdump`), copy the folder off, then
+build with `XTP_FLAGS="--xbox-dump /abs/path/to/texdump"`. Without index
+textures, `XTP_FLAGS="--variant-keys"` makes the Xbox log palettes it
+lacks (`[TS:texvariant]`, at most 32) and `--variants /abs/path/to/the.log`
+adds them.
 
 ## Test in xemu
 

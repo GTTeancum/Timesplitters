@@ -118,6 +118,10 @@ struct GSNv2aLookupStats
     // builder; full CLUT loads that repeated the last one.
     uint32_t sourceHits = 0, sourceMisses = 0, sourceFromUpload = 0, sourceUploads = 0, sourceVariants = 0;
     uint32_t clutRepeats = 0;
+    // Misses drawn from an index texture with a GPU palette, pack entries
+    // drawn from their preload while on their way, palettes not made for
+    // want of a free slot, textures dumped for the builder (TS_TEXTURE_DUMP).
+    uint32_t sourcePalettes = 0, sourcePreviews = 0, paletteSlotsFull = 0, sourceDumps = 0;
 };
 GSNv2aLookupStats nv2aLookupStats();
 
@@ -149,7 +153,7 @@ public:
     void Submit(const GSPrimitiveBatch &batch) override;
     bool SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count) override;
     // TS_GIF_DIRECT: prims primitives of per vertices and one state drawn as
-    // that many Submit calls; false for an off-screen target (xbox_gif_direct.h).
+    // that many Submit calls, by Submit's own code (xbox_gif_direct.h).
     bool SubmitRun(const GSDrawState &state, const GSVertex *vertices, uint32_t per, uint32_t prims);
     bool BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, GSXfCursor &cursor) override;
     void GrowXfCursor(GSXfCursor &cursor, uint32_t count) override;

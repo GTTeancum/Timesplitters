@@ -2,8 +2,10 @@
 
 The GS front end is built from the shared source and from the
 patch_gif_direct.py copy (and both again over patch_native_gif.py's copy,
-TS_GIF_NATIVE=1); gif_direct_test.cpp feeds each the same random packets and
-prints every renderer call and the GS state after each packet. The outputs
+TS_GIF_NATIVE=1); gif_direct_test.cpp feeds each the same random packets
+(PACKED, REGLIST and IMAGE tags, every kind of register, split at random
+bytes and interleaved over the paths, some through the native PACKED entry)
+and prints every renderer call and the GS state after each piece. The outputs
 must be identical. Compiles and runs native C++ (CXX, default clang++).
 """
 from __future__ import annotations

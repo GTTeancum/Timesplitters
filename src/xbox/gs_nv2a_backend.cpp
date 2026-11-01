@@ -195,6 +195,22 @@ namespace
     // (xtpbuild.py --variants) once each, at most this many.
     constexpr uint32_t kVariantLogs = 32u;
 #endif
+// TS_TEXTURE_DUMP 1 (development; make TS_TEXTURE_DUMP=1, needs
+// TS_TEXTURE_SOURCE_KEYS): a texture the pack has by neither key is written
+// to E:\TimeSplitters\texdump\<decoded key>.xtx (decoded texels, its image
+// as the source key hashes it, its palette, every key), at most
+// kDumpLimit, once each, for xtpbuild.py --xbox-dump: any format the pack
+// lacks (4-bit, 16-bit CLUTs, palettes made at run time, textures from other
+// containers) goes into the next pack. Writes the hard disk mid-game.
+#ifndef TS_TEXTURE_DUMP
+#define TS_TEXTURE_DUMP 0
+#endif
+#if TS_TEXTURE_DUMP && !TS_TEXTURE_SOURCE_KEYS
+#error "TS_TEXTURE_DUMP needs TS_TEXTURE_SOURCE_KEYS"
+#endif
+#if TS_TEXTURE_DUMP
+    constexpr uint32_t kDumpLimit = 4096u;
+#endif
 // TS_NV2A_MISS_KEYS_FIXED 1: the miss statistics' key sets are fixed tables
 // (Impl::KeySet), not std::sets allocating as the frame goes. 0: the sets.
 #ifndef TS_NV2A_MISS_KEYS_FIXED
@@ -513,7 +529,8 @@ std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &s)
                << " inv=" << s.packSourceInvalidations
 #if TS_TEXTURE_SOURCE_KEYS
                << " texsrc=" << s.sourceHits << "/" << s.sourceMisses << " up=" << s.sourceFromUpload << "/"
-               << s.sourceUploads << " var=" << s.sourceVariants << " crep=" << s.clutRepeats
+               << s.sourceUploads << " var=" << s.sourceVariants << " crep=" << s.clutRepeats << " pal="
+               << s.sourcePalettes << "/" << s.paletteSlotsFull << " pre=" << s.sourcePreviews << " dump=" << s.sourceDumps
 #endif
         ;
 }
@@ -652,6 +669,13 @@ struct GSNv2aBackend::Impl
         uint32_t levels = 1;      // mip levels (pack textures only have more than one)
         uint32_t packRetryFrame = 0;
         uint32_t indexTag = 0;    // its key's hash (textureIndex)
+        // TS_TEXTURE_SOURCE_KEYS: a pack entry's preload drawn while the entry
+        // loads (memory the pack's, bytes 0, tries the pack again like a
+        // runtime-path texture); the GPU palette of an index texture
+        // (SZ_I8_A8R8G8B8: format says when it is bound) and its slot.
+        bool borrowed = false;
+        void *palette = nullptr;
+        int paletteSlot = -1;
     };
     uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
 #if TS_NV2A_MISS_KEYS_FIXED
@@ -981,7 +1005,7 @@ struct GSNv2aBackend::Impl
 #if TS_TEXTURE_INDEX
         indexRemove(it);
 #endif
-        if (it->pooled)
+        if (it->pooled || it->borrowed)
         {
             // The texels belong to the pack, which keeps them while a frame
             // in flight may read them: only the record goes, and with it
@@ -1010,7 +1034,7 @@ struct GSNv2aBackend::Impl
         if (!retired.empty())
             recentTextures.fill({}); // may point at them
         for (Texture &t : retired)
-            if (!t.pooled) // pool memory is the pack's
+            if (!t.pooled && !t.borrowed) // pool and preload memory are the pack's
                 MmFreeContiguousMemory(t.texels);
         retired.clear();
         retiredBytes = 0;
@@ -1428,13 +1452,14 @@ struct GSNv2aBackend::Impl
         // the pack (nor the RGBA hash); while its entry is on its way the
         // texture is decoded for the runtime path only, as a known one. A
         // miss takes the decoded key as before.
-        uint64_t sourceImageKey = 0;
-        if (packed && !knownPackSource && pack.sourceCount() != 0u && sourceKeyed(tex) &&
-            sourceImage(tex, t, sourceImageKey))
+        // These indices with a palette the pack lacks: its index texture
+        // with this palette, or (no index textures) the palette logged.
+        SourceKey source{};
+        if (packed && !knownPackSource && pack.sourceCount() != 0u && sourceKey(state, t, source))
         {
             uint8_t kind = 0;
-            const int index = pack.findSource(xbox_texture_source::exactKey(sourceImageKey, indexed ? hash : 0u), kind);
-            if (index >= 0 && kind == XboxTexturePack::kSourceExact)
+            const int index = pack.findSource(xbox_texture_source::exactKey(source.image, source.part), kind);
+            if (index >= 0 && kind == XboxTexturePack::kSourceExact && pack.entry(index).format != XboxTexturePack::kI8)
             {
                 ++s_lookupStats.sourceHits;
                 ++g_nv2aTextureStats.packHits;
@@ -1452,11 +1477,19 @@ struct GSNv2aBackend::Impl
             else
             {
                 ++s_lookupStats.sourceMisses;
-                // These indices with another palette are in the pack: this
-                // palette is one for the builder.
-                if (indexed && pack.findSource(xbox_texture_source::imageOnlyKey(sourceImageKey), kind) >= 0 &&
-                    kind == XboxTexturePack::kSourceImage)
-                    logVariant(sourceImageKey, hash, w, h);
+                const int image = source.indexed ? pack.findSource(xbox_texture_source::imageOnlyKey(source.image), kind) : -1;
+                if (image >= 0 && kind == XboxTexturePack::kSourceImage)
+                {
+                    if (pack.entry(image).format == XboxTexturePack::kI8)
+                    {
+                        bool known = false;
+                        if (Texture *drawn = paletteTexture(state, t, image, known))
+                            return drawn;
+                        knownPackSource = known; // on its way: the runtime path meanwhile, without the key
+                    }
+                    else if (source.mode == kSourceModeClut)
+                        logVariant(source.image, hash, w, h);
+                }
             }
         }
 #endif
@@ -1469,6 +1502,11 @@ struct GSNv2aBackend::Impl
         if (packed && !knownPackSource)
             if (Texture *pooled = packTexture(t, plan.key))
                 return pooled;
+#if TS_TEXTURE_SOURCE_KEYS && TS_TEXTURE_DUMP
+        // Neither key in the pack: the texture for the builder (--xbox-dump).
+        if (packed && !knownPackSource && source.valid && pack.find(plan.key) < 0)
+            dumpTexture(state, t, plan.key, source);
+#endif
         // The CPU renderer's texture flush where the second decode took it.
         (void)cpuFlushed();
         planTexels(t, state, plan); // sets format and bytes; the texels are written once allocated
@@ -1545,6 +1583,10 @@ struct GSNv2aBackend::Impl
         frameTextureBytes += uint32_t(t.bytes);
         if (t.pooled)
             pack.touch(t.packEntry, frameNumber);
+#if TS_TEXTURE_SOURCE_KEYS
+        if (t.paletteSlot >= 0)
+            gpuPalettes[size_t(t.paletteSlot)].lastFrame = frameNumber;
+#endif
     }
 
     // ------------------------------------------------------ texture pack
@@ -1685,10 +1727,168 @@ struct GSNv2aBackend::Impl
     std::array<uint64_t, kVariantLogs> variantsLogged{};
     uint32_t variantCount = 0;
 
-    // The formats that decode without TEXA or anything but the CLUT buffer.
-    static bool sourceKeyed(const GSTex0Reg &t)
+    // A miss's source key: the image part, the palette part and how it was
+    // made (the dump records it).
+    enum : uint8_t
     {
-        return (t.psm == GS_PSM_T8 && t.cpsm == GS_PSM_CT32 && (t.csa & 0x0Fu) == 0u) || t.psm == GS_PSM_CT32;
+        kSourceModeNone = 0,    // PSMCT32
+        kSourceModeClut = 1,    // PSMT8, 32-bit CLUT from CSA 0: the CLUT buffer's hash
+        kSourceModePalette = 2, // other indexed: the decoded palette's paletteKey
+        kSourceModeTexa = 3,    // 24- and 16-bit colour: TEXA
+    };
+    struct SourceKey
+    {
+        bool valid = false, indexed = false;
+        uint8_t mode = kSourceModeNone;
+        uint64_t image = 0, part = 0;
+    };
+
+    // The palette the decode applies (decodePalette over the CPU renderer's
+    // CLUT buffer), remembered for the same CLUT, format and TEXA.
+    uint32_t decodedPaletteEntries[256];
+    uint32_t decodedPaletteCount = 0;
+    uint64_t decodedPaletteFor = 0, decodedPaletteClut = 0;
+    bool decodedPaletteValid = false;
+    uint32_t decodedPalette(const GSDrawState &state)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        const uint64_t inputs = uint64_t(xbox_texture_source::fourBitPsm(tex.psm)) | (uint64_t(tex.cpsm) << 1) |
+                                (uint64_t(tex.csm) << 7) | (uint64_t(tex.csa & 0x1Fu) << 8) | (uint64_t(state.texa.ta0) << 13) |
+                                (uint64_t(state.texa.ta1) << 21) | (uint64_t(state.texa.aem ? 1u : 0u) << 29);
+        if (decodedPaletteValid && decodedPaletteFor == inputs && decodedPaletteClut == clutHash)
+            return decodedPaletteCount;
+        std::array<uint16_t, 512> buffer;
+        std::array<uint32_t, 2> mirror;
+        cpu.GetClutState(buffer, mirror);
+        decodedPaletteCount = xbox_texture_source::decodePalette(buffer.data(), tex.psm, tex.cpsm, tex.csm, tex.csa,
+                                                                 state.texa.ta0, state.texa.ta1, state.texa.aem,
+                                                                 decodedPaletteEntries);
+        decodedPaletteFor = inputs;
+        decodedPaletteClut = clutHash;
+        decodedPaletteValid = true;
+        return decodedPaletteCount;
+    }
+
+    bool sourceKey(const GSDrawState &state, const Texture &t, SourceKey &key)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        if (xbox_texture_source::imageBits(tex.psm) == 0u)
+            return false;
+        key.indexed = xbox_texture_source::indexedPsm(tex.psm);
+        if (key.indexed && !xbox_texture_source::clutFormat(tex.cpsm))
+            return false;
+        if (!sourceImage(tex, t, key.image))
+            return false;
+        if (tex.psm == GS_PSM_T8 && tex.cpsm == GS_PSM_CT32 && (tex.csa & 0x0Fu) == 0u)
+        {
+            key.mode = kSourceModeClut;
+            key.part = t.clutHash;
+        }
+        else if (key.indexed)
+        {
+            const uint32_t count = decodedPalette(state);
+            if (count == 0u)
+                return false;
+            key.mode = kSourceModePalette;
+            key.part = xbox_texture_source::paletteKey(decodedPaletteEntries, count);
+        }
+        else if (tex.psm != GS_PSM_CT32)
+        {
+            key.mode = kSourceModeTexa;
+            key.part = xbox_texture_source::texaKey(state.texa.ta0, state.texa.ta1, state.texa.aem);
+        }
+        key.valid = true;
+        return true;
+    }
+
+    // ------------------------------------------------- GPU palettes
+    // Index textures (format kI8) drawn with the palette of the moment:
+    // 256 A8R8G8B8 entries a slot (1 KB, 64-byte aligned as the NV2A wants),
+    // in one block taken when the pack opens. A slot used in this frame or
+    // the last is not taken for another palette (the GPU may still read it);
+    // records drawn with a slot that is taken are dropped first.
+    struct GpuPalette
+    {
+        uint64_t key = 0;
+        uint32_t lastFrame = 0;
+        bool used = false;
+    };
+    static constexpr uint32_t kGpuPalettes = 32u; // 32 KB
+    uint8_t *paletteBlock = nullptr;
+    std::array<GpuPalette, kGpuPalettes> gpuPalettes{};
+
+    // The slot holding the decoded palette, made if need be; -1 when every
+    // slot is in use, or the palette has alpha the pack's unit scale cannot
+    // hold (above 0x80).
+    int gpuPalette(const GSDrawState &state)
+    {
+        const uint32_t count = decodedPalette(state);
+        if (!paletteBlock || count == 0u)
+            return -1;
+        const uint64_t key = xbox_texture_source::paletteKey(decodedPaletteEntries, 256u);
+        int victim = -1;
+        for (uint32_t i = 0; i < kGpuPalettes; ++i)
+        {
+            GpuPalette &g = gpuPalettes[i];
+            if (g.used && g.key == key)
+            {
+                g.lastFrame = frameNumber;
+                return int(i);
+            }
+            if (!g.used || g.lastFrame + 1u < frameNumber)
+                if (victim < 0 || !g.used || (gpuPalettes[size_t(victim)].used && g.lastFrame < gpuPalettes[size_t(victim)].lastFrame))
+                    victim = int(i);
+        }
+        if (victim < 0)
+        {
+            ++s_lookupStats.paletteSlotsFull;
+            return -1;
+        }
+        for (uint32_t i = 0; i < 256u; ++i)
+            if ((decodedPaletteEntries[i] >> 24) > 0x80u)
+                return -1;
+        // Records still drawn with the slot's old palette go first.
+        uint8_t *const slot = paletteBlock + size_t(victim) * 1024u;
+        for (auto it = textures.begin(); it != textures.end();)
+        {
+            const auto next = std::next(it);
+            if (it->paletteSlot == victim)
+                retireTexture(it);
+            it = next;
+        }
+        for (Texture &r : retired)
+            if (r.paletteSlot == victim)
+                r.paletteSlot = -1, r.palette = nullptr;
+        uint32_t entries[256];
+        for (uint32_t i = 0; i < 256u; ++i)
+            entries[i] = xbox_texture_source::nv2aPaletteEntry(decodedPaletteEntries[i]);
+        std::memcpy(slot, entries, sizeof(entries));
+        gpuPalettes[size_t(victim)] = {key, frameNumber, true};
+        return victim;
+    }
+
+    // These indices (pack entry `index`, format kI8) with the palette of the
+    // moment. Null when not drawn from the pack now: `known` then says the
+    // entry is on its way (t keeps it, and tries again) rather than that the
+    // palette could not be made.
+    Texture *paletteTexture(const GSDrawState &state, Texture &t, int index, bool &known)
+    {
+        known = false;
+        const int slot = gpuPalette(state);
+        if (slot < 0)
+            return nullptr;
+        t.palette = paletteBlock + size_t(slot) * 1024u;
+        t.paletteSlot = slot;
+        ++g_nv2aTextureStats.packHits;
+        if (usePack(t, index))
+        {
+            ++s_lookupStats.sourcePalettes;
+            Texture &added = addTexture(t);
+            noteUse(added);
+            return &added;
+        }
+        known = t.packEntry >= 0;
+        return nullptr;
     }
 
     static uint32_t uploadSet(uint32_t dbp, uint32_t psm)
@@ -1704,11 +1904,11 @@ struct GSNv2aBackend::Impl
         uploadRemaining = 0;
         const GSBitBltBuf &b = c.bitbltbuf;
         const uint32_t w = c.trxreg.rrw, h = c.trxreg.rrh;
-        if (c.direction != 0u || (b.dpsm != GS_PSM_T8 && b.dpsm != GS_PSM_CT32) || c.trxpos.dsax != 0u ||
+        if (c.direction != 0u || xbox_texture_source::imageBits(b.dpsm) == 0u || c.trxpos.dsax != 0u ||
             c.trxpos.dsay != 0u || c.trxpos.dir != 0u || b.dbw == 0u || w == 0u || h == 0u || w > 1024u || h > 1024u)
             return;
         uploadPending = {b.dbp, b.dbw, b.dpsm, w | (h << 16)};
-        uploadRemaining = w * h * (b.dpsm == GS_PSM_CT32 ? 4u : 1u);
+        uploadRemaining = xbox_texture_source::imageBytes(b.dpsm, w, h);
         uploadHasher.reset(b.dpsm, w, h);
     }
 
@@ -1753,8 +1953,8 @@ struct GSNv2aBackend::Impl
         ++s_lookupStats.sourceUploads;
     }
 
-    // The image part of t's source key (t a miss of a sourceKeyed format,
-    // not a render target): its upload's, else read back.
+    // The image part of t's source key (t a miss of a format with source
+    // keys, not a render target): its upload's, else read back.
     bool sourceImage(const GSTex0Reg &tex, const Texture &t, uint64_t &image)
     {
         const UploadSource *const set = &uploadSources[uploadSet(tex.tbp0, tex.psm)];
@@ -1771,31 +1971,110 @@ struct GSNv2aBackend::Impl
         }
         if (!vram)
             return false;
-        // GS memory read as the decode reads it, without the palette: the
-        // indices packed to a byte each (in place: byte i is behind word i).
-        const bool indexed = tex.psm == GS_PSM_T8;
+        // GS memory read as the decode reads it, without the palette, packed
+        // as an upload carries it (packTexels, in place).
         xbox_texture_source::ImageHasher hasher(tex.psm, t.width, t.height);
         const uint32_t w = t.width, band = std::max<uint32_t>(kScratchTexels / w, 1u);
         uint8_t *const bytes = reinterpret_cast<uint8_t *>(texScratch);
+        uint32_t nibble = 0;
         for (uint32_t y = 0; y < t.height; y += band)
         {
             const uint32_t rows = std::min(band, t.height - y);
             for (uint32_t r = 0; r < rows; ++r)
                 if (!GSMem::ReadRow(tex.psm, vram, tex.tbp0, tex.tbw, 0u, y + r, w, texScratch + size_t(r) * w))
                     return false;
-            const size_t count = size_t(rows) * w;
-            if (indexed)
-            {
-                for (size_t i = 0; i < count; ++i)
-                    bytes[i] = uint8_t(texScratch[i]);
-                hasher.add(bytes, count);
-            }
-            else
-                hasher.add(bytes, count * 4u);
+            hasher.add(bytes, xbox_texture_source::packTexels(tex.psm, texScratch, size_t(rows) * w, bytes, nibble));
+        }
+        if (nibble)
+        {
+            const uint8_t last = uint8_t(nibble & 0x0Fu);
+            hasher.add(&last, 1u);
         }
         image = hasher.value();
         return true;
     }
+
+#if TS_TEXTURE_DUMP
+    // TS_TEXTURE_DUMP: the texture for xtpbuild.py --xbox-dump (layout at
+    // read_xbox_dumps there), a row at a time through a buffer of its own
+    // (the texture scratch holds the decode the miss goes on with).
+    struct DumpHeader
+    {
+        char magic[4];
+        uint32_t version;
+        uint16_t width, height;
+        uint8_t psm, cpsm, flags, mode;
+        uint64_t decoded, image, part, exact;
+        uint32_t paletteCount, imageBytes, texa, reserved;
+    };
+    static_assert(sizeof(DumpHeader) == 64, "dump header layout");
+    std::vector<uint64_t> dumped; // decoded keys written, sorted
+    bool dumpFolder = false;
+
+    void dumpTexture(const GSDrawState &state, const Texture &t, uint64_t decodedKey, const SourceKey &source)
+    {
+        const auto at = std::lower_bound(dumped.begin(), dumped.end(), decodedKey);
+        if (dumped.size() >= kDumpLimit || (at != dumped.end() && *at == decodedKey) || !vram)
+            return;
+        dumped.insert(at, decodedKey);
+        if (!dumpFolder)
+        {
+            CreateDirectoryA("E:\\TimeSplitters", nullptr);
+            CreateDirectoryA("E:\\TimeSplitters\\texdump", nullptr);
+            dumpFolder = true;
+        }
+        char name[64];
+        std::snprintf(name, sizeof(name), "E:\\TimeSplitters\\texdump\\%08x%08x.xtx", unsigned(decodedKey >> 32),
+                      unsigned(decodedKey));
+        HANDLE f = CreateFileA(name, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (f == INVALID_HANDLE_VALUE)
+            return;
+        const GSTex0Reg &tex = state.context.tex0;
+        const uint32_t w = t.width, h = t.height;
+        const uint32_t count = source.indexed ? decodedPalette(state) : 0u;
+        DumpHeader header{};
+        std::memcpy(header.magic, "XTX1", 4);
+        header.version = 1u;
+        header.width = uint16_t(w);
+        header.height = uint16_t(h);
+        header.psm = tex.psm;
+        header.cpsm = tex.cpsm;
+        header.flags = source.indexed ? 1u : 0u;
+        header.mode = source.mode;
+        header.decoded = decodedKey;
+        header.image = source.image;
+        header.part = source.part;
+        header.exact = xbox_texture_source::exactKey(source.image, source.part);
+        header.paletteCount = count;
+        header.imageBytes = xbox_texture_source::imageBytes(tex.psm, w, h);
+        header.texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
+        auto write = [&](const void *data, uint32_t bytes) {
+            DWORD done = 0;
+            return bytes == 0u || (WriteFile(f, data, bytes, &done, nullptr) && done == bytes);
+        };
+        std::vector<uint32_t> row(w);
+        bool ok = write(&header, sizeof(header));
+        for (uint32_t y = 0; ok && y < h; ++y)
+        {
+            cpu.DecodeTextureRows(state, y, 1u, row.data());
+            ok = write(row.data(), w * 4u);
+        }
+        uint32_t nibble = 0;
+        uint8_t *const bytes = reinterpret_cast<uint8_t *>(row.data());
+        for (uint32_t y = 0; ok && y < h; ++y)
+        {
+            ok = GSMem::ReadRow(tex.psm, vram, tex.tbp0, tex.tbw, 0u, y, w, row.data()) &&
+                 write(bytes, uint32_t(xbox_texture_source::packTexels(tex.psm, row.data(), w, bytes, nibble)));
+        }
+        const uint8_t last = uint8_t(nibble & 0x0Fu);
+        ok = ok && (!nibble || write(&last, 1u)) && write(decodedPaletteEntries, count * 4u);
+        CloseHandle(f);
+        if (ok)
+            ++s_lookupStats.sourceDumps;
+        else
+            DeleteFileA(name);
+    }
+#endif
 
     // Indices the pack has with another palette: this one, for the builder
     // (xtpbuild.py --variants), as eight lines of 32 entries, once a pair.
@@ -1846,6 +2125,12 @@ struct GSNv2aBackend::Impl
         pack.close();
         if (packPool)
             MmFreeContiguousMemory(packPool);
+#if TS_TEXTURE_SOURCE_KEYS
+        if (preloadBlock)
+            MmFreeContiguousMemory(preloadBlock);
+        if (paletteBlock)
+            MmFreeContiguousMemory(paletteBlock);
+#endif
     }
 
     // Opens the pack and takes its pool: at start-up, while 1.25 MB of
@@ -1865,6 +2150,28 @@ struct GSNv2aBackend::Impl
             pack.close();
             return;
         }
+#if TS_TEXTURE_SOURCE_KEYS
+        // The preloads, read now (before the loader takes the file), and the
+        // GPU palettes when the pack has index textures. Either missing
+        // leaves that part out.
+        if (const uint32_t bytes = pack.preloadBytes())
+        {
+            preloadBlock = static_cast<uint8_t *>(allocGpu(bytes));
+            if (!preloadBlock || !pack.readPreloads(preloadBlock))
+            {
+                std::cout << "[TS:xbox] texture pack: preloads not used (" << (preloadBlock ? "unreadable" : "no memory")
+                          << ")" << std::endl;
+                if (preloadBlock)
+                    MmFreeContiguousMemory(preloadBlock);
+                preloadBlock = nullptr;
+            }
+        }
+        bool indexTextures = false;
+        for (uint32_t i = 0; i < pack.count() && !indexTextures; ++i)
+            indexTextures = pack.entry(int(i)).format == XboxTexturePack::kI8;
+        if (indexTextures && !(paletteBlock = static_cast<uint8_t *>(allocGpu(kGpuPalettes * 1024u))))
+            std::cout << "[TS:xbox] texture pack: no memory for GPU palettes, index textures not used" << std::endl;
+#endif
         if (!pack.attachPool(packPool, kTexturePoolBytes))
         {
             MmFreeContiguousMemory(packPool);
@@ -1920,7 +2227,20 @@ struct GSNv2aBackend::Impl
     // again: next frame while the entry is on its way from the disc (or the
     // loader is busy), later when the pool had no room, never when the
     // entry cannot be read.
-    bool usePack(Texture &t, int index)
+#if TS_TEXTURE_SOURCE_KEYS
+    uint8_t *preloadBlock = nullptr; // the pack's preloads (version 3), read at start-up
+#endif
+
+    // The NV2A format of each XboxTexturePack::Format.
+    static constexpr uint32_t kPackFormats[5] = {
+        NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5, NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
+        NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8, NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5,
+        NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8};
+
+    // allowPreview (TS_TEXTURE_SOURCE_KEYS): an entry not in the pool yet
+    // but with a preload makes t that preload (borrowed, true is returned)
+    // until the entry arrives, instead of the runtime path's conversion.
+    bool usePack(Texture &t, int index, bool allowPreview = true)
     {
         XboxTexturePack::Status status = XboxTexturePack::kUnavailable;
         uint8_t *texels = pack.acquire(index, frameNumber, packEvicted, status);
@@ -1945,14 +2265,32 @@ struct GSNv2aBackend::Impl
                 t.packEntry = -1;
                 break;
             }
+#if TS_TEXTURE_SOURCE_KEYS
+            if (allowPreview && t.packEntry >= 0)
+                if (const XboxTexturePack::Preload *preload = pack.preload(index))
+                {
+                    const XboxTexturePack::Entry &e = pack.entry(index);
+                    t.texels = preloadBlock + preload->offset;
+                    t.format = kPackFormats[preload->format];
+                    t.gpuWidth = preload->width;
+                    t.gpuHeight = preload->height;
+                    t.levels = 1;
+                    t.unitAlpha = (e.flags & XboxTexturePack::kUnitAlpha) != 0u;
+                    t.forceLinear = (e.flags & XboxTexturePack::kReplacement) != 0u;
+                    t.bytes = 0;
+                    t.pooled = false;
+                    t.borrowed = true;
+                    ++s_lookupStats.sourcePreviews;
+                    return true;
+                }
+#else
+            (void)allowPreview;
+#endif
             return false;
         }
-        static const uint32_t kFormats[4] = {
-            NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5, NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
-            NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8, NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5};
         const XboxTexturePack::Entry &e = pack.entry(index);
         t.texels = texels;
-        t.format = kFormats[e.format]; // checked when the pack was opened
+        t.format = kPackFormats[e.format]; // checked when the pack was opened
         t.gpuWidth = e.width;
         t.gpuHeight = e.height;
         t.levels = e.levels;
@@ -1961,6 +2299,7 @@ struct GSNv2aBackend::Impl
         t.bytes = 0;
         t.packEntry = index;
         t.pooled = true;
+        t.borrowed = false;
         return true;
     }
 
@@ -1977,6 +2316,13 @@ struct GSNv2aBackend::Impl
     {
         const int index = pack.find(gs_texture_hash::hash(decoded.data(), t.width, t.height));
 #endif
+        // An index texture is never a decoded texture (its key is a source
+        // key): only a palette makes it one (paletteTexture).
+        if (index >= 0 && pack.entry(index).format == XboxTexturePack::kI8)
+        {
+            ++g_nv2aTextureStats.packMisses;
+            return nullptr;
+        }
 #if TS_NV2A_PACK_IDENTITY_CACHE
         rememberPackSource(t, index);
 #endif
@@ -1999,7 +2345,7 @@ struct GSNv2aBackend::Impl
     Texture *retryPack(std::list<Texture>::iterator it)
     {
         Texture t = *it;
-        if (!usePack(t, it->packEntry))
+        if (!usePack(t, it->packEntry, false)) // a preload in its place would change nothing
         {
             it->packEntry = t.packEntry;
             it->packRetryFrame = t.packRetryFrame;
@@ -3312,6 +3658,14 @@ struct GSNv2aBackend::Impl
                 p = push1(p, NV097_SET_TEXTURE_FORMAT,
                              0x0000002Au | (t.format << 8) | (t.levels << 16) |
                                  (log2u(t.gpuWidth) << 20) | (log2u(t.gpuHeight) << 24));
+#if TS_TEXTURE_SOURCE_KEYS
+                // An index texture's palette: 256 entries through context
+                // DMA B, as the texels (format 0x2A's DMA field).
+                if (t.palette && t.format == NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8)
+                    p = push1(p, NV097_SET_TEXTURE_PALETTE,
+                                 (physical(t.palette) & NV097_SET_TEXTURE_PALETTE_OFFSET) |
+                                     (NV097_SET_TEXTURE_PALETTE_LENGTH_256 << 2) | NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA);
+#endif
             }
             // MAX_LOD_CLAMP (4.8 fixed point, bits 6..17) lets the sampler
             // reach the last level; one level leaves it 0, as before.
@@ -3478,11 +3832,6 @@ struct GSNv2aBackend::Impl
         verticesUsed += count;
         batchCount += count;
         return out;
-    }
-
-    void submitScreen(const GSPrimitiveBatch &batch)
-    {
-        submitScreenVerts(batch.state, batch.vertices.data(), batch.vertexCount);
     }
 
     // A primitive from the GS front end (count = its vertices) or a whole
@@ -4249,30 +4598,60 @@ void GSNv2aBackend::Reset()
     m->targetPages.reset();
 }
 
+namespace
+{
+    // Off-screen target: the CPU renderer draws it into local memory.
+    void submitOffscreen(GSNv2aBackend::Impl &m, const GSPrimitiveBatch &batch)
+    {
+        ++g_nv2aTextureStats.offscreenDraws;
+        g_nv2aTextureStats.offscreenFbp = batch.state.context.frame.fbp;
+        g_nv2aTextureStats.offscreenFbw = batch.state.context.frame.fbw;
+        g_nv2aTextureStats.offscreenPsm = batch.state.context.frame.psm;
+        g_nv2aTextureStats.offscreenPrim = batch.state.prim.type;
+        const GSCpuBackend::VramRange textureRange = GSCpuBackend::TextureRange(batch.state);
+        if (batch.state.prim.tme && m.screenGpuNewer && overlaps(textureRange, m.gpuRange()))
+        {
+            ++g_nv2aTextureStats.wbDraw;
+            m.writeBackScreen();
+        }
+        m.cpuFlushed().Submit(batch);
+        const GSCpuBackend::VramRange target = GSCpuBackend::FrameRange(batch.state);
+        m.noteCpuWrite(target);
+        m.markTargetPages(target, true);
+    }
+
+    // Submit and SubmitRun (TS_GIF_DIRECT): prims primitives of per vertices
+    // and one state - Submit's batch, or a run of the direct GIF decoder - on
+    // screen in one call, off screen one by one as the GS front end's batches.
+    void submitPrimitives(GSNv2aBackend::Impl &m, const GSPrimitiveBatch *batch, const GSDrawState &state,
+                          const GSVertex *vertices, uint32_t per, uint32_t prims)
+    {
+        g_nv2aStep = 80;
+        if (m.isScreenTarget(state))
+        {
+            m.submitScreenVerts(state, vertices, per, prims);
+            return;
+        }
+        if (batch)
+        {
+            submitOffscreen(m, *batch);
+            return;
+        }
+        GSPrimitiveBatch one{}; // vertices past per as the front end leaves them
+        one.state = state;
+        one.vertexCount = uint8_t(per);
+        for (uint32_t p = 0; p < prims; ++p)
+        {
+            for (uint32_t i = 0; i < per; ++i)
+                one.vertices[i] = vertices[p * per + i];
+            submitOffscreen(m, one);
+        }
+    }
+}
+
 void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
 {
-        g_nv2aStep = 80;
-    if (m->isScreenTarget(batch.state))
-    {
-        m->submitScreen(batch);
-        return;
-    }
-    // Off-screen target: the CPU renderer draws it into local memory.
-    ++g_nv2aTextureStats.offscreenDraws;
-    g_nv2aTextureStats.offscreenFbp = batch.state.context.frame.fbp;
-    g_nv2aTextureStats.offscreenFbw = batch.state.context.frame.fbw;
-    g_nv2aTextureStats.offscreenPsm = batch.state.context.frame.psm;
-    g_nv2aTextureStats.offscreenPrim = batch.state.prim.type;
-    const GSCpuBackend::VramRange textureRange = GSCpuBackend::TextureRange(batch.state);
-    if (batch.state.prim.tme && m->screenGpuNewer && overlaps(textureRange, m->gpuRange()))
-    {
-        ++g_nv2aTextureStats.wbDraw;
-        m->writeBackScreen();
-    }
-    m->cpuFlushed().Submit(batch);
-    const GSCpuBackend::VramRange target = GSCpuBackend::FrameRange(batch.state);
-    m->noteCpuWrite(target);
-    m->markTargetPages(target, true);
+    submitPrimitives(*m, &batch, batch.state, batch.vertices.data(), batch.vertexCount, 1u);
 }
 
 bool GSNv2aBackend::BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, GSXfCursor &cursor)
@@ -4295,14 +4674,10 @@ bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertic
 }
 
 #if TS_GIF_DIRECT
-// As Submit for each primitive: off-screen targets go back to the caller
-// (the CPU renderer's path), points and lines only open the frame.
+// As Submit for each primitive (the same code).
 bool GSNv2aBackend::SubmitRun(const GSDrawState &state, const GSVertex *vertices, uint32_t per, uint32_t prims)
 {
-    g_nv2aStep = 80;
-    if (!m->isScreenTarget(state))
-        return false;
-    m->submitScreenVerts(state, vertices, per, prims);
+    submitPrimitives(*m, nullptr, state, vertices, per, prims);
     return true;
 }
 

@@ -1,6 +1,9 @@
 // Host test of the direct GIF decoder (src/xbox/xbox_gif_direct.h,
-// TS_GIF_DIRECT): random PACKED/REGLIST packets through the GS front end,
-// printing every renderer call, the GS state after each packet and a probe
+// TS_GIF_DIRECT): random PACKED/REGLIST/IMAGE packets with every kind of
+// register (vertex data, state, FRAME/ZBUF changes, transfers, HWREG,
+// SIGNAL/FINISH/LABEL, privileged, unknown), split at random bytes into
+// pieces interleaved over the three paths, through the GS front end,
+// printing every renderer call, the GS state after each piece and a probe
 // draw of the inherited vertex attributes. Built twice by
 // test_gif_direct.py, from the shared gs_frontend.cpp and from its
 // patch_gif_direct.py copy (-DTS_GIF_DIRECT=1); the two outputs must be
@@ -70,8 +73,20 @@ namespace
         {
             std::printf("clut %u/%u/%u/%u/%u/%u %u/%u/%u\n", t.psm, t.cbp, t.cpsm, t.csm, t.csa, t.cld, c.cbw, c.cou, c.cov);
         }
-        void BeginTransfer(const GSTransferCommand &c) override { std::printf("transfer %u\n", c.direction); }
-        void UploadImage(const uint8_t *, uint32_t size) override { std::printf("image %u\n", size); }
+        void BeginTransfer(const GSTransferCommand &c) override
+        {
+            std::printf("transfer %u %u/%u/%u/%u/%u/%u %u/%u/%u/%u/%u %u/%u\n", c.direction, c.bitbltbuf.sbp,
+                        c.bitbltbuf.sbw, c.bitbltbuf.spsm, c.bitbltbuf.dbp, c.bitbltbuf.dbw, c.bitbltbuf.dpsm,
+                        c.trxpos.ssax, c.trxpos.ssay, c.trxpos.dsax, c.trxpos.dsay, c.trxpos.dir, c.trxreg.rrw,
+                        c.trxreg.rrh);
+        }
+        void UploadImage(const uint8_t *data, uint32_t size) override
+        {
+            uint64_t hash = 14695981039346656037ull;
+            for (uint32_t i = 0; i < size; ++i)
+                hash = (hash ^ data[i]) * 1099511628211ull;
+            std::printf("image %u %" PRIx64 "\n", size, hash);
+        }
         void Flush() override { std::printf("flush\n"); }
         void TextureFlush() override { std::printf("texflush\n"); }
         void Sync(GSSyncReason r) override { std::printf("sync %u\n", unsigned(r)); }
@@ -127,14 +142,14 @@ namespace
         case GS_REG_FRAME_1: case GS_REG_FRAME_2:
         {
             const GSFrameReg &f = snap.ctx[reg & 1u].frame;
-            if (pick(5))
+            if (pick(2))
                 return f.fbp | (uint64_t(f.fbw) << 16) | (uint64_t(f.psm) << 24) | (uint64_t(f.fbmsk) << 32);
             return pick(2) * 0x46u | (10u << 16) | (uint64_t(pick(2) * 2u) << 24);
         }
         case GS_REG_ZBUF_1: case GS_REG_ZBUF_2:
         {
             const GSZbufReg &z = snap.ctx[reg & 1u].zbuf;
-            if (pick(5))
+            if (pick(2))
                 return z.zbp | (uint64_t(z.psm & 0xFu) << 24) | (uint64_t(z.zmask) << 32);
             return 0x8Cu | (uint64_t(pick(2)) << 32);
         }
@@ -142,6 +157,12 @@ namespace
             return pick(2) ? 0x30000u : pick(2) ? 0x50000u : rand64() & 0x7FFFFu;
         case GS_REG_ALPHA_1: case GS_REG_ALPHA_2:
             return pick(2) ? 0x64u | (uint64_t(pick(2) ? 0x80u : 0x60u) << 32) : 0x44u;
+        case GS_REG_TRXDIR:
+            return pick(4); // host-to-local, local-to-host, local-to-local, none
+        case GS_REG_TRXREG:
+            return (1u + pick(16)) | (uint64_t(1u + pick(16)) << 32);
+        case GS_REG_SIGNAL: case GS_REG_LABEL:
+            return rand64();
         case GS_REG_PABE: case GS_REG_DIMX: case GS_REG_DTHE: case GS_REG_COLCLAMP: case GS_REG_PRMODECONT:
             return pick(2);
         case GS_REG_TEX0_1: case GS_REG_TEX0_2: case GS_REG_TEX2_1: case GS_REG_TEX2_2:
@@ -151,8 +172,7 @@ namespace
         }
     }
 
-    // Addresses written by A+D/REGLIST, weighted towards the common ones;
-    // the last ones are declined (the original route takes the packet).
+    // Addresses written by A+D/REGLIST, weighted towards the common ones.
     uint32_t randomAddress()
     {
         static const uint8_t kRegs[] = {
@@ -162,10 +182,11 @@ namespace
             GS_REG_TEXA, GS_REG_FOGCOL, GS_REG_TEXFLUSH, GS_REG_SCISSOR_1, GS_REG_ALPHA_1, GS_REG_ALPHA_2,
             GS_REG_ALPHA_1, GS_REG_TEST_1, GS_REG_TEST_2, GS_REG_PABE, GS_REG_FBA_1, GS_REG_DIMX, GS_REG_DTHE,
             GS_REG_COLCLAMP, GS_REG_FRAME_1, GS_REG_FRAME_2, GS_REG_ZBUF_1, GS_REG_ZBUF_2, 0x0E, 0x0F, 0x0B,
-            GS_REG_BITBLTBUF, GS_REG_TRXDIR, GS_REG_LABEL, 0x5F, 0x30};
+            GS_REG_BITBLTBUF, GS_REG_TRXPOS, GS_REG_TRXREG, GS_REG_TRXDIR, GS_REG_HWREG, GS_REG_SIGNAL,
+            GS_REG_FINISH, GS_REG_LABEL, 0x59, 0x5A, 0x5B, 0x5C, 0x5F, 0x30, 0x7F};
         const uint32_t n = sizeof(kRegs);
         const uint32_t i = pick(n + 30u);
-        return i < n ? (i >= n - 5u && pick(4) ? GS_REG_RGBAQ : kRegs[i]) : kRegs[pick(10)];
+        return i < n ? kRegs[i] : kRegs[pick(10)];
     }
 
     void packedTag(GS &gs, Packet &p)
@@ -243,26 +264,28 @@ namespace
                 packedTag(gs, p);
             else if (kind < 49)
                 reglistTag(gs, p);
-            else // IMAGE: declined
+            else // IMAGE (or disabled): uploaded data
             {
-                p.qword(2u | (2ull << 58), 0);
-                p.qword(rand64(), rand64());
-                p.qword(rand64(), rand64());
+                const uint32_t nloop = pick(6);
+                p.qword(nloop | (uint64_t(2u + (pick(4) == 0)) << 58), 0);
+                for (uint32_t q = 0; q < nloop; ++q)
+                    p.qword(rand64(), rand64());
             }
         }
         return p;
     }
 
-    // One PACKED XYZ2 in two pieces (never direct): draws with what the
-    // packet left (attributes, PRIM, vertex queue).
+    // One PACKED XYZ2 on PATH2 (which carries nothing else): draws with
+    // what the piece left (attributes, PRIM, vertex queue).
     void probe(GS &gs)
     {
         Packet p;
         p.qword(1u | (1ull << 60), 0x5u);
         p.qword(randomXy(32), rng());
-        gs.processGIFPacket(p.bytes.data(), 8u, GifPathId::Path3);
-        gs.processGIFPacket(p.bytes.data() + 8u, uint32_t(p.bytes.size() - 8u), GifPathId::Path3);
+        gs.processGIFPacket(p.bytes.data(), uint32_t(p.bytes.size()), GifPathId::Path2);
     }
+
+    GSRegisters privRegs{};
 
     void state(GS &gs)
     {
@@ -274,9 +297,15 @@ namespace
         GSFrameReg source{};
         uint32_t dest = 0;
         const bool preferred = gs.getPreferredDisplaySource(source, dest);
-        std::printf(" a%u/%d/%u c%u/%u/%u pref%d/%u/%u/%u/%u %" PRIu64 "\n", s.texa.ta0, s.texa.aem, s.texa.ta1,
-                    s.texclut.cbw, s.texclut.cou, s.texclut.cov, preferred, source.fbp, source.fbw, source.psm,
-                    dest, uint64_t(gs.nativePackedGIFPacketCount()));
+        std::printf(" a%u/%d/%u c%u/%u/%u pref%d/%u/%u/%u/%u %" PRIu64 " t%u/%u/%u/%u/%u/%u %u/%u/%u/%u %u/%u",
+                    s.texa.ta0, s.texa.aem, s.texa.ta1, s.texclut.cbw, s.texclut.cou, s.texclut.cov, preferred,
+                    source.fbp, source.fbw, source.psm, dest, uint64_t(gs.nativePackedGIFPacketCount()),
+                    s.bitbltbuf.sbp, s.bitbltbuf.sbw, s.bitbltbuf.spsm, s.bitbltbuf.dbp, s.bitbltbuf.dbw,
+                    s.bitbltbuf.dpsm, s.trxpos.ssax, s.trxpos.ssay, s.trxpos.dsax, s.trxpos.dsay, s.trxreg.rrw,
+                    s.trxreg.rrh);
+        std::printf(" priv %" PRIx64 " %" PRIx64 " %" PRIx64 " %" PRIx64 " %" PRIx64 " %" PRIx64 " %" PRIx64 "\n",
+                    privRegs.siglblid, uint64_t(privRegs.csr.load()), privRegs.dispfb1, privRegs.display1,
+                    privRegs.dispfb2, privRegs.display2, privRegs.bgcolor);
     }
 }
 
@@ -304,7 +333,7 @@ int main(int argc, char **argv)
     const uint32_t packets = argc > 1 ? uint32_t(std::atoi(argv[1])) : 20000u;
     static std::vector<uint8_t> vram(4u * 1024u * 1024u);
     GS gs;
-    gs.init(vram.data(), uint32_t(vram.size()));
+    gs.init(vram.data(), uint32_t(vram.size()), &privRegs);
     gs.setRasterBackend(std::make_unique<Recorder>());
     // Context 2 draws off screen (FRAME fbp 0x46), context 1's depth buffer
     // is masked (the widescreen HUD narrowing's overlay draws).
@@ -315,35 +344,55 @@ int main(int argc, char **argv)
         p.qword(0x8Cu | (1ull << 32), GS_REG_ZBUF_1);
         gs.processGIFPacket(p.bytes.data(), uint32_t(p.bytes.size()), GifPathId::Path3);
     }
+    // Each path's packet still to send, in random pieces; a step sends the
+    // next piece of a path, or starts its next packet.
+    std::vector<uint8_t> pending[3];
+    size_t sent[3] = {};
+    static const GifPathId kPaths[3] = {GifPathId::Path1, GifPathId::Path2, GifPathId::Path3};
     for (uint32_t i = 0; i < packets; ++i)
     {
         if (i % 64u == 0u) // widescreen HUD narrowing on and off: its draw counters carry over
             hostSettings().widescreen.store(pick(2));
-        Packet p = randomPacket(gs);
-        const uint32_t size = uint32_t(p.bytes.size());
-        // Some end inside a tag, the rest following as the next transfer
-        // (the stream between them is not between tags).
-        const uint32_t split = !pick(30) && size > 16u ? size - 16u : size;
-        const uint32_t route = split != size ? 1u + pick(9) : pick(10);
-        const GifPathId path = route < 4 ? GifPathId::Path1 : GifPathId::Path3;
-        std::printf("packet %u %u %u %u\n", i, size, split, route);
-        if (route == 0)
-            std::printf("native %d\n", gs.processNativePackedGIFPacket(p.bytes.data(), split));
-        else
-            gs.processGIFPacket(p.bytes.data(), split, path);
-        if (split != size)
+        if (i % 97u == 0u)
+            gs.setHostPresentationMode(GS::HostPresentationMode(pick(3)));
+        const uint32_t path = pick(4) == 0 ? 0u : 2u; // PATH2 carries only the probes
+        std::vector<uint8_t> &bytes = pending[path];
+        if (sent[path] == bytes.size())
         {
-            if (!pick(3))
-                std::printf("native %d\n", gs.processNativePackedGIFPacket(p.bytes.data(), size));
-            gs.processGIFPacket(p.bytes.data() + split, size - split, path);
+            Packet p = randomPacket(gs);
+            if (pick(10) == 0)
+            {
+                // The native PACKED entry, whole (it declines the rest; then
+                // the packet goes the stream's way, as the DMA does).
+                std::printf("packet %u native %u\n", i, uint32_t(p.bytes.size()));
+                const bool done = gs.processNativePackedGIFPacket(p.bytes.data(), uint32_t(p.bytes.size()));
+                std::printf("native %d\n", done);
+                if (!done)
+                    gs.processGIFPacket(p.bytes.data(), uint32_t(p.bytes.size()), kPaths[path]);
+                state(gs);
+                probe(gs);
+                continue;
+            }
+            bytes = std::move(p.bytes);
+            sent[path] = 0;
         }
+        const size_t left = bytes.size() - sent[path];
+        // Whole, or a piece ending anywhere: inside a qword, a tag, a
+        // REGLIST padding or an IMAGE transfer.
+        size_t piece = pick(3) ? left : 1u + pick(uint32_t(left));
+        if (pick(3) == 0 && piece > 16u)
+            piece &= ~size_t(15u); // DMA-sized
+        std::printf("packet %u path %u %u+%u/%u\n", i, path + 1u, uint32_t(sent[path]), uint32_t(piece),
+                    uint32_t(bytes.size()));
+        gs.processGIFPacket(bytes.data() + sent[path], uint32_t(piece), kPaths[path]);
+        sent[path] += piece;
         state(gs);
         probe(gs);
     }
 #if TS_GIF_DIRECT
     const XboxGifDirectStats &s = g_xboxGifDirectStats;
-    std::fprintf(stderr, "direct packets %u runs %u gpu %u prims %u writes %u skipped %u declined", s.packets, s.runs,
-                 s.gpuRuns, s.prims, s.writes, s.skipped);
+    std::fprintf(stderr, "direct packets %u runs %u gpu %u prims %u writes %u skipped %u images %u carried %u declined",
+                 s.packets, s.runs, s.gpuRuns, s.prims, s.writes, s.skipped, s.images, s.carried);
     for (uint32_t d : s.declined)
         std::fprintf(stderr, " %u", d);
     std::fprintf(stderr, "\n");

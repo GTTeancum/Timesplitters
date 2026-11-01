@@ -45,6 +45,40 @@ def pack_bytes(entries, sources=None):
     return head + bytes(data_start - len(head)) + data
 
 
+EXTENSION = struct.Struct("<8I")
+PRELOAD = struct.Struct("<IIHHBBBB")
+
+
+def level_bytes(fmt, side):
+    return ((side + 3) // 4) ** 2 * (8 if fmt == 0 else 16) if fmt < 2 else side * side * {2: 4, 3: 2, 4: 1}[fmt]
+
+
+def pack_v3(entries, sources, preloads):
+    """Version 3: entries as pack_bytes's (format 4: 8-bit indices), sources,
+    and preloads ((entry, side) records, texels 0xA0 + entry)."""
+    index_offset = HEADER.size + EXTENSION.size
+    source_offset = index_offset + len(entries) * ENTRY.size
+    preload_offset = source_offset + len(sources) * SOURCE.size
+    preload_data_offset = (preload_offset + len(preloads) * PRELOAD.size + 127) & ~127
+    records, texels = [], bytearray()
+    for entry, side in preloads:
+        records.append(PRELOAD.pack(entry, len(texels), side, side, entries[entry][1], 0, 0, 0))
+        n = level_bytes(entries[entry][1], side)
+        texels += bytes([0xA0 + entry]) * n + bytes(-n % 128)
+    offset = data_start = preload_data_offset + len(texels)
+    index, data = [], bytearray()
+    for key, fmt, width, levels in entries:
+        size = sum(level_bytes(fmt, max(1, width >> i)) for i in range(levels))
+        at = (offset + 127) & ~127
+        data += bytes(at - offset) + bytes([key & 255]) * size
+        index.append(ENTRY.pack(key, at, size, width, width, fmt, levels, 1, 0))
+        offset = at + size
+    head = HEADER.pack(b"XTP1", 3, 1, len(entries), index_offset, data_start, len(sources), source_offset)
+    head += EXTENSION.pack(len(preloads), preload_offset, preload_data_offset, len(texels), 0, 0, 0, 0)
+    head += b"".join(index) + b"".join(SOURCE.pack(k, e, kind, 0, 0, 0) for k, e, kind in sources) + b"".join(records)
+    return head + bytes(preload_data_offset - len(head)) + texels + data
+
+
 class TexturePackTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -68,6 +102,9 @@ class TexturePackTests(unittest.TestCase):
         cls.sources = cls.folder / "sources.xtp"
         cls.sources.write_bytes(pack_bytes([(0x10, 0, 8, 2), (0x11, 1, 8, 2), (0x12, 2, 8, 4)],
                                            [(0x100, 1, 0), (0x200, 2, 1), (0x300, 0, 0)]))
+        cls.preloads = cls.folder / "preloads.xtp"
+        cls.preloads.write_bytes(pack_v3([(0x10, 0, 8, 2), (0x11, 4, 8, 4), (0x12, 2, 8, 1)],
+                                         [(0x100, 1, 1), (0x200, 0, 0)], [(0, 4), (1, 4)]))
         cls.room = cls.folder / "room.xtp"
         cls.room.write_bytes(pack_bytes([(0x10, 0, 4, 1), (0x11, 0, 4, 1), (0x12, 0, 4, 1), (0x13, 2, 8, 1)]))
 
@@ -89,6 +126,25 @@ class TexturePackTests(unittest.TestCase):
     def test_read_completion_invalidates_cached_no_room(self): self.run_case("completed-room", path=self.room)
     def test_version_2_source_table(self): self.run_case("sources", path=self.sources)
     def test_version_1_has_no_sources(self): self.run_case("no-sources")
+    def test_version_3_preloads_and_index_textures(self): self.run_case("preloads", path=self.preloads)
+
+    def test_rejects_malformed_version_3(self):
+        source = self.preloads.read_bytes()
+        ext, index = HEADER.size, HEADER.size + EXTENSION.size
+        records = index + 3 * ENTRY.size + 2 * SOURCE.size
+        patches = [("extension reserved", ext + 16, "<I", 1), ("index over extension", 16, "<I", 32),
+                   ("more preloads than entries", ext, "<I", 4), ("preload table over sources", ext + 4, "<I", records - 16),
+                   ("unaligned preload texels", ext + 8, "<I", 0x105), ("preload texels past data", ext + 12, "<I", 1 << 20),
+                   ("preload of another format", records + 12, "<B", 2), ("preload larger than entry", records + 8, "<H", 16),
+                   ("unaligned preload offset", records + 4, "<I", 8), ("preloads unsorted", records + 16, "<I", 0),
+                   ("preload reserved", records + 13, "<B", 1), ("index texture before version 3", 4, "<I", 2)]
+        for label, offset, fmt, value in patches:
+            with self.subTest(label=label):
+                altered = bytearray(source)
+                struct.pack_into(fmt, altered, offset, value)
+                path = self.folder / "bad-v3.xtp"
+                path.write_bytes(altered)
+                self.run_case("reject", path=path)
 
     def test_rejects_malformed_source_table(self):
         source = self.sources.read_bytes()

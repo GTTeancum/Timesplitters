@@ -237,6 +237,26 @@ NATIVE_CALL_OBJS := $(addprefix $(OBJ)/project/game/,$(addsuffix .obj,$(NATIVE_C
 NATIVE_CALL_GAME2_COPY := $(NATIVE_CALL_DIR)/ts_native_game2.cpp
 XBOX_ROUTED_OBJS := $(BG_NATIVE_ROUTED_OBJS) $(GIF_GS_OBJ) $(NATIVE_CALL_OBJS)
 
+# Xbox sound path (xbox_sound_native.inl): the SPU2's ADPCM blocks decoded
+# to PCM once and kept (keyed by address, bytes and filter history), voices
+# run in blocks between envelope and sweep steps; output bit-identical to the
+# shared source (test/test_sound_native.py). The copy of ps2_spu2.cpp it
+# builds from compiles the original decode and mix out. TS_SOUND_NATIVE_SETS:
+# cache sets of two 80-byte blocks (2048: 320 KB), a power of two.
+TS_SOUND_NATIVE ?= 0
+TS_SOUND_NATIVE_SETS ?= 2048
+ifneq ($(filter-out 0 1,$(TS_SOUND_NATIVE)),)
+$(error TS_SOUND_NATIVE must be 0 or 1)
+endif
+SOUND_NATIVE_OBJ := $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_spu2.obj
+SOUND_NATIVE_COPY := $(OUT)/gen/sound/ps2_spu2.cpp
+ifeq ($(TS_SOUND_NATIVE),1)
+SOUND_NATIVE_SOURCE := $(SOUND_NATIVE_COPY)
+else
+SOUND_NATIVE_SOURCE := $(RUNTIME)/src/lib/ps2_spu2.cpp
+endif
+XBOX_ROUTED_OBJS += $(SOUND_NATIVE_OBJ)
+
 CXX  := sh $(XBOX)/tools/nxdk-cxx-hosted
 CC   := nxdk-cc
 LINK := nxdk-link
@@ -784,6 +804,27 @@ $(GIF_DIRECT_STAMP): FORCE
 $(GIF_DIRECT_OBJS): $(GIF_DIRECT_STAMP)
 $(GIF_DIRECT_OBJS): RUNTIME_FLAGS += $(GIF_DIRECT_FLAGS)
 
+# The Xbox sound path: the SPU2 object builds from the original or the
+# patch_sound_native.py copy; the stamp rebuilds it (and the copy) when the
+# switch or the cache size changes.
+SOUND_NATIVE_STAMP := $(OUT)/gen/sound_native.flags
+SOUND_NATIVE_FLAGS := -DTS_SOUND_NATIVE=$(TS_SOUND_NATIVE) -DTS_SOUND_NATIVE_SETS=$(TS_SOUND_NATIVE_SETS)
+$(SOUND_NATIVE_OBJ): $(SOUND_NATIVE_SOURCE)
+$(SOUND_NATIVE_OBJ): XBOX_COMPILE_SOURCE := $(SOUND_NATIVE_SOURCE)
+ifeq ($(TS_SOUND_NATIVE),1)
+$(SOUND_NATIVE_COPY): $(RUNTIME)/src/lib/ps2_spu2.cpp $(XBOX)/tools/patch_sound_native.py $(SOUND_NATIVE_STAMP)
+	@mkdir -p $(dir $@)
+	@echo "[ SOUND   ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_sound_native.py $< $@
+else
+$(SOUND_NATIVE_COPY):
+endif
+$(SOUND_NATIVE_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(SOUND_NATIVE_FLAGS)' ] || echo '$(SOUND_NATIVE_FLAGS)' > $@
+$(SOUND_NATIVE_OBJ): $(SOUND_NATIVE_STAMP)
+$(SOUND_NATIVE_OBJ): RUNTIME_FLAGS += $(SOUND_NATIVE_FLAGS)
+
 # make TS_NATIVE_CAPTURE=1: record bounded native VU1 draw inputs for the
 # Xbox-layout geometry converter. Off by default; the normal build registers
 # the original callback directly. Rename registration ONLY in the native game
@@ -869,29 +910,33 @@ $(OUT)/iso/ps2disc.iso: $(ROOT)/project/disc/TimeSplitters.iso
 	@cp $< $@
 
 # make TS_TEXTURE_SOURCE_KEYS=1: a texture-cache miss finds its pack entry by
-# what GS memory holds (8-bit indices and the CLUT's hash, or 32-bit texels;
-# xbox_texture_source.h), hashed as the game uploads it or read back, not by
-# decoding it through its palette; repeated full CLUT loads cost a compare.
-# The pack is then built with its source table (xtpbuild.py --source-keys,
-# format version 2; the reader takes both versions). Off by default: the
-# renderer and the pack are as before. With it, XTP_FLAGS="--variant-keys"
-# makes the Xbox log palettes the pack lacks ([TS:texvariant]), and
-# XTP_FLAGS="--variants /abs/path/xbox.log" adds them to the pack.
+# what GS memory holds (indices and palette, or colour texels and TEXA, every
+# GS texture format; xbox_texture_source.h), hashed as the game uploads it or
+# read back, not by decoding it; repeated full CLUT loads cost a compare. A
+# palette the pack lacks draws the indices as an NV2A index texture with a
+# GPU palette; an entry still on its way from the disc draws its preload (a
+# small level read at start-up: 281 KB of GPU memory for MISC.PAK). The pack
+# is then built as format version 3 (xtpbuild.py --source-keys --preload-bytes
+# 128 --palette-textures: about 32 MB, the reader takes every version). Off
+# by default: the renderer and the pack are as before. With it,
+# TS_TEXTURE_DUMP=1 (development) writes every texture the pack lacks to
+# E:\TimeSplitters\texdump, and XTP_FLAGS="--xbox-dump /abs/path/texdump"
+# adds them to the next pack.
 TS_TEXTURE_SOURCE_KEYS ?= 0
-ifneq ($(TS_TEXTURE_SOURCE_KEYS),0)
-ifneq ($(TS_TEXTURE_SOURCE_KEYS),1)
-$(error TS_TEXTURE_SOURCE_KEYS must be 0 or 1)
-endif
+TS_TEXTURE_DUMP ?= 0
+$(foreach v,TS_TEXTURE_SOURCE_KEYS TS_TEXTURE_DUMP,$(if $(filter 0 1,$($(v))),,$(error $(v) must be 0 or 1)))
+ifeq ($(TS_TEXTURE_DUMP)$(TS_TEXTURE_SOURCE_KEYS),10)
+$(error TS_TEXTURE_DUMP=1 needs TS_TEXTURE_SOURCE_KEYS=1)
 endif
 TEXTURE_SOURCE_STAMP := $(OUT)/gen/texture_source.flags
-TEXTURE_SOURCE_FLAGS := -DTS_TEXTURE_SOURCE_KEYS=$(TS_TEXTURE_SOURCE_KEYS)
+TEXTURE_SOURCE_FLAGS := -DTS_TEXTURE_SOURCE_KEYS=$(TS_TEXTURE_SOURCE_KEYS) -DTS_TEXTURE_DUMP=$(TS_TEXTURE_DUMP)
 TEXTURE_SOURCE_OBJS := $(OBJ)/src/xbox/gs_nv2a_backend.obj
 $(TEXTURE_SOURCE_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(TEXTURE_SOURCE_FLAGS)' ] || echo '$(TEXTURE_SOURCE_FLAGS)' > $@
 $(TEXTURE_SOURCE_OBJS): $(TEXTURE_SOURCE_STAMP)
 $(TEXTURE_SOURCE_OBJS): RUNTIME_FLAGS += $(TEXTURE_SOURCE_FLAGS)
-XTP_SOURCE_FLAGS := $(if $(filter 1,$(TS_TEXTURE_SOURCE_KEYS)),--source-keys)
+XTP_SOURCE_FLAGS := $(if $(filter 1,$(TS_TEXTURE_SOURCE_KEYS)),--source-keys --preload-bytes 128 --palette-textures)
 # The pack builder's options (as XTP_FLAGS alone while the switch is off).
 XTP_BUILD_FLAGS = $(strip $(XTP_FLAGS) $(XTP_SOURCE_FLAGS))
 
@@ -954,6 +999,9 @@ $(BG_NATIVE_MANIFEST): $(BG_PAK) $(MISC_PAK) $(XBOX)/tools/xbgbuild.py $(BG_NATI
 # The disc carries the game's own files from project/game-data (not in git).
 # make AUTOPLAY=<pad script>: the disc plays that controller script (tests).
 AUTOPLAY ?=
+# TS_MODEL_FILES=1: model files harvested from play (tools/harvest_models.sh)
+# go on the disc as models/, loaded before the hard disk's own.
+MODEL_FILES_DIR ?= $(ROOT)/build/model-files
 
 $(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso $(XTP_DEP) $(BG_NATIVE_ASSET_DEP) FORCE
 	@echo "[ XISO    ] $@"
@@ -961,6 +1009,10 @@ $(OUT)/TimeSplitters.iso: $(OUT)/iso/default.xbe $(OUT)/iso/ps2disc.iso $(XTP_DE
 	@$(if $(BG_NATIVE_ASSET_DEP),,rm -rf $(BG_NATIVE_ASSET_DIR))
 	@rm -f $(OUT)/iso/autoplay.pad
 	@$(if $(AUTOPLAY),cp $(AUTOPLAY) $(OUT)/iso/autoplay.pad)
+	@rm -rf $(OUT)/iso/models
+	@$(if $(filter 1,$(TS_MODEL_FILES)),if ls $(MODEL_FILES_DIR)/*.xmc >/dev/null 2>&1; then \
+	    mkdir -p $(OUT)/iso/models && cp $(MODEL_FILES_DIR)/*.xmc $(OUT)/iso/models/ && \
+	    echo "[ MODELS  ] $$(ls $(MODEL_FILES_DIR)/*.xmc | wc -l) model files on the disc"; fi)
 	@rm -rf $(OUT)/iso/game-data && cp -r $(ROOT)/project/game-data $(OUT)/iso/game-data
 	@rm -rf $(OUT)/iso/game-data/mc0 $(OUT)/iso/game-data/mc1
 	@cd $(OUT) && $(XISO) -c iso TimeSplitters.iso > /dev/null

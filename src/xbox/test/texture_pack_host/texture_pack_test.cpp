@@ -67,6 +67,25 @@ namespace
             for (int i = 0; i != 4; ++i) payload(pack, i, 10);
             check(pack.stats().loads == 4 && pack.stats().usedBytes == 896, "load accounting");
         }
+        else if (mode == "preloads")
+        {
+            check(pack.open(path), "open version 3 pack");
+            check(pack.count() == 3 && pack.sourceCount() == 2 && pack.preloadBytes() == 256, "version 3 counts");
+            check(pack.preload(0) == nullptr, "preload before it was read");
+            check(!pack.readPreloads(pool + 1), "unaligned preload memory accepted");
+            check(pack.readPreloads(pool + 1024), "preloads read");
+            const Pack::Preload *a = pack.preload(0), *b = pack.preload(1);
+            check(a && b && !pack.preload(2), "preload lookup");
+            check(a->width == 4 && a->format == Pack::kDxt1 && b->format == Pack::kI8 && b->offset == 128, "preload records");
+            check(std::all_of(pool + 1024, pool + 1032, [](uint8_t v) { return v == 0xA0; }) &&
+                      std::all_of(pool + 1152, pool + 1168, [](uint8_t v) { return v == 0xA1; }), "preload texels");
+            uint8_t kind = 0;
+            check(pack.findSource(0x100, kind) == 1 && kind == Pack::kSourceImage && pack.entry(1).format == Pack::kI8,
+                  "index texture source");
+            check(pack.attachPool(pool, 1024), "attach pool");
+            check(!pack.readPreloads(pool + 1024), "preloads read after the loader started");
+            payload(pack, 1, 10);
+        }
         else if (mode == "sources" || mode == "no-sources")
         {
             start(pack, path, 1024);

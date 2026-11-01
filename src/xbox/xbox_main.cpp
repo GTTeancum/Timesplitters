@@ -234,15 +234,15 @@ namespace
                   << gif.workerFallbacks << "/" << gif.streamFallbacks << std::endl;
 #endif
 #if TS_GIF_DIRECT
-        // Cumulative; declined = format/partial/register/target/debug/busy.
+        // Cumulative; declined = format/partial (native PACKED entry), debug, busy.
         const XboxGifDirectStats &direct = g_xboxGifDirectStats;
         std::cout << "[TS:gif-direct] packets=" << direct.packets << " runs/gpu/prims=" << direct.runs << "/"
                   << direct.gpuRuns << "/" << direct.prims << " writes/skipped=" << direct.writes << "/"
-                  << direct.skipped << " declined=" << direct.declined[XboxGifDirectStats::Format] << "/"
+                  << direct.skipped << " images/carried=" << direct.images << "/" << direct.carried
+                  << " declined=" << direct.declined[XboxGifDirectStats::Format] << "/"
                   << direct.declined[XboxGifDirectStats::Partial] << "/"
-                  << direct.declined[XboxGifDirectStats::Register] << "/"
-                  << direct.declined[XboxGifDirectStats::Target] << "/" << direct.declined[XboxGifDirectStats::Debug]
-                  << "/" << direct.declined[XboxGifDirectStats::Busy] << std::endl;
+                  << direct.declined[XboxGifDirectStats::Debug] << "/" << direct.declined[XboxGifDirectStats::Busy]
+                  << std::endl;
 #endif
 #if TS_DMA_CHAIN_CACHE
         XboxDmaChainStats dma;
@@ -292,13 +292,14 @@ namespace
                   << models.failures[5] << "," << models.failures[6] << "," << models.failures[7]
                   << " replays/draws/runs/verts=" << models.replays << "/" << models.replayDraws << "/"
                   << models.replayRuns << "/" << models.replayVertices << " declined/missing=" << models.replayDeclined
-                  << "/" << models.replayMissing << " stale/verify/flush=" << models.stale << "/" << models.verifies
-                  << "/" << models.flushes << " vtxKB=" << models.vertexBytes / 1024u << " files load/save/fail="
+                  << "/" << models.replayMissing << " steps/inline=" << models.replaySteps << "/" << models.inlined
+                  << " stale/verify/flush=" << models.stale << "/" << models.verifies << "/" << models.flushes
+                  << " evict/compact=" << models.evicted << "/" << models.compactions << " vtxKB=" << models.vertexBytes / 1024u << " files load/save/fail="
                   << models.fileLoads << "/" << models.fileSaves << "/" << models.fileFailures << std::endl;
         XboxPrologueStats prologues;
         xboxPrologueGetStats(prologues);
         std::cout << "[TS:prologue] tokens/expanded/lost=" << prologues.tokens << "/" << prologues.expanded << "/"
-                  << prologues.lost << std::endl;
+                  << prologues.lost << " refs=" << prologues.refs << std::endl;
 #endif
     }
 

@@ -19,11 +19,20 @@
 //    chain's original stream position, and leaves the VIF registers as the
 //    chain would have.
 //
-// Anything the replay would not reproduce exactly (a constant entry,
-// DIRECT/MPG/MSCNT, a CPU-path strip, a VU write the native draws did not
-// make, a non-native MSCAL) keeps the chain on the original path. Stored
-// chains are re-hashed against guest memory on a rotation and recaptured
-// when they change.
+// What else the chain does is recorded as replay steps, in stream order:
+// MSCALs of the constant and kick entries, MSCALs the program declined or
+// the interpreter ran, MSCNT, and draws with CPU-path strips (the VU rows
+// the chain wrote that the program reads, restored where the chain would
+// write them, and the MSCAL run as the decoder runs it); UNPACKs into the
+// transform constants' rows; DIRECT/DIRECTHL packets; MPG (checked
+// unchanged at replay); BASE/OFFSET/ITOP; MSKPATH3; and the rows the chain
+// leaves that no program of its own read. A replay whose live state differs
+// from the capture's in a way the steps do not cover (VU1 code, UNPACK
+// registers the chain relies on, a buffer that would wrap) decodes the chain
+// from guest memory instead, as do replays the decoder cannot make (no
+// native program, the VIF1 worker, a model evicted meanwhile). Stored chains
+// are re-hashed against guest memory on a rotation and recaptured when they
+// change; a full store evicts the models replayed least recently.
 #include <cstdint>
 
 #ifndef TS_NATIVE_MODELS
@@ -40,45 +49,80 @@ struct VIFRegisters;
 // --- DMA walker (ps2_memory.cpp copy) ----------------------------------
 enum XboxModelWalk : int
 {
-    XboxModelWalkNormal = 0,  // walk the CALL as usual
-    XboxModelWalkCapture = 1, // walk it, after the BEGIN marker in `marker`
-    XboxModelWalkReplay = 2,  // skip it: append `marker` instead
+    XboxModelWalkNormal = 0,    // walk the CALL as usual
+    XboxModelWalkCapture = 1,   // walk it, after the BEGIN marker in `marker`
+    XboxModelWalkReplay = 2,    // skip it: append `marker` instead
+    XboxModelWalkReplayEnd = 3, // the same, and the chain ends there (xboxModelWalkReplayEnd)
 };
-// A zero-QWC CALL to `target` (VIF1 chain, no tag transfer), at call depth
-// `asp` (before the push).
-XboxModelWalk xboxModelWalkCall(const uint8_t *rdram, uint32_t target, uint32_t asp,
+// A zero-QWC CALL to `target` (VIF1 chain, no tag transfer) from the tag at
+// `callTag`, at call depth `asp` (before the push); `tie`: CHCR.TIE.
+XboxModelWalk xboxModelWalkCall(const uint8_t *rdram, uint32_t target, uint32_t callTag, uint32_t asp, bool tie,
                                 const uint8_t *&marker);
+// After XboxModelWalkReplayEnd: the walker's state where the chain ended
+// inside the CALL (an END tag, or an IRQ tag with TIE), as the walk left it.
+void xboxModelWalkReplayEnd(uint32_t &tagAddr, uint32_t &asp, uint32_t &asr0, uint32_t &asr1,
+                            uint32_t &lastTagUpper);
 // Every piece the walker appends (for the capture's source hash).
 void xboxModelWalkPiece(const uint8_t *data, uint32_t bytes);
 // Every tag read (the chain's structure is part of the hash).
 void xboxModelWalkTag(const uint8_t *tag);
 // After a RET tag's payload: the END marker when it closed the capture.
 const uint8_t *xboxModelWalkAfterRet(uint32_t aspAfter);
-// A chain walk ends (an open capture there is abandoned).
-void xboxModelWalkChainEnd();
+// A chain walk ends with its state: the END marker when it ended inside a
+// captured CALL (by an END tag, or an IRQ tag with TIE), else null.
+const uint8_t *xboxModelWalkChainEnd(uint32_t tagAddr, uint32_t asp, uint32_t asr0, uint32_t asr1,
+                                     uint32_t lastTagUpper);
 
 // --- VIF decoder (ps2_vif1_interpreter.cpp copy) -----------------------
 constexpr uint32_t kXboxModelMarkerOpcode = 0x7Eu; // no VIFcode uses it
 constexpr uint32_t kXboxModelMagic = 0x4D4E5354u;  // 'TSNM'
 enum XboxModelMarker : uint32_t { XboxModelBegin = 1, XboxModelEnd = 2, XboxModelReplay = 3 };
+// The decoder's own steps for the replay (built in the decoder copy, which
+// can reach PS2Memory's MSCAL state): an MSCAL or MSCNT run as the decoder
+// runs it (after its register steps), what a native run leaves in the VU1
+// state, and MSKPATH3.
+struct XboxModelVif
+{
+    void (*mscal)(PS2Memory *memory, uint32_t pc, uint32_t top, uint32_t itop, bool mscnt);
+    void (*afterNative)(PS2Memory *memory, uint32_t top, uint32_t itop);
+    void (*mskPath3)(PS2Memory *memory, uint32_t imm);
+};
 // The marker's last three words (`words[0]` is the VIFcode already read).
-void xboxModelDecodeMarker(const uint32_t words[4], uint8_t *vuData, VIFRegisters &regs,
-                           PS2Memory *memory, GS *gs, bool onWorker);
-// MSCAL/MSCALF/MSCNT inside a capture (before the program runs).
-void xboxModelCaptureMscal(uint32_t startPC, bool mscnt);
-// The MSCAL's program did not run natively (interpreter or callback).
+void xboxModelDecodeMarker(const uint32_t words[4], uint8_t *vuData, VIFRegisters &regs, PS2Memory *memory,
+                           GS *gs, bool onWorker, const XboxModelVif &vif);
+// Inside a capture (xboxModelCapturing()):
+// MSCAL/MSCALF/MSCNT, after its register steps and before the program runs.
+void xboxModelCaptureMscal(uint32_t startPC, bool mscnt, const VIFRegisters &regs, const uint8_t *vuData);
+// The MSCAL's program did not run natively: the interpreter or the callback
+// runs it next (VU memory as it was at the MSCAL).
+void xboxModelCaptureInterpreted();
+// An UNPACK of `writes` vectors to VU1 row `vuAddr` (TOPS added), before it
+// writes.
+void xboxModelCaptureUnpack(uint32_t vuAddr, uint32_t writes, uint32_t cl, uint32_t wl, uint32_t opcode,
+                            uint32_t imm, const VIFRegisters &regs);
+// A PATH2 packet of a DIRECT/DIRECTHL (or its IMAGE data), before it goes.
+void xboxModelCaptureGif(const uint8_t *data, uint32_t bytes, bool directHl);
+// An MPG's code, after it was copied to VU1 code memory.
+void xboxModelCaptureMpg(uint32_t dest, const uint8_t *code, uint32_t bytes);
+// STCYCL, OFFSET, BASE, ITOP, STMOD, MARK, STMASK, STROW, STCOL after they
+// took effect, MSKPATH3 before (`opcode`: the VIFcode's; kXboxModelIBit: a
+// command with the I bit set STAT.INT).
+constexpr uint32_t kXboxModelIBit = 0xFFu;
+void xboxModelCaptureCommand(uint32_t opcode, uint32_t imm, const VIFRegisters &regs);
+// Something the replay cannot reproduce (`reason`: the failure counter).
 void xboxModelCaptureFail(uint32_t reason);
-// DIRECT/DIRECTHL/MPG or anything else the replay does not reproduce.
-inline void xboxModelCaptureUnsupported() { xboxModelCaptureFail(4u); }
-bool xboxModelCapturing();
+extern bool g_xboxModelCaptureOpen;
+inline bool xboxModelCapturing() { return g_xboxModelCaptureOpen; }
 
 // --- native VU1 program (vu1_native_ts.cpp copy) -----------------------
-// One native draw inside a capture: its layout, the VU data, its state
-// block and its strip headers (`strips`: count records of `strideWords`
-// words, tag[4] then n and vi).
-void xboxModelCaptureDraw(uint32_t kind, const uint8_t *data, const uint8_t *stateBlock,
-                          uint32_t stateBytes, bool material, const uint32_t *strips,
-                          uint32_t strideWords, uint32_t count);
+// One native draw inside a capture: its layout, the VU data and the batch's
+// TOP, its state block and its strip headers (`strips`: count records of
+// `strideWords` words, tag[4] then n and vi).
+void xboxModelCaptureDraw(uint32_t kind, const uint8_t *data, uint32_t top, const uint8_t *stateBlock,
+                          uint32_t stateBytes, bool material, const uint32_t *strips, uint32_t strideWords,
+                          uint32_t count);
+// A strip of the draw being captured takes the CPU path.
+void xboxModelCaptureCpuStrip();
 
 // Implemented in the patched vu1_native_ts.cpp copy (its file-local caches).
 struct GSXfConstants;
@@ -87,20 +131,39 @@ GSXfConstants &xboxNativeTransformConstants(const uint8_t *data);
 bool xboxNativeApplyMaterial(const void *material, GS &gs);
 void xboxNativeSubmitState(const uint8_t *block, uint32_t bytes, PS2Memory *memory, GS &gs);
 void xboxNativeDrainArbiter(PS2Memory *memory);
+// The VU1 rows a constant or kick entry at `pc` reads and writes for a batch
+// at `top` ([first, first + count) each, before the wrap at 1024): false for
+// a draw entry or one the program does not have. `kicks`: it sends a packet.
+bool xboxNativeEntryRows(uint32_t pc, const uint8_t *data, uint32_t top, uint32_t reads[2][2],
+                         uint32_t &readCount, uint32_t writes[2][2], uint32_t &writeCount, bool &kicks);
 
-// --- partGfx prologue tokens (xbox_part_prologue.cpp) ------------------
-// A QWC-0 REF whose ADDR is kXboxPrologueTag | index stands for the model's
-// header, matrix and light REFs.
+// --- partGfx list tokens (xbox_part_prologue.cpp) ----------------------
+// A QWC-0 REF whose ADDR is kXboxPrologueTag | sequence stands for a run of
+// REFs partGfx would have written there: a model's header, matrix and light
+// REFs, or a REF route's batches.
 constexpr uint32_t kXboxPrologueTag = 0x7E000000u;
 constexpr uint32_t kXboxPrologueIndexMask = 0x00FFFFFFu;
-// partGfx (ts_native_game2.cpp copy): the token's ADDR field (lights 0: none).
+struct XboxPrologueRef
+{
+    uint32_t addr, qwc; // a REF tag's ADDR and QWC fields
+};
+// partGfx (ts_native_game2.cpp copy): a record opens, takes the REFs in list
+// order and closes into the token's ADDR field (0: it took none, so no
+// token). One record is open at a time.
+void xboxPrologueOpen();
+void xboxPrologueRef(uint32_t addr, uint32_t qwc);
+uint32_t xboxPrologueClose();
+// The open record is long: partGfx closes it at the batch's end and opens
+// another after its token.
+bool xboxPrologueFull();
+// The first prologue's record in one call (lights 0: none).
 uint32_t xboxPrologueRecord(uint32_t matrix, uint32_t lightA, uint32_t lightB);
-// The walker: the payloads the token stands for, in order (0: not a token,
-// or its record is gone).
-uint32_t xboxPrologueExpand(uint32_t addr, uint32_t addrs[9], uint32_t qwcs[9]);
+// The walker: the REFs the token stands for, in order, `count` of them
+// (nullptr: not a token, or its record is gone).
+const XboxPrologueRef *xboxPrologueExpand(uint32_t addr, uint32_t &count);
 struct XboxPrologueStats
 {
-    uint64_t tokens = 0, expanded = 0, lost = 0;
+    uint64_t tokens = 0, refs = 0, expanded = 0, lost = 0;
 };
 void xboxPrologueGetStats(XboxPrologueStats &out);
 
@@ -111,6 +174,8 @@ struct XboxModelStats
     uint64_t captures = 0, captured = 0, failures[8] = {};
     uint64_t replays = 0, replayDraws = 0, replayRuns = 0, replayVertices = 0;
     uint64_t replayDeclined = 0, replayMissing = 0, stale = 0, flushes = 0, verifies = 0;
+    uint64_t replaySteps = 0, inlined = 0, evicted = 0; // inlined: replays decoded from guest memory
+    uint32_t compactions = 0;
     uint32_t fileLoads = 0, fileSaves = 0, fileFailures = 0; // TS_MODEL_FILES
     uint32_t vertexBytes = 0, vertexCapacity = 0;
 };

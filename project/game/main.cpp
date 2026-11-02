@@ -25,7 +25,9 @@
 #include <sys/stat.h>
 #if defined(_WIN32)
 #include <io.h>
-#include <stdlib.h> // _get_wpgmptr (no <windows.h>: its names collide with raylib's)
+// Declared here: <windows.h>'s names collide with raylib's.
+extern "C" __declspec(dllimport) unsigned long __stdcall GetModuleFileNameW(void *module, wchar_t *name,
+                                                                            unsigned long size);
 #else
 #include <unistd.h>
 #endif
@@ -41,8 +43,9 @@ static void openLogFile() {
     std::error_code ec;
     std::filesystem::path dir;
 #if defined(_WIN32)
-    wchar_t *program = nullptr;
-    if (_get_wpgmptr(&program) == 0 && program && *program) dir = std::filesystem::path(program).parent_path();
+    static wchar_t program[32768];
+    const unsigned long length = GetModuleFileNameW(nullptr, program, 32768);
+    if (length > 0 && length < 32768) dir = std::filesystem::path(program).parent_path();
 #else
     dir = std::filesystem::read_symlink("/proc/self/exe", ec).parent_path();
 #endif
@@ -50,6 +53,7 @@ static void openLogFile() {
     for (const std::filesystem::path &folder : {dir, std::filesystem::current_path(ec)}) {
         const std::filesystem::path log = folder / "timesplitters.log";
         const std::filesystem::path previous = folder / "timesplitters-previous.log";
+        const bool hadLog = std::filesystem::exists(log, ec);
 #if defined(_WIN32)
         const int fd = _wopen(log.c_str(), _O_WRONLY | _O_CREAT | _O_APPEND | _O_BINARY, _S_IREAD | _S_IWRITE);
 #else
@@ -62,7 +66,7 @@ static void openLogFile() {
 #else
         close(fd);
 #endif
-        std::filesystem::rename(log, previous, ec);
+        if (hadLog) std::filesystem::rename(log, previous, ec);
         std::fprintf(stderr, "TimeSplitters log: %s\n", log.string().c_str());
 #if defined(_WIN32)
         if (!_wfreopen(log.c_str(), L"w", stdout)) continue;

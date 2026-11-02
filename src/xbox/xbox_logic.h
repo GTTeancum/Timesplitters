@@ -375,6 +375,15 @@ XL_INLINE bool xlNativeCall(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runti
 // The same for a leaf target: its inline copy while the table holds the
 // native, the ordinary call otherwise. The copy returns to ra = next, the
 // caller's fallthrough.
+// TS_LEAF_COUNT 1 (diagnostic): the leaf calls counted by call site, logged
+// every 2^20 calls with the cycles since the last line (xbox_logic.cpp).
+#ifndef TS_LEAF_COUNT
+#define TS_LEAF_COUNT 0
+#endif
+#if TS_LEAF_COUNT
+void xlLeafCount(uint32_t leaf, uint32_t source);
+#endif
+
 template <uint32_t Slot, uint32_t Target, uint32_t Leaf>
 XL_INLINE bool xlNativeLeafCall(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime, uint32_t source, uint32_t next)
 {
@@ -385,6 +394,9 @@ XL_INLINE bool xlNativeLeafCall(uint8_t *rdram, R5900Context *ctx, PS2Runtime *r
     ctx->pc = Target;
     if (runtime->eeCheckpointDue(PS2X_GUEST_DISPATCH_CYCLES))
         return false;
+#if TS_LEAF_COUNT
+    xlLeafCount(Leaf, source);
+#endif
     const PS2Runtime::RecompiledFunction entry = g_ps2RecompiledFunctionTable[Slot];
     if (entry == g_xlLeafNative[Leaf] && xlLeafOnContext<Leaf>(rdram, ctx, runtime))
         return true;

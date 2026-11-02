@@ -441,6 +441,7 @@ endif
 #   moves (xbox_string.cpp).
 # Replaces TS_NATIVE_CALL_SLOTS (leave that at 0). Off by default.
 TS_NATIVE_LOGIC ?= 1
+TS_LEAF_COUNT ?= 0
 ifneq ($(filter-out 0 1,$(TS_NATIVE_LOGIC)),)
 $(error TS_NATIVE_LOGIC must be 0 or 1)
 endif
@@ -455,7 +456,7 @@ LOGIC_PROMOTE_NAMES ?= playerTick_0x281248 MoveTestWall_0x27cce0 propMoveTestRoo
     remotePropTick_0x26c440 carPropTick_0x276678 gunUpdateParts_0x2911e0 chrLineTestChr_0x286700 \
     propFindFloorHeightRoom_0x2714e0 bgFloorBBIntersectionXZ_0x2571c8 calGlobalMatrices_0x2149b0
 LOGIC_STAMP := $(OUT)/gen/native_logic.flags
-LOGIC_STAMP_TEXT := TS_NATIVE_LOGIC=$(TS_NATIVE_LOGIC)$(if $(filter 1,$(TS_NATIVE_LOGIC)), all=$(LOGIC_LITE_ALL) mode=$(LOGIC_PROMOTE_MODE) promote=$(strip $(LOGIC_PROMOTE_NAMES)))
+LOGIC_STAMP_TEXT := TS_NATIVE_LOGIC=$(TS_NATIVE_LOGIC) leafcount=$(TS_LEAF_COUNT)$(if $(filter 1,$(TS_NATIVE_LOGIC)), all=$(LOGIC_LITE_ALL) mode=$(LOGIC_PROMOTE_MODE) promote=$(strip $(LOGIC_PROMOTE_NAMES)))
 LOGIC_GEN_ARGS :=
 ifeq ($(TS_NATIVE_LOGIC),1)
 ifeq ($(TS_NATIVE_CALL_SLOTS),1)
@@ -757,7 +758,7 @@ else
 $(NATIVE_LOGIC_COPIES):
 endif
 $(LOGIC_OBJS): $(LOGIC_STAMP)
-$(LOGIC_OBJS): RUNTIME_FLAGS += -DTS_NATIVE_LOGIC=$(TS_NATIVE_LOGIC)
+$(LOGIC_OBJS): RUNTIME_FLAGS += -DTS_NATIVE_LOGIC=$(TS_NATIVE_LOGIC) -DTS_LEAF_COUNT=$(TS_LEAF_COUNT)
 # The leaf bodies run thousands of times a frame (the later -O2 wins).
 $(OBJ)/src/xbox/xbox_logic.obj: RUNTIME_FLAGS += -O2
 # ---- end of TS_NATIVE_LOGIC part 2 ----------------------------------------

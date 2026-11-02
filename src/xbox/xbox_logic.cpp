@@ -2,6 +2,8 @@
 // lean call protocol and of the promoted functions' guest accesses, and the
 // published leaf natives). Empty unless the switch is on.
 #if defined(TS_NATIVE_LOGIC) && TS_NATIVE_LOGIC
+#include <cstdio>
+#include "xbox_log.h"
 #include "xbox_logic.h"
 
 PS2Runtime::RecompiledFunction g_xlLeafNative[XL_LEAF_COUNT] = {};
@@ -16,6 +18,42 @@ XL_COLD bool xlCallFixup(R5900Context *ctx, PS2Runtime *runtime, uint32_t target
         ctx->pc = resume; // a native override that left pc at its entry
     return ctx->pc == resume;
 }
+
+#if TS_LEAF_COUNT
+void xlLeafCount(uint32_t leaf, uint32_t source)
+{
+    struct Site
+    {
+        uint32_t key, calls;
+    };
+    constexpr uint32_t kSites = 128u;
+    static Site sites[kSites];
+    static uint32_t total = 0;
+    static uint64_t last = 0;
+    const uint32_t key = (leaf << 28) | (source & 0x0FFFFFFFu);
+    for (uint32_t i = 0; i < kSites; ++i)
+    {
+        if (sites[i].key == key || sites[i].key == 0u)
+        {
+            sites[i].key = key;
+            ++sites[i].calls;
+            break;
+        }
+    }
+    if ((++total & 0xFFFFFu) != 0u)
+        return;
+    const uint64_t now = __builtin_ia32_rdtsc();
+    char text[96];
+    xboxLogWrite(text, unsigned(std::snprintf(text, sizeof(text), "[TS:leaf] calls=%u cyclesK=%u\n", total, unsigned((now - last) / 1000u))));
+    last = now;
+    for (uint32_t i = 0; i < kSites && sites[i].key; ++i)
+    {
+        xboxLogWrite(text, unsigned(std::snprintf(text, sizeof(text), "[TS:leaf] %u %06x %u\n", sites[i].key >> 28,
+                                                  sites[i].key & 0x0FFFFFFFu, sites[i].calls)));
+        sites[i].calls = 0;
+    }
+}
+#endif
 
 void xlNoteLeafNative(uint32_t address, PS2Runtime::RecompiledFunction native)
 {

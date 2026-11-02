@@ -115,6 +115,16 @@
 #define TS_NV2A_SELFCHECK 0
 #endif
 #endif
+// TS_CLUT_REPEAT: the full CLUT load that repeats the last one costs a
+// compare (loadFullClut's lastFullClut). It came with the source keys; it
+// needs nothing of theirs (only that every other CLUT load forgets it,
+// which they all do), so TS_FAST_REPLAY takes it too: a replayed model
+// reloads the same palette for each of its draws.
+#if (TS_TEXTURE_SOURCE_KEYS || (TS_FAST_REPLAY && TS_NATIVE_MODELS && TS_NATIVE_REPLAY)) && !TS_NV2A_SELFCHECK
+#define TS_CLUT_REPEAT 1
+#else
+#define TS_CLUT_REPEAT 0
+#endif
 
 void xboxGpuOwnsDisplay(bool owns);
 void xboxLogToScreen(bool enabled);
@@ -140,8 +150,9 @@ namespace
     // port's dump of a session) come to about 1.14 MB with mip chains.
     constexpr const char *kTexturePackPath = "D:\\textures.xtp";
 #if TS_HWPROF
-    // Profiler builds: the profiler's 96 KB table is reserved at start-up
-    // (xbox_hwprof.cpp) and comes out of this pool, not the game's memory.
+    // Profiler builds: the profiler's table and stack buffer (128 KB) are
+    // reserved at start-up (xbox_hwprof.cpp) and come out of this pool, not
+    // the game's memory.
     constexpr uint32_t kTexturePoolBytes = 1280u * 1024u - 128u * 1024u;
 #else
     constexpr uint32_t kTexturePoolBytes = 1280u * 1024u;
@@ -867,8 +878,8 @@ struct GSNv2aBackend::Impl
         return clutIdentity && vram && GSCpuBackend::FullClutLoad(t) && t.cbp <= GSCpuBackend::kLastContiguousClutCbp;
     }
 
-#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_SELFCHECK
-    // The last full load (TS_TEXTURE_SOURCE_KEYS), while no other CLUT load
+#if TS_CLUT_REPEAT
+    // The last full load (TS_CLUT_REPEAT), while no other CLUT load
     // has reached the CPU renderer since (forgetFullClut). The same source,
     // CLD and GS pages again would leave the CPU renderer's state as it is:
     // the CLD mirror the same, the buffer the same content (deferred, or
@@ -889,7 +900,7 @@ struct GSNv2aBackend::Impl
     void loadFullClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
     {
         const uint32_t key = tex0.cbp | (uint32_t(tex0.cpsm) << 16);
-#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_SELFCHECK
+#if TS_CLUT_REPEAT
         if (lastFullClut.valid && lastFullClut.key == key && lastFullClut.cld == tex0.cld &&
             (lastFullClut.epoch == pageEpoch || versionSum(GSCpuBackend::ClutRange(tex0)) == lastFullClut.versions))
         {
@@ -943,7 +954,7 @@ struct GSNv2aBackend::Impl
         entry->lastUse = ++paletteTick;
         cpu.DeferClutLoad(tex0, entry->hash);
         clutHash = entry->hash;
-#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_SELFCHECK
+#if TS_CLUT_REPEAT
         lastFullClut = {true, key, tex0.cld, pageEpoch, versions, entry->hash};
 #endif
 #if TS_NV2A_SELFCHECK
@@ -3020,6 +3031,13 @@ struct GSNv2aBackend::Impl
         }
         x = clipWordX;
         y = clipWordY;
+#if defined(TS_KNOCKOUT) && TS_KNOCKOUT == 2
+        // Measurement only (make TS_KNOCKOUT=2): every draw clipped to one
+        // pixel, so the GPU reads almost no textures or frame memory while
+        // the CPU does all its usual work.
+        x = 0u;
+        y = 0u;
+#endif
     }
 
     // All eight rectangles the same (the clip is inclusive: a pixel is drawn
@@ -4622,6 +4640,9 @@ struct GSNv2aBackend::Impl
         uint32_t handle = 0;    // 1 + the run's index (0: empty)
         uint32_t gen = 0;       // segmentGen when built
         uint32_t epoch = 0;     // pageEpoch when the texture was last found current
+#if TS_FAST_REPLAY
+        uint32_t lastUse = 0;   // segmentTick at its last use (in the padding before the inputs)
+#endif
         SegmentInputs inputs{};
         const Texture *tex = nullptr;
         uint32_t texLevels = 0;
@@ -4647,11 +4668,52 @@ struct GSNv2aBackend::Impl
         pendingSegment = segments ? handle + 1u : 0u;
     }
 
+#if TS_FAST_REPLAY
+    // Segments by run handle in sets of four, the least recently used out
+    // (direct-mapped, runs 2048 handles apart - the model cache has 8192 -
+    // pushed each other out every frame). Consecutive handles (a model's
+    // runs) fall in consecutive sets.
+    static constexpr uint32_t kSegmentWays = 4u, kSegmentSets = kSegments / kSegmentWays;
+    static_assert(kSegmentSets * kSegmentWays == kSegments, "segment sets");
+    uint32_t segmentTick = 0;
+
+    Segment *segmentSet(uint32_t handle) { return &segments[((handle - 1u) % kSegmentSets) * kSegmentWays]; }
+
+    // handle's segment, or null (no slot is taken).
+    Segment *findSegment(uint32_t handle)
+    {
+        Segment *const set = segmentSet(handle);
+        for (uint32_t way = 0; way < kSegmentWays; ++way)
+            if (set[way].handle == handle)
+                return &set[way];
+        return nullptr;
+    }
+#endif
+
     Segment *takeSegment(uint32_t handle, bool check)
     {
         if (!handle || !segments || check || TS_NV2A_SELFCHECK)
             return nullptr; // (a self-check run takes the full path)
+#if TS_FAST_REPLAY
+        // Its own slot, else the set's least recently used (storeSegment
+        // takes that over when the run is built).
+        Segment *const set = segmentSet(handle);
+        Segment *seg = set;
+        for (uint32_t way = 0; way < kSegmentWays; ++way)
+        {
+            if (set[way].handle == handle)
+            {
+                seg = &set[way];
+                break;
+            }
+            if (set[way].lastUse < seg->lastUse)
+                seg = &set[way];
+        }
+        seg->lastUse = ++segmentTick;
+        return seg;
+#else
         return &segments[(handle - 1u) & (kSegments - 1u)];
+#endif
     }
 
     static bool sameRow(const float a[4], const float b[4])
@@ -4731,6 +4793,166 @@ struct GSNv2aBackend::Impl
         s.texForceLinear = tex && tex->forceLinear;
         s.key = key;
     }
+
+#if TS_FAST_REPLAY
+    // ------------------------------------------------- model fast lane
+    // A stored model run drawn without the GS front end's run (make
+    // TS_FAST_REPLAY=1, xbox_model_cache.cpp): the model cache hands over
+    // the GS context, PRIM and TEXA buildDrawBatch would have copied, and
+    // this does what beginXfRun, drawResident and endXfRun do, in their
+    // order, for a run whose segment is hit and whose draw commands are
+    // kept. Anything else (a frame to open, change or reload, no segment or
+    // no kept commands, a self-check run) is left to the full route before
+    // any change it would not make again itself: the only work a refusal
+    // can leave behind is segmentTexture's screen write-back, which the
+    // full route then finds done.
+
+    // isScreenTarget's test, on the frame register alone.
+    bool isScreenFrame(const GSFrameReg &f) const
+    {
+        if (f.fbw != 10u || (f.psm != GS_PSM_CT16 && f.psm != GS_PSM_CT16S && f.psm != GS_PSM_CT32 && f.psm != GS_PSM_CT24))
+            return false;
+        if (displayFbp[0] == UINT32_MAX)
+            return true;
+        return f.fbp == displayFbp[0] || f.fbp == displayFbp[1];
+    }
+
+    // segmentInputs of the state buildDrawBatch makes from these (its
+    // texture size and filter worked out as it works them out), but for
+    // the CLUT hash, which the caller adds.
+    static SegmentInputs segmentInputsOf(const GSContext &ctx, const GSPrimReg &prim, const GSTexaReg &texa)
+    {
+        SegmentInputs in;
+        const GSTex0Reg &tex = ctx.tex0;
+        const uint8_t mmag = uint8_t((ctx.tex1 >> 5u) & 0x1u), mmin = uint8_t((ctx.tex1 >> 6u) & 0x7u);
+        const bool linearFilter = mmag != 0u || mmin == 1u || (mmin & 0x4u) != 0u;
+        if (prim.tme)
+        {
+            const uint16_t width = uint16_t(1u << std::min<uint32_t>(tex.tw, 10u));
+            const uint16_t height = uint16_t(1u << std::min<uint32_t>(tex.th, 10u));
+            in.tex0 = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                      (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+            in.texa = uint32_t(texa.ta0) | (uint32_t(texa.ta1) << 8) | (texa.aem ? 0x10000u : 0u);
+            in.size = std::max<uint32_t>(width, 1u) | (std::max<uint32_t>(height, 1u) << 16);
+        }
+        in.clamp = ctx.clamp;
+        in.alpha = ctx.alpha;
+        in.test = ctx.test;
+        in.fbmsk = ctx.frame.fbmsk;
+        in.flags = uint32_t(ctx.frame.psm) | (uint32_t(ctx.zbuf.zmask) << 8) | (uint32_t(prim.tme) << 9) |
+                   (uint32_t(prim.abe) << 10) | (uint32_t(prim.iip) << 11) | (uint32_t(tex.tfx & 3u) << 12) |
+                   (uint32_t(tex.tcc & 1u) << 14) | (uint32_t(linearFilter) << 15);
+        return in;
+    }
+
+    bool fastRun(uint32_t handle, const GSContext &ctx, const GSPrimReg &prim, const GSTexaReg &texa,
+                 const GSXfConstants &c, const uint8_t *block, uint32_t index, uint32_t count, uint32_t format,
+                 uint32_t strips)
+    {
+        // beginXfRun's own refusals, and the runs it would draw from the
+        // ring (flat shading) or open, change or reload a frame for.
+        if (prim.type != GS_PRIM_TRISTRIP || prim.fst || !prim.iip || c.variant > 3u || c.check || TS_NV2A_SELFCHECK)
+            return false;
+        if (!segments || !residentBase || count < 3u || format > 3u || !isScreenFrame(ctx.frame) || !frameOpen ||
+            ctx.frame.fbp != frameFbp || screenVramNewer)
+            return false;
+        // The segment as beginXfRun takes it on a hit, with drawResident's
+        // commands kept for this index and count.
+        Segment *const seg = findSegment(handle + 1u);
+        if (!seg || seg->gen != segmentGen || seg->words == 0u || seg->index != index || seg->count != count)
+            return false;
+        SegmentInputs inputs = segmentInputsOf(ctx, prim, texa);
+        if (prim.tme && isIndexed(ctx.tex0.psm))
+            inputs.clut = clutHash;
+        if (!(inputs == seg->inputs) || !segmentTexture(*seg))
+            return false;
+        // From here as the full route, with no refusal.
+        seg->lastUse = ++segmentTick;
+        pendingSegment = 0u;
+        DrawKey key = seg->key;
+#if TS_NV2A_SCISSOR
+        clipFor(ctx.scissor, key.clipX, key.clipY); // (keyFor's, afresh)
+#endif
+        ++segmentHits;
+        key.vertexMode = 1u + c.variant;
+        key.topology = 1u;
+        fastConstants(c, ctx);
+        key.constSerial = xfSerial;
+        if (batchCount && !(key == batchKey))
+            flushBatch();
+        runKey = key;
+        if (batchCount == 0) // (openXfCursor's)
+        {
+            batchKey = runKey;
+            batchFirst = xfUsed;
+        }
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        flatXfCursor = nullptr;
+#endif
+        runSegment = seg;
+        drawResident(block, index, count, format); // (the segment's commands)
+        // endXfRun's (nothing was written into the ring).
+        g_nv2aTextureStats.xfStrips += strips;
+        g_nv2aTextureStats.xfVertices += count;
+        gpuRows = std::min<uint32_t>(frameHeight, kDisplayRows);
+        screenGpuNewer = true;
+        return true;
+    }
+
+    // beginXfRun's constant handling for a run that is not a self-check:
+    // the same tests and rows, from the context instead of the state.
+    void fastConstants(const GSXfConstants &c, const GSContext &ctx)
+    {
+        const bool mapped = frameFbw == xfBuiltFbw && frameHeight == xfBuiltHeight && ctx.xyoffset.ofx == xfBuiltOfx &&
+                            ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm;
+        if (c.serial != 0u && c.serial == xfBuiltSerial && mapped)
+            return;
+#if TS_XF_DIRTY_ROWS
+        const uint32_t next = xfBuiltSerial + 1u ? xfBuiltSerial + 1u : 1u;
+        uint64_t rows = kAllXfRows;
+        if (mapped && xfBuiltSerial != 0u && c.serial == next && c.serial == s_xfChangedSerial)
+            rows = s_xfChangedRows & kAllXfRows;
+#endif
+        xfBuiltSerial = c.serial;
+        xfBuiltFbw = frameFbw;
+        xfBuiltHeight = frameHeight;
+        xfBuiltOfx = ctx.xyoffset.ofx;
+        xfBuiltOfy = ctx.xyoffset.ofy;
+        xfBuiltZpsm = ctx.zbuf.psm;
+        const XfMapping map{float(kScreenWidth) / float(frameFbw * 64u), float(kScreenHeight) / float(frameHeight),
+                            depthScale(ctx.zbuf.psm), float(ctx.xyoffset.ofx >> 4), float(ctx.xyoffset.ofy >> 4)};
+#if TS_XF_DIRTY_ROWS
+        bool changed = false;
+        for (uint32_t r = 0; (rows >> r) != 0u; ++r)
+        {
+            if (!((rows >> r) & 1u))
+                continue;
+            float row[4];
+            xfRow(c, map, r, row);
+            if (sameRow(row, xfK[r]))
+                continue;
+            if (!changed && batchCount)
+                flushBatch(); // the batch so far uses the old constants
+            changed = true;
+            std::memcpy(xfK[r], row, 16);
+            gpuDirty |= 1ull << r;
+            ++s_lookupStats.constRows;
+        }
+        if (changed)
+            ++xfSerial;
+#else
+        float k[kXfConstantRegs - 1][4];
+        buildXfConstants(c, map, k);
+        if (std::memcmp(k, xfK, sizeof(k)) != 0)
+        {
+            if (batchCount)
+                flushBatch(); // the batch so far uses the old constants
+            std::memcpy(xfK, k, sizeof(k));
+            ++xfSerial;
+        }
+#endif
+    }
+#endif
 #endif
 #endif
 };
@@ -4746,6 +4968,26 @@ void xboxNv2aUseSegment(uint32_t handle)
 {
     if (g_residentImpl)
         g_residentImpl->useSegment(handle);
+}
+#endif
+
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+namespace
+{
+    const GSRasterBackend *g_fastBackend = nullptr; // the renderer g_residentImpl belongs to (Create)
+}
+
+bool xboxNv2aFastBackend(const GSRasterBackend *backend)
+{
+    return g_residentImpl && backend && backend == g_fastBackend;
+}
+
+bool xboxNv2aFastRun(uint32_t handle, const GSContext &context, const GSPrimReg &prim, const GSTexaReg &texa,
+                     const GSXfConstants &constants, const uint8_t *block, uint32_t index, uint32_t count,
+                     uint32_t format, uint32_t strips)
+{
+    return g_residentImpl &&
+           g_residentImpl->fastRun(handle, context, prim, texa, constants, block, index, count, format, strips);
 }
 #endif
 
@@ -4803,6 +5045,9 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     Impl &impl = *backend->m;
 #if TS_NATIVE_MODELS
     g_residentImpl = &impl;
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+    g_fastBackend = backend.get();
+#endif
 #endif
     impl.vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));       // 288 KB
     impl.xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex))); // 352 KB
@@ -4846,6 +5091,10 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
 GSNv2aBackend::GSNv2aBackend() : m(std::make_unique<Impl>()) {}
 GSNv2aBackend::~GSNv2aBackend()
 {
+#if TS_NATIVE_MODELS && TS_NATIVE_REPLAY && TS_FAST_REPLAY
+    if (g_fastBackend == this)
+        g_fastBackend = nullptr;
+#endif
 #if TS_GIF_DIRECT || TS_NATIVE_FX
     if (g_runBackend == this)
         g_runBackend = nullptr;
@@ -4857,6 +5106,9 @@ void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
     m->vram = vram;
     m->vramSize = vramSize;
     m->cpu.Initialize(vram, vramSize);
+#if TS_CLUT_REPEAT && TS_FAST_REPLAY
+    m->forgetFullClut(); // (a new CPU renderer state)
+#endif
 #if TS_CLUT_IDENTITY
     // Boot self-test: the full-load order against the row reads it
     // replaces, over random local memory (restored); palette identities

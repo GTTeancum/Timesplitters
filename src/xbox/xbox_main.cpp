@@ -26,6 +26,7 @@
 #include "xbox_native_2d.h"
 #include "xbox_native_fx.h"
 #include "xbox_vif_source.h"
+#include "xbox_lazy_commit.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
@@ -210,6 +211,21 @@ namespace
         xboxPerfReport(perf);
 #endif
         renderCountersReport(); // [TS:render] (project/game/ts_render_counters.cpp)
+#if TS_LAZY_GUEST_RAM
+        {
+            // Guest memory committed on first touch (xbox_lazy_commit.cpp):
+            // each range's committed/reserved KB; pages the handler committed
+            // on a read / a write, faults on a page just committed by another
+            // thread, and KB committed ahead of file reads.
+            XboxLazyStats lazy;
+            xboxLazyGetStats(lazy);
+            std::cout << "[TS:lazy]";
+            for (int i = 0; i < lazy.ranges; ++i)
+                std::cout << " " << lazy.names[i] << "=" << lazy.committedKB[i] << "/" << lazy.sizeKB[i] << "K";
+            std::cout << " faults r/w/again=" << lazy.readFaults << "/" << lazy.writeFaults << "/" << lazy.refaults
+                      << " precommit=" << lazy.precommitKB << "K" << std::endl;
+        }
+#endif
         std::cout << "[TS:tex] " << nv2aLookupStats() << std::endl;
 #if TS_BG_NATIVE
         XboxBgRuntimeStats bg;
@@ -336,6 +352,23 @@ namespace
                   << prologues.nativeInline << "/" << prologues.nativeLost
 #endif
                   << std::endl;
+#if TS_DIRECT_MODELS
+        // The direct model route (DIRECT-MODELS-PLAN.md): partGfx's precalc
+        // CALLs and those taken direct, the reasons the rest kept the CALL,
+        // the walker's markers (walked: expanded with the CALL instead), and
+        // the decoder's replays, chains decoded from guest memory and lost records.
+        XboxDirectStats direct;
+        if (xboxDirectGetStats(direct))
+            std::cout << "[TS:direct] calls/taken=" << direct.calls << "/" << direct.taken
+                      << " keep token/ready/kind/verify/record=" << direct.noToken << "/" << direct.notReady << "/"
+                      << direct.kind << "/" << direct.verify << "/" << direct.record << " marked/walked=" << direct.marked
+                      << "/" << direct.walked << " replayed/lean/inline/lost=" << direct.replayed << "/" << direct.lean
+                      << "/" << direct.inlined << "/" << direct.lost << " prologue native/decoded="
+                      << direct.prologueNative << "/" << direct.prologueDecoded << " vu1 in/first="
+                      << direct.materialized << "/" << direct.materializedFirst << " gs syncs=" << direct.gsSyncs
+                      << " cpu draws/runstrips=" << direct.cpuDraws << "/" << direct.cpuRunStrips
+                      << " strips nopre/short=" << direct.nonPreStrips << "/" << direct.shortStrips << std::endl;
+#endif
 #endif
     }
 
@@ -395,6 +428,9 @@ namespace
 
 int main()
 {
+#if TS_LAZY_GUEST_RAM
+    XboxLazyThreadScope lazyCommit; // guest memory's first-touch handler (xbox_lazy_commit.h)
+#endif
     // Until the runtime draws its first frame, log lines are also printed on
     // screen, so a stall during start-up is visible.
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);

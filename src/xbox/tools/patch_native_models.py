@@ -6,12 +6,17 @@ patch_native_models.py memory|vif|game|partgfx SOURCE OUTPUT
   zero-QWC CALL, appends its 16-byte marker pieces, and reports the chain's
   tags and pieces for the capture's source hash; it also expands partGfx's
   list tokens (with TS_NATIVE_REPLAY a model prologue's token becomes one
-  marker piece the decoder runs natively, xbox_part_prologue.cpp);
+  marker piece the decoder runs natively, xbox_part_prologue.cpp; with
+  TS_DIRECT_MODELS a direct token one DIRECT marker, or where it cannot be
+  marked its prologue and then the CALL it stands for);
 - partgfx: partGfx (ts_native_game2.cpp) writes one list token in place of
   each of its REF runs (xbox_part_prologue.cpp): the three prologues of
   header, matrix and light REFs before a model's CALL (precalc or Dbuf) or
   REF loop, and the three REF loops (one token a loop, split past
-  4,096 REFs, closed at a yield);
+  4,096 REFs, closed at a yield); with TS_DIRECT_MODELS a precalculated
+  CALL of a model whose capture is Ready is not written (xboxDirectCall):
+  the prologue token before it stands for the model too
+  (DIRECT-MODELS-PLAN.md);
 - vif: the segmented decoder (ps2_vif1_interpreter.cpp) hands markers to the
   cache (with its own MSCAL, native-run and MSKPATH3 steps for the replay)
   and reports inside a capture every command the replay must reproduce:
@@ -45,16 +50,235 @@ def replace_once(text: str, anchor: str, replacement: str, label: str) -> str:
     return text.replace(anchor, replacement)
 
 
+# TS_SWEEP_WALK (the 2026-11-02 sweep, src/xbox/xbox_sweep_walk.cpp): the
+# VIF1 chain's tags in main RAM go through a lean copy of the walk loop
+# before the general one, which takes over at a tag the lean loop leaves
+# (outside main RAM, or a limit the general loop reports). Per tag the same
+# calls, pieces and state in the same order. What it saves: the capture
+# hooks are called only while a walk capture may be open
+# (g_xboxModelWalkOpen, xbox_model_cache.cpp), the piece recorder is inline,
+# a tag needs no translation or region choice, a jump's next tag is asked
+# for at once, and a prologue token asks for the next CALL's model slot
+# ahead (xboxModelWalkPrefetch). The copy holds both loops; the switch picks
+# at compile time (default 0: as before).
+SWEEP_WALK_DECLS = '''#ifndef TS_SWEEP_WALK
+#define TS_SWEEP_WALK 0
+#endif
+#if TS_SWEEP_WALK && TS_NATIVE_MODELS
+#include <xmmintrin.h>
+extern bool g_xboxModelWalkOpen; // a walk capture may be open (xbox_model_cache.cpp)
+void xboxModelWalkPrefetch(uint32_t target);
+#endif
+'''
+
+SWEEP_WALK = r'''#if defined(PLATFORM_XBOX) && TS_NATIVE_MODELS && TS_SWEEP_WALK && !TS_WALK_SKIP_ZERO_TTE && !TS_DIRECT_MODELS && TS_RENDER_COUNTERS < 2
+                    // TS_SWEEP_WALK: the lean walk (patch_native_models.py).
+                    // Each tag as the loop below takes it, in the same order:
+                    // hooks, pieces, the model cache and the prologue tokens.
+                    bool xboxWalkEnded = false;
+                    if (recordSegments)
+                    {
+                        const uint8_t *const xboxRam = m_rdram;
+                        // addSegment, inline (its capture hook only while one is open).
+                        auto xboxPiece = [&](const uint8_t *data, uint32_t bytes) __attribute__((always_inline))
+                        {
+                            if (g_xboxModelWalkOpen)
+                                xboxModelWalkPiece(data, bytes);
+                            segmentBytes += bytes;
+                            if (segmentBytes > kMaxBufferedDmaBytes)
+                                PS2X_THROW(std::runtime_error("DMA chain exceeds host buffering budget"));
+                            if (s_vif1Segments.size() > firstSegment &&
+                                s_vif1Segments.back().first + s_vif1Segments.back().second == data)
+                                extendLastVif1Piece(bytes);
+                            else
+                                s_vif1Segments.emplace_back(data, bytes);
+                        };
+                        for (;;)
+                        {
+                            // Left to the loop below: a tag outside main RAM
+                            // (translated there), and what it reports (a
+                            // return stack past two, too many tags).
+                            if (asp > 2u || chainTags >= kMaxDmaControlStates || tagAddr > PS2_RAM_SIZE - 16u)
+                                break;
+                            ++chainTags;
+                            const uint32_t xboxHere = tagAddr; // its own offset in RAM
+                            const uint8_t *const xboxTag = xboxRam + xboxHere;
+                            if (g_xboxModelWalkOpen)
+                                xboxModelWalkTag(xboxTag);
+                            uint32_t xboxWords[2];
+                            std::memcpy(xboxWords, xboxTag, 8);
+                            const uint32_t xboxQwc = xboxWords[0] & 0xFFFFu;
+                            const uint32_t xboxId = (xboxWords[0] >> 28) & 7u;
+                            const bool xboxIrq = (xboxWords[0] >> 31) != 0u;
+                            const uint32_t xboxAddr = xboxWords[1] & 0x7FFFFFFFu;
+                            lastTagUpper = xboxWords[0] >> 16;
+                            ++tagsProcessed;
+                            const uint32_t xboxBytes = xboxQwc * 16u;
+                            uint32_t xboxData = xboxHere + 16u;
+                            bool xboxHasPayload = xboxQwc != 0u;
+                            bool xboxEnd = false;
+                            switch (xboxId)
+                            {
+                            case 0: // REFE
+                                xboxData = xboxAddr;
+                                tagAddr = xboxHere + 16u;
+                                xboxEnd = true;
+                                break;
+                            case 1: // CNT
+                                tagAddr = xboxHere + 16u + xboxBytes;
+                                break;
+                            case 2: // NEXT
+                                tagAddr = xboxAddr;
+                                break;
+                            case 3: // REF
+                            case 4: // REFS
+                                xboxData = xboxAddr;
+                                tagAddr = xboxHere + 16u;
+                                break;
+                            case 5: // CALL
+                                if (xboxQwc == 0u && !transferTagData && !(xboxIrq && tieEnabled))
+                                {
+                                    const uint8_t *xboxModelMarker = nullptr;
+                                    const XboxModelWalk xboxModelAct =
+                                        xboxModelWalkCall(xboxRam, xboxAddr, xboxHere, asp, tieEnabled, xboxModelMarker);
+                                    if (xboxModelAct == XboxModelWalkReplay)
+                                    {
+                                        xboxPiece(xboxModelMarker, 16u);
+                                        tagAddr = xboxHere + 16u; // as if it had returned at once
+                                        xboxHasPayload = false;
+                                        break;
+                                    }
+                                    if (xboxModelAct == XboxModelWalkReplayEnd)
+                                    {
+                                        xboxPiece(xboxModelMarker, 16u);
+                                        xboxModelWalkReplayEnd(tagAddr, asp, asr0, asr1, lastTagUpper);
+                                        xboxHasPayload = false;
+                                        xboxEnd = true;
+                                        break;
+                                    }
+                                    if (xboxModelAct == XboxModelWalkCapture)
+                                        xboxPiece(xboxModelMarker, 16u);
+                                }
+                                if (asp == 0u)
+                                {
+                                    asr0 = xboxHere + 16u + xboxBytes;
+                                    asp = 1u;
+                                }
+                                else if (asp == 1u)
+                                {
+                                    asr1 = xboxHere + 16u + xboxBytes;
+                                    asp = 2u;
+                                }
+                                else
+                                    PS2X_THROW(std::runtime_error("DMA CALL exceeds two-entry return stack"));
+                                tagAddr = xboxAddr;
+                                break;
+                            case 6: // RET
+                                if (asp == 2u)
+                                {
+                                    tagAddr = asr1;
+                                    asp = 1u;
+                                }
+                                else if (asp == 1u)
+                                {
+                                    tagAddr = asr0;
+                                    asp = 0u;
+                                }
+                                else
+                                    xboxEnd = true;
+                                break;
+                            default: // END
+                                xboxEnd = true;
+                                break;
+                            }
+                            // The next tag's lines (it too when the walk jumps;
+                            // the two after it, as the loop below asks).
+                            {
+                                const uint32_t xboxNext = tagAddr & PS2_RAM_MASK;
+                                if (!ps2IsScratchpadAddress(tagAddr) && xboxNext < PS2_RAM_SIZE - 64u)
+                                {
+                                    if (tagAddr != xboxHere + 16u)
+                                        _mm_prefetch(reinterpret_cast<const char *>(xboxRam + xboxNext), _MM_HINT_T0);
+                                    _mm_prefetch(reinterpret_cast<const char *>(xboxRam + xboxNext + 32u), _MM_HINT_T0);
+                                    _mm_prefetch(reinterpret_cast<const char *>(xboxRam + xboxNext + 64u), _MM_HINT_T0);
+                                }
+                            }
+                            if (transferTagData)
+                                xboxPiece(xboxTag + 8u, 8u);
+                            if (xboxHasPayload)
+                            {
+                                if (xboxData < PS2_RAM_SIZE && xboxBytes <= PS2_RAM_SIZE - xboxData)
+                                    xboxPiece(xboxRam + xboxData, xboxBytes);
+                                else
+                                    appendData(xboxData, xboxQwc);
+                            }
+                            if (xboxId == 3u && xboxQwc == 0u)
+                            {
+                                // A list token (xbox_part_prologue.cpp). A zero-QWC
+                                // CALL right after it (a model's): its cache slot
+                                // asked for now, arriving while the token is looked up.
+                                if (xboxHere <= PS2_RAM_SIZE - 32u)
+                                {
+                                    uint32_t xboxCall[2];
+                                    std::memcpy(xboxCall, xboxTag + 16u, 8);
+                                    if ((xboxCall[0] & 0x7000FFFFu) == 0x50000000u)
+                                        xboxModelWalkPrefetch(xboxCall[1] & 0x7FFFFFFFu);
+                                }
+#if TS_NATIVE_REPLAY
+                                if (const uint8_t *xboxPrologueMarker = xboxPrologueNative(xboxAddr))
+                                    xboxPiece(xboxPrologueMarker, 16u);
+                                else
+#endif
+                                {
+                                    uint32_t xboxPrologueCount = 0u;
+                                    if (const XboxPrologueRef *xboxPrologueRefs = xboxPrologueExpand(xboxAddr, xboxPrologueCount))
+                                        for (uint32_t k = 0; k < xboxPrologueCount; ++k)
+                                        {
+                                            // A payload wholly in main RAM is its own
+                                            // offset there (appendData's mapping).
+                                            const uint32_t xboxRefAddr = xboxPrologueRefs[k].addr;
+                                            const uint32_t xboxRefBytes = xboxPrologueRefs[k].qwc * 16u;
+                                            if (xboxRefBytes != 0u && xboxRefAddr < PS2_RAM_SIZE &&
+                                                xboxRefBytes <= PS2_RAM_SIZE - xboxRefAddr)
+                                                xboxPiece(xboxRam + xboxRefAddr, xboxRefBytes);
+                                            else
+                                                appendData(xboxRefAddr, xboxPrologueRefs[k].qwc);
+                                        }
+                                }
+                            }
+                            if (xboxId == 6u && g_xboxModelWalkOpen)
+                                if (const uint8_t *xboxModelEnd = xboxModelWalkAfterRet(asp))
+                                    xboxPiece(xboxModelEnd, 16u);
+                            if (xboxIrq && tieEnabled)
+                                xboxEnd = true;
+                            if (xboxEnd)
+                            {
+                                xboxWalkEnded = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!xboxWalkEnded)
+#endif
+'''
+
+
 def patch_memory(s: str) -> str:
     a = '''                    auto addSegment = [&](const uint8_t *data, uint32_t bytes) TS_WALK_INLINE
                     {
 '''
-    s = replace_once(s, a, a + '''#if TS_NATIVE_MODELS
+    s = replace_once(s, a, a + '''#if TS_NATIVE_MODELS && TS_SWEEP_WALK
+                        if (g_xboxModelWalkOpen)
+                            xboxModelWalkPiece(data, bytes);
+#elif TS_NATIVE_MODELS
                         xboxModelWalkPiece(data, bytes);
 #endif
 ''', 'addSegment')
     a = '                        const uint8_t *tp = tagBase + physTag;\n'
-    s = replace_once(s, a, a + '''#if defined(PLATFORM_XBOX) && TS_NATIVE_MODELS
+    s = replace_once(s, a, a + '''#if defined(PLATFORM_XBOX) && TS_NATIVE_MODELS && TS_SWEEP_WALK
+                        if (recordSegments && g_xboxModelWalkOpen)
+                            xboxModelWalkTag(tp);
+#elif defined(PLATFORM_XBOX) && TS_NATIVE_MODELS
                         if (recordSegments)
                             xboxModelWalkTag(tp);
 #endif
@@ -108,7 +332,15 @@ def patch_memory(s: str) -> str:
 #if TS_NATIVE_REPLAY
                             // A model prologue: one marker piece, which the
                             // decoder runs natively at this stream position.
+#if TS_DIRECT_MODELS
+                            // A direct token (xboxDirectCall): the prologue
+                            // and its model in one marker.
+                            uint32_t xboxDirectChain = 0u;
+                            const uint8_t *xboxPrologueMarker = xboxPrologueNativeAt(
+                                addr, asp, tieEnabled, recordSegments, transferTagData, xboxDirectChain);
+#else
                             const uint8_t *xboxPrologueMarker = recordSegments ? xboxPrologueNative(addr) : nullptr;
+#endif
                             if (xboxPrologueMarker)
                                 addSegment(xboxPrologueMarker, 16u);
                             else
@@ -117,10 +349,54 @@ def patch_memory(s: str) -> str:
                                 uint32_t xboxPrologueCount = 0u;
                                 if (const XboxPrologueRef *xboxPrologueRefs = xboxPrologueExpand(addr, xboxPrologueCount))
                                     for (uint32_t k = 0; k < xboxPrologueCount; ++k)
+                                    {
+#if TS_FAST_DECODE
+                                        // A payload wholly in main RAM (a REF loop's
+                                        // header and arrays: 12-14 a batch) is one
+                                        // piece where it lies, as a tag's payload
+                                        // above: the address is its own offset there
+                                        // (appendData's mapping), so its scratchpad
+                                        // test, translation and chunk loop are skipped.
+                                        const uint32_t xboxRefAddr = xboxPrologueRefs[k].addr;
+                                        const uint32_t xboxRefBytes = xboxPrologueRefs[k].qwc * 16u;
+                                        if (recordSegments && xboxRefBytes != 0u && xboxRefAddr < PS2_RAM_SIZE &&
+                                            xboxRefBytes <= PS2_RAM_SIZE - xboxRefAddr)
+                                        {
+                                            addSegment(m_rdram + xboxRefAddr, xboxRefBytes);
+                                            continue;
+                                        }
+#endif
                                         appendData(xboxPrologueRefs[k].addr, xboxPrologueRefs[k].qwc);
+                                    }
                             }
+#if TS_NATIVE_REPLAY && TS_DIRECT_MODELS
+                            if (xboxDirectChain != 0u)
+                            {
+                                // A direct token this walk cannot mark: the
+                                // CALL partGfx left out (QWC 0, to the chain)
+                                // after the prologue, as case 5 walks it; it
+                                // returns to the tag after the token.
+                                if (asp == 0u)
+                                {
+                                    asr0 = tagAddr;
+                                    asp = 1u;
+                                }
+                                else if (asp == 1u)
+                                {
+                                    asr1 = tagAddr;
+                                    asp = 2u;
+                                }
+                                else
+                                    PS2X_THROW(std::runtime_error("DMA CALL exceeds two-entry return stack"));
+                                tagAddr = xboxDirectChain;
+                            }
+#endif
                         }
+#if TS_SWEEP_WALK
+                        if (id == 6u && recordSegments && g_xboxModelWalkOpen)
+#else
                         if (id == 6u && recordSegments)
+#endif
                             if (const uint8_t *xboxModelEnd = xboxModelWalkAfterRet(asp))
                                 addSegment(xboxModelEnd, 16u);
 #endif
@@ -135,7 +411,13 @@ def patch_memory(s: str) -> str:
                             addSegment(xboxModelEnd, 16u);
 #endif
 ''' + a, 'chain end')
-    return s
+    a = '''                    uint32_t chainTags = 0;
+                    (void)chainTags;
+                    for (;;)
+'''
+    b = a[:-len('                    for (;;)\n')]
+    s = replace_once(s, a, b + SWEEP_WALK + '                    for (;;)\n', 'lean walk')
+    return SWEEP_WALK_DECLS + s
 
 
 def patch_vif(s: str) -> str:
@@ -321,10 +603,229 @@ def patch_vif(s: str) -> str:
 #endif
             submitGifPacket(GifPathId::Path2, xboxModelImage, chunkQw * 16u, true, m_vif1PendingPath2DirectHl);
 ''', 'DIRECT image')
+    # The direct route's VU1 shadow (xbox_part_prologue.cpp) goes into VU1
+    # memory before a command that reads or writes it, and at the call's end.
+    a = '        TS_RENDER_COUNT2(++commands);\n'
+    body = replace_once(body, a, a + '''#if TS_DIRECT_MODELS
+        if (g_xboxDirectStale && xboxDirectTouchesVu(opcode))
+            xboxDirectMaterialize(m_vu1Data);
+#endif
+''', 'direct VU1 shadow')
+    a = '    g_vif1StreamStats.fastVectors += fastVectors;\n'
+    body = replace_once(body, a, '''#if TS_DIRECT_MODELS
+    xboxDirectDecodeEnd(m_vu1Data); // (the EE and the next call see VU1 memory whole)
+#endif
+''' + a, 'direct decode end')
     return head + body
 
 
+# TS_DIRECT_MODELS: transformConstants' state at file scope, so the direct
+# route's rows can go into the same constants (xboxNativeDirectConstants).
+TRANSFORM_STATE_OLD = '''    GSXfConstants &transformConstants(const uint8_t *data, bool check)
+    {
+        static GSXfConstants s_xc{};
+        static uint32_t s_writes = 0, s_serial = 0;
+        static bool s_valid = false;
+'''
+TRANSFORM_STATE_NEW = '''#if TS_DIRECT_MODELS
+    // (Xbox, patch_native_models.py: transformConstants' state at file
+    // scope, which xboxNativeDirectConstants writes too.)
+    GSXfConstants s_xc{};
+    uint32_t s_writes = 0, s_serial = 0;
+    bool s_valid = false;
+#endif
+    GSXfConstants &transformConstants(const uint8_t *data, bool check)
+    {
+#if !TS_DIRECT_MODELS
+        static GSXfConstants s_xc{};
+        static uint32_t s_writes = 0, s_serial = 0;
+        static bool s_valid = false;
+#endif
+'''
+DIRECT_CONSTANTS = '''
+#if TS_DIRECT_MODELS
+// The direct route (xbox_part_prologue.cpp): the rows its prologue worked
+// out go into the constants as the constant programs' writes would (the
+// rows they hold first brought up to date from VU1 memory), each changed row
+// counted for the renderer; VU1 memory itself gets them later, when
+// something emulated may read it, and its watched-row notes then read back
+// the same values.
+GSXfConstants &xboxNativeDirectConstants(const uint8_t *data, const uint8_t (*rows)[16], uint32_t written)
+{
+    GSXfConstants &xc = transformConstants(data, false);
+    uint8_t *k = reinterpret_cast<uint8_t *>(&xc);
+#if TS_XF_DIRTY_ROWS
+    uint64_t changed = 0;
+    for (uint32_t r = 0; r < 33u; ++r)
+    {
+        const uint32_t vu = kXfSourceRow[r];
+        if (vu < 4u || (vu >= 12u && vu < 106u))
+            continue;
+        const uint32_t i = vu < 12u ? vu - 4u : vu - 98u;
+        if (!((written >> i) & 1u) || std::memcmp(k + r * 16u, rows[i], 16) == 0)
+            continue;
+        std::memcpy(k + r * 16u, rows[i], 16);
+        changed |= 1ull << r;
+    }
+    if (changed == 0u)
+        return xc;
+    s_xc.serial = ++s_serial ? s_serial : ++s_serial;
+    TS_XF_ROWS_CHANGED(s_xc.serial, changed);
+#else
+    // loadConstants' layout: mvp 0 from row 8, lights from 110 and 106, model from row 4.
+    static const uint8_t kRow[33] = {8,   9,   10,  11,  12,  13,  14,  15,  16,  17,  18,  19,
+                                     110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121,
+                                     106, 107, 108, 109, 20,  21,  4,   5,   6};
+    bool changed = false;
+    for (uint32_t r = 0; r < 33u; ++r)
+    {
+        const uint32_t vu = kRow[r];
+        if (vu < 4u || (vu >= 12u && vu < 106u))
+            continue;
+        const uint32_t i = vu < 12u ? vu - 4u : vu - 98u;
+        if (!((written >> i) & 1u) || std::memcmp(k + r * 16u, rows[i], 16) == 0)
+            continue;
+        std::memcpy(k + r * 16u, rows[i], 16);
+        changed = true;
+    }
+    if (!changed)
+        return xc;
+    s_xc.serial = ++s_serial ? s_serial : ++s_serial;
+#endif
+    TS_NATIVE_STAT(++g_nv2aTextureStats.constRebuilds);
+    return xc;
+}
+
+// The direct route's per-run fallback (xbox_model_cache.cpp): a stored strip
+// of a run the renderer declined, drawn as runDraw's CPU path draws a strip
+// with PRE (transform, light and clip here, then to the GS as decoded
+// vertices or as a packet), from the stored records and the constants in
+// place of VU1 memory's arrays and rows. `prim`: the run's PRIM (a strip).
+void xboxNativeCpuStrip(const GSXfVertex *in, uint32_t n, uint32_t prim, const GSXfConstants &xc, PS2Memory *memory,
+                        GS &gs)
+{
+    if (n < 3u || n > 64u)
+        return;
+    static uint8_t packetBuffer[16u * 1024u];
+    Packet packet{packetBuffer, sizeof(packetBuffer), 0, 0, memory, &gs};
+    auto mat = [](const float (&m)[4][4]) {
+        Mat r;
+        std::memcpy(&r, m, sizeof(r));
+        return r;
+    };
+    const bool skinned = xc.variant == GSXfConstants::Skinned, envMap = xc.variant == GSXfConstants::EnvMap;
+    const bool lit = xc.variant == GSXfConstants::Lit || skinned;
+    V4 scale, offset;
+    std::memcpy(&scale, xc.scale, 16);
+    std::memcpy(&offset, xc.offset, 16);
+    const Mat lightColour = mat(xc.lightColour);
+    // The PACKED tag the strip's vertices would carry: ST, RGBAQ, XYZF2 (fog
+    // 0, as the decoded-vertex route sends it), PRE with the run's PRIM.
+    const uint32_t tag[4] = {n, (3u << 28) | ((prim & 0x7FFu) << 15) | (1u << 14), 0x412u, 0u};
+    ClipVertex verts[64];
+    bool allInside = true;
+    for (uint32_t v = 0; v < n; ++v)
+    {
+        const GSXfVertex &r = in[v];
+        ClipVertex &cv = verts[v];
+        const uint32_t bone = skinned ? std::min<uint32_t>(static_cast<uint32_t>(r.bone4) / 4u, 2u) : 0u;
+        cv.p = transform(mat(xc.mvp[bone]), r.x, r.y, r.z, 1.0f);
+        if (envMap)
+        {
+            const float rx = xc.model[0][0] * r.nx + xc.model[1][0] * r.ny + xc.model[2][0] * r.nz;
+            const float rz = xc.model[0][2] * r.nx + xc.model[1][2] * r.ny + xc.model[2][2] * r.nz;
+            cv.st = {(rx + 1.0f) * 0.5f, (rz + 1.0f) * 0.5f, 1.0f, 0.0f};
+        }
+        else
+            cv.st = {r.s, r.t, r.q, 0.0f};
+        cv.c[0] = static_cast<float>((r.color >> 16) & 0xFFu);
+        cv.c[1] = static_cast<float>((r.color >> 8) & 0xFFu);
+        cv.c[2] = static_cast<float>(r.color & 0xFFu);
+        cv.c[3] = static_cast<float>(r.color >> 24);
+        if (lit)
+        {
+            V4 inten = transform(mat(xc.lightDir[bone]), r.nx, r.ny, r.nz, 1.0f);
+            inten.x = std::max(inten.x, 0.0f);
+            inten.y = std::max(inten.y, 0.0f);
+            inten.z = std::max(inten.z, 0.0f);
+            inten.w = std::max(inten.w, 0.0f);
+            const V4 col = transform(lightColour, inten.x, inten.y, inten.z, inten.w);
+            cv.c[0] = static_cast<float>(static_cast<int32_t>(std::min(cv.c[0] * col.x, kLitClamp)));
+            cv.c[1] = static_cast<float>(static_cast<int32_t>(std::min(cv.c[1] * col.y, kLitClamp)));
+            cv.c[2] = static_cast<float>(static_cast<int32_t>(std::min(cv.c[2] * col.z, kLitClamp)));
+        }
+        allInside = allInside && inside(cv.p);
+    }
+    if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
+        memory->gifArbiter()->drain(); // packets queued behind other paths, in order
+    if (allInside)
+    {
+        // runDraw's decoded-vertex route.
+        GSVertex out[64];
+        for (uint32_t v = 0; v < n; ++v)
+        {
+            const ClipVertex &cv = verts[v];
+            GSVertex &o = out[v];
+            const float q = 1.0f / cv.p.w;
+            o.s = cv.st.x * q;
+            o.t = cv.st.y * q;
+            o.q = cv.st.z * q;
+            if (o.q == 0.0f)
+                o.q = 1.0f;
+            o.r = static_cast<uint8_t>(static_cast<int32_t>(cv.c[0]));
+            o.g = static_cast<uint8_t>(static_cast<int32_t>(cv.c[1]));
+            o.b = static_cast<uint8_t>(static_cast<int32_t>(cv.c[2]));
+            o.a = static_cast<uint8_t>(static_cast<int32_t>(cv.c[3]));
+            const int32_t x = static_cast<int32_t>((cv.p.x * q * scale.x + offset.x) * 16.0f);
+            const int32_t y = static_cast<int32_t>((cv.p.y * q * scale.y + offset.y) * 16.0f);
+            const int32_t z = static_cast<int32_t>((cv.p.z * q * scale.z + offset.z) * 16.0f);
+            o.x = static_cast<float>(static_cast<uint32_t>(x) & 0xFFFFu) / 16.0f;
+            o.y = static_cast<float>(static_cast<uint32_t>(y) & 0xFFFFu) / 16.0f;
+            o.z = static_cast<double>((static_cast<uint32_t>(z) >> 4) & 0xFFFFFFu);
+            o.u = o.v = 0;
+            o.fog = 0;
+        }
+        gs.submitStrip(prim & 0x7FFu, out, n);
+        return;
+    }
+    // Clipped: the surviving pieces as a triangle list (PRIM type 3), as
+    // runDraw's CPU path sends them.
+    const uint32_t listTag[4] = {tag[0], (tag[1] & ~(7u << 15)) | (3u << 15), tag[2], tag[3]};
+    packet.ensure(16u + 48u * 3u);
+    uint8_t *tagAt = packet.tag(listTag);
+    uint32_t count = 0;
+    for (uint32_t t = 0; t + 2 < n; ++t)
+    {
+        ClipVertex poly[12];
+        const int m = clipTriangle(verts[t], verts[t + 1], verts[t + 2], poly);
+        for (int k = 1; k + 1 < m; ++k)
+        {
+            if (packet.used + 3u * 48u > packet.size)
+            {
+                uint32_t *w = reinterpret_cast<uint32_t *>(tagAt);
+                w[0] = (w[0] & ~0x7FFFu) | count;
+                packet.submit();
+                tagAt = packet.tag(listTag);
+                count = 0;
+            }
+            packet.vertex(poly[0], scale, offset);
+            packet.vertex(poly[k], scale, offset);
+            packet.vertex(poly[k + 1], scale, offset);
+            count += 3u;
+        }
+    }
+    uint32_t *w = reinterpret_cast<uint32_t *>(tagAt);
+    w[0] = (w[0] & ~0x7FFFu) | count;
+    if (count == 0u)
+        packet.used -= 16u; // nothing survived: drop the empty tag
+    packet.submit();
+}
+#endif
+'''
+
+
 def patch_game(s: str) -> str:
+    s = replace_once(s, TRANSFORM_STATE_OLD, TRANSFORM_STATE_NEW, 'transform constants state')
     a = '''        if (stripCount == 0u)
             return false; // nothing at all: not even the state block
 '''
@@ -438,7 +939,7 @@ bool xboxNativeEntryRows(uint32_t pc, const uint8_t *data, uint32_t top, uint32_
     default: return false;
     }
 }
-#endif
+''' + DIRECT_CONSTANTS + '''#endif
 '''
     return s
 
@@ -936,6 +1437,37 @@ PART_RUNS = (
 )
 
 
+# The direct model route (TS_DIRECT_MODELS, DIRECT-MODELS-PLAN.md) at the
+# precalculated chain's CALL (0x26119c-0x2611b4, then 0x261c38-0x261c40):
+# here r.v1 is the CALL's slot (the list pointer, not yet moved), r.a0 the
+# chain, and the tag before the slot the first prologue's token. Taken, the
+# CALL is not written: the list pointer stays at the slot, and r.v0/r.v1
+# hold the positions the original's hold relative to its list pointer (the
+# pointer itself, the last tag written); every path from 0x261f4c reloads
+# them before writing the list. (The CALL's ID and ADDR, stored at the slot
+# already, are overwritten by the next tag like any stale list byte.)
+PRECALC_CALL = '''        WRITE32(lo32(r.v1) + 0x4u, lo32(r.a0));                  // 2611b4 sw $a0, 0x4($v1)
+        goto L_261c38;
+'''
+# The same CALL after the second prologue (0x2615ec-0x261604; the same
+# registers, the token before it closed by that prologue's run).
+PRECALC_CALL_2 = '''        WRITE32(lo32(r.v1) + 0x4u, lo32(r.a0));                  // 261604 sw $a0, 0x4($v1)
+        goto L_261c38;
+'''
+DIRECT_CALL = '''#if TS_DIRECT_MODELS
+        // Xbox (patch_native_models.py): a model whose capture is Ready goes
+        // direct (xboxDirectCall): its prologue token stands for the CALL too.
+        if (xboxDirectCall(READ32(lo32(r.v1) - 16u), READ32(lo32(r.v1) - 12u), lo32(r.a0)))
+        {
+            TS_RENDER_COUNT(++g_renderCounters.partPrecalc);
+            r.v0 = r.v1;
+            r.v1 = sext32(lo32(r.v1) - 16u);
+            goto L_261f4c;
+        }
+#endif
+'''
+
+
 def patch_partgfx(s: str) -> str:
     """partGfx's REF runs become list tokens: the first prologue
     (0x261048-0x261180) by PROLOGUE_TOKEN, the other two prologues and the
@@ -969,6 +1501,9 @@ def patch_partgfx(s: str) -> str:
 '''
     s = replace_once(s, a, a + '        XboxPartRun xboxRun{}; // Xbox: the open list-token run (patch_native_models.py)\n',
                      'partGfx locals')
+    for call in (PRECALC_CALL, PRECALC_CALL_2):
+        s = replace_once(s, call, call[:-len('        goto L_261c38;\n')] + DIRECT_CALL + '        goto L_261c38;\n',
+                         'precalc CALL')
     return s
 
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""hwprof_report.py LOG [MAP] [--top N] [--per-thread N]
+"""hwprof_report.py LOG [MAP] [--top=N] [--per-thread=N] [--jobs=N] [--xbe=PATH]
+
+The call stacks (one every TS_HWPROF_STACK_EVERY samples) are rebuilt with
+the map and the XBE of the build that was run (default: default.xbe beside
+the map) and listed as time with everything called, then as a call tree.
 
 Reads the [TS:prof] lines of a TS_HWPROF=1 build (xbox_hwprof.cpp) and
 symbolises them with the link map.
@@ -15,7 +19,9 @@ must be the map of the build that was run.
 """
 import bisect
 import collections
+import os
 import re
+import struct
 import sys
 
 DEFAULT_MAP = r'D:\Programming\GitHub\Timesplitters\build\xbox\main.map'
@@ -55,11 +61,22 @@ class Symbols:
         self.syms, self.addrs = load_map(path)
         self.end = self.addrs[-1] + 0x10000 if self.addrs else 0
         self.clock_block = None
+        # .text's end (section 0001's length past its first symbol): an
+        # address beyond it below the kernel is code made at run time.
+        self.text_end = None
+        with open(path, encoding='latin-1') as f:
+            head = f.read(4096)
+        m = re.search(r'0001:00000000 ([0-9a-f]{8})H \.text', head)
+        first = [a for a, n, o in self.syms if a >= 0x10000]
+        if m and first:
+            self.text_end = first[0] + int(m.group(1), 16)
 
     def look(self, addr):
         if addr >= 0x80000000:  # no symbols: 256-byte blocks of the kernel
             block = addr & ~0xff
             return 'kernel@%08x%s' % (block, ' (clock interrupt)' if block == self.clock_block else ''), 'xboxkrnl'
+        if self.text_end and self.text_end <= addr < 0x80000000:
+            return 'code made at run time (VU JIT, heap)', 'runtime code'
         i = bisect.bisect_right(self.addrs, addr) - 1
         if i < 0 or addr > self.end:
             return '?%08x' % addr, ''
@@ -129,6 +146,138 @@ def prof_records(path):
             else:
                 unnumbered.append(part)
     return seen, unnumbered
+
+
+class Xbe:
+    """The bytes of a loaded XBE image by virtual address (the header maps at 0x10000)."""
+
+    def __init__(self, path):
+        with open(path, 'rb') as f:
+            self.data = f.read()
+        base = struct.unpack_from('<I', self.data, 0x104)[0]
+        count, headers = struct.unpack_from('<II', self.data, 0x11C)
+        self.sections = []
+        for i in range(count):
+            va, vsize, raw, rsize = struct.unpack_from('<IIII', self.data, headers - base + i * 0x38 + 4)
+            self.sections.append((va, min(vsize, rsize), raw))
+
+    def read(self, va, n):
+        for start, size, raw in self.sections:
+            if start <= va and va + n <= start + size:
+                return self.data[raw + va - start:raw + va - start + n]
+        return None
+
+
+# Helpers whose return addresses, left in a frame, look like callers: they
+# call only the kernel, never back into the game or the renderer.
+LEAF_CALLERS = re.compile(r'GetCurrentThreadId|mutex_(un)?lock|mutex@|CriticalSection|_ISR@|__tls|_free$|_malloc$')
+
+
+def rebuild_chain(eip, rets, syms, xbe):
+    """The functions of one sampled stack, innermost first. A return address
+    after a direct call is kept only if the call leads to the function below
+    it, unless no later one does (a tail call broke the chain); stale values
+    left in a frame fail that test. After an indirect call it is kept."""
+    def start_of(addr):
+        i = bisect.bisect_right(syms.addrs, addr) - 1
+        if addr >= 0x80000000:
+            return addr & ~0xff  # the kernel: its 256-byte blocks
+        if syms.text_end and syms.text_end <= addr:
+            return syms.text_end  # code made at run time: one entry
+        return syms.addrs[i] if i >= 0 else None
+
+    def direct_target(v):
+        b = xbe.read(v - 5, 5) if xbe else None
+        if b and b[0] == 0xE8:
+            return start_of((v + struct.unpack_from('<i', b, 1)[0]) & 0xFFFFFFFF)
+        return None  # indirect (or unknown)
+
+    targets = [direct_target(v) for v in rets]
+    chain = [start_of(eip)]
+    for i, v in enumerate(rets):
+        cur = chain[-1]
+        if LEAF_CALLERS.search(syms.look(start_of(v))[0]) and cur != start_of(v):
+            continue  # a helper that calls nothing of the game's: a stale value
+        t = targets[i]
+        later = targets[i + 1:]
+        if t is None:
+            if any(tt == cur for tt in later):
+                continue  # stale: a later direct call leads to cur
+        elif t != cur and any(tt == cur or tt is None for tt in later):
+            continue  # stale: a later return address may continue from cur
+        chain.append(start_of(v))
+    return chain
+
+
+def stack_report(records, syms, xbe, threads, names, main_slot, top_n):
+    stacks = collections.defaultdict(lambda: [None, []])
+    info = None
+    for seq in sorted(records):
+        kind, _, rest = records[seq].partition(' ')
+        if kind == 'stacks':
+            info = dict(kv.split('=', 1) for kv in rest.split() if '=' in kv)
+        elif kind == 's':
+            w = rest.split()
+            r = int(w[0])
+            if w[1] == '+':
+                stacks[r][1] += [int(x, 16) for x in w[2:]]
+            else:
+                stacks[r][0] = (int(w[1]), int(w[2]), int(w[3], 16))
+                stacks[r][1] += [int(x, 16) for x in w[4:]]
+    if not info:
+        return
+    print('== call stacks: %s records (one every %s samples), %s full, %s outside a known stack, %s cut at the scan limit'
+          % (info.get('records'), info.get('every'), 'buffer' if info.get('full') == '1' else 'not', info.get('bad'),
+             info.get('capped')))
+    if not xbe:
+        print('   (no XBE: direct calls not checked)')
+    by_slot = collections.defaultdict(list)
+    skipped_any = 0
+    for r, (head, rets) in sorted(stacks.items()):
+        if not head:
+            continue
+        slot, skipped, eip = head
+        skipped_any += skipped > 0
+        by_slot[slot].append(rebuild_chain(eip, rets, syms, xbe))
+    if skipped_any:
+        print('   %d stacks deeper than the record: their middle frames are left out' % skipped_any)
+    total = sum(len(v) for v in by_slot.values()) or 1
+    for slot in sorted(by_slot, key=lambda s: -len(by_slot[s])):
+        chains = by_slot[slot]
+        n = len(chains)
+        if 100.0 * n / total < 3:
+            continue
+        incl = collections.Counter()
+        self_ = collections.Counter()
+        for chain in chains:
+            for f in set(chain):
+                incl[f] += 1
+            self_[chain[0]] += 1
+        label = names.get(slot, 'slot %d' % slot)
+        print('== %s: %d stacks (%.0f%% of all); time with everything called, %% of this thread (self in brackets)'
+              % (label, n, 100.0 * n / total))
+        for f, c in incl.most_common(top_n):
+            name, obj = syms.look(f)
+            print('  %5.1f%% (%4.1f%%)  %-70s %s' % (100.0 * c / n, 100.0 * self_[f] / n, demangle_short(name)[:70], obj[:28]))
+        # The call tree, outermost first, down every branch of at least 1%.
+        tree = {}
+        for chain in chains:
+            node = tree
+            for f in reversed(chain):
+                entry = node.setdefault(f, [0, {}])
+                entry[0] += 1
+                node = entry[1]
+        print('== %s: call tree (branches of 1%% or more)' % label)
+
+        def walk(node, depth):
+            for f, (c, kids) in sorted(node.items(), key=lambda kv: -kv[1][0]):
+                if 100.0 * c / n < 1.0:
+                    continue
+                name, _ = syms.look(f)
+                print('  %5.1f%% %s%s' % (100.0 * c / n, '  ' * depth, demangle_short(name)[:80]))
+                if depth < 40:
+                    walk(kids, depth + 1)
+        walk(tree, 0)
 
 
 def main():
@@ -286,6 +435,14 @@ def main():
         print('== %s: top %d (%% of this thread)' % (names[slot], per_thread_n))
         for name, c in func_thread[slot].most_common(per_thread_n):
             print('  %5.1f%% %6d  %-70s %s' % (100.0 * c / n, c, demangle_short(name)[:70], objs[name][:28]))
+
+    xbe_path = opts.get('xbe')
+    if not xbe_path:
+        map_path = args[1] if len(args) > 1 else DEFAULT_MAP
+        guess = os.path.join(os.path.dirname(map_path), 'default.xbe')
+        xbe_path = guess if os.path.exists(guess) else None
+    xbe = Xbe(xbe_path) if xbe_path and os.path.exists(xbe_path) else None
+    stack_report(records, syms, xbe, threads, names, None, int(opts.get('jobs', 60)))
     return 0
 
 

@@ -140,6 +140,26 @@ std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &stats);
 // player count: split screen lowers the texture budget.
 void nv2aSetGuestRam(const uint8_t *rdram);
 
+// TS_FAST_REPLAY 1 (with TS_NATIVE_MODELS and TS_NATIVE_REPLAY): a stored
+// model run whose renderer segment still stands is drawn without the GS
+// front end's run (beginXfRun, its state copy and lock per run): the model
+// cache hands over the GS context, PRIM and TEXA the run would have been
+// drawn with, and the renderer takes the segment's texture, key and draw
+// commands as its own run would have. 0: every run as before.
+#ifndef TS_FAST_REPLAY
+#define TS_FAST_REPLAY 1
+#endif
+#if TS_FAST_REPLAY
+// Whether backend is this renderer (a wrapped one keeps the full route).
+bool xboxNv2aFastBackend(const GSRasterBackend *backend);
+// Run `handle` (the model cache's run index) as beginXfRun, the resident
+// draw and endXfRun would draw it on a segment hit; false (nothing done
+// that the full route would not do again) when the full route must take it.
+bool xboxNv2aFastRun(uint32_t handle, const GSContext &context, const GSPrimReg &prim, const GSTexaReg &texa,
+                     const GSXfConstants &constants, const uint8_t *block, uint32_t index, uint32_t count,
+                     uint32_t format, uint32_t strips);
+#endif
+
 class GSNv2aBackend final : public GSRasterBackend
 {
 public:

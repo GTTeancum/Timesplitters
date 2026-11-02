@@ -108,6 +108,12 @@ struct GSDebugHistoryEntry
 
 class GS
 {
+#if defined(PLATFORM_XBOX)
+    // The Xbox model cache's fast lane (src/xbox/xbox_model_cache.cpp,
+    // TS_FAST_REPLAY): a replayed model's texture registers and PRIM are
+    // written into the front end's state once, before anything reads it.
+    friend struct XboxFastReplayGs;
+#endif
 public:
     GS();
     ~GS() = default;

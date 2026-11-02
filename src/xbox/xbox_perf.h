@@ -38,6 +38,11 @@ class GS;
 // thousand calls a frame, 0.1-0.5 ms. Off by default (measurement only).
 // The wrapper forwards every GSRasterBackend virtual; one added to that
 // interface must be forwarded here too, or its default runs instead.
+// The steps' direct calls timed one by one ([TS:jobs], project/game/
+// ts_overrides.cpp): about 110 more brackets a frame. Measurement only.
+#ifndef TS_PERF_JOBS
+#define TS_PERF_JOBS 0
+#endif
 #ifndef TS_PERF_BACKEND
 #define TS_PERF_BACKEND 0
 #endif
@@ -107,6 +112,13 @@ void xboxPerfGameFrame();
 // close without an open does nothing.
 void xboxPerfPhaseOpen(uint32_t phase);
 void xboxPerfPhaseClose(uint32_t phase);
+// make TS_PERF_JOBS=1 (measurement): the steps' direct calls timed the same
+// way, one total per called function (job), written as [TS:jobs] lines by
+// guest address. A job may run inside another (each has its own clock).
+constexpr uint32_t kPerfJobs = 256;
+void xboxPerfJobName(uint32_t job, uint32_t address);
+void xboxPerfJobOpen(uint32_t job);
+void xboxPerfJobClose(uint32_t job);
 
 // operator new (xbox_shims.cpp), for requests of kPerfBigAllocation bytes
 // or more: the request, its result (null: failed) and its caller.
@@ -131,6 +143,10 @@ inline void xboxPerfInit() {}
 inline void xboxPerfGameFrame() {}
 inline void xboxPerfPhaseOpen(uint32_t) {}
 inline void xboxPerfPhaseClose(uint32_t) {}
+constexpr uint32_t kPerfJobs = 256;
+inline void xboxPerfJobName(uint32_t, uint32_t) {}
+inline void xboxPerfJobOpen(uint32_t) {}
+inline void xboxPerfJobClose(uint32_t) {}
 inline void xboxPerfNoteAllocation(size_t, const void *, const void *) {}
 inline void xboxPerfDumpAllocations() {}
 inline void xboxPerfHostFrame(bool, uint32_t) {}

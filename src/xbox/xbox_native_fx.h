@@ -44,6 +44,7 @@
 // UNPACKs would fill, which only the kick itself reads (the rows other
 // programs read are excluded above).
 #include <cstdint>
+#include <cstring>
 
 #ifndef TS_NATIVE_FX
 #define TS_NATIVE_FX 0
@@ -230,6 +231,153 @@ void xboxNativeFxTake(Reader &in, uint32_t packetBytes, uint32_t dataBytes)
     in.skip(dataBytes - packetBytes);
     ++g_xboxNativeFxStats.kicks;
 }
+
+#ifndef TS_FAST_DECODE
+#define TS_FAST_DECODE 1
+#endif
+#if TS_FAST_DECODE
+// TS_FAST_DECODE: the three functions above in one place where the bytes
+// lie. Nearly every kick's packet is wholly inside one piece (a glyph's
+// 5-qword packet is a REF payload) and its VIFcodes are in that piece or
+// the next one (the glyph's trailer REF): those are read by pointer, each
+// byte once, instead of through copies of the reader and memcpy reads; the
+// rest go to the functions above. Same results, same order of checks.
+namespace xbox_native_fx_detail
+{
+    inline uint32_t load32(const uint8_t *p)
+    {
+        uint32_t v;
+        std::memcpy(&v, p, 4);
+        return v;
+    }
+    // The VIFcodes from `p` (`room` bytes readable there), as
+    // xboxNativeFxKickCodes reads them; ~0u: they run past `room`.
+    inline uint32_t kickCodesAt(const uint8_t *p, uint32_t room)
+    {
+        for (uint32_t n = 1; n <= 8u; ++n, p += 4)
+        {
+            if (room < 4u * n)
+                return ~0u;
+            const uint32_t code = load32(p);
+            if ((code & 0x80000000u) != 0u)
+                return 0u;
+            const uint32_t opcode = (code >> 24) & 0x7Fu;
+            if (opcode == 0x14u)
+                return (code & 0xFFFFu) == 0x7FCu ? n : 0u;
+            if (opcode != 0x00u && opcode != 0x10u && opcode != 0x11u && opcode != 0x13u)
+                return 0u;
+        }
+        return 0u;
+    }
+}
+
+// Whether n bytes at a and b are the same, a word at a time (the C
+// library's memcmp goes byte by byte).
+inline bool xboxSameBytes(const uint8_t *a, const uint8_t *b, uint32_t n)
+{
+    using xbox_native_fx_detail::load32;
+    uint32_t i = 0;
+    for (; i + 4u <= n; i += 4u)
+        if (load32(a + i) != load32(b + i))
+            return false;
+    for (; i < n; ++i)
+        if (a[i] != b[i])
+            return false;
+    return true;
+}
+
+// xboxNativeFxKickCodes. The reader's own piece, or the next one when the
+// data ends this one, holds the codes: read there (Reader::peek), else as
+// before. `in` is not moved (avail may step past a used-up piece, as any
+// read from it would).
+template <class Reader>
+uint32_t xboxNativeFxKickCodesFast(Reader &in, uint32_t dataBytes)
+{
+    if (in.left() < dataBytes + 4u)
+        return 0u;
+    uint32_t room = 0;
+    const uint8_t *codes = in.peek(dataBytes, room);
+    if (codes)
+    {
+        const uint32_t n = xbox_native_fx_detail::kickCodesAt(codes, room);
+        if (n != ~0u)
+            return n;
+    }
+    return xboxNativeFxKickCodes(in, dataBytes);
+}
+
+// xboxNativeFxPacketQwords on the `rows` qwords at `p` (all readable there).
+inline uint32_t xboxNativeFxPacketQwordsAt(const uint8_t *p, uint32_t rows)
+{
+    using xbox_native_fx_detail::load32;
+    uint32_t qwords = 0;
+    for (int tags = 0; tags < 256; ++tags)
+    {
+        if (qwords >= rows)
+            return 0u;
+        const uint8_t *tag = p + qwords * 16u;
+        // The tag's fields from its 32-bit words (no 64-bit shifts).
+        const uint32_t w0 = load32(tag), w1 = load32(tag + 4);
+        const uint32_t regsLo = load32(tag + 8), regsHi = load32(tag + 12);
+        const uint32_t nloop = w0 & 0x7FFFu, flg = (w1 >> 26) & 3u;
+        const uint32_t nreg = (w1 >> 28) ? (w1 >> 28) : 16u;
+        if (flg >= 2u)
+            return 0u;
+        const uint32_t body = flg == 0u ? nloop * nreg : (nloop * nreg + 1u) / 2u;
+        if (body >= rows - qwords)
+            return 0u;
+        if (flg == 0u)
+        {
+            // A PACKED A+D descriptor: its writes' register bytes.
+            uint32_t ad = 0; // bit r: descriptor r is A+D
+            for (uint32_t r = 0; r < nreg; ++r)
+                if ((((r < 8u ? regsLo >> (4u * r) : regsHi >> (4u * (r - 8u)))) & 15u) == 0xEu)
+                    ad |= 1u << r;
+            if (ad != 0u)
+            {
+                const uint8_t *q = tag + 16u;
+                for (uint32_t k = 0, r = 0; k < body; ++k, q += 16u)
+                {
+                    if (((ad >> r) & 1u) != 0u && (q[8] & 0xE0u) == 0x60u)
+                        return 0u; // SIGNAL, FINISH, LABEL (and the undefined above)
+                    if (++r == nreg)
+                        r = 0;
+                }
+            }
+        }
+        qwords += 1u + body;
+        if (w0 & 0x8000u)
+            return qwords;
+    }
+    return qwords;
+}
+
+// xboxNativeFxPacketQwords: by pointer when the rows are in one piece.
+template <class Reader>
+uint32_t xboxNativeFxPacketQwordsFast(Reader &in, uint32_t rows)
+{
+    if (in.avail() >= rows * 16u)
+        return xboxNativeFxPacketQwordsAt(in.here(), rows);
+    return xboxNativeFxPacketQwords(in, rows);
+}
+
+// xboxNativeFxTake: one span when the data is in one piece.
+template <class Reader>
+void xboxNativeFxTakeFast(Reader &in, uint32_t packetBytes, uint32_t dataBytes)
+{
+    if (in.avail() < dataBytes)
+    {
+        xboxNativeFxTake(in, packetBytes, dataBytes);
+        return;
+    }
+    XboxNativeFxPending &p = g_xboxNativeFx;
+    if (p.count + 4u > XboxNativeFxPending::kSpans)
+        xboxNativeFxFlush();
+    p.spans[p.count++] = {in.here(), packetBytes};
+    in.advance(dataBytes);
+    ++g_xboxNativeFxStats.kicks;
+}
+#endif
 
 // GS side: the pending kicks through one direct GIF decoder on PATH1's
 // stream, stores that only set a value deferred (xbox_gif_direct.h's

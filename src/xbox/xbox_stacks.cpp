@@ -25,6 +25,7 @@
 #include <windows.h>
 #include <xboxkrnl/xboxkrnl.h>
 
+#include "xbox_lazy_commit.h"
 #include "xbox_log.h"
 
 #ifndef TS_STACK_PAINT
@@ -43,6 +44,9 @@ namespace
     {
         const Start start = *static_cast<Start *>(parameter);
         delete static_cast<Start *>(parameter);
+#if TS_LAZY_GUEST_RAM
+        XboxLazyThreadScope lazyCommit; // guest memory's first-touch handler (xbox_lazy_commit.h)
+#endif
         start.entry(start.arg);
         return 0;
     }

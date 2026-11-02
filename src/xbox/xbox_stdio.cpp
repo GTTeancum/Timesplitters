@@ -16,6 +16,7 @@
 
 #include <windows.h>
 
+#include "xbox_lazy_commit.h"
 #include "xbox_log.h"
 
 extern "C" int _PDCLIB_w32errno(DWORD werror);
@@ -95,6 +96,13 @@ extern "C" size_t fread(void *__restrict ptr, size_t size, size_t nmemb, struct 
         done += n;
     };
     fromBuffer();
+#if TS_LAZY_GUEST_RAM
+    // The kernel writes these reads straight into the caller's memory, at
+    // an IRQL or through a DMA where a first-touch fault in guest memory
+    // could not be served: its pages are committed first (xbox_lazy_commit.h).
+    if (total - done >= stream->bufsize)
+        xboxCommitRange(dest + done, total - done);
+#endif
     while (total - done >= stream->bufsize)
     {
         DWORD got = 0;

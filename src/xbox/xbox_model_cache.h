@@ -52,6 +52,15 @@
 #ifndef TS_NATIVE_REPLAY
 #define TS_NATIVE_REPLAY 0
 #endif
+// make TS_DIRECT_MODELS=0: models as above. On (default; it takes effect
+// with TS_NATIVE_REPLAY and TS_FAST_REPLAY, src/xbox/DIRECT-MODELS-PLAN.md):
+// partGfx writes no CALL for a model whose capture is Ready; its prologue
+// token stands for the model too, the walker makes it one DIRECT marker
+// without visiting the chain or the model table, and the decoder runs the
+// prologue and the replay from it (xboxDirectCall, xboxPrologueNativeAt).
+#ifndef TS_DIRECT_MODELS
+#define TS_DIRECT_MODELS 1
+#endif
 
 class PS2Memory;
 class GS;
@@ -89,7 +98,17 @@ constexpr uint32_t kXboxModelMarkerOpcode = 0x7Eu; // no VIFcode uses it
 constexpr uint32_t kXboxModelMagic = 0x4D4E5354u;  // 'TSNM'
 // XboxModelPrologue (TS_NATIVE_REPLAY): a partGfx prologue token run
 // natively (xboxPrologueDecode; words[1] its record's sequence).
-enum XboxModelMarker : uint32_t { XboxModelBegin = 1, XboxModelEnd = 2, XboxModelReplay = 3, XboxModelPrologue = 4 };
+// XboxModelDirect (TS_DIRECT_MODELS): a direct token's prologue and model in
+// one marker (words[1] the record's sequence, words[3] its first pair; the
+// call depth and TIE as REPLAY's).
+enum XboxModelMarker : uint32_t
+{
+    XboxModelBegin = 1,
+    XboxModelEnd = 2,
+    XboxModelReplay = 3,
+    XboxModelPrologue = 4,
+    XboxModelDirect = 5,
+};
 // The decoder's own steps for the replay (built in the decoder copy, which
 // can reach PS2Memory's MSCAL state): an MSCAL or MSCNT run as the decoder
 // runs it (after its register steps), what a native run leaves in the VU1
@@ -192,6 +211,92 @@ struct XboxPrologueStats
     uint64_t native = 0, nativeDecoded = 0, nativeInline = 0, nativeLost = 0; // TS_NATIVE_REPLAY
 };
 void xboxPrologueGetStats(XboxPrologueStats &out);
+
+#if TS_DIRECT_MODELS
+// --- direct model route (TS_DIRECT_MODELS) -----------------------------
+// partGfx (ts_native_game2.cpp copy), about to write the CALL of a model's
+// precalculated chain `target`: `tag` and `token` the first two words of the
+// list's 16 bytes before the CALL's slot. True: the model goes direct (that
+// token, the prologue partGfx has just written, now stands for the model
+// too) and partGfx writes no CALL; false: the CALL as before.
+bool xboxDirectCall(uint32_t tag, uint32_t token, uint32_t target);
+// (xbox_part_prologue.cpp, for xboxDirectCall) The record of `token` takes
+// the model (its chain and slot in the cache) when it is the last record
+// closed and holds a prologue the walker can run natively.
+bool xboxPrologueAttachDirect(uint32_t token, uint32_t target, uint32_t slot);
+// The walker at a list token (replaces xboxPrologueNative's call): a direct
+// record becomes one DIRECT marker (with the walk's call depth and TIE),
+// others as xboxPrologueNative (`vif1`: the VIF1 channel's walk). A direct
+// record the walker cannot mark (another channel, or TTE on, which the
+// model replays never see) returns null with `chain` set: the walker expands
+// the prologue and then takes the CALL partGfx left out.
+const uint8_t *xboxPrologueNativeAt(uint32_t addr, uint32_t asp, bool tie, bool vif1, bool tte, uint32_t &chain);
+// The decoder at a DIRECT marker: its record's model (false: overwritten).
+bool xboxPrologueDirectModel(const uint32_t words[4], uint32_t &target, uint32_t &slot);
+// The decoder at a DIRECT marker: the prologue's VIF1 register steps and
+// VU1 state as the decoder leaves them, its constant programs' rows worked
+// out natively from the guest's matrix and light blocks (read now, at the
+// kick, as the original's REFs read them) and the camera rows, into the
+// renderer's constants and a shadow of the rows instead of VU1 memory.
+// False (nothing changed): the decoder's way (xboxPrologueDecode).
+bool xboxPrologueDirectRun(const uint32_t words[4], uint8_t *vuData, VIFRegisters &regs, PS2Memory *memory,
+                           const XboxModelVif &vif);
+// Rows of VU1 memory a direct prologue left in its shadow (the decoder's
+// quick test), and putting them there: before any emulated reader or
+// writer of VU1 memory, and at the end of each decode call.
+extern bool g_xboxDirectStale;
+void xboxDirectMaterialize(uint8_t *vuData);
+void xboxDirectDecodeEnd(uint8_t *vuData);
+// VIF commands that read or write VU1 data memory (UNPACK, MSCAL, MSCALF,
+// MSCNT); the model marker decides for itself.
+inline bool xboxDirectTouchesVu(uint32_t opcode)
+{
+    return ((opcode & 0x60u) == 0x60u && opcode != kXboxModelMarkerOpcode) || opcode == 0x14u || opcode == 0x15u ||
+           opcode == 0x17u;
+}
+void xboxPrologueDirectCounts(uint64_t &native, uint64_t &materialized);
+// (vu1_native_ts.cpp copy) The renderer's transform constants with the
+// shadow rows `written` marks (bit i: row 4 + i for i < 8, else 98 + i)
+// taken from `rows`, as if the constant programs had written them.
+GSXfConstants &xboxNativeDirectConstants(const uint8_t *data, const uint8_t (*rows)[16], uint32_t written);
+// (vu1_native_ts.cpp copy) A stored strip of n records drawn as runDraw's
+// CPU path draws a strip with PRE and this PRIM: the per-run fallback when
+// the renderer declines a run at the replay.
+struct GSXfVertex;
+void xboxNativeCpuStrip(const GSXfVertex *in, uint32_t n, uint32_t prim, const GSXfConstants &xc, PS2Memory *memory,
+                        GS &gs);
+// The GS state the model fast lane holds back across models (TS_FAST_REPLAY
+// window, xbox_model_cache.cpp): the GS front end's copy (gs_frontend.cpp,
+// patch_native_fx.py) brings it in under its lock before any entry reads or
+// writes its state.
+extern bool g_xboxGsPending;
+void xboxGsPendingSync(GS &gs);
+struct XboxDirectStats
+{
+    uint64_t calls = 0, taken = 0; // partGfx's precalc CALLs; those that went direct
+    // At partGfx time, the CALL kept: no token before it, the model not
+    // Ready, its kind, a verify due, the record refused (not the last one,
+    // a prologue the decoder could not run natively, or the ring's end).
+    uint64_t noToken = 0, notReady = 0, kind = 0, verify = 0, record = 0;
+    // The walker: markers, and records expanded with their CALL (no marker).
+    uint64_t marked = 0, walked = 0;
+    // The decoder: replayed, decoded from guest memory, record lost; the
+    // prologue run natively or the decoder's way; models replayed without
+    // VU1 memory (lean) or after the shadow went in; the shadow's trips into
+    // VU1 memory; GS syncs of held-back state.
+    uint64_t replayed = 0, inlined = 0, lost = 0;
+    uint64_t prologueNative = 0, prologueDecoded = 0, lean = 0, materializedFirst = 0, materialized = 0;
+    uint64_t gsSyncs = 0;
+    // Captures: draws left to the CPU path (re-run each replay), strips
+    // without PRE stored as records, strips drawing nothing left out; at the
+    // replay, stored strips drawn the CPU path's way (their run declined).
+    uint64_t cpuDraws = 0, nonPreStrips = 0, shortStrips = 0, cpuRunStrips = 0;
+};
+// False when the route is not built (TS_NATIVE_REPLAY or TS_FAST_REPLAY off).
+bool xboxDirectGetStats(XboxDirectStats &out);
+// (xbox_part_prologue.cpp) The walker's counts.
+void xboxPrologueDirectStats(uint64_t &marked, uint64_t &walked);
+#endif
 
 // --- status ------------------------------------------------------------
 struct XboxModelStats

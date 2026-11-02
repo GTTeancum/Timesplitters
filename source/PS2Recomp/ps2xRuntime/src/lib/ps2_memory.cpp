@@ -544,6 +544,31 @@ namespace
 
 }
 
+#if defined(PLATFORM_XBOX)
+// TS_LAZY_GUEST_RAM 1: main RAM and GS VRAM are address space only, a page
+// committed when it is first touched (src/xbox/xbox_lazy_commit.cpp; the
+// functions are declared there in xbox_lazy_commit.h). 0: new[] and memset.
+#ifndef TS_LAZY_GUEST_RAM
+#define TS_LAZY_GUEST_RAM 1
+#endif
+#if TS_LAZY_GUEST_RAM
+uint8_t *xboxLazyReserve(size_t bytes, const char *name);
+void xboxLazyRelease(void *base);
+void xboxLazyFrameEnter(void *frame[2]);
+void xboxLazyFrameLeave(void *frame[2]);
+namespace
+{
+    // The first-touch handler on a worker thread, for its lifetime.
+    struct LazyCommitFrame
+    {
+        void *frame[2];
+        LazyCommitFrame() { xboxLazyFrameEnter(frame); }
+        ~LazyCommitFrame() { xboxLazyFrameLeave(frame); }
+    };
+}
+#endif
+#endif
+
 // Helpers for GS VRAM addressing (PSMCT32 path).
 static inline uint32_t gs_vram_offset(uint32_t basePage, uint32_t x, uint32_t y, uint32_t fbw)
 {
@@ -563,7 +588,11 @@ PS2Memory::~PS2Memory()
     stopVif1Worker();
     if (m_rdram)
     {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_rdram);
+#else
         delete[] m_rdram;
+#endif
         m_rdram = nullptr;
     }
 
@@ -576,7 +605,11 @@ PS2Memory::~PS2Memory()
 
     if (m_gsVRAM)
     {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_gsVRAM);
+#else
         delete[] m_gsVRAM;
+#endif
         m_gsVRAM = nullptr;
     }
 
@@ -612,10 +645,18 @@ bool PS2Memory::initialize(size_t ramSize)
 {
     auto cleanup = [this]()
     {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_rdram);
+#else
         delete[] m_rdram;
+#endif
         delete[] m_scratchpad;
         delete[] iop_ram;
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_gsVRAM);
+#else
         delete[] m_gsVRAM;
+#endif
         delete[] m_vu0Code;
         delete[] m_vu0Data;
         delete[] m_vu1Code;
@@ -654,8 +695,20 @@ bool PS2Memory::initialize(size_t ramSize)
     PS2X_TRY
     {
         // Allocate main RAM
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        // Address space only: each page reads zero, as the memset left it,
+        // and takes memory when first touched (src/xbox/xbox_lazy_commit.cpp).
+        m_rdram = xboxLazyReserve(ramSize, "rdram");
+        if (!m_rdram)
+        {
+            std::cerr << "[TS:mem] no address space for " << ramSize / 1024u << " KB of PS2 RAM" << std::endl;
+            cleanup();
+            return false;
+        }
+#else
         m_rdram = new uint8_t[ramSize];
         std::memset(m_rdram, 0, ramSize);
+#endif
 
         // Allocate scratchpad
         m_scratchpad = new uint8_t[PS2_SCRATCHPAD_SIZE];
@@ -683,8 +736,18 @@ bool PS2Memory::initialize(size_t ramSize)
         gs_regs.display2 = gs_regs.display1;
 
         // Allocate GS VRAM (4MB)
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        m_gsVRAM = xboxLazyReserve(PS2_GS_VRAM_SIZE, "vram"); // as main RAM above
+        if (!m_gsVRAM)
+        {
+            std::cerr << "[TS:mem] no address space for the GS VRAM" << std::endl;
+            cleanup();
+            return false;
+        }
+#else
         m_gsVRAM = new uint8_t[PS2_GS_VRAM_SIZE];
         std::memset(m_gsVRAM, 0, PS2_GS_VRAM_SIZE);
+#endif
 
         m_vu0Code = new uint8_t[PS2_VU0_CODE_SIZE];
         m_vu0Data = new uint8_t[PS2_VU0_DATA_SIZE];
@@ -3133,6 +3196,9 @@ bool PS2Memory::startVif1Async()
 
 void PS2Memory::vif1WorkerLoop()
 {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+    LazyCommitFrame lazyCommit; // (the Xbox does not start this worker)
+#endif
     t_onVif1Worker = true;
     for (;;)
     {
@@ -3244,6 +3310,9 @@ void PS2Memory::gsStageWaitEmpty()
 
 void PS2Memory::gsStageLoop()
 {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+    LazyCommitFrame lazyCommit; // (the Xbox does not start this worker)
+#endif
     t_onVif1Worker = true; // part of the VIF1 pipeline: never waits for it
     for (;;)
     {

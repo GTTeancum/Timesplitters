@@ -10,6 +10,7 @@
 #include "raylib.h"
 #include "runtime/ps2_music.h"
 #include "xbox_log.h"
+#include "xbox_lazy_commit.h"
 
 #include <SDL.h>
 #include <hal/audio.h>
@@ -175,6 +176,9 @@ namespace
 
     DWORD WINAPI audioFeeder(LPVOID)
     {
+#if TS_LAZY_GUEST_RAM
+        XboxLazyThreadScope lazyCommit; // the mix may read guest memory (xbox_lazy_commit.h)
+#endif
         volatile const uint8_t *ac97 = reinterpret_cast<volatile const uint8_t *>(0xFEC00000u);
         static uint64_t mixCycles = 0, musicCycles = 0, discCycles = 0;
         for (;;)
@@ -193,7 +197,12 @@ namespace
                 const uint64_t start = __builtin_ia32_rdtsc();
                 {
                     std::lock_guard<std::mutex> guard(g_audio.lock);
+#if defined(TS_KNOCKOUT) && TS_KNOCKOUT == 4
+                    // Measurement only (make TS_KNOCKOUT=4): no mixing, silence.
+                    if (false)
+#else
                     if (g_audio.playing && g_audio.callback)
+#endif
                         g_audio.callback(mixInto, kAudioFrames);
                     else
                         std::memset(mixInto, 0, kAudioFrames * 4u);

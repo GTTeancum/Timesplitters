@@ -39,6 +39,15 @@ static_assert(PS2X_GUEST_DISPATCH_CYCLES == EeScheduler::kGuestDispatchCycles,
 void *xboxThreadStart(uint32_t stackBytes, void (*entry)(void *), void *arg);
 void xboxThreadJoin(void *thread);
 void xboxStackReport();
+// TS_LAZY_GUEST_RAM 1 (src/xbox/xbox_lazy_commit.cpp): guest memory is
+// committed on first touch; the game thread installs the handler for it.
+#ifndef TS_LAZY_GUEST_RAM
+#define TS_LAZY_GUEST_RAM 1
+#endif
+#if TS_LAZY_GUEST_RAM
+void xboxLazyFrameEnter(void *frame[2]);
+void xboxLazyFrameLeave(void *frame[2]);
+#endif
 // TS_FLUSH_DENORMALS 1 (src/xbox/Makefile): the game thread flushes
 // denormals to zero as the PS2 does (src/xbox/xbox_shims.cpp).
 #ifndef TS_FLUSH_DENORMALS
@@ -2740,6 +2749,10 @@ void PS2Runtime::run()
     auto gameMain = [&]()
                            {
         ThreadNaming::SetCurrentThreadName("GameThread");
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        void *lazyCommitFrame[2]; // the first-touch handler, until the thread ends
+        xboxLazyFrameEnter(lazyCommitFrame);
+#endif
 #if defined(PLATFORM_XBOX) && TS_FLUSH_DENORMALS
         xboxFlushDenormals();
 #endif
@@ -2762,6 +2775,9 @@ void PS2Runtime::run()
             gameFailure = std::current_exception();
             std::cerr << "Error during program execution: unknown exception" << std::endl;
         }
+#endif
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyFrameLeave(lazyCommitFrame);
 #endif
         gameThreadFinished.store(true, std::memory_order_release); };
 #if defined(PLATFORM_XBOX) && TS_GAME_THREAD_STACK

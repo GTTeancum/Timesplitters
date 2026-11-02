@@ -1,5 +1,6 @@
 // Prebuilt texture pack reader and pool. See xbox_texture_pack.h.
 #include "xbox_texture_pack.h"
+#include "xbox_lazy_commit.h"
 
 #include "runtime/gs/gs_texture_hash.h"
 
@@ -330,6 +331,9 @@ bool XboxTexturePack::attachPool(uint8_t *pool, uint32_t bytes)
 
 unsigned long __stdcall XboxTexturePack::loaderMain(void *self)
 {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM // (not in the host test, test_xtexture_pack.py)
+    XboxLazyThreadScope lazyCommit; // guest memory's first-touch handler (xbox_lazy_commit.h)
+#endif
     static_cast<XboxTexturePack *>(self)->runLoader();
     return 0;
 }

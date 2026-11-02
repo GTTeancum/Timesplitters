@@ -350,6 +350,13 @@ extern Vif1StreamStats g_vif1StreamStats;
 #ifndef TS_MSCAL_FAST_CHECK
 #define TS_MSCAL_FAST_CHECK 0
 #endif
+// TS_FAST_DECODE 1: the VIF1 decode of a frame's display list with its
+// repeated work taken out (the Xbox copies of the walker and decoder,
+// tools/patch_native_models.py and tools/patch_native_fx.py, and the VU1
+// program lookup): the same commands, effects and order. 0: as before.
+#ifndef TS_FAST_DECODE
+#define TS_FAST_DECODE 1
+#endif
 #endif
 
 // PS2 DMA registers

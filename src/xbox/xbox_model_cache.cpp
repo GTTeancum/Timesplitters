@@ -22,9 +22,52 @@ void xboxNv2aDrawResident(const uint8_t *block, uint32_t index, uint32_t count, 
 void xboxNv2aWaitIdle();
 #if TS_NATIVE_REPLAY
 void xboxNv2aUseSegment(uint32_t handle); // the next run's renderer segment (gs_nv2a_backend.cpp)
+// TS_FAST_REPLAY (gs_nv2a_backend.h): the model fast lane (XboxFastReplayGs, replayDrawFast).
+#ifndef TS_FAST_REPLAY
+#define TS_FAST_REPLAY 1
+#endif
+#if TS_FAST_REPLAY
+#include "gs_nv2a_backend.h" // its renderer entries
+#endif
+#endif
+// The direct model route (TS_DIRECT_MODELS, DIRECT-MODELS-PLAN.md) rides on
+// the fast lane's replay.
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY && TS_DIRECT_MODELS
+#define XBOX_DIRECT_ROUTE 1
+#else
+#define XBOX_DIRECT_ROUTE 0
+#endif
+// With it, the fast lane's waiting GS writes stay held across models until
+// a GS entry takes the front end's lock (xboxGsPendingSync): its copy
+// (patch_native_fx.py gs, built with TS_NATIVE_FX) holds the hooks.
+#ifndef TS_NATIVE_FX
+#define TS_NATIVE_FX 0
+#endif
+#if XBOX_DIRECT_ROUTE && TS_NATIVE_FX
+#define XBOX_GS_LAZY 1
+#else
+#define XBOX_GS_LAZY 0
 #endif
 
 bool g_xboxModelCaptureOpen = false; // a capture is open and still good (the hooks' test)
+
+// TS_SWEEP_WALK (the 2026-11-02 sweep, xbox_sweep_walk.cpp): the walker
+// (ps2_memory.cpp copy) tests this before calling the walk-capture hooks
+// (xboxModelWalkTag / Piece / AfterRet), which do nothing while no walk
+// capture is open. Set whenever one opens (beginWalkCapture, the only place
+// g_walk.model is set), cleared when it closes; a reset that closes it
+// elsewhere (flush) leaves it set until the next hook finds none open, so
+// it is never false while a capture is open. Also: the walker asks for a
+// model's slot ahead of its CALL (xboxModelWalkPrefetch), and the verify
+// re-hash (walkChain) asks for its lines ahead. Default 0: as before.
+#ifndef TS_SWEEP_WALK
+#define TS_SWEEP_WALK 0
+#endif
+#if TS_SWEEP_WALK
+#include <cstddef>
+#include <xmmintrin.h>
+bool g_xboxModelWalkOpen = false;
+#endif
 
 namespace
 {
@@ -194,6 +237,13 @@ namespace
     uint32_t g_walkSerial = 0, g_allocSerial = 0, g_compactWalk = 0;
     bool g_compactRequested = false;
     XboxModelStats g_stats;
+#if XBOX_DIRECT_ROUTE
+    // Captures of the direct route's CPU-path strips (xboxModelCaptureDraw):
+    // draws left to the CPU path, strips without PRE stored, strips of under
+    // three vertices that draw nothing, dropped; and at the replay, stored
+    // strips drawn the CPU path's way because the renderer declined their run.
+    uint64_t g_cpuDraws = 0, g_nonPreStrips = 0, g_shortStrips = 0, g_cpuRunStrips = 0;
+#endif
     // Marker pieces, each walk's own until the ring comes round (the decoder
     // reads them where the walker left them).
     uint32_t g_markers[kMarkers][4];
@@ -261,6 +311,9 @@ namespace
         // The MSCAL whose program is running or has just run, resolved at
         // the next command (resolvePending).
         uint8_t pending = PendingNone;
+#if XBOX_DIRECT_ROUTE
+        bool pendingCovered = false; // its records stand for every strip (the CPU path's too)
+#endif
         bool pendingMscnt = false, pendingDrawn = false, pendingCpu = false, pendingRecords = false,
              pendingKicks = false;
         uint32_t pendingPc = 0, pendingTop = 0, pendingExtent = 0;
@@ -465,6 +518,33 @@ namespace
         return h;
     }
 
+#if TS_SWEEP_WALK
+    // mix, with the lines 160 bytes ahead asked for as it goes (the Pentium
+    // III does not prefetch on its own; the hash's multiply chain leaves the
+    // memory bus idle meanwhile). Non-temporal: the verify reads a chain
+    // once and nothing reads it after (a replay draws from the store).
+    // The same words in the same order: the same hash.
+    uint32_t mixAhead(uint32_t h, const uint8_t *p, uint32_t bytes)
+    {
+        uint32_t k = 0;
+        for (; k + 32u <= bytes; k += 32u)
+        {
+            _mm_prefetch(reinterpret_cast<const char *>(p + k + 160u), _MM_HINT_NTA);
+            uint32_t w[8];
+            std::memcpy(w, p + k, 32);
+            h = (h ^ w[0]) * 16777619u;
+            h = (h ^ w[1]) * 16777619u;
+            h = (h ^ w[2]) * 16777619u;
+            h = (h ^ w[3]) * 16777619u;
+            h = (h ^ w[4]) * 16777619u;
+            h = (h ^ w[5]) * 16777619u;
+            h = (h ^ w[6]) * 16777619u;
+            h = (h ^ w[7]) * 16777619u;
+        }
+        return mix(h, p + k, bytes - k);
+    }
+#endif
+
     // A main-RAM guest address as the walker maps it (translateAddress for
     // RAM and its uncached mirrors): false for the scratchpad and anything
     // else, or when `bytes` from it leave RAM.
@@ -500,6 +580,10 @@ namespace
             if (!ramAddress(tagAddr, 16u, phys))
                 return false;
             const uint8_t *tp = rdram + phys;
+#if TS_SWEEP_WALK
+            // The tags after this one (a REF run's lie in sequence) asked for now.
+            _mm_prefetch(reinterpret_cast<const char *>(tp + 64u), _MM_HINT_NTA);
+#endif
             h = mix(h, tp, 16u);
             uint64_t tag;
             std::memcpy(&tag, tp, 8);
@@ -533,7 +617,11 @@ namespace
                 uint32_t dataPhys;
                 if (!ramAddress(data, qwc * 16u, dataPhys))
                     return false;
+#if TS_SWEEP_WALK
+                h = mixAhead(h, rdram + dataPhys, qwc * 16u);
+#else
                 h = mix(h, rdram + dataPhys, qwc * 16u);
+#endif
                 if (pieces)
                 {
                     const uint8_t *p = rdram + dataPhys;
@@ -569,6 +657,9 @@ namespace
         m.lastUse = g_walkSerial;
         g_walk = {};
         g_walk.model = &m;
+#if TS_SWEEP_WALK
+        g_xboxModelWalkOpen = true;
+#endif
         g_walk.rdram = rdram;
         g_walk.asp = asp;
         g_walk.hash = kHashSeed;
@@ -1571,6 +1662,13 @@ void xboxModelWalkReplayEnd(uint32_t &tagAddr, uint32_t &asp, uint32_t &asr0, ui
 
 void xboxModelWalkPiece(const uint8_t *data, uint32_t bytes)
 {
+#if TS_SWEEP_WALK
+    if (!g_walk.model)
+    {
+        g_xboxModelWalkOpen = false; // (closed by a reset)
+        return;
+    }
+#endif
     if (g_walk.model && g_walk.ok && !isMarker(data))
         hashPiece(data, bytes);
 }
@@ -1578,7 +1676,12 @@ void xboxModelWalkPiece(const uint8_t *data, uint32_t bytes)
 void xboxModelWalkTag(const uint8_t *tag)
 {
     if (!g_walk.model)
+    {
+#if TS_SWEEP_WALK
+        g_xboxModelWalkOpen = false; // (closed by a reset)
+#endif
         return;
+    }
     if (g_walk.ok)
         hashPiece(tag, 16u);
     uint64_t t;
@@ -1610,6 +1713,9 @@ const uint8_t *xboxModelWalkAfterRet(uint32_t aspAfter)
     m.flags |= static_cast<uint8_t>((g_walk.irqTags ? IrqTags : 0u) | (g_walk.tie ? CaptureTie : 0u));
     const bool tie = g_walk.tie;
     g_walk = {};
+#if TS_SWEEP_WALK
+    g_xboxModelWalkOpen = false;
+#endif
     return newMarker(m, XboxModelEnd, tie, m.callAsp);
 }
 
@@ -1638,8 +1744,32 @@ const uint8_t *xboxModelWalkChainEnd(uint32_t tagAddr, uint32_t asp, uint32_t as
         m.failures = 1u;
     const bool tie = g_walk.tie;
     g_walk = {};
+#if TS_SWEEP_WALK
+    g_xboxModelWalkOpen = false;
+#endif
     return newMarker(m, XboxModelEnd, tie, m.callAsp);
 }
+
+#if TS_SWEEP_WALK
+// The walker at a prologue token whose next tag is a zero-QWC CALL: the
+// lines xboxModelWalkCall reads first (the home slot's target, state,
+// flags, replay count and last use: its first 56 bytes) and the marker it
+// writes, asked for now so they arrive while the prologue is looked up.
+// Only reads; nothing changes.
+void xboxModelWalkPrefetch(uint32_t target)
+{
+    static_assert(offsetof(Model, lastUse) + sizeof(uint32_t) <= 56u && offsetof(Model, replays) < 56u &&
+                      offsetof(Model, verified) < 56u,
+                  "the lines asked for cover what the CALL reads");
+    if (!g_models)
+        return;
+    const char *slot = reinterpret_cast<const char *>(&g_models[homeSlot(target & 0x7FFFFFF0u)]);
+    _mm_prefetch(slot, _MM_HINT_T0);
+    _mm_prefetch(slot + 31, _MM_HINT_T0);
+    _mm_prefetch(slot + 55, _MM_HINT_T0);
+    _mm_prefetch(reinterpret_cast<const char *>(g_markers[g_nextMarker & (kMarkers - 1u)]), _MM_HINT_T0);
+}
+#endif
 
 // ---------------------------------------------------------------- decoder
 void xboxModelCaptureMscal(uint32_t startPC, bool mscnt, const VIFRegisters &regs, const uint8_t *vuData)
@@ -1663,6 +1793,9 @@ void xboxModelCaptureMscal(uint32_t startPC, bool mscnt, const VIFRegisters &reg
     c.pendingTop = top;
     c.pendingMscnt = mscnt;
     c.pendingDrawn = c.pendingCpu = c.pendingRecords = c.pendingKicks = false;
+#if XBOX_DIRECT_ROUTE
+    c.pendingCovered = false;
+#endif
     c.pendingReadCount = c.pendingWriteCount = 0;
     snapReset();
     if (mscnt)
@@ -1868,7 +2001,10 @@ void xboxModelCaptureFail(uint32_t reason) { failDecode(reason); }
 void xboxModelCaptureCpuStrip()
 {
     if (xboxModelCapturing() && g_decode.pending == PendingDraw)
-        g_decode.pendingCpu = true;
+#if XBOX_DIRECT_ROUTE
+        if (!g_decode.pendingCovered) // (its records stand for this strip too)
+#endif
+            g_decode.pendingCpu = true;
 }
 
 void xboxModelCaptureDraw(uint32_t kind, const uint8_t *data, uint32_t top, const uint8_t *stateBlock,
@@ -1909,6 +2045,180 @@ void xboxModelCaptureDraw(uint32_t kind, const uint8_t *data, uint32_t top, cons
     c.pendingExtent = extent;
     snapReset();
     snapRange(data, top, extent);
+#if XBOX_DIRECT_ROUTE
+    // Every strip as records (DIRECT-MODELS-PLAN.md, "CPU-path strips"),
+    // drawn as the GS takes the strips' vertices: a tag with PRE writes PRIM
+    // (the topology, and an empty vertex queue: the renderer's runs leave it
+    // so), one without PRE draws with the PRIM last written - by the state
+    // block or the strip before - and continues the vertex queue of a strip
+    // before it without PRE (one strip, its vertices joined end to end).
+    // Strips of a triangle topology under three vertices draw nothing and
+    // are left out. The NV2A clips them in homogeneous space as it clips
+    // every other model strip. Left to the CPU path, the whole draw run
+    // again at each replay as before: a strip without PRE whose PRIM came
+    // from before the draw, another topology than a strip or UV
+    // coordinates (the renderer's transform declines them), a joined strip
+    // over 64 vertices.
+    struct Joined
+    {
+        uint32_t prim, firstPart, parts, n; // one strip: parts (source strips) end to end
+    };
+    Joined joined[64];
+    uint32_t partVi[64], partN[64], joinedCount = 0, partCount = 0, nonPre = 0;
+    int32_t curPrim = -1; // the PRIM register's value (-1: from before the draw)
+    {
+        GS::StateBlock decoded;
+        if (GS::decodeStateBlock(stateBlock, stateBytes, decoded))
+            for (uint32_t r = 0; r < decoded.count; ++r)
+                if (decoded.regs[r] == GS_REG_PRIM)
+                    curPrim = static_cast<int32_t>(decoded.values[r] & 0x7FFu);
+    }
+    bool cpu = kind >= 4u, continuing = false;
+    for (uint32_t i = 0; i < count && !cpu; ++i)
+    {
+        const uint32_t *t = strips + i * strideWords;
+        const uint32_t n = t[4], vi = t[5];
+        const bool pre = (t[1] & (1u << 14)) != 0u;
+        if (pre)
+            curPrim = static_cast<int32_t>((t[1] >> 15) & 0x7FFu);
+        else if (curPrim < 0)
+            cpu = true;
+        else
+            ++nonPre;
+        // (A triangle strip with STQ coordinates: what the renderer's
+        // transform takes, beginXfRun's own test.)
+        const uint32_t prim = static_cast<uint32_t>(curPrim);
+        if (cpu || (prim & 7u) != 4u || ((prim >> 8) & 1u) != 0u)
+        {
+            cpu = true;
+            break;
+        }
+        if (!pre && continuing)
+        {
+            Joined &j = joined[joinedCount - 1u];
+            ++j.parts;
+            j.n += n;
+            cpu = j.n > 64u;
+        }
+        else
+            joined[joinedCount++] = {static_cast<uint32_t>(curPrim), partCount, 1u, n};
+        partVi[partCount] = vi;
+        partN[partCount++] = n;
+        continuing = !pre;
+    }
+    if (cpu)
+    {
+        ++g_cpuDraws;
+        c.pendingCpu = true;
+        return;
+    }
+    if (g_usedDraws >= kDraws)
+    {
+        roomFail();
+        return;
+    }
+    const uint32_t state = internState(stateBlock, stateBytes);
+    if (state == UINT32_MAX)
+    {
+        roomFail();
+        return;
+    }
+    if (m.firstDraw + m.draws != g_usedDraws)
+    {
+        failDecode(7u); // another capture's draw in between (cannot happen in one decode)
+        return;
+    }
+    saveUndo();
+    c.pendingRecords = true;
+    c.pendingCovered = true;
+    Draw &d = g_draws[g_usedDraws];
+    d.firstRun = g_usedRuns;
+    d.runs = 0;
+    d.kind = static_cast<uint8_t>(kind);
+    d.pad = 0;
+    d.state = state;
+    d.stateBytes = static_cast<uint16_t>(stateBytes);
+    d.extent = static_cast<uint16_t>(extent);
+    // Runs as runDraw forms them: joined strips of one PRIM in a row (those
+    // drawing nothing between them do not break a run).
+    uint32_t shortStrips = 0;
+    for (uint32_t i = 0; i < joinedCount;)
+    {
+        if (joined[i].n < 3u)
+        {
+            ++shortStrips;
+            ++i;
+            continue;
+        }
+        const uint32_t prim = joined[i].prim;
+        uint32_t j = i, kept = 0, records = 0;
+        while (j < joinedCount && (joined[j].n < 3u || joined[j].prim == prim))
+        {
+            if (joined[j].n >= 3u)
+                records += joined[j].n + (kept++ ? 2u : 0u);
+            ++j;
+        }
+        if (g_usedRuns >= kRuns || g_usedStrips + kept > kStrips)
+        {
+            roomFail();
+            return;
+        }
+        const uint32_t format = formatOf(kind), stride = kStride[format];
+        const uint32_t first = allocStore(format, records * stride);
+        if (first == UINT32_MAX)
+        {
+            roomFail();
+            return;
+        }
+        Run &run = g_runs[g_usedRuns++];
+        run.firstStrip = g_usedStrips;
+        run.strips = static_cast<uint16_t>(kept);
+        run.prim = static_cast<uint16_t>(prim);
+        run.first = first;
+        uint32_t at = run.first;
+        run.count = 0;
+        GSXfVertex strip[64], last{};
+        bool any = false;
+        for (uint32_t k = i; k < j; ++k)
+        {
+            const Joined &js = joined[k];
+            if (js.n < 3u)
+            {
+                ++shortStrips;
+                continue;
+            }
+            uint32_t v = 0;
+            for (uint32_t p = 0; p < js.parts; ++p)
+            {
+                ts_native_xf::decodeXfStrip(kind, data, partVi[js.firstPart + p], partN[js.firstPart + p], strip + v);
+                v += partN[js.firstPart + p];
+            }
+            const uint32_t n = js.n, join = any ? 2u : 0u;
+            uint8_t *out = g_store + at; // (write-combined: written once, in order)
+            if (join)
+            {
+                packRecord(format, last, out);
+                packRecord(format, strip[0], out + stride);
+                out += 2u * stride;
+            }
+            g_strips[g_usedStrips++] = {static_cast<uint32_t>(out - g_store), static_cast<uint16_t>(n), 0};
+            for (uint32_t q = 0; q < n; ++q)
+                packRecord(format, strip[q], out + q * stride);
+            at += (join + n) * stride;
+            run.count += join + n;
+            last = strip[n - 1u];
+            any = true;
+        }
+        ++d.runs;
+        i = j;
+    }
+    g_nonPreStrips += nonPre;
+    g_shortStrips += shortStrips;
+    ++g_usedDraws;
+    ++m.draws;
+    g_stats.vertexBytes = g_usedStore;
+}
+#else
     // Strips the renderer cannot take as records (no PRE, or a group with a
     // strip under three vertices) take the CPU path: the whole draw is then
     // run again at the replay instead.
@@ -2023,6 +2333,301 @@ void xboxModelCaptureDraw(uint32_t kind, const uint8_t *data, uint32_t top, cons
     ++m.draws;
     g_stats.vertexBytes = g_usedStore;
 }
+#endif
+
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+// The model fast lane's side of the GS front end (TS_FAST_REPLAY; a friend
+// of GS, gs_frontend.h). Within a replay the draws' render-state blocks and
+// the runs' PRIM are not written into the GS's state one by one: their
+// register values go into a copy of its two contexts (the window), which
+// the runs are drawn from (xboxNv2aFastRun), and reach the GS once, before
+// anything else reads it (sync): a step that runs VU1 code, sends a packet
+// or masks PATH3, a queued GIF packet, a block or run the full route takes,
+// the model's end. Only the registers whose write does nothing but store a
+// value wait (TEX0's fields, TEX1, CLAMP, MIPTBP1/2 of either context, and
+// the PRIM of the last run): every other effect of a write happens when it
+// did. A TEX0 write's CLUT load reaches the renderer at once, with the same
+// TEX0 and the GS's own TEXCLUT (never a waiting register), and TEXFLUSH
+// too, in the block's order, so the CLUT hash, the CLUT mirrors and the
+// renderer's palette state that the runs, the segments and any later packet
+// see are those of every write in order, not only the last block's. The
+// GS's lock is held from the window's opening to its close: one lock a
+// model, where each block and each run took one.
+struct XboxFastReplayGs
+{
+    enum : uint32_t { kTex0 = 1u, kTex1 = 2u, kClamp = 4u, kMip1 = 8u, kMip2 = 16u };
+    struct Window
+    {
+        GS *gs = nullptr;    // open: its lock is held
+        GSContext ctx[2]{};  // the GS's contexts, with the waiting writes
+        uint32_t dirty = 0;  // the waiting registers (k*, context 2's << 8)
+        bool prim = false;   // a run's PRIM waits (primValue)
+        bool curQ = false;   // a block was applied (each starts from the tag's Q)
+        uint32_t primValue = 0;
+        // m_textureStateWrites, m_lastStateBlock and m_lastStateBlockWrites
+        // as the blocks so far leave them (applyStateBlock's repeat test).
+        uint32_t texWrites = 0, lastBlock = 0, lastWrites = 0;
+#if XBOX_GS_LAZY
+        // Closed with its writes still waiting (XBOX_GS_LAZY): no GS entry
+        // has run since, so its contexts are still the GS's own plus them,
+        // and the next model's window carries on from them.
+        GS *held = nullptr;
+#endif
+    };
+    static Window w;
+
+    // Whether the block's writes can wait: applyStateBlock would apply it
+    // (PATH1 between packets, no debug history) and it writes the waiting
+    // registers and TEXFLUSH only.
+    static bool canDefer(const GS &gs, const GS::StateBlock &b)
+    {
+        const auto &path1 = gs.m_gifStreams[0];
+        if (!gs.m_backend || b.count == 0u || path1.remaining || path1.padding || path1.unitBytes ||
+            !gs.m_debugHistoryPaused)
+            return false;
+        for (uint32_t i = 0; i < b.count; ++i)
+            switch (b.regs[i])
+            {
+            case GS_REG_TEX0_1: case GS_REG_TEX0_2: case GS_REG_TEX1_1: case GS_REG_TEX1_2:
+            case GS_REG_CLAMP_1: case GS_REG_CLAMP_2: case GS_REG_MIPTBP1_1: case GS_REG_MIPTBP1_2:
+            case GS_REG_MIPTBP2_1: case GS_REG_MIPTBP2_2: case GS_REG_TEXFLUSH:
+                break;
+            default:
+                return false;
+            }
+        return true;
+    }
+
+    static void open(GS &gs)
+    {
+        if (w.gs == &gs)
+            return;
+        close();
+        gs.m_stateMutex.lock();
+        w.gs = &gs;
+#if XBOX_GS_LAZY
+        if (w.held == &gs)
+        {
+            w.held = nullptr;
+            g_xboxGsPending = false;
+            return;
+        }
+        if (w.held)
+        {
+            // (Another GS's waiting writes: there is one GS; in.)
+            GS &other = *w.held;
+            w.held = nullptr;
+            other.m_stateMutex.lock();
+            w.gs = &other;
+            sync();
+            other.m_stateMutex.unlock();
+            w.gs = &gs;
+        }
+#endif
+        w.ctx[0] = gs.m_ctx[0];
+        w.ctx[1] = gs.m_ctx[1];
+        w.dirty = 0u;
+        w.prim = w.curQ = false;
+        w.texWrites = gs.m_textureStateWrites;
+        w.lastBlock = gs.m_lastStateBlock;
+        w.lastWrites = gs.m_lastStateBlockWrites;
+    }
+
+    // applyStateBlock on the window (canDefer's blocks, the window open):
+    // the same repeat test, the same writes in order, the stores held back.
+    static void defer(const GS::StateBlock &b)
+    {
+        GS &gs = *w.gs;
+        w.curQ = true;
+        if (b.repeatable && b.serial != 0u && b.serial == w.lastBlock && w.texWrites == w.lastWrites)
+        {
+            if (b.flushes)
+                gs.m_backend->TextureFlush();
+            return;
+        }
+        for (uint32_t i = 0; i < b.count; ++i)
+        {
+            const uint8_t reg = b.regs[i];
+            const uint64_t value = b.values[i];
+            switch (reg)
+            {
+            case GS_REG_TEX0_1:
+            case GS_REG_TEX0_2:
+            {
+                // (writeRegisterUnlocked's decode.)
+                const uint32_t ci = reg == GS_REG_TEX0_2 ? 1u : 0u;
+                GSTex0Reg &t = w.ctx[ci].tex0;
+                t.tbp0 = static_cast<uint32_t>(value & 0x3FFF);
+                t.tbw = static_cast<uint8_t>((value >> 14) & 0x3F);
+                t.psm = static_cast<uint8_t>((value >> 20) & 0x3F);
+                t.tw = static_cast<uint8_t>((value >> 26) & 0xF);
+                t.th = static_cast<uint8_t>((value >> 30) & 0xF);
+                t.tcc = static_cast<uint8_t>((value >> 34) & 0x1);
+                t.tfx = static_cast<uint8_t>((value >> 35) & 0x3);
+                t.cbp = static_cast<uint32_t>((value >> 37) & 0x3FFF);
+                t.cpsm = static_cast<uint8_t>((value >> 51) & 0xF);
+                t.csm = static_cast<uint8_t>((value >> 55) & 0x1);
+                t.csa = static_cast<uint8_t>((value >> 56) & 0x1F);
+                t.cld = static_cast<uint8_t>((value >> 61) & 0x7);
+                ++w.texWrites;
+                w.dirty |= kTex0 << (ci * 8u);
+                gs.m_backend->LoadClut(t, gs.m_texclut);
+                break;
+            }
+            case GS_REG_CLAMP_1:
+            case GS_REG_CLAMP_2:
+            {
+                const uint32_t ci = reg == GS_REG_CLAMP_2 ? 1u : 0u;
+                w.ctx[ci].clamp = value;
+                ++w.texWrites;
+                w.dirty |= kClamp << (ci * 8u);
+                break;
+            }
+            case GS_REG_TEX1_1:
+            case GS_REG_TEX1_2:
+            {
+                const uint32_t ci = reg == GS_REG_TEX1_2 ? 1u : 0u;
+                w.ctx[ci].tex1 = value;
+                ++w.texWrites;
+                w.dirty |= kTex1 << (ci * 8u);
+                break;
+            }
+            case GS_REG_MIPTBP1_1:
+            case GS_REG_MIPTBP1_2:
+            {
+                const uint32_t ci = reg == GS_REG_MIPTBP1_2 ? 1u : 0u;
+                w.ctx[ci].miptbp1 = value;
+                ++w.texWrites;
+                w.dirty |= kMip1 << (ci * 8u);
+                break;
+            }
+            case GS_REG_MIPTBP2_1:
+            case GS_REG_MIPTBP2_2:
+            {
+                const uint32_t ci = reg == GS_REG_MIPTBP2_2 ? 1u : 0u;
+                w.ctx[ci].miptbp2 = value;
+                ++w.texWrites;
+                w.dirty |= kMip2 << (ci * 8u);
+                break;
+            }
+            default: // TEXFLUSH (canDefer)
+                gs.m_backend->TextureFlush();
+                break;
+            }
+        }
+        w.lastBlock = b.serial;
+        w.lastWrites = w.texWrites;
+    }
+
+    // The run's PRIM as the GS's state takes it (the attributes from PRIM);
+    // false while PRMODE holds them (the full route).
+    static bool runPrim(const GS &gs, uint32_t value, GSPrimReg &out)
+    {
+        if (!gs.m_prmodecont)
+            return false;
+        out.type = static_cast<GSPrimType>(value & 0x7u);
+        out.iip = ((value >> 3) & 1u) != 0u;
+        out.tme = ((value >> 4) & 1u) != 0u;
+        out.fge = ((value >> 5) & 1u) != 0u;
+        out.abe = ((value >> 6) & 1u) != 0u;
+        out.aa1 = ((value >> 7) & 1u) != 0u;
+        out.fst = ((value >> 8) & 1u) != 0u;
+        out.ctxt = ((value >> 9) & 1u) != 0u;
+        out.fix = ((value >> 10) & 1u) != 0u;
+        return true;
+    }
+    static void deferPrim(uint32_t value)
+    {
+        w.prim = true;
+        w.primValue = value;
+    }
+
+    static const GSTexaReg &texa(const GS &gs) { return gs.m_texa; } // (never a waiting register)
+    static const GSRasterBackend *backend(const GS &gs) { return gs.m_backend.get(); }
+
+    // The waiting writes into the GS (the window stays open): its state as
+    // the blocks and runs so far would have left it, the last write of each
+    // register winning (they only store), and the beginXfRun of the last run.
+    static void sync()
+    {
+        if (!w.gs)
+            return;
+        GS &gs = *w.gs;
+        for (uint32_t ci = 0; ci < 2u; ++ci)
+        {
+            const uint32_t d = (w.dirty >> (ci * 8u)) & 0xFFu;
+            if (!d)
+                continue;
+            GSContext &to = gs.m_ctx[ci];
+            const GSContext &from = w.ctx[ci];
+            if (d & kTex0)
+                to.tex0 = from.tex0;
+            if (d & kTex1)
+                to.tex1 = from.tex1;
+            if (d & kClamp)
+                to.clamp = from.clamp;
+            if (d & kMip1)
+                to.miptbp1 = from.miptbp1;
+            if (d & kMip2)
+                to.miptbp2 = from.miptbp2;
+        }
+        gs.m_textureStateWrites = w.texWrites;
+        gs.m_lastStateBlock = w.lastBlock;
+        gs.m_lastStateBlockWrites = w.lastWrites;
+        if (w.curQ)
+            gs.m_curQ = 1.0f;
+        if (w.prim)
+        {
+            gs.writeRegisterUnlocked(GS_REG_PRIM, w.primValue & 0x7FFu);
+            gs.m_vtxCount = 0;
+        }
+        w.dirty = 0u;
+        w.prim = w.curQ = false;
+    }
+
+    static void close()
+    {
+        if (!w.gs)
+            return;
+#if XBOX_GS_LAZY
+        // The writes wait on: the next GS entry (any path, any thread, under
+        // the lock) or the next model's window takes them.
+        GS &gs = *w.gs;
+        w.gs = nullptr;
+        w.held = &gs;
+        g_xboxGsPending = true;
+        gs.m_stateMutex.unlock();
+#else
+        sync();
+        GS &gs = *w.gs;
+        w.gs = nullptr;
+        gs.m_stateMutex.unlock();
+#endif
+    }
+
+#if XBOX_GS_LAZY
+    // A GS entry, under the GS's lock: the held writes into its state.
+    static void pendingSync(GS &gs)
+    {
+        g_xboxGsPending = false;
+        if (w.held != &gs || w.gs)
+            return; // (none for this GS, or a window open on this thread: its own)
+        w.held = nullptr;
+        w.gs = &gs;
+        sync();
+        w.gs = nullptr;
+        ++g_gsSyncs;
+    }
+    static uint64_t g_gsSyncs;
+#endif
+};
+XboxFastReplayGs::Window XboxFastReplayGs::w;
+#if XBOX_GS_LAZY
+uint64_t XboxFastReplayGs::g_gsSyncs = 0;
+bool g_xboxGsPending = false;
+void xboxGsPendingSync(GS &gs) { XboxFastReplayGs::pendingSync(gs); }
+#endif
+#endif
 
 namespace
 {
@@ -2227,6 +2832,153 @@ namespace
         return true;
     }
 
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+    // A queued GIF packet reads and writes the GS: the waiting writes go first.
+    void fastDrain(PS2Memory *memory)
+    {
+        if (memory && memory->gifArbiter() && !memory->gifArbiter()->empty())
+        {
+            XboxFastReplayGs::close();
+            memory->gifArbiter()->drain();
+        }
+    }
+
+    // replayDraw with the fast lane (TS_FAST_REPLAY): the block's stores
+    // wait in the window when they can, and a run whose renderer segment
+    // stands is drawn from it (xboxNv2aFastRun); the rest as replayDraw.
+    bool replayDrawFast(const Draw &d, uint8_t *vuData, PS2Memory *memory, GS &gs, bool &committed)
+    {
+        const uint8_t *block = g_stateBytes + d.state + 4u;
+        fastDrain(memory);
+        bool known = true;
+        const GS::StateBlock *decoded = decodedState(d.state, block, d.stateBytes, known);
+        if (known && decoded && XboxFastReplayGs::canDefer(gs, *decoded))
+        {
+            XboxFastReplayGs::open(gs);
+            XboxFastReplayGs::defer(*decoded);
+        }
+        else
+        {
+            // replayDraw's route, on the GS as the draws before left it.
+            XboxFastReplayGs::close();
+            if (!known)
+            {
+                const void *material = xboxNativeMaterialFor(block, d.stateBytes);
+                if (!material || !xboxNativeApplyMaterial(material, gs))
+                    xboxNativeSubmitState(block, d.stateBytes, memory, gs);
+            }
+            else if (!decoded || gs.applyStateBlock(*decoded) == GS::StateBlockResult::NotApplied)
+                xboxNativeSubmitState(block, d.stateBytes, memory, gs);
+        }
+        const ts_native_xf::Layout &L = ts_native_xf::kLayouts[d.kind];
+        GSXfConstants &xc = xboxNativeTransformConstants(vuData);
+        xc.variant = L.envMap ? GSXfConstants::EnvMap
+                     : L.skinned ? GSXfConstants::Skinned
+                     : L.lit     ? GSXfConstants::Lit
+                                 : GSXfConstants::Plain;
+        xc.check = 0u;
+        ++g_stats.replayDraws;
+        const uint32_t format = formatOf(d.kind);
+        const bool fast = g_resident && xboxNv2aFastBackend(XboxFastReplayGs::backend(gs));
+        for (uint32_t ri = 0; ri < d.runs; ++ri)
+        {
+            const Run &run = g_runs[d.firstRun + ri];
+            fastDrain(memory);
+            GSPrimReg prim;
+            if (fast && XboxFastReplayGs::runPrim(gs, run.prim, prim))
+            {
+                XboxFastReplayGs::open(gs); // (the renderer runs under the GS's lock)
+                const uint32_t at = run.first / kBlockBytes;
+                if (xboxNv2aFastRun(d.firstRun + ri, XboxFastReplayGs::w.ctx[prim.ctxt ? 1 : 0], prim,
+                                    XboxFastReplayGs::texa(gs), xc, g_store + at * kBlockBytes,
+                                    (run.first % kBlockBytes) / kStride[format], run.count, format, run.strips))
+                {
+                    XboxFastReplayGs::deferPrim(run.prim);
+                    committed = true;
+                    ++g_stats.replayRuns;
+                    g_stats.replayVertices += run.count;
+                    continue;
+                }
+            }
+            // replayDraw's run, on the GS with the waiting writes in.
+            XboxFastReplayGs::sync();
+            GSXfCursor cursor;
+            xboxNv2aUseSegment(d.firstRun + ri); // its texture, key and commands, while their inputs stand
+            if (!gs.beginXfRun(run.prim, xc, cursor))
+            {
+                // (The state block applied again by the decode changes nothing.)
+                if (!committed)
+                    return false;
+#if XBOX_DIRECT_ROUTE
+                // The per-run fallback: its strips as the CPU path draws
+                // them (packets or decoded vertices, through the GS with the
+                // waiting writes in), from the stored records.
+                XboxFastReplayGs::close();
+                for (uint32_t si = 0; si < run.strips; ++si)
+                {
+                    const Strip &st = g_strips[run.firstStrip + si];
+                    GSXfVertex v[64];
+                    const uint32_t n = st.n < 64u ? st.n : 64u;
+                    for (uint32_t k = 0; k < n; ++k)
+                        unpackRecord(format, g_store + st.first + k * kStride[format], v[k]);
+                    xboxNativeCpuStrip(v, n, run.prim, xc, memory, gs);
+                    ++g_cpuRunStrips;
+                }
+                continue;
+#endif
+                ++g_stats.replayDeclined;
+                continue;
+            }
+            committed = true;
+            ++g_stats.replayRuns;
+            const uint8_t *records = g_store + run.first;
+            if (cursor.direct && g_resident)
+            {
+                const uint32_t at = run.first / kBlockBytes;
+                xboxNv2aDrawResident(g_store + at * kBlockBytes, (run.first % kBlockBytes) / kStride[format],
+                                     run.count, format);
+                cursor.strips += run.strips;
+                cursor.vertices += run.count;
+            }
+            else if (cursor.direct)
+            {
+                const GSXfVertex *v = reinterpret_cast<const GSXfVertex *>(records); // (full records)
+                const uint32_t n = run.count;
+                if (cursor.next + (n + 2u) > cursor.end)
+                    gs.growXfCursor(cursor, n + 2u);
+                GSXfVertex *out = cursor.next;
+                if (cursor.join)
+                {
+                    std::memcpy(out, &cursor.last, sizeof(GSXfVertex));
+                    std::memcpy(out + 1, v, sizeof(GSXfVertex));
+                    out += 2;
+                }
+                std::memcpy(out, v, n * sizeof(GSXfVertex));
+                cursor.last = v[n - 1u];
+                cursor.next = out + n;
+                cursor.join = true;
+                cursor.strips += run.strips;
+                cursor.vertices += n;
+            }
+            else
+            {
+                // Flat shading: the renderer lays the strips out itself.
+                for (uint32_t si = 0; si < run.strips; ++si)
+                {
+                    const Strip &st = g_strips[run.firstStrip + si];
+                    GSXfVertex v[64];
+                    for (uint32_t k = 0; k < st.n; ++k)
+                        unpackRecord(format, g_store + st.first + k * kStride[format], v[k]);
+                    gs.emitXfStrip(v, st.n);
+                }
+            }
+            g_stats.replayVertices += run.count;
+            gs.endXfRun(cursor);
+        }
+        return true;
+    }
+#endif
+
     // The model's steps in order, from the live registers. False (nothing
     // sent, the registers as they were) when the chain must be decoded
     // instead.
@@ -2251,17 +3003,29 @@ namespace
                     stepMscal(regs);
                     if (epoch < kMaxEpochs)
                         g_replayTops[++epoch] = static_cast<uint16_t>(regs.tops & 0x3FFu);
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+                    if (!replayDrawFast(g_draws[m.firstDraw + draw++], vuData, memory, gs, committed))
+                    {
+                        XboxFastReplayGs::close(); // (the GS as the full route's draw left it)
+                        regs = saved;
+                        return false;
+                    }
+#else
                     if (!replayDraw(g_draws[m.firstDraw + draw++], vuData, memory, gs, committed))
                     {
                         regs = saved;
                         return false;
                     }
+#endif
                     lastRecorded = true;
                     lastTop = regs.top;
                     lastItop = regs.itop;
                 }
                 break;
             case StepMscal:
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+                XboxFastReplayGs::close(); // (VU1 code may kick packets)
+#endif
                 stepMscal(regs);
                 if (epoch < kMaxEpochs)
                     g_replayTops[++epoch] = static_cast<uint16_t>(regs.tops & 0x3FFu);
@@ -2274,6 +3038,9 @@ namespace
                 restoreRows(vuData, s.b, s.count);
                 break;
             case StepGif:
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+                XboxFastReplayGs::close();
+#endif
                 memory->submitGifPacket(GifPathId::Path2, g_blob + s.b, s.a, true, (s.flags & StepDirectHl) != 0u);
                 committed = true;
                 break;
@@ -2282,12 +3049,18 @@ namespace
                     g_replayTops[++epoch] = static_cast<uint16_t>(regs.tops & 0x3FFu);
                 break;
             case StepPath3:
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+                XboxFastReplayGs::close();
+#endif
                 vif.mskPath3(memory, s.a);
                 committed = true;
                 break;
             default: break; // StepMpg: checked unchanged (canReplay)
             }
         }
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+        XboxFastReplayGs::close();
+#endif
         applyEnd(m, regs);
         // What the fast path leaves in the VU1 state after its last native run.
         if (lastRecorded)
@@ -2309,6 +3082,91 @@ namespace
         ++g_stats.inlined;
         return true;
     }
+
+#if XBOX_DIRECT_ROUTE
+    XboxDirectStats g_direct;
+
+    // Per model slot: whether its replay leaves VU1 memory alone (no step
+    // runs VU1 code or restores rows: its draws take the constants from the
+    // renderer's copy), for the capture generation it was found for.
+    uint32_t g_leanGen[kSlots];
+    uint8_t g_lean[kSlots];
+
+    bool leanModel(const Model &m)
+    {
+        const uint32_t s = static_cast<uint32_t>(&m - g_models) & (kSlots - 1u);
+        if (g_leanGen[s] != m.gen || m.gen == 0u)
+        {
+            bool lean = m.draws != 0u;
+            for (uint32_t si = 0; si < m.steps && lean; ++si)
+            {
+                const uint8_t type = g_steps[m.firstStep + si].type;
+                lean = type != StepMscal && type != StepRows;
+            }
+            g_leanGen[s] = m.gen;
+            g_lean[s] = lean ? 1u : 0u;
+        }
+        return g_lean[s] != 0u;
+    }
+
+    // A DIRECT marker: what the prologue marker and the REPLAY marker it
+    // stands for would have done, in their order. The prologue natively
+    // (xboxPrologueDirectRun: its constants worked out from the guest's
+    // blocks, its VU1 rows held in a shadow), else the decoder's way; then
+    // the model's replay when its capture is (still) Ready and the replay
+    // can be made - with the shadow first put into VU1 memory when the
+    // replay reads it - else the chain decoded from guest memory, which is
+    // what the walker would have handed over for a model it found gone or
+    // changed.
+    void directDecode(const uint32_t words[4], uint8_t *vuData, VIFRegisters &regs, PS2Memory *memory, GS *gs,
+                      bool onWorker, const XboxModelVif &vif)
+    {
+        uint32_t target = 0, slot = 0;
+        if (!xboxPrologueDirectModel(words, target, slot))
+        {
+            // Overwritten since the walk: nothing is sent (as a lost token).
+            ++g_direct.lost;
+            return;
+        }
+        if (!onWorker && xboxPrologueDirectRun(words, vuData, regs, memory, vif))
+            ++g_direct.prologueNative;
+        else
+        {
+            xboxDirectMaterialize(vuData);
+            ++g_direct.prologueDecoded;
+            xboxPrologueDecode(words, vuData, regs, memory, vif);
+        }
+        const bool tie = ((words[0] >> 21) & 1u) != 0u;
+        const uint32_t asp = (words[0] >> 22) & 3u;
+        if (!onWorker && g_models)
+        {
+            if (g_decode.model)
+                failDecode(1u); // (inside a capture: as at a REPLAY marker)
+            Model *m = slot < kSlots ? &g_models[slot] : nullptr;
+            if (!m || m->state == Empty || m->target != target)
+                m = find(target, false); // (it may have moved slots, or be gone)
+            if (gs && memory && vuData && m && m->state == Ready && !(m->flags & (EndsChain | IrqTags)))
+            {
+                const bool lean = leanModel(*m);
+                if (!lean && g_xboxDirectStale)
+                {
+                    xboxDirectMaterialize(vuData);
+                    ++g_direct.materializedFirst;
+                }
+                if (replay(*m, vuData, regs, memory, *gs, vif))
+                {
+                    ++g_direct.replayed;
+                    g_direct.lean += lean ? 1u : 0u;
+                    return;
+                }
+            }
+        }
+        xboxDirectMaterialize(vuData);
+        ++g_direct.inlined;
+        if (!decodeInline(memory, target, asp, tie))
+            ++g_stats.replayMissing;
+    }
+#endif
 }
 
 void xboxModelDecodeMarker(const uint32_t words[4], uint8_t *vuData, VIFRegisters &regs, PS2Memory *memory, GS *gs,
@@ -2317,12 +3175,25 @@ void xboxModelDecodeMarker(const uint32_t words[4], uint8_t *vuData, VIFRegister
     const uint32_t type = words[0] & 0xFFu, slot = (words[0] >> 8) & 0x1FFFu, target = words[1], gen = words[3];
     const bool tie = ((words[0] >> 21) & 1u) != 0u;
     const uint32_t asp = (words[0] >> 22) & 3u;
+#if XBOX_DIRECT_ROUTE
+    // Every other marker may read VU1 memory (a prologue, a capture, a
+    // replay's steps): the direct route's shadow goes in first.
+    if (type != XboxModelDirect)
+        xboxDirectMaterialize(vuData);
+#endif
 #if TS_NATIVE_REPLAY
     if (type == XboxModelPrologue && words[2] == kXboxModelMagic)
     {
         // A partGfx prologue token (xbox_part_prologue.cpp), on either thread.
         (void)onWorker;
         xboxPrologueDecode(words, vuData, regs, memory, vif);
+        return;
+    }
+#endif
+#if XBOX_DIRECT_ROUTE
+    if (type == XboxModelDirect && words[2] == kXboxModelMagic)
+    {
+        directDecode(words, vuData, regs, memory, gs, onWorker, vif);
         return;
     }
 #endif
@@ -2391,6 +3262,10 @@ void xboxModelDecodeMarker(const uint32_t words[4], uint8_t *vuData, VIFRegister
     }
     if (type == XboxModelReplay)
     {
+#if defined(TS_KNOCKOUT) && TS_KNOCKOUT == 1
+        // Measurement only (make TS_KNOCKOUT=1): a cached model is not drawn.
+        return;
+#endif
         if (g_decode.model)
             failDecode(1u); // (inside a capture: the walker never nests them)
         if (!onWorker && gs && memory && vuData && m && m->state == Ready && replay(*m, vuData, regs, memory, *gs, vif))
@@ -2399,6 +3274,91 @@ void xboxModelDecodeMarker(const uint32_t words[4], uint8_t *vuData, VIFRegister
             ++g_stats.replayMissing;
     }
 }
+
+#if TS_DIRECT_MODELS
+// ---------------------------------------------------------------- partGfx
+bool xboxDirectCall(uint32_t tag, uint32_t token, uint32_t target)
+{
+#if XBOX_DIRECT_ROUTE
+    ++g_direct.calls;
+    // The 16 bytes before the CALL: a QWC-0 REF whose ADDR is a list token
+    // (the prologue partGfx wrote just before; xboxPrologueAttachDirect
+    // checks it is that record).
+    if ((tag & 0xFFFFu) != 0u || (tag >> 24) != 0x30u || (token & ~kXboxPrologueIndexMask) != kXboxPrologueTag)
+    {
+        ++g_direct.noToken;
+        return false;
+    }
+    // (The address as the walker keys it; another one keeps the CALL.)
+    if ((target & 0x8000000Fu) != 0u)
+    {
+        ++g_direct.kind;
+        return false;
+    }
+    Model *m = g_models && !g_walk.model ? find(target, false) : nullptr;
+    if (!m || m->state != Ready)
+    {
+        ++g_direct.notReady; // first sight, capturing, failed or evicted: the walker decides
+        return false;
+    }
+    // Models whose walk is not a plain CALL and return (the chain ends inside
+    // it, or IRQ tags end the walk with TIE) keep the walker's own handling.
+    if (m->flags & (EndsChain | IrqTags))
+    {
+        ++g_direct.kind;
+        return false;
+    }
+    // The walker re-hashes a model's chain at every 32nd replay (and before
+    // the first after a load): that one takes the CALL, so the walker sees it
+    // due (verified 0) and recaptures a chain that changed.
+    if (!m->verified || ((m->replays + 1u) % kVerifyEvery) == 0u)
+    {
+        m->verified = 0u;
+        ++g_direct.verify;
+        return false;
+    }
+    if (!xboxPrologueAttachDirect(token, target, static_cast<uint32_t>(m - g_models)))
+    {
+        ++g_direct.record;
+        return false;
+    }
+    // The walker's bookkeeping of a replay (xboxModelWalkCall): the use clock
+    // eviction reads and the replay count the re-hash cadence reads.
+    ++g_walkSerial;
+    m->lastUse = g_walkSerial;
+    ++m->replays;
+    ++g_stats.replays;
+    ++g_direct.taken;
+    return true;
+#else
+    (void)tag;
+    (void)token;
+    (void)target;
+    return false;
+#endif
+}
+
+bool xboxDirectGetStats(XboxDirectStats &out)
+{
+#if XBOX_DIRECT_ROUTE
+    out = g_direct;
+    xboxPrologueDirectStats(out.marked, out.walked);
+    uint64_t native = 0;
+    xboxPrologueDirectCounts(native, out.materialized);
+    out.cpuDraws = g_cpuDraws;
+    out.nonPreStrips = g_nonPreStrips;
+    out.shortStrips = g_shortStrips;
+    out.cpuRunStrips = g_cpuRunStrips;
+#if XBOX_GS_LAZY
+    out.gsSyncs = XboxFastReplayGs::g_gsSyncs;
+#endif
+    return true;
+#else
+    out = {};
+    return false;
+#endif
+}
+#endif
 
 void xboxModelGetStats(XboxModelStats &out)
 {
@@ -2420,4 +3380,10 @@ void xboxModelGetStats(XboxModelStats &out)
 #else
 bool g_xboxModelCaptureOpen = false;
 void xboxModelGetStats(XboxModelStats &out) { out = {}; }
+#endif
+
+#if TS_DIRECT_MODELS && !(TS_NATIVE_MODELS && XBOX_GS_LAZY)
+// No GS state is held back (the GS front end's copy calls this all the same).
+bool g_xboxGsPending = false;
+void xboxGsPendingSync(GS &) { g_xboxGsPending = false; }
 #endif

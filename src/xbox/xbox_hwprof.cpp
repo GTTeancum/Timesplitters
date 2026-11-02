@@ -25,6 +25,15 @@
 // (script read TS_HWPROF_FROM) and written to the log when it closes
 // (TS_HWPROF_TO), then freed.
 //
+// Every TS_HWPROF_STACK_EVERY-th histogram sample also copies the call
+// stack: the interrupted thread's stack is scanned from its ESP to its
+// StackBase for values inside .text that follow a call instruction (the game
+// code has no frame pointers), and up to kStackKeep of them go into a buffer
+// reserved at start-up with the table. hwprof_report.py rebuilds each chain
+// from the link map and the XBE (a direct call must lead to the function
+// below it, which drops stale values) and adds up the time of every job
+// with everything it calls.
+//
 // Each histogram sample also notes whether the kernel's idle thread was
 // running and whether the GPU was busy (graphics engine status, command
 // FIFO not empty): the window's totals go in the report's gpu line, and the
@@ -48,6 +57,9 @@
 #ifndef TS_HWPROF_TO
 #define TS_HWPROF_TO 2700
 #endif
+#ifndef TS_HWPROF_STACK_EVERY
+#define TS_HWPROF_STACK_EVERY 96
+#endif
 
 // ------------------------------------------------------------ interrupt side
 // The two IDT entry points (file-scope assembly: no compiler prologue).
@@ -57,8 +69,8 @@ extern "C"
 {
     void hwprofStubPit() __asm__("hwprof_stub_pit");
     void hwprofStubRtc() __asm__("hwprof_stub_rtc");
-    void hwprofOnPit(uint32_t eip) __asm__("hwprof_on_pit");
-    void hwprofOnRtc(uint32_t eip) __asm__("hwprof_on_rtc");
+    void hwprofOnPit(uint32_t eip, uint32_t esp) __asm__("hwprof_on_pit");
+    void hwprofOnRtc(uint32_t eip, uint32_t esp) __asm__("hwprof_on_rtc");
     extern uint32_t hwprofOrigPit __asm__("hwprof_orig_pit");
     uint32_t hwprofOrigPit = 0;
 }
@@ -70,9 +82,11 @@ __asm__(".text\n"
         "    pushl %eax\n"
         "    pushl %ecx\n"
         "    pushl %edx\n"
-        "    pushl 16(%esp)\n" // interrupted EIP
+        "    leal 28(%esp), %eax\n" // the interrupted stack, past EIP, CS, EFLAGS
+        "    pushl %eax\n"
+        "    pushl 20(%esp)\n" // interrupted EIP
         "    call hwprof_on_pit\n"
-        "    addl $4, %esp\n"
+        "    addl $8, %esp\n"
         "    popl %edx\n"
         "    popl %ecx\n"
         "    popl %eax\n"
@@ -83,9 +97,11 @@ __asm__(".text\n"
         "    pushl %eax\n"
         "    pushl %ecx\n"
         "    pushl %edx\n"
-        "    pushl 12(%esp)\n"
+        "    leal 24(%esp), %eax\n" // the interrupted stack, past EIP, CS, EFLAGS
+        "    pushl %eax\n"
+        "    pushl 16(%esp)\n" // interrupted EIP
         "    call hwprof_on_rtc\n" // acknowledges the clock and both PICs
-        "    addl $4, %esp\n"
+        "    addl $8, %esp\n"
         "    popl %edx\n"
         "    popl %ecx\n"
         "    popl %eax\n"
@@ -118,6 +134,17 @@ namespace
     uint32_t *g_keys = nullptr; // (slot << 28) | (EIP >> 4); 0 = empty
     uint16_t *g_counts = nullptr;
     uint32_t g_bits = 0, g_mask = 0, g_used = 0, g_limit = 0, g_saturated = 0;
+
+    // Call stacks (see the top): records of [0xA5 << 24 | slot << 16 | n,
+    // EIP, candidates found, n return addresses innermost first]. A stack
+    // with more than kStackKeep keeps its innermost kStackInner and its
+    // outermost kStackKeep - kStackInner (the jobs).
+    constexpr uint32_t kStackKeep = 32, kStackInner = 8, kStackRing = 256, kStackScanWords = 32768;
+    constexpr uint32_t kStackBufWords = 20480; // 80 KB
+    uint32_t *g_stackBuf = nullptr;
+    uint32_t g_stackUsed = 0, g_stackRecords = 0, g_stackFull = 0, g_stackBad = 0, g_stackCapped = 0, g_stackTick = 0;
+    uint32_t g_textStart = 0, g_textEnd = 0;
+    uint32_t g_stackScratch[kStackRing]; // the interrupt does not nest (interrupt gates)
 
     volatile uint32_t g_active = 0;
     uint32_t g_primary = kSrcNone;
@@ -202,7 +229,81 @@ namespace
         g_samples.gpuBusy += (graph || fifo) ? 1u : 0u;
     }
 
-    void record(uint32_t eip, uint32_t source)
+    // A return address: inside .text and just after a call (E8 rel32, or
+    // FF /2 in any of its operand forms).
+    inline bool afterCall(uint32_t v)
+    {
+        if (v < g_textStart + 8u || v >= g_textEnd)
+            return false;
+        const uint8_t *b = reinterpret_cast<const uint8_t *>(v);
+        if (b[-5] == 0xE8u)
+            return true;
+        static constexpr int kBack[] = {2, 3, 4, 6, 7};
+        for (int n : kBack)
+            if (b[-n] == 0xFFu && ((b[1 - n] >> 3) & 7u) == 2u)
+                return true;
+        return false;
+    }
+
+    void recordStack(uint32_t s, uint32_t kthread, uint32_t eip, uint32_t esp)
+    {
+        if (!g_stackBuf || g_stackFull)
+            return;
+        uint32_t base = 0, limit = 0;
+        if (kthread >= 0x80000000u)
+        {
+            const KTHREAD *t = reinterpret_cast<const KTHREAD *>(kthread);
+            base = reinterpret_cast<uint32_t>(t->StackBase);
+            limit = reinterpret_cast<uint32_t>(t->StackLimit);
+        }
+        uint32_t seen = 0;
+        if (esp >= limit && esp < base)
+        {
+            const uint32_t *p = reinterpret_cast<const uint32_t *>(esp & ~3u);
+            const uint32_t *end = reinterpret_cast<const uint32_t *>(base & ~3u);
+            if (uint32_t(end - p) > kStackScanWords)
+            {
+                end = p + kStackScanWords;
+                ++g_stackCapped;
+            }
+            for (; p < end; ++p)
+            {
+                const uint32_t v = *p;
+                if (!afterCall(v))
+                    continue;
+                // The innermost kStackInner, then a ring holding the outermost.
+                if (seen < kStackInner)
+                    g_stackScratch[seen] = v;
+                else
+                    g_stackScratch[kStackInner + (seen - kStackInner) % (kStackRing - kStackInner)] = v;
+                ++seen;
+            }
+        }
+        else
+            ++g_stackBad;
+        const uint32_t ring = kStackRing - kStackInner;
+        const uint32_t inner = seen < kStackInner ? seen : kStackInner;
+        const uint32_t outerSeen = seen - inner;
+        const uint32_t outer = outerSeen < kStackKeep - kStackInner ? outerSeen : kStackKeep - kStackInner;
+        const uint32_t n = inner + outer;
+        if (g_stackUsed + 3u + n > kStackBufWords)
+        {
+            g_stackFull = 1;
+            return;
+        }
+        uint32_t *w = g_stackBuf + g_stackUsed;
+        w[0] = 0xA5000000u | (s << 16) | n;
+        w[1] = eip;
+        w[2] = seen;
+        for (uint32_t i = 0; i < inner; ++i)
+            w[3 + i] = g_stackScratch[i];
+        for (uint32_t i = 0; i < outer; ++i) // the last `outer` of the outer ones, innermost first
+            w[3 + inner + i] = g_stackScratch[kStackInner + (outerSeen - outer + i) % ring];
+        g_stackUsed += 3u + n;
+        ++g_stackRecords;
+    }
+
+    void record(uint32_t eip, uint32_t esp, uint32_t source)
     {
         const uint32_t current = fsDword(kPcrCurrentThread);
         const uint32_t s = slotFor(current);
@@ -219,6 +320,11 @@ namespace
             sampleGpu();
         if (g_irqlOk && fsByte(kPcrIrql) >= 2u)
             ++slot.high;
+        if (++g_stackTick >= TS_HWPROF_STACK_EVERY)
+        {
+            g_stackTick = 0;
+            recordStack(s, current, eip, esp);
+        }
         const uint32_t key = (s << 28) | (eip >> 4);
         uint32_t h = (key * 2654435761u) >> (32u - g_bits);
         for (uint32_t probe = 0; probe < 32u; ++probe)
@@ -247,21 +353,21 @@ namespace
     }
 }
 
-extern "C" __attribute__((used)) void hwprofOnPit(uint32_t eip)
+extern "C" __attribute__((used)) void hwprofOnPit(uint32_t eip, uint32_t esp)
 {
     ++g_pitHits;
     if (g_active)
-        record(eip, kSrcPit);
+        record(eip, esp, kSrcPit);
 }
 
-extern "C" __attribute__((used)) void hwprofOnRtc(uint32_t eip)
+extern "C" __attribute__((used)) void hwprofOnRtc(uint32_t eip, uint32_t esp)
 {
     outb(0x70, 0x0C); // reading register C acknowledges the clock
     if (inb(0x71) & 0x80u)
     {
         ++g_rtcHits;
         if (g_active)
-            record(eip, kSrcRtc);
+            record(eip, esp, kSrcRtc);
     }
     outb(0xA0, 0x60); // specific EOI: IRQ 8 on the slave PIC,
     outb(0x20, 0x62); // its cascade (IRQ 2) on the master
@@ -375,13 +481,15 @@ namespace
     uint32_t g_frameHist[kFrameBins];
     uint64_t g_qpcFrequency = 1;
 
-    // Once, at start-up, before the game claims its memory: the largest
-    // table that fits, 6 bytes an entry, filled to 7/8. The texture pack's
-    // pool is smaller by the same amount in profiler builds
-    // (gs_nv2a_backend.cpp), so the game keeps the memory it normally has.
+    // Once, at start-up, before the game claims its memory: the stack
+    // buffer (80 KB) and the largest table that fits beside it in 128 KB, 6
+    // bytes an entry, filled to 7/8. The texture pack's pool is smaller by
+    // those 128 KB in profiler builds (gs_nv2a_backend.cpp), so the game
+    // keeps the memory it normally has.
     void reserveTable()
     {
-        for (uint32_t bits = 14; bits >= 11; --bits)
+        g_stackBuf = static_cast<uint32_t *>(VirtualAlloc(nullptr, kStackBufWords * 4u, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
+        for (uint32_t bits = 13; bits >= 11; --bits)
         {
             const uint32_t entries = 1u << bits;
             if (void *memory = VirtualAlloc(nullptr, entries * 6u, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE))
@@ -417,6 +525,7 @@ namespace
             slot.rtc = slot.pit = slot.high = slot.drops = 0;
         }
         g_used = g_saturated = g_slotOverflow = 0;
+        g_stackUsed = g_stackRecords = g_stackFull = g_stackBad = g_stackCapped = g_stackTick = 0;
         std::memset(g_frameHist, 0, sizeof(g_frameHist));
         g_begin.tsc = rdtsc();
         g_begin.qpc = KeQueryPerformanceCounter();
@@ -520,12 +629,42 @@ namespace
             if (inLine)
                 emit("h %u%s", s, text);
         }
+        // The call stacks: "s <record> <slot> <skipped> <eip> <return
+        // addresses, innermost first>", continued in "s <record> + ..." (hex).
+        emit("stacks records=%u words=%u full=%u bad=%u capped=%u every=%u keep=%u inner=%u text=%08x-%08x",
+             g_stackRecords, g_stackUsed, g_stackFull, g_stackBad, g_stackCapped, unsigned(TS_HWPROF_STACK_EVERY),
+             kStackKeep, kStackInner, g_textStart, g_textEnd);
+        if (g_stackBuf)
+        {
+            uint32_t at = 0;
+            for (uint32_t r = 0; r < g_stackRecords && at + 3u <= g_stackUsed; ++r)
+            {
+                const uint32_t *w = g_stackBuf + at;
+                const uint32_t n = w[0] & 0xFFFFu, slot = (w[0] >> 16) & 0xFFu;
+                char text[200];
+                int len = std::snprintf(text, sizeof(text), "s %u %u %u %x", r, slot, w[2] > n ? w[2] - n : 0u, w[1]);
+                for (uint32_t i = 0; i < n; ++i)
+                {
+                    if (len > 160)
+                    {
+                        emit("%s", text);
+                        len = std::snprintf(text, sizeof(text), "s %u +", r);
+                    }
+                    len += std::snprintf(text + len, sizeof(text) - size_t(len), " %x", w[3 + i]);
+                }
+                emit("%s", text);
+                at += 3u + n;
+            }
+        }
         emit("end lines=%u", g_lineNo + 1u);
 
         g_keys = nullptr;
         g_counts = nullptr;
         VirtualFree(g_tableMemory, 0, MEM_RELEASE);
         g_tableMemory = nullptr;
+        if (g_stackBuf)
+            VirtualFree(g_stackBuf, 0, MEM_RELEASE);
+        g_stackBuf = nullptr;
     }
 }
 
@@ -610,11 +749,33 @@ void hwprofInit()
                                        : (g_primary == kSrcPit ? "the kernel clock (1000 Hz)" : "nothing: profiler off"),
                   TS_HWPROF_FROM, TS_HWPROF_TO);
     xboxLogWrite(text, unsigned(std::strlen(text)));
+    // .text: the XBE section holding this code (section headers: count at
+    // 0x1011C, their address at 0x10120, 0x38 bytes each with the virtual
+    // address at +4 and size at +8).
+    {
+        const uint32_t self = reinterpret_cast<uint32_t>(&hwprofOnRtc);
+        const uint32_t count = *reinterpret_cast<const uint32_t *>(0x1011Cu);
+        const uint8_t *headers = reinterpret_cast<const uint8_t *>(*reinterpret_cast<const uint32_t *>(0x10120u));
+        for (uint32_t i = 0; i < count && i < 64u; ++i)
+        {
+            const uint32_t va = *reinterpret_cast<const uint32_t *>(headers + i * 0x38u + 4u);
+            const uint32_t size = *reinterpret_cast<const uint32_t *>(headers + i * 0x38u + 8u);
+            if (self >= va && self - va < size)
+            {
+                g_textStart = va;
+                g_textEnd = va + size;
+            }
+        }
+        std::snprintf(text, sizeof(text), "[TS:prof] text %08x-%08x, a stack every %u samples\n", g_textStart, g_textEnd,
+                      unsigned(TS_HWPROF_STACK_EVERY));
+        xboxLogWrite(text, unsigned(std::strlen(text)));
+    }
     g_phase = g_primary == kSrcNone ? Phase::Off : Phase::Waiting;
     if (g_phase == Phase::Waiting)
     {
         reserveTable();
-        std::snprintf(text, sizeof(text), "[TS:prof] table reserved: %u entries\n", g_tableMemory ? 1u << g_bits : 0u);
+        std::snprintf(text, sizeof(text), "[TS:prof] table reserved: %u entries, stack buffer %s\n",
+                      g_tableMemory ? 1u << g_bits : 0u, g_stackBuf ? "80 KB" : "none");
         xboxLogWrite(text, unsigned(std::strlen(text)));
     }
 }

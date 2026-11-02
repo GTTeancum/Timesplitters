@@ -1347,6 +1347,12 @@ uint32_t PS2Memory::processVIF1PiecesAhead(const Vif1Piece *pieces, size_t count
 uint32_t PS2Memory::decodeVIF1Pieces(const Vif1Piece *pieces, size_t count, uint32_t bytes, bool chainEnd)
 {
     static_assert(PS2_VU1_DATA_SIZE == 1024u * 16u, "UNPACK writes wrap at 1024 quadwords");
+#if defined(PLATFORM_XBOX) && defined(TS_KNOCKOUT) && TS_KNOCKOUT == 3
+    // Measurement only (make TS_KNOCKOUT=3): nothing of the display list is
+    // decoded, so nothing is drawn; the frame's cost without its drawing.
+    (void)pieces, (void)count, (void)bytes, (void)chainEnd;
+    return 0;
+#endif
     if (chainEnd)
         ++g_vif1StreamStats.chains;
     g_vif1StreamStats.pieces += static_cast<unsigned>(count);

@@ -105,7 +105,37 @@ Vu1CompiledEntry VU1Interpreter::lookupCompiledProgram(const uint8_t *vuCode, ui
     const uint64_t generation = memory->getVU1CodeGeneration();
     if (!m_compiledLookupValid || m_compiledLookupGeneration != generation)
     {
+#if defined(PLATFORM_XBOX) && TS_FAST_DECODE
+        // A store or MPG that rewrote VU1 code with the bytes it held moves
+        // the generation too. The hash (64-bit multiplies a byte, about
+        // 0.2 ms on the Pentium III for the 16 KB) is redone only when the
+        // code differs from the copy last hashed, compared a word at a time.
+        static uint8_t s_hashedCode[PS2_VU1_CODE_SIZE];
+        static bool s_hashed = false;
+        static uint32_t s_hashedSize = 0;
+        static uint64_t s_hashedValue = 0;
+        bool same = s_hashed && codeSize == s_hashedSize;
+        for (uint32_t i = 0; same && i + 4u <= codeSize; i += 4u)
+        {
+            uint32_t a, b;
+            std::memcpy(&a, vuCode + i, 4);
+            std::memcpy(&b, s_hashedCode + i, 4);
+            same = a == b;
+        }
+        for (uint32_t i = codeSize & ~3u; same && i < codeSize; ++i)
+            same = vuCode[i] == s_hashedCode[i];
+        if (!same && codeSize <= sizeof(s_hashedCode))
+        {
+            s_hashedValue = hashVu1Code(vuCode, codeSize);
+            std::memcpy(s_hashedCode, vuCode, codeSize);
+            s_hashedSize = codeSize;
+            s_hashed = true;
+        }
+        // (Code larger than the copy, never the case: hashed every time.)
+        const uint64_t hash = codeSize <= sizeof(s_hashedCode) ? s_hashedValue : hashVu1Code(vuCode, codeSize);
+#else
         const uint64_t hash = hashVu1Code(vuCode, codeSize);
+#endif
         m_compiledProgram = nullptr;
         m_nativeProgram = nullptr;
         for (const Vu1NativeProgram &program : nativeRegistry())

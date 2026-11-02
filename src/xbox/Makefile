@@ -352,6 +352,28 @@ INCLUDES := -include $(XBOX)/compat/xbox_prelude.h -I$(XBOX)/compat -I$(XBOX)/ra
             -I$(RUNTIME)/include -I$(RUNTIME)/src/lib -I$(RUNTIME)/src/lib/Kernel -I$(IOP)/include -I$(IOP)/src -I$(GENERATED)
 # Newer clang needs this for nxdk's libc++ 10 headers.
 COMMON := -std=c++20 -mfpmath=sse -fms-compatibility-version=19.29 -Wno-everything $(DEFINES) $(INCLUDES)
+# make TS_CODE_ORDER=1: the functions a console profile found running each
+# frame (CODE_ORDER_FILE, made by tools/code_order.py from a TS_HWPROF=1 run)
+# are laid out together at the start of .text, busiest first. The console
+# spends about a third of its cycles waiting for code from memory (2026-11-02,
+# P6 counters, 4P), with the per-frame code spread over 12 MB. Every function
+# gets its own section so the linker can move it; the code itself is the same.
+# Off by default.
+TS_CODE_ORDER ?= 0
+CODE_ORDER_FILE ?= $(XBOX)/code-order.txt
+ifneq ($(filter-out 0 1,$(TS_CODE_ORDER)),)
+$(error TS_CODE_ORDER must be 0 or 1)
+endif
+ifeq ($(TS_CODE_ORDER),1)
+COMMON += -ffunction-sections
+# (lld-link is a Windows program under MSYS2: it is handed a Windows path.)
+# -opt:noref: with every function in its own section the linker would drop
+# the ones it sees no reference to, and a shim reached only through its
+# synthesised import pointer (LNK4217: GetModuleHandleW, GetProcAddress)
+# counts as unreferenced; the pointer then led into the image header and the
+# game stopped at start-up (console, 2026-11-02). Everything stays, as before.
+CODE_ORDER_LINK := -order:@$(shell cygpath -m '$(CODE_ORDER_FILE)' 2>/dev/null || echo '$(CODE_ORDER_FILE)') -ignore:4037 -opt:noref
+endif
 
 # The recompiled game is ~2,700 files; optimising it for size keeps the code
 # near 10 MB instead of ~25-30 MB, which a 64 MB Xbox cannot hold next to
@@ -415,6 +437,12 @@ GEN_SRCS  := $(GEN_PATCHED) $(GENVU_SRCS) $(GEN_TABLE)
 objof = $(patsubst $(ROOT)/%.cpp,$(OBJ)/%.obj,$(1))
 GEN_OBJS   := $(call objof,$(GEN_SRCS))
 OTHER_OBJS := $(call objof,$(RUNTIME_SRCS) $(IOP_SRCS) $(GAME_SRCS) $(XBOX_SRCS))
+# TS_CODE_ORDER changes how every object is sectioned: a change rebuilds all.
+CODE_ORDER_STAMP := $(OUT)/gen/code_order.flags
+$(CODE_ORDER_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = 'TS_CODE_ORDER=$(TS_CODE_ORDER)' ] || echo 'TS_CODE_ORDER=$(TS_CODE_ORDER)' > $@
+$(GEN_OBJS) $(OTHER_OBJS): $(CODE_ORDER_STAMP)
 # The VU1 microprogram is the hottest code of all (most of a match frame): -O2.
 VU_OBJS := $(call objof,$(GENVU_SRCS))
 ifneq ($(VU_OBJS),)
@@ -863,6 +891,83 @@ $(SHADERS)/gs_ps_%.inl: $(XBOX)/shaders/gs.ps.cg
 $(OBJ)/src/xbox/gs_nv2a_backend.obj: $(SHADER_INLS)
 $(OBJ)/src/xbox/gs_nv2a_backend.obj: RUNTIME_FLAGS += -I$(SHADERS)
 
+# make TS_KNOCKOUT=n: measurement builds that remove one stage outright to
+# find what it costs on the console (the picture is wrong on purpose):
+# 1 cached models not drawn, 2 every draw clipped to one pixel, 3 nothing
+# of the display list decoded, 4 no sound mixing. Unset: none.
+KNOCKOUT_STAMP := $(OUT)/gen/knockout.flags
+KNOCKOUT_FLAGS := $(if $(TS_KNOCKOUT),-DTS_KNOCKOUT=$(TS_KNOCKOUT))
+KNOCKOUT_OBJS := $(BG_NATIVE_VIF_OBJ) $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_model_cache gs_nv2a_backend xbox_raylib))
+$(KNOCKOUT_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(KNOCKOUT_FLAGS)' ] || echo '$(KNOCKOUT_FLAGS)' > $@
+$(KNOCKOUT_OBJS): $(KNOCKOUT_STAMP)
+$(KNOCKOUT_OBJS): RUNTIME_FLAGS += $(KNOCKOUT_FLAGS)
+
+# The sweep (xbox_sweep.h): Xbox replacements for the routines that carry
+# the 4-player frame, one switch per package; 0 leaves the package out.
+# All on by default: with TS_LAZY_GUEST_RAM, console 4P 26.3-26.7 FPS
+# (sweep alone 18.5-19.6, neither 15.3-18.0), 2.8 MB free at the lowest.
+SWEEP_SWITCHES := TS_SWEEP_LIGHT TS_SWEEP_ANIM TS_SWEEP_CHR TS_SWEEP_ROOMGFX TS_SWEEP_PLAYER TS_SWEEP_PORTAL \
+    TS_SWEEP_HUD TS_SWEEP_PROPS TS_SWEEP_WALK
+$(foreach v,$(SWEEP_SWITCHES),$(eval $(v) ?= 1))
+$(foreach v,$(SWEEP_SWITCHES),$(if $(filter 0 1,$($(v))),,$(error $(v) must be 0 or 1)))
+SWEEP_STAMP := $(OUT)/gen/sweep.flags
+SWEEP_FLAGS := $(foreach v,$(SWEEP_SWITCHES),-D$(v)=$($(v)))
+$(SWEEP_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(SWEEP_FLAGS)' ] || echo '$(SWEEP_FLAGS)' > $@
+$(OBJ)/src/xbox/xbox_sweep.obj: $(SWEEP_STAMP)
+$(OBJ)/src/xbox/xbox_sweep.obj: RUNTIME_FLAGS += $(SWEEP_FLAGS)
+# HUD's lifted radar/particle copies: ~220 KB of code for ~0.2 ms; off unless
+# asked for (TS_SWEEP_HUD_LIFTED=1), as the match has ~400-600 KB free.
+TS_SWEEP_HUD_LIFTED ?= 0
+TS_SWEEP_CHR_SOFTDOUBLE ?= 0
+SWEEP_SUB_STAMP := $(OUT)/gen/sweep_sub.flags
+SWEEP_SUB_FLAGS := -DTS_SWEEP_HUD_LIFTED=$(TS_SWEEP_HUD_LIFTED) -DTS_SWEEP_CHR_SOFTDOUBLE=$(TS_SWEEP_CHR_SOFTDOUBLE)
+$(SWEEP_SUB_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(SWEEP_SUB_FLAGS)' ] || echo '$(SWEEP_SUB_FLAGS)' > $@
+$(addprefix $(OBJ)/src/xbox/,xbox_sweep_hud.obj xbox_sweep_chr.obj): $(SWEEP_SUB_STAMP)
+$(addprefix $(OBJ)/src/xbox/,xbox_sweep_hud.obj xbox_sweep_chr.obj): RUNTIME_FLAGS += $(SWEEP_SUB_FLAGS)
+# WALK is in the walk copy, the model cache and the prologue records (all three agree).
+SWEEP_WALK_OBJS := $(BG_NATIVE_MEMORY_OBJ) $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_model_cache xbox_part_prologue))
+$(SWEEP_WALK_OBJS): $(SWEEP_STAMP)
+$(SWEEP_WALK_OBJS): RUNTIME_FLAGS += -DTS_SWEEP_WALK=$(TS_SWEEP_WALK)
+
+# make TS_LAZY_GUEST_RAM=0: PS2 main RAM and GS VRAM allocated and zeroed
+# up front, as before. On (default): reserved, each 4 KB page committed on
+# its first touch (xbox_lazy_commit.h); a 4P match never touches several MB.
+TS_LAZY_GUEST_RAM ?= 1
+LAZY_STAMP := $(OUT)/gen/lazy_guest_ram.flags
+LAZY_OBJS := $(BG_NATIVE_MEMORY_OBJ) $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/ps2_runtime.obj \
+    $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_lazy_commit xbox_main xbox_raylib xbox_stdio xbox_stacks xbox_texture_pack))
+$(LAZY_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = 'TS_LAZY_GUEST_RAM=$(TS_LAZY_GUEST_RAM)' ] || echo 'TS_LAZY_GUEST_RAM=$(TS_LAZY_GUEST_RAM)' > $@
+$(LAZY_OBJS): $(LAZY_STAMP)
+$(LAZY_OBJS): RUNTIME_FLAGS += -DTS_LAZY_GUEST_RAM=$(TS_LAZY_GUEST_RAM)
+
+# make TS_PMC_ROTATE=1 / TS_PMC_PAIR=n: which processor counter pair
+# [TS:cpu] reports (xbox_perf.cpp kPmcPairs; rotate: the next pair at every
+# report). Unset: the defaults in xbox_perf.h.
+PMC_STAMP := $(OUT)/gen/pmc.flags
+PMC_FLAGS := $(if $(TS_PMC_ROTATE),-DTS_PMC_ROTATE=$(TS_PMC_ROTATE)) $(if $(TS_PMC_PAIR),-DTS_PMC_PAIR=$(TS_PMC_PAIR))
+$(PMC_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(strip $(PMC_FLAGS))' ] || echo '$(strip $(PMC_FLAGS))' > $@
+$(OBJ)/src/xbox/xbox_perf.obj: $(PMC_STAMP)
+$(OBJ)/src/xbox/xbox_perf.obj: RUNTIME_FLAGS += $(PMC_FLAGS)
+# make TS_PERF_JOBS=1: [TS:jobs], the frame steps' direct calls timed one by
+# one (measurement; xbox_perf.h).
+PERF_JOBS_STAMP := $(OUT)/gen/perf_jobs.flags
+PERF_JOBS_FLAGS := $(if $(TS_PERF_JOBS),-DTS_PERF_JOBS=$(TS_PERF_JOBS))
+$(PERF_JOBS_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(PERF_JOBS_FLAGS)' ] || echo '$(PERF_JOBS_FLAGS)' > $@
+$(OBJ)/project/game/ts_overrides.obj: $(PERF_JOBS_STAMP)
+$(OBJ)/project/game/ts_overrides.obj: RUNTIME_FLAGS += $(PERF_JOBS_FLAGS)
+
 # make TS_HWPROF=1: the sampling profiler for real consoles (xbox_hwprof.cpp),
 # written to the log between script reads 1500 and 2700. Off by default. Only
 # the three files that use it see the switch; a stamp rebuilds them when it changes.
@@ -1030,13 +1135,85 @@ else
 $(NATIVE_2D_MEMORY_COPY) $(NATIVE_2D_VIF_COPY) $(NATIVE_2D_GS_COPY):
 endif
 
+# make TS_FAST_DECODE=0: the display-list decode as before. On:
+# the MSCAL lookup survives nested decodes, VU1 code counts as changed only
+# when its bytes do, watched-row notes that miss every range return at once,
+# native FX kicks are checked where they lie in one read, and REF-loop
+# payloads in main RAM go straight to the piece list. Exact; the switch is in
+# the decoder copy (TS_NATIVE_FX=1), the walk copy, the VU1 lookup, the
+# prologue and the FX module.
+# Off by default: no gain on the console at equal drawing work (4P,
+# 2026-11-02, alternating runs), and the code costs memory the match lacks.
+TS_FAST_DECODE ?= 0
+ifneq ($(filter-out 0 1,$(TS_FAST_DECODE)),)
+$(error TS_FAST_DECODE must be 0 or 1)
+endif
+FAST_DECODE_STAMP := $(OUT)/gen/fast_decode.flags
+FAST_DECODE_FLAGS := -DTS_FAST_DECODE=$(TS_FAST_DECODE)
+FAST_DECODE_OBJS := $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_MEMORY_OBJ) \
+    $(OBJ)/source/PS2Recomp/ps2xRuntime/src/lib/vu/ps2_vu1_jit.obj \
+    $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_part_prologue xbox_native_fx))
+$(FAST_DECODE_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(FAST_DECODE_FLAGS)' ] || echo '$(FAST_DECODE_FLAGS)' > $@
+$(FAST_DECODE_OBJS): $(FAST_DECODE_STAMP)
+$(FAST_DECODE_OBJS): RUNTIME_FLAGS += $(FAST_DECODE_FLAGS)
+
+# make TS_FAST_REPLAY=0: replayed model runs go through the GS front end's
+# run as before. On: a run whose renderer segment stands is drawn
+# straight from it (constants when they changed, state when its key differs,
+# the cached commands), the pure texture-register stores of a model's state
+# blocks wait in a copy of the contexts until something reads the GS, a
+# repeated full CLUT load costs a compare, the segments are 4-way sets, and
+# constant rows rewritten with the same bits count as unchanged. Exact.
+# Off by default: no gain on the console at equal drawing work (4P,
+# 2026-11-02, alternating runs), and the code costs memory the match lacks.
+TS_FAST_REPLAY ?= 0
+ifneq ($(filter-out 0 1,$(TS_FAST_REPLAY)),)
+$(error TS_FAST_REPLAY must be 0 or 1)
+endif
+FAST_REPLAY_STAMP := $(OUT)/gen/fast_replay.flags
+FAST_REPLAY_FLAGS := -DTS_FAST_REPLAY=$(TS_FAST_REPLAY)
+FAST_REPLAY_OBJS := $(BG_NATIVE_GAME_OBJ) $(OBJ)/src/xbox/xbox_model_cache.obj $(OBJ)/src/xbox/gs_nv2a_backend.obj
+$(FAST_REPLAY_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(FAST_REPLAY_FLAGS)' ] || echo '$(FAST_REPLAY_FLAGS)' > $@
+$(FAST_REPLAY_OBJS): $(FAST_REPLAY_STAMP)
+$(FAST_REPLAY_OBJS): RUNTIME_FLAGS += $(FAST_REPLAY_FLAGS)
+
+# make TS_DIRECT_MODELS=0: models as before. On (it takes effect
+# with TS_NATIVE_MODELS, TS_NATIVE_REPLAY and TS_FAST_REPLAY): partGfx writes
+# no CALL for a model whose capture is Ready, its prologue token stands for
+# the model, the walker makes it one marker without visiting the chain or the
+# model table, and the decoder runs prologue and replay from it
+# (DIRECT-MODELS-PLAN.md). The switch is in the partGfx, walk, decoder,
+# native program and GS front end copies, the cache, the prologue records
+# and the status line; the copies hold both routes, so a switch change
+# recompiles without regenerating them. (The cache also reads TS_NATIVE_FX:
+# its GS state waits across models only with the front end copy's hooks.)
+# Off by default: no gain on the console at equal drawing work (4P,
+# 2026-11-02, alternating runs), and the code costs memory the match lacks.
+TS_DIRECT_MODELS ?= 0
+ifneq ($(filter-out 0 1,$(TS_DIRECT_MODELS)),)
+$(error TS_DIRECT_MODELS must be 0 or 1)
+endif
+DIRECT_MODELS_STAMP := $(OUT)/gen/direct_models.flags
+DIRECT_MODELS_FLAGS := -DTS_DIRECT_MODELS=$(TS_DIRECT_MODELS)
+DIRECT_MODELS_OBJS := $(DRAW_RECORD_GAME_OBJ) $(BG_NATIVE_MEMORY_OBJ) $(BG_NATIVE_VIF_OBJ) $(BG_NATIVE_GAME_OBJ) $(GIF_GS_OBJ) \
+    $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_model_cache xbox_part_prologue xbox_main))
+$(DIRECT_MODELS_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(DIRECT_MODELS_FLAGS)' ] || echo '$(DIRECT_MODELS_FLAGS)' > $@
+$(DIRECT_MODELS_OBJS): $(DIRECT_MODELS_STAMP)
+$(DIRECT_MODELS_OBJS): RUNTIME_FLAGS += $(DIRECT_MODELS_FLAGS)
+
 # The native FX route: the decoder and GS front end copies, its module, the
 # renderer's run entry and the status line. The copies list the inner
 # stages' stamps, so a switch change regenerates them from the new input.
 NATIVE_FX_STAMP := $(OUT)/gen/native_fx.flags
 NATIVE_FX_FLAGS := -DTS_NATIVE_FX=$(TS_NATIVE_FX)
 NATIVE_FX_OBJS := $(BG_NATIVE_VIF_OBJ) $(GIF_GS_OBJ) \
-    $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_native_fx gs_nv2a_backend xbox_main))
+    $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_native_fx gs_nv2a_backend xbox_main xbox_model_cache))
 $(NATIVE_FX_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_FX_FLAGS)' ] || echo '$(NATIVE_FX_FLAGS)' > $@
@@ -1184,7 +1361,7 @@ $(DENORMAL_OBJS): RUNTIME_FLAGS += $(DENORMAL_FLAGS)
 # What the link depends on besides the objects: a switch that leaves objects
 # out (TS_VU1_RECOMPILED) or changes the link (the stack) relinks.
 LINK_STAMP := $(OUT)/gen/link.flags
-LINK_FLAGS_TEXT := TS_VU1_RECOMPILED=$(TS_VU1_RECOMPILED) stack=$(XBE_STACK) libs=$(NXDK_LIB_DIR)
+LINK_FLAGS_TEXT := TS_VU1_RECOMPILED=$(TS_VU1_RECOMPILED) stack=$(XBE_STACK) libs=$(NXDK_LIB_DIR) order=$(CODE_ORDER_LINK)
 $(LINK_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(LINK_FLAGS_TEXT)' ] || echo '$(LINK_FLAGS_TEXT)' > $@
@@ -1192,10 +1369,10 @@ $(LINK_STAMP): FORCE
 # The object list is long; hand it to the linker in a response file.
 # Write it in make itself: expanding thousands of paths into one shell
 # command exceeds Linux's per-argument limit before printf can run.
-$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ) $(NXDK_LIB_FILES) $(LINK_STAMP)
+$(OUT)/main.exe: $(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ) $(NXDK_LIB_FILES) $(LINK_STAMP) $(if $(CODE_ORDER_LINK),$(CODE_ORDER_FILE))
 	@echo "[ LD      ] $@"
 	$(file >$(OUT)/link.rsp,$(foreach f,$(patsubst $(OUT)/%,%,$(GEN_OBJS) $(OTHER_OBJS) $(PBKIT_OBJ)) $(NXDK_LIBS),"$(f)"))
-	@cd $(OUT) && $(LINK) -include:_automount_d_drive -stack:$(XBE_STACK) -errorlimit:0 -map:main.map -out:main.exe @link.rsp
+	@cd $(OUT) && $(LINK) -include:_automount_d_drive -stack:$(XBE_STACK) -errorlimit:0 -map:main.map $(CODE_ORDER_LINK) -out:main.exe @link.rsp
 
 $(OUT)/iso/default.xbe: $(OUT)/main.exe
 	@mkdir -p $(dir $@)

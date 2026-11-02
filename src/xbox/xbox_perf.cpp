@@ -734,6 +734,50 @@ void xboxPerfPhaseOpen(uint32_t phase)
     o.at = clocksNow();
 }
 
+// Jobs (TS_PERF_JOBS): the same exclusion as a phase (EE waits, the audio
+// feeder's mixing, the draw kick when it runs inside).
+namespace
+{
+    struct Job
+    {
+        uint32_t address = 0;
+        bool open = false;
+        Clocks at;
+        uint64_t cycles = 0, reported = 0;
+        uint32_t calls = 0, reportedCalls = 0;
+    };
+    Job g_jobs[kPerfJobs];
+}
+
+void xboxPerfJobName(uint32_t job, uint32_t address)
+{
+    if (job < kPerfJobs)
+        g_jobs[job].address = address;
+}
+
+void xboxPerfJobOpen(uint32_t job)
+{
+    if (job >= kPerfJobs)
+        return;
+    g_jobs[job].open = true;
+    g_jobs[job].at = clocksNow();
+}
+
+void xboxPerfJobClose(uint32_t job)
+{
+    if (job >= kPerfJobs || !g_jobs[job].open)
+        return;
+    Job &j = g_jobs[job];
+    const Clocks now = clocksNow();
+    j.open = false;
+    const uint64_t span = now.tsc - j.at.tsc;
+    const uint64_t waited = now.waitUs > j.at.waitUs ? uint64_t(now.waitUs - j.at.waitUs) : 0u;
+    const uint64_t elsewhere = waited * g_tscPerUs + uint64_t(uint32_t(now.audioKcyc - j.at.audioKcyc)) * 1000u +
+                               (now.kick - j.at.kick);
+    j.cycles += span > elsewhere ? span - elsewhere : 0u;
+    ++j.calls;
+}
+
 void xboxPerfPhaseClose(uint32_t phase)
 {
     OpenPhase &o = g_open[phase];
@@ -956,6 +1000,32 @@ void xboxPerfReport(const XboxPerfInputs &in)
         line.ms("other", (busyUs > accounted ? busyUs - accounted : 0u) / f);
         line.add(" lost=%u", a.lost - b.lost);
         line.write();
+    }
+    // [TS:jobs] (TS_PERF_JOBS): ms a frame and calls a frame of each job
+    // that took 0.05 ms or more, by its guest address, ten to a line.
+    {
+        Line line("[TS:jobs]");
+        uint32_t inLine = 0;
+        for (Job &j : g_jobs)
+        {
+            if (!j.address)
+                continue;
+            const uint64_t us = usOf(j.cycles - j.reported) / f;
+            const uint32_t calls = j.calls - j.reportedCalls;
+            j.reported = j.cycles;
+            j.reportedCalls = j.calls;
+            if (us < 50u)
+                continue;
+            line.add(" %x=%u.%02u/%u", j.address, unsigned(us / 1000u), unsigned(us % 1000u / 10u), calls / f);
+            if (++inLine == 10u)
+            {
+                line.write();
+                line = Line("[TS:jobs]");
+                inLine = 0;
+            }
+        }
+        if (inLine)
+            line.write();
     }
 #endif
 

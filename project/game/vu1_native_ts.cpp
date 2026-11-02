@@ -391,6 +391,18 @@ namespace
         for (uint32_t r = 0; r < 33u; ++r)
             if (dirty & s_rowBit[r])
             {
+#if defined(PLATFORM_XBOX) && TS_FAST_REPLAY
+                // A row written again with the value it holds (each model
+                // writes the viewport and lights again) is not a changed row:
+                // the renderer neither rebuilds, compares nor sends it, and a
+                // model whose rows all stand keeps its serial (the renderer
+                // then skips its constants whole).
+                uint32_t held[4], now[4];
+                std::memcpy(held, reinterpret_cast<const uint8_t *>(&xc) + r * 16u, 16);
+                std::memcpy(now, data + kXfSourceRow[r] * 16u, 16);
+                if (held[0] == now[0] && held[1] == now[1] && held[2] == now[2] && held[3] == now[3])
+                    continue;
+#endif
                 std::memcpy(reinterpret_cast<uint8_t *>(&xc) + r * 16u, data + kXfSourceRow[r] * 16u, 16);
                 rows |= 1ull << r;
             }

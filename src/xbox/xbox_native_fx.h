@@ -115,6 +115,8 @@ inline bool xboxNativeFxQuiet(uint32_t opcode)
     case 0x30u: // STROW
     case 0x31u: // STCOL
         return true;
+    case 0x7Eu: // the native model marker (xbox_model_cache.h): it draws a model
+        return false;
     default:
         return (opcode & 0x60u) == 0x60u; // UNPACK
     }

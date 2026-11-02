@@ -1025,8 +1025,10 @@ $(SOUND_NATIVE_OBJ): RUNTIME_FLAGS += $(SOUND_NATIVE_FLAGS)
 # positions, loops and pitch exact, samples within about -65 dB of the
 # shared model (test/test_sound_hw.py). The audio feeder also wakes every
 # 16 ms instead of 5. Named for the MCPX APU route it was evaluated against
-# (not used: see the file). Off: both objects build as before.
-TS_SOUND_HW ?= 0
+# (not used: see the file). Off: both objects build as before. On by
+# default: on the console (4P, 2026-11-01) 17.7 FPS over four runs
+# (18.8/17.9/16.2/18.0) against 16.2 off (16.3/16.0); no gain in xemu.
+TS_SOUND_HW ?= $(TS_SOUND_NATIVE)
 ifneq ($(filter-out 0 1,$(TS_SOUND_HW)),)
 $(error TS_SOUND_HW must be 0 or 1)
 endif

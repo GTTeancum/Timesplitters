@@ -223,6 +223,7 @@ namespace xbox_gif_direct
         bool wide = false;
         bool defer = false;   // deferStores (see deferrable)
         bool pending = false; // a deferred store changed the GS since the run's last primitive
+        uint32_t capacity = kRunPrims; // primitives `run` holds (TS_NATIVE_FX lends a smaller buffer)
 
         // The open run's draw state is still the GS's: only deferrable
         // registers can have changed since its last primitive.
@@ -346,7 +347,7 @@ namespace xbox_gif_direct
                 const GSVertex *queue = a.queue();
                 for (int i = 0; i < needed; ++i)
                     out[i] = queue[i];
-                if (++prims == kRunPrims)
+                if (++prims == capacity)
                     flush();
             }
             GSVertex *queue = a.queue();
@@ -553,48 +554,14 @@ namespace xbox_gif_direct
         }
     };
 
-    // Takes one packet of a GIF path through to its end: what the GS's
-    // processGIFPacket loop does with it, on the same stream state `st` (a
-    // tag, qword, REGLIST padding or IMAGE transfer it ends inside goes on
-    // in the path's next packet, by either route). The caller holds the GS
-    // lock. False: declined before any effect (the caller goes on the
-    // original way). packedOnly, emptyTagResetsQ: the native PACKED entry,
-    // which takes only complete PACKED packets (on a fresh stream) and, but
-    // with TS_GIF_NATIVE's plans, sets Q at every tag even without writes;
-    // the stream sets it at a tag's first write. deferStores: see deferrable
-    // (TS_NATIVE_2D's token packets: several kicks' packets in one piece).
+    // processGIFPacket's loop over one packet (or one piece of a stream) on
+    // the stream state `st`, into the decoder's open run (run(), and
+    // TS_NATIVE_FX's pieces of several kicks into one run). The caller
+    // holds the GS lock and flushes the run.
     template <class Gs, class Stream>
-    bool run(Gs &a, Stream &st, const uint8_t *data, uint32_t size, bool packedOnly, bool emptyTagResetsQ,
-             bool deferStores = false)
+    void decodeInto(Decoder<Gs> &dec, Gs &a, Stream &st, const uint8_t *data, uint32_t size, bool emptyTagResetsQ)
     {
         XboxGifDirectStats &stats = g_xboxGifDirectStats;
-#if defined(AGRESSIVE_LOGS) && AGRESSIVE_LOGS
-        (void)st; (void)packedOnly; (void)emptyTagResetsQ; (void)data; (void)size; (void)a; (void)deferStores;
-        ++stats.declined[XboxGifDirectStats::Debug];
-        return false;
-#else
-        if (!data || !size || !a.backend())
-            return false;
-        if (!a.paused())
-        {
-            ++stats.declined[XboxGifDirectStats::Debug]; // the history records every tag, register and draw
-            return false;
-        }
-        if (packedOnly)
-            if (const XboxGifDirectStats::Decline d = admitPacked(data, size))
-            {
-                ++stats.declined[d];
-                return false;
-            }
-        Scratch &s = scratch();
-        if (s.busy.test_and_set(std::memory_order_acquire))
-        {
-            ++stats.declined[XboxGifDirectStats::Busy];
-            return false;
-        }
-        Decoder<Gs> dec{a, s.vertices};
-        dec.wide = hostSettings().widescreen.load(std::memory_order_relaxed) && !gsSplitScreen();
-        dec.defer = deferStores;
         uint32_t at = 0;
         while (at < size)
         {
@@ -725,6 +692,51 @@ namespace xbox_gif_direct
             if (!--st.remaining)
                 st.padding = st.endPadding;
         }
+    }
+
+    // Takes one packet of a GIF path through to its end: what the GS's
+    // processGIFPacket loop does with it, on the same stream state `st` (a
+    // tag, qword, REGLIST padding or IMAGE transfer it ends inside goes on
+    // in the path's next packet, by either route). The caller holds the GS
+    // lock. False: declined before any effect (the caller goes on the
+    // original way). packedOnly, emptyTagResetsQ: the native PACKED entry,
+    // which takes only complete PACKED packets (on a fresh stream) and, but
+    // with TS_GIF_NATIVE's plans, sets Q at every tag even without writes;
+    // the stream sets it at a tag's first write. deferStores: see deferrable
+    // (TS_NATIVE_2D's token packets: several kicks' packets in one piece).
+    template <class Gs, class Stream>
+    bool run(Gs &a, Stream &st, const uint8_t *data, uint32_t size, bool packedOnly, bool emptyTagResetsQ,
+             bool deferStores = false)
+    {
+        XboxGifDirectStats &stats = g_xboxGifDirectStats;
+#if defined(AGRESSIVE_LOGS) && AGRESSIVE_LOGS
+        (void)st; (void)packedOnly; (void)emptyTagResetsQ; (void)data; (void)size; (void)a; (void)deferStores;
+        ++stats.declined[XboxGifDirectStats::Debug];
+        return false;
+#else
+        if (!data || !size || !a.backend())
+            return false;
+        if (!a.paused())
+        {
+            ++stats.declined[XboxGifDirectStats::Debug]; // the history records every tag, register and draw
+            return false;
+        }
+        if (packedOnly)
+            if (const XboxGifDirectStats::Decline d = admitPacked(data, size))
+            {
+                ++stats.declined[d];
+                return false;
+            }
+        Scratch &s = scratch();
+        if (s.busy.test_and_set(std::memory_order_acquire))
+        {
+            ++stats.declined[XboxGifDirectStats::Busy];
+            return false;
+        }
+        Decoder<Gs> dec{a, s.vertices};
+        dec.wide = hostSettings().widescreen.load(std::memory_order_relaxed) && !gsSplitScreen();
+        dec.defer = deferStores;
+        decodeInto(dec, a, st, data, size, emptyTagResetsQ);
         if (st.remaining || st.padding || st.unitBytes)
             ++stats.carried;
         dec.flush();

@@ -3940,7 +3940,7 @@ struct GSNv2aBackend::Impl
             if (count < 2)
                 return;
             GpuVertex *out = reserve(key, 6u * prims);
-#if TS_NATIVE_2D
+#if TS_NATIVE_2D || TS_NATIVE_FX
             // Two triangles; colour, depth and q come from the second vertex
             // (as the corner route below): each corner's values computed once
             // per sprite instead of once per emitted vertex. The rows reached
@@ -4771,7 +4771,7 @@ void xboxNv2aWaitIdle()
 }
 #endif
 
-#if TS_GIF_DIRECT
+#if TS_GIF_DIRECT || TS_NATIVE_FX
 #include "xbox_gif_direct.h"
 namespace
 {
@@ -4837,7 +4837,7 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     if (unsigned char *old = XVideoGetFB())
         MmFreeContiguousMemory(old);
     xboxGpuOwnsDisplay(true);
-#if TS_GIF_DIRECT
+#if TS_GIF_DIRECT || TS_NATIVE_FX
     g_runBackend = backend.get();
 #endif
     return backend;
@@ -4846,7 +4846,7 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
 GSNv2aBackend::GSNv2aBackend() : m(std::make_unique<Impl>()) {}
 GSNv2aBackend::~GSNv2aBackend()
 {
-#if TS_GIF_DIRECT
+#if TS_GIF_DIRECT || TS_NATIVE_FX
     if (g_runBackend == this)
         g_runBackend = nullptr;
 #endif
@@ -4958,7 +4958,7 @@ bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertic
     return true;
 }
 
-#if TS_GIF_DIRECT
+#if TS_GIF_DIRECT || TS_NATIVE_FX
 // As Submit for each primitive (the same code).
 bool GSNv2aBackend::SubmitRun(const GSDrawState &state, const GSVertex *vertices, uint32_t per, uint32_t prims)
 {

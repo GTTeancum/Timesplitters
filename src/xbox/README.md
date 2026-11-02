@@ -224,6 +224,39 @@ Measured 2026-11-01, xemu, four players, scripted stretch, alternating
 discs: 38 ms a frame with the model cache against 54 ms without. The
 prologue tokens and model files are compiled but not yet measured.
 
+### Native FX (`TS_NATIVE_FX`)
+
+`TS_NATIVE_FX=1` (default `0`; not with `TS_NATIVE_2D`, and needs
+`TS_BG_NATIVE`, `TS_DRAW_RECORDS`, `TS_VIF_SOURCE`, `TS_DMA_CHAIN_CACHE` and
+`TS_VIF_FAST` at `0`) takes the game's 0x3FE0 kicks - HUD, text glyphs,
+fills, particles, bullets, weather, decals, glows and the depth/dither state
+blocks between them, about 640 a frame at four players - off the PS2 route
+(`xbox_native_fx.h`, `tools/patch_native_fx.py`):
+
+- the VIF decoder recognises an unmasked V4-32 UNPACK to TOPS+0 followed,
+  after only NOP/FLUSH, by MSCAL 0x3FE0, and takes the kick's GIF bytes
+  where they lie in the stream (no copy into VU1 memory, no program call, no
+  GIF arbiter); the VIF1 registers and the VU1 state are stepped as the
+  MSCAL and the native kick leave them;
+- consecutive kicks wait until the next command that can reach the GS or a
+  VU1 program (or the end of the decoder call) and then go to the GS in one
+  call: one direct GIF decoder (`xbox_gif_direct.h`) over all of them, with
+  stores that only set a value deferred, so a string of glyphs or a burst of
+  particles is one renderer run (one texture and material lookup and one
+  vertex reservation) instead of one per primitive. Sprites take the
+  renderer's per-corner sprite path.
+
+Left on the original route: kicks with an IMAGE tag or a SIGNAL, FINISH
+or LABEL write (dlFinish, dlLabel: the EE observes them), kicks whose packet
+reaches past the rows they unpack or whose rows wrap or touch the native
+program's constant rows, the I bit, STCYCL other than 1:1 or STMOD other
+than 0, no native VU1 program, the VIF1 worker, GIF packets queued in the
+arbiter, a running model capture; a running GS debug history takes the same
+bytes the original way. Memory: 0.5 KB of spans, a 1.9 KB run buffer
+when `TS_GIF_DIRECT` is off (with it on, its run buffer is borrowed), and
+about 14 KB of code (mostly the direct GIF decoder in the GS front end).
+Status line: `[TS:fx]`. Not yet run.
+
 ### Disc and texture output
 
 Output: `build/xbox/TimeSplitters.iso` (about 1.3 GB: the XBE, the game files

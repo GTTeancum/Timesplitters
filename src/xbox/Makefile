@@ -281,6 +281,35 @@ BG_NATIVE_VIF_SOURCE := $(NATIVE_2D_VIF_COPY)
 GIF_GS_SOURCE := $(NATIVE_2D_GS_COPY)
 endif
 
+# Native FX route (xbox_native_fx.h): the 0x3FE0 kicks (HUD, text, fills,
+# particles, bullets, weather, decals, glows and the state blocks between
+# them) are taken by the VIF decoder where their bytes lie - no VU1 copy, no
+# program call, no arbiter - and consecutive ones reach the GS in one call,
+# one direct GIF decoder over all of them (a string of glyphs: one renderer
+# run). Works with TS_GIF_DIRECT on or off (it borrows that decoder's run
+# buffer when it is built). The outermost stage of the decoder and GS front
+# end copies. Off by default.
+TS_NATIVE_FX ?= 0
+ifneq ($(filter-out 0 1,$(TS_NATIVE_FX)),)
+$(error TS_NATIVE_FX must be 0 or 1)
+endif
+ifeq ($(TS_NATIVE_FX),1)
+ifneq ($(TS_NATIVE_2D),0)
+$(error TS_NATIVE_FX=1 replaces TS_NATIVE_2D: set TS_NATIVE_2D=0)
+endif
+ifneq ($(TS_BG_NATIVE)$(TS_DRAW_RECORDS)$(TS_VIF_SOURCE)$(TS_DMA_CHAIN_CACHE)$(TS_VIF_FAST),00000)
+$(error TS_NATIVE_FX=1 needs TS_BG_NATIVE, TS_DRAW_RECORDS, TS_VIF_SOURCE, TS_DMA_CHAIN_CACHE and TS_VIF_FAST at 0)
+endif
+endif
+NATIVE_FX_VIF_INPUT := $(BG_NATIVE_VIF_SOURCE)
+NATIVE_FX_GS_INPUT := $(GIF_GS_SOURCE)
+NATIVE_FX_VIF_COPY := $(OUT)/gen/native-fx/ps2_vif1_interpreter.cpp
+NATIVE_FX_GS_COPY := $(OUT)/gen/native-fx/gs_frontend.cpp
+ifeq ($(TS_NATIVE_FX),1)
+BG_NATIVE_VIF_SOURCE := $(NATIVE_FX_VIF_COPY)
+GIF_GS_SOURCE := $(NATIVE_FX_GS_COPY)
+endif
+
 NATIVE_CALL_NAMES := ts_native_math ts_native_game ts_native_game2 ts_native_game3
 NATIVE_CALL_DIR := $(OUT)/gen/native-calls
 NATIVE_CALL_COPIES := $(addprefix $(NATIVE_CALL_DIR)/,$(addsuffix .cpp,$(NATIVE_CALL_NAMES)))
@@ -956,7 +985,7 @@ $(PERF_BACKEND_OBJS): RUNTIME_FLAGS += $(PERF_BACKEND_FLAGS)
 # and run buffer, the renderer's run entry and the status line.
 GIF_DIRECT_STAMP := $(OUT)/gen/gif_direct.flags
 GIF_DIRECT_FLAGS := -DTS_GIF_DIRECT=$(TS_GIF_DIRECT)
-GIF_DIRECT_OBJS := $(GIF_GS_OBJ) $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_gif_direct gs_nv2a_backend xbox_main))
+GIF_DIRECT_OBJS := $(GIF_GS_OBJ) $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_gif_direct gs_nv2a_backend xbox_main xbox_native_fx))
 $(GIF_DIRECT_STAMP): FORCE
 	@mkdir -p $(dir $@)
 	@[ -f $@ ] && [ "$$(cat $@)" = '$(GIF_DIRECT_FLAGS)' ] || echo '$(GIF_DIRECT_FLAGS)' > $@
@@ -995,6 +1024,35 @@ $(NATIVE_2D_GS_COPY): $(NATIVE_2D_GS_INPUT) $(NATIVE_2D_DEPS)
 	@$(PYTHON) $(XBOX)/tools/patch_native_2d.py gs $< $@
 else
 $(NATIVE_2D_MEMORY_COPY) $(NATIVE_2D_VIF_COPY) $(NATIVE_2D_GS_COPY):
+endif
+
+# The native FX route: the decoder and GS front end copies, its module, the
+# renderer's run entry and the status line. The copies list the inner
+# stages' stamps, so a switch change regenerates them from the new input.
+NATIVE_FX_STAMP := $(OUT)/gen/native_fx.flags
+NATIVE_FX_FLAGS := -DTS_NATIVE_FX=$(TS_NATIVE_FX)
+NATIVE_FX_OBJS := $(BG_NATIVE_VIF_OBJ) $(GIF_GS_OBJ) \
+    $(addprefix $(OBJ)/src/xbox/,$(addsuffix .obj,xbox_native_fx gs_nv2a_backend xbox_main))
+$(NATIVE_FX_STAMP): FORCE
+	@mkdir -p $(dir $@)
+	@[ -f $@ ] && [ "$$(cat $@)" = '$(NATIVE_FX_FLAGS)' ] || echo '$(NATIVE_FX_FLAGS)' > $@
+$(NATIVE_FX_OBJS): $(NATIVE_FX_STAMP)
+$(NATIVE_FX_OBJS): RUNTIME_FLAGS += $(NATIVE_FX_FLAGS)
+ifeq ($(TS_NATIVE_FX),1)
+NATIVE_FX_DEPS := $(XBOX)/tools/patch_native_fx.py $(NATIVE_FX_STAMP) $(OUT)/gen/bg_native.flags \
+    $(OUT)/gen/optimizations.flags $(OUT)/gen/native_paths.flags $(OUT)/gen/draw_records.flags \
+    $(OUT)/gen/vif_source.flags $(OUT)/gen/native_models.flags $(OUT)/gen/gif_direct.flags \
+    $(OUT)/gen/native_2d.flags
+$(NATIVE_FX_VIF_COPY): $(NATIVE_FX_VIF_INPUT) $(NATIVE_FX_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ FX      ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_fx.py vif $< $@
+$(NATIVE_FX_GS_COPY): $(NATIVE_FX_GS_INPUT) $(NATIVE_FX_DEPS)
+	@mkdir -p $(dir $@)
+	@echo "[ FX      ] $(notdir $@)"
+	@$(PYTHON) $(XBOX)/tools/patch_native_fx.py gs $< $@
+else
+$(NATIVE_FX_VIF_COPY) $(NATIVE_FX_GS_COPY):
 endif
 
 # The Xbox sound path: the SPU2 object builds from the original or the

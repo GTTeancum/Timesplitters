@@ -24,6 +24,7 @@
 #include "xbox_vif_record.h"
 #include "xbox_model_cache.h"
 #include "xbox_native_2d.h"
+#include "xbox_native_fx.h"
 #include "xbox_vif_source.h"
 #include "gs_nv2a_backend.h"
 #include "runtime/ps2_vu1.h"
@@ -261,6 +262,19 @@ namespace
                   << native2d.declined[5] << ") kept=" << native2d.pushed << " gs-fallback=" << native2d.gsFallback
                   << std::endl;
 #endif
+#if TS_NATIVE_FX
+        // Cumulative. kicks: 0x3FE0 kicks taken past VU1 memory; flushes: GS
+        // calls carrying them (spans: their pieces); gs-original: flushes the
+        // GS took the original way. Left on the original route: UNPACKs to
+        // TOPS+0 with no kick after them, program/arbiter/worker/capture
+        // state, rows, packet (IMAGE or past its rows).
+        {
+            const XboxNativeFxStats &fx = g_xboxNativeFxStats;
+            std::cout << "[TS:fx] kicks=" << fx.kicks << " flushes/spans=" << fx.flushes << "/" << fx.spans
+                      << " gs-original=" << fx.gsOriginal << " left not-kick/state/rows/packet=" << fx.notKick << "/"
+                      << fx.state << "/" << fx.rows << "/" << fx.packet << std::endl;
+        }
+#endif
 #if TS_DMA_CHAIN_CACHE
         XboxDmaChainStats dma;
         if (xboxDmaChainGetStats(dma))
@@ -431,6 +445,9 @@ int main()
               << " texture-identity=" << TS_NV2A_PACK_IDENTITY_CACHE
               << " profile-backend=" << TS_PERF_BACKEND
               << " geometry-verify=" << TS_BG_VERIFY << std::endl;
+#if TS_NATIVE_FX
+    std::cout << "[TS:opt] native-fx=1" << std::endl;
+#endif
 
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";
     if (!rt.loadELF(elf))

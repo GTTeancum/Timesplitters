@@ -3,6 +3,7 @@
 // published leaf natives). Empty unless the switch is on.
 #if defined(TS_NATIVE_LOGIC) && TS_NATIVE_LOGIC
 #include <cstdio>
+#include <cstring>
 #include "xbox_log.h"
 #include "xbox_logic.h"
 
@@ -20,6 +21,11 @@ XL_COLD bool xlCallFixup(R5900Context *ctx, PS2Runtime *runtime, uint32_t target
 }
 
 #if TS_LEAF_COUNT
+// sceVu0MulMatrix's in-game cost: cycles inside xlLeafMulMatrixCore, calls,
+// and calls with a denormal among their 32 input floats.
+uint64_t g_xlMulCycles = 0;
+uint32_t g_xlMulCalls = 0, g_xlMulDenormal = 0, g_xlMulCsr = 0;
+
 void xlLeafCount(uint32_t leaf, uint32_t source)
 {
     struct Site
@@ -43,9 +49,15 @@ void xlLeafCount(uint32_t leaf, uint32_t source)
     if ((++total & 0xFFFFFu) != 0u)
         return;
     const uint64_t now = __builtin_ia32_rdtsc();
-    char text[96];
+    char text[160];
     xboxLogWrite(text, unsigned(std::snprintf(text, sizeof(text), "[TS:leaf] calls=%u cyclesK=%u\n", total, unsigned((now - last) / 1000u))));
     last = now;
+    xboxLogWrite(text, unsigned(std::snprintf(text, sizeof(text),
+                                              "[TS:leaf] mul calls=%u cycles/call=%u denormal-calls=%u csr=%04x\n",
+                                              g_xlMulCalls, g_xlMulCalls ? unsigned(g_xlMulCycles / g_xlMulCalls) : 0u,
+                                              g_xlMulDenormal, g_xlMulCsr)));
+    g_xlMulCycles = 0;
+    g_xlMulCalls = g_xlMulDenormal = 0;
     for (uint32_t i = 0; i < kSites && sites[i].key; ++i)
     {
         xboxLogWrite(text, unsigned(std::snprintf(text, sizeof(text), "[TS:leaf] %u %06x %u\n", sites[i].key >> 28,
@@ -84,6 +96,19 @@ namespace
 XL_LEAF_CORE void xlLeafMulMatrixCore(uint32_t out, uint32_t left, uint8_t *rdram, R5900Context *ctx,
                                       PS2Runtime *runtime, uint32_t right)
 {
+#if TS_LEAF_COUNT
+    const uint64_t timed = __builtin_ia32_rdtsc();
+    {
+        uint32_t words[32];
+        std::memcpy(words, rdram + (left & 0x1FFFFF0u), 64);
+        std::memcpy(words + 16, rdram + (right & 0x1FFFFF0u), 64);
+        bool denormal = false;
+        for (uint32_t w : words)
+            denormal |= (w & 0x7F800000u) == 0u && (w & 0x007FFFFFu) != 0u;
+        g_xlMulDenormal += denormal ? 1u : 0u;
+        g_xlMulCsr = _mm_getcsr();
+    }
+#endif
     const __m128 c0 = _mm_castsi128_ps(READ128(left));
     const __m128 c1 = _mm_castsi128_ps(READ128(left + 16u));
     const __m128 c2 = _mm_castsi128_ps(READ128(left + 32u));
@@ -106,6 +131,10 @@ XL_LEAF_CORE void xlLeafMulMatrixCore(uint32_t out, uint32_t left, uint8_t *rdra
     ctx->vu0_vf[8] = column;
     ctx->vu0_vf[9] = result;
     ctx->vu0_acc = acc;
+#if TS_LEAF_COUNT
+    g_xlMulCycles += __builtin_ia32_rdtsc() - timed;
+    ++g_xlMulCalls;
+#endif
 }
 
 XL_LEAF_CORE void xlLeafUnitMatrixCore(uint32_t m, uint32_t, uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)

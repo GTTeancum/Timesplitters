@@ -20,6 +20,65 @@
 #include "native_format_test.h"
 #include "native_audio_memory_test.h"
 #include "../../source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.h"
+#include <cstdio>
+#include <fcntl.h>
+#include <sys/stat.h>
+#if defined(_WIN32)
+#include <io.h>
+#include <stdlib.h> // _get_wpgmptr (no <windows.h>: its names collide with raylib's)
+#else
+#include <unistd.h>
+#endif
+
+// Every start writes timesplitters.log in the executable's folder (the
+// previous start's is kept as timesplitters-previous.log, so a crash's log
+// survives the restart): standard output and error, C and C++ alike, go to
+// the file at the OS level, unbuffered, so the last line before a crash is
+// in it. The terminal (Linux) is told the file's path once and then shows
+// nothing more. Falls back to the current folder when the executable's is
+// not writable.
+static void openLogFile() {
+    std::error_code ec;
+    std::filesystem::path dir;
+#if defined(_WIN32)
+    wchar_t *program = nullptr;
+    if (_get_wpgmptr(&program) == 0 && program && *program) dir = std::filesystem::path(program).parent_path();
+#else
+    dir = std::filesystem::read_symlink("/proc/self/exe", ec).parent_path();
+#endif
+    if (dir.empty()) dir = std::filesystem::current_path(ec);
+    for (const std::filesystem::path &folder : {dir, std::filesystem::current_path(ec)}) {
+        const std::filesystem::path log = folder / "timesplitters.log";
+        const std::filesystem::path previous = folder / "timesplitters-previous.log";
+#if defined(_WIN32)
+        const int fd = _wopen(log.c_str(), _O_WRONLY | _O_CREAT | _O_APPEND | _O_BINARY, _S_IREAD | _S_IWRITE);
+#else
+        const int fd = open(log.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
+#endif
+        if (fd < 0) continue;
+        // Writable: start a fresh file, keeping the last one.
+#if defined(_WIN32)
+        _close(fd);
+#else
+        close(fd);
+#endif
+        std::filesystem::rename(log, previous, ec);
+        std::fprintf(stderr, "TimeSplitters log: %s\n", log.string().c_str());
+#if defined(_WIN32)
+        if (!_wfreopen(log.c_str(), L"w", stdout)) continue;
+        // A program without a console starts with no stderr stream to dup onto.
+        if (_fileno(stderr) < 0) _wfreopen(log.c_str(), L"a", stderr);
+        _dup2(_fileno(stdout), _fileno(stderr));
+#else
+        if (!std::freopen(log.c_str(), "w", stdout)) continue;
+        dup2(fileno(stdout), fileno(stderr));
+#endif
+        std::setvbuf(stdout, nullptr, _IONBF, 0);
+        std::setvbuf(stderr, nullptr, _IONBF, 0);
+        std::cout << "[TS:log] file=" << log.string() << '\n';
+        return;
+    }
+}
 
 // Started without arguments (double-clicked): play from the folder the
 // executable is in - its loose game files (project\game-data in the
@@ -49,6 +108,7 @@ int main(int argc, char** argv) {
     // Prepare Xbox Files (disc_setup.h): the "Prepare Xbox Files" launcher
     // starts the game program with this; the game itself does not start.
     if (argc >= 2 && std::string(argv[1]) == "--prepare-xbox") return tsPrepareXboxFiles(argc, argv);
+    openLogFile(); // (after Prepare Xbox Files: it keeps the game's last log)
     if (argc == 1) {
         defaults = defaultArguments(argv[0]);
         if (defaults.empty()) return 5;

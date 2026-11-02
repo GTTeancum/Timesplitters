@@ -288,8 +288,12 @@ endif
 # one direct GIF decoder over all of them (a string of glyphs: one renderer
 # run). Works with TS_GIF_DIRECT on or off (it borrows that decoder's run
 # buffer when it is built). The outermost stage of the decoder and GS front
-# end copies. Off by default.
+# end copies. On by default (console 4P, 2026-11-02: about 0.4 ms a frame
+# less in the kick stage); the optimized target keeps its own 2D route.
+ifneq ($(filter optimized,$(MAKECMDGOALS)),)
 TS_NATIVE_FX ?= 0
+endif
+TS_NATIVE_FX ?= 1
 ifneq ($(filter-out 0 1,$(TS_NATIVE_FX)),)
 $(error TS_NATIVE_FX must be 0 or 1)
 endif

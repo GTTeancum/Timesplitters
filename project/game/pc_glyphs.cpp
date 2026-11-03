@@ -5,6 +5,8 @@
 // (gs_texture_replacement::addButtonImage).
 #include "runtime/gs/gs_texture_replacement.h"
 
+#include "raylib.h"
+
 #include <cstddef>
 #include <cstdint>
 
@@ -24,4 +26,18 @@ void registerPcButtonGlyphs()
 {
     for (const PcGlyph &glyph : kPcGlyphs)
         gs_texture_replacement::addButtonImage(glyph.set, glyph.hash, glyph.png, glyph.size);
+}
+
+// The game window's icon, once the window exists. Windows takes it from the
+// program's GLFW_ICON resource (timesplitters.rc) instead.
+void setGameWindowIcon()
+{
+#if !defined(_WIN32)
+    Image icon = LoadImageFromMemory(".png", kGameIcon, static_cast<int>(sizeof(kGameIcon)));
+    if (icon.data)
+    {
+        SetWindowIcon(icon);
+        UnloadImage(icon);
+    }
+#endif
 }

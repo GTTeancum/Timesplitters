@@ -4,7 +4,7 @@
 
 Put these together in one folder you can write to (not under Program Files):
 
-- `timesplitters.exe` and the `.dll` files that come with it
+- `timesplitters.exe` (one program: no DLLs, no Visual C++ redistributable)
 - `Prepare Xbox Files.exe` and the `xbox` folder (only for the Xbox
   version: see `README-XBOX-SETUP.md`)
 - `timesplitters.ini` (display settings; see the comments in it)
@@ -32,7 +32,7 @@ progress bar (no console window), and then starts the game. This happens once an
 
 ## The folder after setup
 
-    timesplitters.exe, *.dll
+    timesplitters.exe
     timesplitters.ini          settings (the game's Audio / Video Options menu saves here)
     game-data\                 the game's files, as on the disc:
         SYSTEM.CNF, SLUS_200.90    boot file and the game program

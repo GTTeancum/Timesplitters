@@ -1,0 +1,5 @@
+// The game's icon (src/xbox/assets/icon.png, the Xbox dashboard icon, as
+// timesplitters.ico) for the program file in Explorer and, named GLFW_ICON,
+// for the game window's title bar and taskbar button (GLFW loads that
+// resource for every window it makes).
+GLFW_ICON ICON "timesplitters.ico"

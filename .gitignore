@@ -50,6 +50,7 @@ ps2_log.txt
 *.png
 !src/xbox/assets/icon.png
 !project/game/pc_glyphs/*/*.png
+!project/game/timesplitters_icon.png
 *.ppm
 *.bmp
 *.tga

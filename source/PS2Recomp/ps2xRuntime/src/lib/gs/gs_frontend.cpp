@@ -1923,6 +1923,9 @@ void GS::WriteVram(uint32_t psm, uint32_t base, uint32_t bw, uint32_t x, uint32_
 namespace
 {
     std::atomic<bool> s_splitScreen{false};
+#if !defined(PLATFORM_XBOX)
+    float s_hudRunX0 = 0.0f; // left edge of the row's previous glyph (adjustWidescreenHud)
+#endif
 }
 void gsSetSplitScreen(bool split) { s_splitScreen.store(split, std::memory_order_relaxed); }
 bool gsSplitScreen() { return s_splitScreen.load(std::memory_order_relaxed); }
@@ -1970,9 +1973,23 @@ void GS::adjustWidescreenHud(GSPrimitiveBatch &batch)
     // row's anchor; otherwise it starts a new row, pinned to a margin only when
     // it sits near that edge.
     const float rowHeight = std::max(y1 - y0, 1.0f);
+#if !defined(PLATFORM_XBOX)
+    // A glyph continues the row when it overlaps the row's first glyph by
+    // half its height and does not start left of the previous glyph: capitals
+    // and small letters differ in height, and each glyph is drawn several
+    // times, shifted, for its outline. (The pause screen's "Cancel" starts at
+    // x 135-139, its C 3 pixels taller than the a: the C began a row pinned
+    // to the left margin and "ancel" another pinned to the centre.)
+    const float rowOverlap = std::min(y1, m_hudRunY1) - std::max(y0, m_hudRunY0);
+    const bool continuesRow = m_hudRunDraw + 1u == m_drawCounter &&
+                              rowOverlap >= 0.5f * std::min(rowHeight, std::max(m_hudRunY1 - m_hudRunY0, 1.0f)) &&
+                              x0 >= s_hudRunX0 - 2.0f && x0 - m_hudRunX1 <= rowHeight * 2.0f;
+    s_hudRunX0 = x0;
+#else
     const bool continuesRow = m_hudRunDraw + 1u == m_drawCounter &&
                               std::fabs(y0 - m_hudRunY0) <= 2.0f && std::fabs(y1 - m_hudRunY1) <= 2.0f &&
                               x0 >= m_hudRunX1 - 2.0f && x0 - m_hudRunX1 <= rowHeight * 2.0f;
+#endif
     float anchor;
     if (continuesRow)
         anchor = m_hudRunAnchor;

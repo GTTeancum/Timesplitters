@@ -246,11 +246,10 @@ else()
     endif()
 endif()
 
-if(PS2X_IS_ANDROID)
-    set(PS2X_ENABLE_FFMPEG_DEFAULT OFF)
-else()
-    set(PS2X_ENABLE_FFMPEG_DEFAULT ON)
-endif()
+# Off: TimeSplitters plays no PS2 movies (it never calls the sceMpeg
+# library), and FFmpeg brought some 30 DLLs with it on Windows.
+# -DPS2X_ENABLE_FFMPEG=ON restores the decoder for games that do.
+set(PS2X_ENABLE_FFMPEG_DEFAULT OFF)
 
 option(PS2X_ENABLE_FFMPEG "Enable FFmpeg-backed MPEG video decoding" ${PS2X_ENABLE_FFMPEG_DEFAULT})
 

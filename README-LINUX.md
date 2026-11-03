@@ -7,14 +7,11 @@ your disc dump into loose files, then the game runs from its own folder.
 ## The prebuilt program
 
 The release's `timesplitters` binary was built on Ubuntu 26.04 and links the
-system's shared libraries: glibc 2.43 or newer, FFmpeg 8 (`libavcodec.so.62`,
-`libavformat.so.62`, `libavutil.so.60`, `libswscale.so.9`,
-`libswresample.so.6`), OpenGL (`libOpenGL.so.0`, `libGLX.so.0`,
-`libGLU.so.1`) and X11. On Ubuntu 26.04 these come with
-`sudo apt install libavcodec62 libavformat62 libswscale9 libglu1-mesa`
-(most desktops already have them). On an older distribution, or one with a
-different FFmpeg, build the program from source as described under Building:
-it takes a few minutes.
+system's shared libraries: glibc 2.43 or newer, OpenGL (`libOpenGL.so.0`,
+`libGLX.so.0`, `libGLU.so.1`) and X11. On Ubuntu 26.04 `sudo apt install
+libglu1-mesa` covers them (most desktops already have them). On an older
+distribution build the program from source as described under Building: it
+takes a few minutes.
 
 ## Playing
 
@@ -72,13 +69,12 @@ Packages (Debian/Ubuntu names):
 sudo apt install build-essential clang lld cmake ninja-build pkg-config git \
     libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
     libxext-dev libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libpulse-dev \
-    libwayland-dev libxkbcommon-dev wayland-protocols \
-    libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libswresample-dev
+    libwayland-dev libxkbcommon-dev wayland-protocols
 ```
 
-FFmpeg (the `libav*` packages) decodes the game's movies; configure with
-`-DPS2X_ENABLE_FFMPEG=OFF` to build without it. raylib 5.5 is fetched by CMake
-on the first configure (network needed once).
+FFmpeg is not needed: the game plays no PS2 movies, and the build leaves it
+out (`-DPS2X_ENABLE_FFMPEG=ON` would add it back). raylib 5.5 is fetched by
+CMake on the first configure (network needed once).
 
 Configure and build out of source; under WSL2 put the build directory on the
 Linux filesystem (not `/mnt/...`), it is several times faster:

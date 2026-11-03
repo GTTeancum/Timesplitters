@@ -11,6 +11,12 @@ endif()
 
 project(PS2RetroX)
 
+# The C and C++ runtime linked into every program (MSVC /MT): the game
+# needs no Visual C++ redistributable and no runtime DLLs beside it.
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(PS2X_BUILD_RECOMP "Build ps2xRecomp" ON)

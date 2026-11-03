@@ -15,6 +15,11 @@ else()
 endif()
 add_executable(timesplitters ${TS_GENERATED} $<TARGET_OBJECTS:ts_vu_generated> main.cpp ts_overrides.cpp disc_setup.cpp
     xbox_files.cpp pc_glyphs.cpp)
+# The game's icon on Windows (timesplitters.rc: the program file and the
+# window); elsewhere the window's icon is set at start-up (pc_glyphs.cpp).
+if(WIN32)
+    target_sources(timesplitters PRIVATE timesplitters.rc)
+endif()
 # First-run disc unpacking and Prepare Xbox Files (disc_setup.h) include
 # <windows.h>: kept out of the precompiled runtime headers (raylib) and of
 # unity batches.
@@ -72,6 +77,12 @@ foreach(png IN LISTS TS_PC_GLYPHS)
     math(EXPR ts_pc_glyph_n "${ts_pc_glyph_n} + 1")
 endforeach()
 string(APPEND ts_pc_glyph_inc "const PcGlyph kPcGlyphs[] = {\n${ts_pc_glyph_table}};\n")
+# The window icon for platforms without a resource for it (timesplitters_icon.png:
+# the game's icon at 128 x 128).
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/timesplitters_icon.png")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/timesplitters_icon.png" icon_hex HEX)
+string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," icon_bytes "${icon_hex}")
+string(APPEND ts_pc_glyph_inc "const unsigned char kGameIcon[] = {${icon_bytes}};\n")
 set(ts_pc_glyph_out "${CMAKE_CURRENT_BINARY_DIR}/pc_glyphs/pc_glyphs.inc")
 set(ts_pc_glyph_old "")
 if(EXISTS "${ts_pc_glyph_out}")
@@ -87,7 +98,7 @@ set_source_files_properties(pc_glyphs.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON 
 # "Prepare Xbox Files.exe": a small Windows program that starts the game
 # program in its Prepare Xbox Files mode (no console window).
 if(WIN32)
-    add_executable(prepare_xbox_files WIN32 prepare_xbox_launcher.cpp)
+    add_executable(prepare_xbox_files WIN32 prepare_xbox_launcher.cpp timesplitters.rc)
     set_target_properties(prepare_xbox_files PROPERTIES OUTPUT_NAME "Prepare Xbox Files")
     target_compile_definitions(prepare_xbox_files PRIVATE UNICODE _UNICODE)
     target_link_libraries(prepare_xbox_files PRIVATE shell32)

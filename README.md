@@ -64,13 +64,13 @@ straight to the title screen. Details, the folder layout and modding notes:
 [README-PC-SETUP.md](README-PC-SETUP.md).
 
 Requirements: a 64-bit Windows 10 or 11 with an OpenGL 3.3 graphics driver.
-The Visual C++ runtime DLLs are included.
+The program needs no DLLs beside it.
 
 ### Linux
 
 Unpack `TimeSplitters-Recomp-<version>-linux-x86_64.tar.gz`, put your disc
 dump in the folder and run `./timesplitters` from it. The prebuilt program
-was built on Ubuntu 26.04 and needs its FFmpeg 8 and OpenGL libraries; on
+was built on Ubuntu 26.04 and needs its OpenGL and X11 libraries; on
 other distributions build it from source (a few minutes). Under WSL2 start it
 with `GALLIUM_DRIVER=d3d12` to use the Windows GPU. Everything else is as on
 Windows: [README-LINUX.md](README-LINUX.md).
@@ -139,8 +139,9 @@ The keyboard:
 | Select | Tab |
 
 While playing on the PC: F9 toggles FXAA, F10 widescreen, F11 fullscreen;
-Alt+F4, the menu's Exit Game, or holding Select + Start for two seconds
-quits. The default settings (`timesplitters.ini`) are a 1920x1080 window,
+Alt+F4, Exit Game (on the Select Game Type page: choose it twice within
+three seconds; in the pause screen's SETUP tab: then Confirm), or holding
+Select + Start for two seconds quits. The default settings (`timesplitters.ini`) are a 1920x1080 window,
 widescreen, FXAA and 4x render scale.
 
 ## Known issues
@@ -153,8 +154,8 @@ widescreen, FXAA and 4x render scale.
   distribution's libraries; otherwise build from source.
 - Sound: reverb, noise and pitch modulation are not modelled; held tones
   may click.
-- The movies are decoded with FFmpeg; the Windows package includes the DLLs
-  it needs.
+- The Windows program needs no DLLs beside it and no Visual C++
+  redistributable: the C++ runtime is linked into it.
 - More, with the state of each subsystem, in [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
 
 ## Building from source
@@ -166,10 +167,10 @@ Ninja. The game's own files must be in `project\game-data` (made by
 -DTS_GAME_SOURCE_DIR=<repo>\project\game -DPS2X_BUILD_RECOMP=OFF
 -DPS2X_BUILD_ANALYZER=OFF -DPS2X_BUILD_TEST=OFF -DPS2X_BUILD_STUDIO=OFF
 -DPS2X_ENABLE_DEBUG_UI=OFF` and build the `timesplitters` and
-`prepare_xbox_files` targets; FFmpeg and raylib are fetched by CMake on the
-first configure. The build is `build-release\timesplitters\timesplitters.exe`
-with the FFmpeg DLLs next to it (`TS_STAGE_TO_ROOT` also copies them to the
-repository root).
+`prepare_xbox_files` targets; raylib is fetched by CMake on the first
+configure. The build is `build-release\timesplitters\timesplitters.exe`, one
+program with no DLLs (`TS_STAGE_TO_ROOT` also copies it to the repository
+root). FFmpeg is off: the game plays no PS2 movies.
 
 Linux: packages, configure line and notes in [README-LINUX.md](README-LINUX.md).
 
@@ -196,6 +197,5 @@ General Public License version 3 (`source/PS2Recomp/LICENSE`); this
 repository's own code is distributed under the same terms. The Xbox build
 uses nxdk (the Xbox Development Kit by XboxDev), whose components are under
 the MIT, Apache 2.0, NCSA, CC0 and NVIDIA Cg licences, and PC builds use
-raylib (zlib licence) and FFmpeg (LGPL 2.1 or later, as the shared libraries
-in the packages). There is no separate licence file at the top of this
+raylib (zlib licence). There is no separate licence file at the top of this
 repository.

@@ -22,6 +22,7 @@
 #include "../../source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.h"
 
 void registerPcButtonGlyphs(); // pc_glyphs.cpp
+void setGameWindowIcon();
 #include <cstdio>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -138,6 +139,7 @@ int main(int argc, char** argv) {
         rt.setMissingFunctionPolicy(PS2Runtime::MissingFunctionPolicy::Stop);
         std::cout << "[TS:native] original-EE AOT via PS2Recomp; missing functions STOP; no EE interpreter fallback\n";
         if (!rt.initialize("TimeSplitters")) return 3;
+        setGameWindowIcon();
         if (!rt.loadELF(argv[1])) return 4;
         rt.gs().setHostPresentationMode(GS::HostPresentationMode::Signal);
         rt.setHostAspectRatio(4.0f / 3.0f);

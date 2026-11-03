@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -553,10 +554,26 @@ namespace
 
     // The page's tick rewrites the original items every frame (positions,
     // links, which entries show), so the copy is rebuilt from it each time.
+#if !defined(PLATFORM_XBOX)
+    // PC: Exit Game asks once more before quitting. The first Cross on it
+    // turns its text into "Press again to exit" for three seconds; a second
+    // Cross then quits. Moving off it, or the three seconds passing, puts it
+    // back.
+    std::chrono::steady_clock::time_point g_exitArmedUntil{};
+    bool exitArmed()
+    {
+        return std::chrono::steady_clock::now() < g_exitArmedUntil;
+    }
+#endif
+
     uint32_t layoutGameModeMenu(uint8_t *rdram)
     {
         const uint32_t label = kGameModeBlock;
+#if !defined(PLATFORM_XBOX)
+        writeGuestString(rdram, label, exitArmed() ? "Press again to exit" : "Exit Game");
+#else
         writeGuestString(rdram, label, "Exit Game");
+#endif
         const uint32_t menu = kGameModeBlock + 0x20u;
         const uint32_t items = menu + 16u;
         // Header and the six link items, then Exit Game, then the tail.
@@ -786,6 +803,10 @@ namespace
         }
         else if (row && pointer.wheel && (row->flags & 0x4u))
             directions = pointer.wheel > 0 ? 0x20u : 0x10u;
+        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
+        if (trace && (buttons || directions))
+            std::fprintf(stderr, "[TS:menu-mouse] row %u flags %x: buttons %x directions %x\n", row ? row->id : 0u,
+                         row ? row->flags : 0u, buttons, directions);
         const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
         if (!input)
             return press;
@@ -823,6 +844,126 @@ namespace
     }
 #endif
 
+#if !defined(PLATFORM_XBOX)
+    // "Exit Game" in the pause screen's SETUP tab (PC). The tab's list
+    // (setup_menu, run by ingame_menutick(page, menu) and std_menumake, as
+    // the front end's menus) is drawn from an extended copy with the item
+    // after Preferences; it links to the end game confirmation page
+    // (confirmendgame, its No and Yes), which while reached this way says
+    // so in its title and quits the program on Yes instead of ending the
+    // level (No goes back to the game, as it does there).
+    constexpr uint32_t kIngameMenuTick = 0x20E240u;
+    constexpr uint32_t kConfirmEndGameTick = 0x20FA70u;
+    constexpr uint32_t kSetupMenu = 0x32AA60u; // the tab's heading, Setup Controls..., Preferences...
+    constexpr uint32_t kConfirmEndPage = 0x32AA00u;
+    constexpr uint32_t kSetupItems = 3u;
+    constexpr uint16_t kExitItemId = 4u;
+    constexpr uint32_t kSetupBlock = 0x7EC00u; // 0x300 bytes below the trace word at 0x7EFF0
+    bool g_exitConfirm = false;              // the confirmation was reached from Exit Game
+
+    // The pad the pause screen is for (confirmendgame_pageTick reads it so).
+    bool ingameCrossPressed(uint8_t *rdram, R5900Context *ctx)
+    {
+        const uint32_t padAt = guestWord(rdram, GPR_U32(ctx, 28) - 0x4DCCu);
+        if (!padAt)
+            return false;
+        const uint32_t pad = guestWord(rdram, padAt);
+        const uint32_t record = pad <= 7u ? guestWord(rdram, 0x31DF68u + pad * 4u) : 8u;
+        return record <= 7u && (guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) & 0x40u) != 0u;
+    }
+
+    // The extended copy, rebuilt from the original each time (the page may
+    // change the original's flags). Returns 0 when its block is in use.
+    uint32_t layoutSetupMenu(uint8_t *rdram)
+    {
+        static const bool free = [&] {
+            for (uint32_t i = 0; i < 0x300u; i += 4u)
+                if (guestWord(rdram, kSetupBlock + i) != 0u)
+                {
+                    std::fprintf(stderr, "[TS:menu] RAM at 0x%x is in use; pause Exit Game not added\n", kSetupBlock + i);
+                    return false;
+                }
+            return true;
+        }();
+        if (!free)
+            return 0;
+        const uint32_t label = kSetupBlock;
+        writeGuestString(rdram, label, "Exit Game");
+        const uint32_t menu = kSetupBlock + 0x20u;
+        const uint32_t items = menu + 16u;
+        // The heading and Preferences; Setup Controls (item 2) is left out:
+        // the controls are set in the front end's menus only.
+        std::memcpy(rdram + menu, rdram + kSetupMenu, 16u + kItemSize);
+        std::memcpy(rdram + items + kItemSize, rdram + kSetupMenu + 16u + 2u * kItemSize, kItemSize);
+        guestWord(rdram, menu) = kSetupItems;
+        // A page link like Preferences (its flags and look), to the confirmation.
+        const uint32_t heading = items, preferences = items + kItemSize, exitItem = items + 2u * kItemSize;
+        std::memcpy(rdram + exitItem, rdram + preferences, kItemSize);
+        guestWord(rdram, exitItem + 0u) = label;
+        guestHalf(rdram, exitItem + 8u) = kExitItemId;
+        guestWord(rdram, exitItem + 12u) = kConfirmEndPage;
+        // The links by id, down at +18 and up at +16: heading (1, skipped)
+        // -> Preferences (3) -> Exit (4) -> heading. (The original's: down
+        // 1 -> 2 -> 3 -> 1.)
+        guestHalf(rdram, heading + 18u) = 3u;
+        guestHalf(rdram, heading + 16u) = kExitItemId;
+        guestHalf(rdram, preferences + 18u) = kExitItemId;
+        guestHalf(rdram, preferences + 16u) = 1u;
+        guestHalf(rdram, exitItem + 18u) = 1u;
+        guestHalf(rdram, exitItem + 16u) = 3u;
+        return menu;
+    }
+
+    bool useSetupMenu(uint8_t *rdram, R5900Context *ctx)
+    {
+        if (GPR_U32(ctx, 5) != kSetupMenu)
+            return false;
+        const uint32_t menu = layoutSetupMenu(rdram);
+        if (!menu)
+            return false;
+        SET_GPR_U32(ctx, 5, menu);
+        return true;
+    }
+
+    void ingameMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
+        static uint32_t lastMenu = 0;
+        if (trace && GPR_U32(ctx, 5) != lastMenu)
+        {
+            lastMenu = GPR_U32(ctx, 5);
+            std::fprintf(stderr, "[TS:menu] in-game page %08x menu %08x highlighted %u\n", GPR_U32(ctx, 4), lastMenu,
+                         guestHalf(rdram, GPR_U32(ctx, 4) + 4u));
+        }
+        if (useSetupMenu(rdram, ctx))
+        {
+            // The page opens on Setup Controls (2), which the copy leaves out.
+            if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == 2u)
+                guestHalf(rdram, GPR_U32(ctx, 4) + 4u) = 3u;
+            if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == kExitItemId && ingameCrossPressed(rdram, ctx))
+                g_exitConfirm = true;
+        }
+        ingame_menutick_0x20e240(rdram, ctx, runtime);
+    }
+
+    // The confirmation page: reached from Exit Game, Yes (item 2) quits the
+    // program; anything else is the game's own (No resumes the game).
+    void confirmEndGameTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        if (g_exitConfirm && ingameCrossPressed(rdram, ctx))
+        {
+            if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == 2u)
+            {
+                std::fprintf(stderr, "[TS:menu] Exit Game confirmed in the pause screen\n");
+                runtime->requestStop();
+                return;
+            }
+            g_exitConfirm = false;
+        }
+        confirmendgame_pageTick_0x20fa70(rdram, ctx, runtime);
+    }
+#endif
+
     void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
 #if !defined(PLATFORM_XBOX)
@@ -855,11 +996,34 @@ namespace
                 guestWord(rdram, kGameModeMenu + 16u + (kGameModeLinks + 1u) * kItemSize) =
                     guestWord(rdram, table + 0x200u);
         }
+#if !defined(PLATFORM_XBOX)
+        if (GPR_U32(ctx, 5) == kGameModeMenu && guestHalf(rdram, GPR_U32(ctx, 4) + 4u) != kExitGameId)
+            g_exitArmedUntil = {};
+        if (useGameModeMenu(rdram, ctx) && exitGameChosen(rdram, ctx))
+        {
+            if (exitArmed())
+            {
+                std::fprintf(stderr, "[TS:menu] Exit Game chosen\n");
+                runtime->requestStop();
+            }
+            else
+            {
+                // Armed: this Cross does nothing else (the item's link
+                // would reopen the page and take the highlight off it).
+                std::fprintf(stderr, "[TS:menu] Exit Game: press again to exit\n");
+                g_exitArmedUntil = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+                const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
+                const uint32_t record = guestWord(rdram, 0x31DF68u + guestWord(rdram, input) * 4u);
+                guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) &= ~0x40u;
+            }
+        }
+#else
         if (useGameModeMenu(rdram, ctx) && exitGameChosen(rdram, ctx))
         {
             std::fprintf(stderr, "[TS:menu] Exit Game chosen\n");
             runtime->requestStop();
         }
+#endif
         const bool ours = useDisplayMenu(rdram, ctx);
         menutick_0x230238(rdram, ctx, runtime);
 #if !defined(PLATFORM_XBOX)
@@ -871,8 +1035,13 @@ namespace
 
     void displayMenuMake(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+#if !defined(PLATFORM_XBOX)
+        if (!useDisplayMenu(rdram, ctx) && !useGameModeMenu(rdram, ctx))
+            useSetupMenu(rdram, ctx);
+#else
         if (!useDisplayMenu(rdram, ctx))
             useGameModeMenu(rdram, ctx);
+#endif
         std_menumake_0x22daf8(rdram, ctx, runtime);
     }
 
@@ -1716,6 +1885,8 @@ namespace
 #if !defined(PLATFORM_XBOX)
         runtime.replaceFunction(kStringeditTick, &typedStringeditTick);
         runtime.replaceFunction(kDrawMenuItem, &drawMenuItemRecorded);
+        runtime.replaceFunction(kIngameMenuTick, &ingameMenuTick);
+        runtime.replaceFunction(kConfirmEndGameTick, &confirmEndGameTick);
 #endif
         if (const char *menu = std::getenv("TS_DISPLAY_MENU"); !(menu && *menu == '0'))
         {

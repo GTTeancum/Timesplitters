@@ -130,6 +130,7 @@ void xboxGpuOwnsDisplay(bool owns);
 void xboxLogToScreen(bool enabled);
 extern "C" void pb_ts_set_depth_format(unsigned int fmt); // src/xbox/pbkit/pbkit_ts.c
 extern "C" unsigned int pb_ts_end_count;                  // pb_end calls so far (pbkit_ts.c)
+extern "C" int pb_ts_back_buffer_on_screen(void);         // the next frame's target is on screen
 
 namespace
 {
@@ -513,6 +514,14 @@ namespace
 
 // Development aid: the renderer's current step, read with a debugger.
 extern "C" volatile int g_nv2aStep = 0;
+// Presentation counters, cumulative from boot, read over XBDM from thread
+// context (names in build/xbox/main.map). pbkit_ts.c keeps
+// g_tsPbkitDeferredSwaps.
+extern "C" volatile uint32_t g_tsFramesPresented = 0;      // frames queued for a vblank (pb_finished)
+extern "C" volatile uint32_t g_tsEmptyPresents = 0;        // presentations with no frame to queue
+extern "C" volatile uint32_t g_tsScanoutGuardHits = 0;     // frames whose target was on screen at their start
+extern "C" volatile uint32_t g_tsScanoutGuardWaitMs = 0;   // time those frames waited for it to leave
+extern "C" volatile uint32_t g_tsScanoutGuardTimeouts = 0; // waits given up (drew into the screen)
 GSNv2aTextureStats g_nv2aTextureStats{};
 namespace
 {
@@ -3332,6 +3341,31 @@ struct GSNv2aBackend::Impl
         return out;
     }
 
+    // pb_finished hands out the next of the three buffers without checking
+    // the screen: with frames queued, or one shown late, that can be the
+    // buffer still being scanned out, and the frame's clear and draws would
+    // then show on the TV (moving black bands; a grab of the finished frame
+    // looks clean). Nothing is drawn into it until the screen has moved on:
+    // the queued frames ahead of it take it off at their vblank. 100 ms at
+    // most (pbkit's debug screen, or a lost flip): then draw anyway.
+    void waitBackBufferOffScreen()
+    {
+        if (!pb_ts_back_buffer_on_screen())
+            return;
+        ++g_tsScanoutGuardHits;
+        const DWORD start = GetTickCount();
+        while (pb_ts_back_buffer_on_screen())
+        {
+            if (GetTickCount() - start >= 100u)
+            {
+                ++g_tsScanoutGuardTimeouts;
+                break;
+            }
+            SwitchToThread();
+        }
+        g_tsScanoutGuardWaitMs += GetTickCount() - start;
+    }
+
     void beginFrame(const GSDrawState &state)
     {
         g_nv2aStep = 20;
@@ -3354,6 +3388,7 @@ struct GSNv2aBackend::Impl
 #endif
         gpuRows = 0;
         settleFrame();
+        waitBackBufferOffScreen();
         pb_reset();
         // The frame's setup goes to the GPU as one block (each hand-over is
         // a write-combine flush and a DMA register write).
@@ -3415,6 +3450,7 @@ struct GSNv2aBackend::Impl
         while (pb_finished()) // only while both buffers wait for a vblank
         {
         }
+        ++g_tsFramesPresented;
         g_nv2aStep = 32;
         // The GPU finishes this frame while the game builds the next one;
         // the next frame's start waits for this fence (settleFrame).
@@ -5385,6 +5421,8 @@ PresentationFrame GSNv2aBackend::Present(const GSPresentationRequest &request)
         m->beginFrame(state);
         m->finishFrame();
     }
+    else
+        ++g_tsEmptyPresents; // nothing new: the last frame stays up, nothing queued
     // The picture is on screen already: the host gets no pixels (and keeps
     // drawing nothing; xboxGpuOwnsDisplay).
     return {};

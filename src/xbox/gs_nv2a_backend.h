@@ -83,19 +83,6 @@ struct GSNv2aTextureStats
     uint32_t drawChecked = 0, drawDiffs = 0;
     char drawDiffLast[24] = ""; // what differed last (status line)
     uint32_t ringChecked = 0, ringDiffs = 0;
-    // Texture kicks the native draw path recognised and sent no strip for
-    // (TS_NATIVE_TEXKICK_SHORTCUT, project/game/vu1_native_draw.h).
-    uint32_t texKicks = 0;
-    // Tier 0 bulk submits (SubmitPrimitives, gs_nv2a_screen.inl): calls
-    // taken, primitives in them, calls declined (render-to-texture,
-    // widescreen, off-screen, points/lines: the front end kicks those one
-    // by one); screen-ring segment hand-overs and the waits on one.
-    uint32_t bulkCalls = 0, bulkPrims = 0, bulkDeclined = 0, screenSegments = 0, waitScreen = 0;
-    // In-place fetch (M8, TS_NATIVE_INPLACE; gs_nv2a_xf.inl): strips and
-    // vertices the GPU drew from guest RAM, vertex-cache breaks, WBINVDs
-    // before an in-place draw (Case C), writer barriers that had to wait for
-    // the GPU.
-    uint32_t inPlaceStrips = 0, inPlaceVertices = 0, inPlaceBreaks = 0, inPlaceFlushes = 0, inPlaceBarrierWaits = 0;
     // Texture records dropped by the record limit (trimRecords), and GPU
     // allocations that failed and were tried again after dropping what the
     // last two frames did not draw (both cumulative).
@@ -130,10 +117,21 @@ struct GSNv2aLookupStats
     uint32_t oldHits = 0, oldNew = 0, oldConflicts = 0, oldVersions = 0;
     // Transform-constant rows rebuilt with a new value, rows sent to the GPU.
     uint32_t constRows = 0, constUploads = 0;
-    // B-GS (TS_NV2A_KEY_CACHE): draw keys given again for the same state
-    // serial and texture; TS_NV2A_KEY_SELFCHECK: those built afresh too, and
-    // those that differed.
-    uint32_t keyHits = 0, keyChecks = 0, keyDiffs = 0;
+    // Exact material-to-register reuse, and pack identities reused after
+    // GPU texture-record eviction. Source entries are invalidated by GS
+    // page writes; these counters do not claim a measured frame-time gain.
+    uint32_t drawKeyHits = 0, drawKeyMisses = 0;
+    uint32_t packSourceHits = 0, packSourceMisses = 0, packSourceInvalidations = 0;
+    // Texture source keys (TS_TEXTURE_SOURCE_KEYS): misses whose source key
+    // found a pack entry or not, of those keyed from an upload's hash (the
+    // rest read GS memory back); uploads hashed; palettes logged for the
+    // builder; full CLUT loads that repeated the last one.
+    uint32_t sourceHits = 0, sourceMisses = 0, sourceFromUpload = 0, sourceUploads = 0, sourceVariants = 0;
+    uint32_t clutRepeats = 0;
+    // Misses drawn from an index texture with a GPU palette, pack entries
+    // drawn from their preload while on their way, palettes not made for
+    // want of a free slot, textures dumped for the builder (TS_TEXTURE_DUMP).
+    uint32_t sourcePalettes = 0, sourcePreviews = 0, paletteSlotsFull = 0, sourceDumps = 0;
 };
 GSNv2aLookupStats nv2aLookupStats();
 
@@ -148,18 +146,29 @@ void nv2aXfConstantsChanged(uint32_t serial, uint64_t rows);
 // hit= miss new/conf/ver/other= old hit/new/conf/ver= fill= cdiff= krows= kup=
 std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &stats);
 
-// In-place fetch coherency (M8; project/game/ts_inplace.cpp's writer hooks):
-// before a hooked game function writes guest arrays, every in-place draw
-// pushed so far is waited for (the GPU may not have fetched them yet); after
-// it, the next in-place draw breaks the vertex cache and, with flushCache
-// (the GPU does not snoop the CPU cache: probe T2a), writes the CPU cache
-// back first (WBINVD). No-ops without the NV2A renderer.
-void nv2aInPlaceBeforeWrite();
-void nv2aInPlaceAfterWrite(bool flushCache);
-
 // Guest RAM (PS2Memory::getRDRAM), read once a frame for the game's local
 // player count: split screen lowers the texture budget.
 void nv2aSetGuestRam(const uint8_t *rdram);
+
+// TS_FAST_REPLAY 1 (with TS_NATIVE_MODELS and TS_NATIVE_REPLAY): a stored
+// model run whose renderer segment still stands is drawn without the GS
+// front end's run (beginXfRun, its state copy and lock per run): the model
+// cache hands over the GS context, PRIM and TEXA the run would have been
+// drawn with, and the renderer takes the segment's texture, key and draw
+// commands as its own run would have. 0: every run as before.
+#ifndef TS_FAST_REPLAY
+#define TS_FAST_REPLAY 1
+#endif
+#if TS_FAST_REPLAY
+// Whether backend is this renderer (a wrapped one keeps the full route).
+bool xboxNv2aFastBackend(const GSRasterBackend *backend);
+// Run `handle` (the model cache's run index) as beginXfRun, the resident
+// draw and endXfRun would draw it on a segment hit; false (nothing done
+// that the full route would not do again) when the full route must take it.
+bool xboxNv2aFastRun(uint32_t handle, const GSContext &context, const GSPrimReg &prim, const GSTexaReg &texa,
+                     const GSXfConstants &constants, const uint8_t *block, uint32_t index, uint32_t count,
+                     uint32_t format, uint32_t strips);
+#endif
 
 class GSNv2aBackend final : public GSRasterBackend
 {
@@ -173,19 +182,13 @@ public:
 
     void Submit(const GSPrimitiveBatch &batch) override;
     bool SubmitStrip(const GSDrawState &state, const GSVertex *vertices, uint32_t count) override;
+    // TS_GIF_DIRECT: prims primitives of per vertices and one state drawn as
+    // that many Submit calls, by Submit's own code (xbox_gif_direct.h).
+    bool SubmitRun(const GSDrawState &state, const GSVertex *vertices, uint32_t per, uint32_t prims);
     bool BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, GSXfCursor &cursor) override;
     void GrowXfCursor(GSXfCursor &cursor, uint32_t count) override;
     void EmitXfStrip(const GSXfVertex *vertices, uint32_t count) override;
     void EndXfRun(GSXfCursor &cursor) override;
-    // The Push B/C draw paths (gs_backend.h): each forwards to an Impl member
-    // in the fragment that owns it (gs_nv2a_screen.inl: submitPrimitives,
-    // C-EMIT; gs_nv2a_xf.inl: xfInPlace, C-XF; gs_nv2a_state.inl:
-    // beginNativeRun, B-GS), which answers the old path until its track
-    // lands it; DrawPaths ORs the fragments' kGSDrawPath* bits.
-    uint32_t DrawPaths() const override;
-    bool SubmitPrimitives(const GSDrawState &state, uint32_t prim, const GSVertex *vertices, uint32_t count) override;
-    void XfInPlace(GSXfCursor &cursor, const GSXfInPlaceStrip *strips, uint32_t count) override;
-    GSNativeRunResult BeginNativeRun(const GSNativeRun &run, GSXfCursor &cursor) override;
     void LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut) override;
     uint64_t DebugClutState() override;
 

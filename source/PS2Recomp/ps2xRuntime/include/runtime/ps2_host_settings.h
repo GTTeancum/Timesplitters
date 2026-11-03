@@ -1,12 +1,6 @@
 #pragma once
 
 #include <atomic>
-#if defined(PLATFORM_XBOX)
-#include <cstdint>
-#include <string>
-#include <utility>
-#include <vector>
-#endif
 
 // Player-facing display settings, read once from timesplitters.ini in the
 // working directory (TS_SETTINGS=<path> picks another file). Keys:
@@ -17,8 +11,6 @@
 //   render_scale = 1..4        internal rendering resolution multiplier
 //   texture_dump = 0|1         save each new texture to textures/dump
 //   texture_replace = 0|1      draw PNGs from textures/replacements instead
-//   knob.<name>  = <value>     a runtime knob (project/game/ts_knobs.h):
-//                              passed through to the knob registry as read
 // widescreen and fxaa can be toggled while playing (F10, F9). The game's
 // Audio / Video Options menu changes all of them and saves the file.
 struct HostSettings
@@ -34,11 +26,6 @@ struct HostSettings
     // Bumped when the window size or fullscreen changed; the window thread
     // applies the new values.
     std::atomic<unsigned> windowChanges{0};
-#if defined(PLATFORM_XBOX)
-    // knob.<name> = <value> lines, in file order (the name without the
-    // "knob." prefix, lower-case); the knob registry reads them at start-up.
-    std::vector<std::pair<std::string, uint32_t>> knobs;
-#endif
 };
 
 HostSettings &hostSettings();

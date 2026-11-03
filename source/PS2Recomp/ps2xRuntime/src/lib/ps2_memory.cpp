@@ -1,11 +1,5 @@
 #include "runtime/ps2_memory.h"
-#if defined(PLATFORM_XBOX)
-#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: the walk's time, the pieces' origins, CALLed chains, D1_CHCR
-#endif
 #include "runtime/ps2_vu1_watch.h"
-#if defined(PLATFORM_XBOX)
-#include "runtime/ps2_vif1_tokens.h" // TS_NATIVE_RECORDS: CALL admission, token pieces, in-list token tags (D1)
-#endif
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_address.h"
@@ -25,12 +19,6 @@ namespace
 extern uint32_t g_vif1LastConsumed;
 extern bool g_vif1StopOnShort;
 Vu1WatchedRows g_vu1WatchedRows;
-#if defined(PLATFORM_XBOX)
-#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
-Vif1TokenRing g_vif1Tokens;
-bool g_vif1DryDecode = false;
-#endif
-#endif
 namespace
 {
     // A consumed DMA chain's buffer is released at once: holding it for the
@@ -124,15 +112,6 @@ namespace
 #if TS_RENDER_COUNTERS >= 2
             ++m_added;
 #endif
-#if defined(PLATFORM_XBOX)
-#if TS_MEASURE_PUSHBC
-            // The piece's origin (main list / CALLed chain, as the walk set
-            // pieceOriginNow at its tag) for the decoder's time split.
-            g_measure.pieceBase = m_pieces;
-            if (m_count - 1u < sizeof(g_measure.pieceOrigin))
-                g_measure.pieceOrigin[m_count - 1u] = g_measure.pieceOriginNow;
-#endif
-#endif
         }
         // The last piece grows: the walk's next piece continues it.
         void extendBack(uint32_t bytes)
@@ -222,19 +201,7 @@ namespace
                 // Decoded: all but the carry, which stays for the next batch.
                 m_aheadBytes += m_bytes - carry;
                 m_bytes = carry;
-#if defined(PLATFORM_XBOX)
-#if TS_MEASURE_PUSHBC
-                const size_t decodedCount = m_count;
-#endif
-#endif
                 m_count = keepTail(m_pieces, m_count, carry);
-#if defined(PLATFORM_XBOX)
-#if TS_MEASURE_PUSHBC
-                // The pieces kept moved to the front: their origins with them.
-                if (decodedCount <= sizeof(g_measure.pieceOrigin))
-                    std::memmove(g_measure.pieceOrigin, g_measure.pieceOrigin + (decodedCount - m_count), m_count);
-#endif
-#endif
 #if TS_VIF_SELFCHECK
                 checkKept = m_count;
 #endif
@@ -326,148 +293,6 @@ namespace
 // every piece of the chain. TS_VIF_SELFCHECK compares the two totals.
 #ifndef TS_VIF_TAIL_FROM_WALK
 #define TS_VIF_TAIL_FROM_WALK 1
-#endif
-#if defined(PLATFORM_XBOX)
-#if TS_NATIVE_RECORDS
-    // A CALL the records engine took (D1; ps2_vif1_records.h): its chain as
-    // cached pieces (a splice), or one token piece.
-    struct Vif1Admitted
-    {
-        const PS2Memory::Vif1Piece *pieces = nullptr;
-        size_t count = 0;
-        Vif1TokenEntry *entry = nullptr; // a token (pieces null)
-    };
-    // The walker met a CALL to `chain`: true when the engine takes it (the
-    // walker then reproduces CALL+RET and appends what out holds after the
-    // CALL tag's own payload). A token the ring has no room for becomes a
-    // splice of the chain's pieces; one with no pieces to fall back on is
-    // walked after all.
-    bool admitCalledChain(const Vif1RecordHooks &hooks, uint32_t chain, Vif1Admitted &out)
-    {
-        Vif1CallAdmit admit;
-        if (!hooks.admitCall(hooks.owner, chain, admit))
-            return false;
-        out = Vif1Admitted{};
-        if (admit.pieces) // (an empty chain: a splice of no pieces)
-        {
-            out.pieces = admit.pieces;
-            out.count = admit.pieceCount;
-            ++g_renderCounters.splices;
-            return true;
-        }
-        if (Vif1TokenEntry *entry = g_vif1Tokens.takeChain())
-        {
-            entry->token = admit.token;
-            out.entry = entry;
-            ++g_renderCounters.tokChain;
-            return true;
-        }
-        size_t count = 0;
-        const PS2Memory::Vif1Piece *pieces = hooks.expand ? hooks.expand(hooks.owner, admit.token, count) : nullptr;
-        if (!pieces || count == 0u)
-            return false;
-        ++g_renderCounters.tokRingFull;
-        ++g_renderCounters.splices;
-        out.pieces = pieces;
-        out.count = count;
-        return true;
-    }
-#if TS_VIF_SELFCHECK
-    // TS_VIF_SELFCHECK: an admitted chain walked again the old way (from
-    // its first tag to its RET, as the walker would have descended) and the
-    // guest ranges compared with what was appended in its place, both with
-    // contiguous ranges merged (spliceDiff; must stay 0). A chain the old
-    // walk would not take as a plain CALLed chain (an END, an IRQ, a
-    // payload outside main RAM) differs too.
-    void vif1MergedRanges(const PS2Memory::Vif1Piece *pieces, size_t count, std::vector<PS2Memory::Vif1Piece> &out)
-    {
-        for (size_t i = 0; i < count; ++i)
-        {
-            if (pieces[i].second == 0u)
-                continue;
-            if (!out.empty() && out.back().first + out.back().second == pieces[i].first)
-                out.back().second += pieces[i].second;
-            else
-                out.push_back(pieces[i]);
-        }
-    }
-    bool vif1WalkCalledChain(const uint8_t *rdram, uint32_t chain, std::vector<PS2Memory::Vif1Piece> &out)
-    {
-        uint32_t tagAddr = chain & 0x7FFFFFFFu;
-        uint32_t stack[2] = {}, depth = 0;
-        for (uint32_t tags = 0; tags < 65536u; ++tags)
-        {
-            if (tagAddr > PS2_RAM_SIZE - 16u)
-                return false;
-            uint64_t tag;
-            std::memcpy(&tag, rdram + tagAddr, sizeof(tag));
-            const uint32_t qwc = static_cast<uint32_t>(tag & 0xFFFFu);
-            const uint32_t id = static_cast<uint32_t>((tag >> 28) & 0x7u);
-            const uint32_t addr = static_cast<uint32_t>((tag >> 32) & 0x7FFFFFFFu);
-            if (((tag >> 31) & 1u) != 0u)
-                return false;
-            uint32_t dataAddr = tagAddr + 16u, next = 0;
-            bool done = false;
-            switch (id)
-            {
-            case 1: next = dataAddr + qwc * 16u; break;
-            case 2: next = addr; break;
-            case 3:
-            case 4:
-                dataAddr = addr;
-                next = tagAddr + 16u;
-                break;
-            case 5:
-                if (depth == 2u)
-                    return false;
-                stack[depth++] = dataAddr + qwc * 16u;
-                next = addr;
-                break;
-            case 6:
-                if (depth == 0u)
-                    done = true;
-                else
-                    next = stack[--depth];
-                break;
-            default:
-                return false; // REFE / END: the chain would end the DMA
-            }
-            if (qwc != 0u)
-            {
-                if (dataAddr >= PS2_RAM_SIZE || qwc * 16u > PS2_RAM_SIZE - dataAddr)
-                    return false;
-                const PS2Memory::Vif1Piece piece(rdram + dataAddr, qwc * 16u);
-                vif1MergedRanges(&piece, 1u, out);
-            }
-            if (done)
-                return true;
-            tagAddr = next;
-        }
-        return false;
-    }
-    void vif1CheckAdmitted(const Vif1RecordHooks &hooks, const uint8_t *rdram, uint32_t chain,
-                           const Vif1Admitted &admitted)
-    {
-        static std::vector<PS2Memory::Vif1Piece> walked, appended;
-        walked.clear();
-        appended.clear();
-        const PS2Memory::Vif1Piece *pieces = admitted.pieces;
-        size_t count = admitted.count;
-        if (admitted.entry)
-            pieces = hooks.expand ? hooks.expand(hooks.owner, admitted.entry->token, count) : nullptr;
-        if (pieces)
-            vif1MergedRanges(pieces, count, appended);
-        const bool walkedOk = vif1WalkCalledChain(rdram, chain, walked);
-        ++g_renderCounters.spliceChecked;
-        if (walkedOk && walked == appended)
-            return;
-        if (++g_renderCounters.spliceDiff <= 8u)
-            RUNTIME_LOG("[VIF:selfcheck] CALL 0x" << std::hex << chain << std::dec << ": "
-                        << (admitted.entry ? "token" : "splice") << " of " << appended.size()
-                        << " ranges, the walk " << (walkedOk ? "" : "(refused) ") << walked.size() << '\n');
-    }
-#endif
-#endif
 #endif
 #endif
 }
@@ -607,9 +432,6 @@ namespace
         } while (!csr.compare_exchange_weak(expected, desired));
     }
 
-#if defined(PLATFORM_XBOX)
-    // (The EE timers: ps2_memory_timers.cpp.)
-#else
     constexpr std::array<uint32_t, 4> kEeTimerBases = {
         0x10000000u,
         0x10000800u,
@@ -683,7 +505,6 @@ namespace
         return (eeCycles >> kShift) + (carried >> kShift);
     }
 #endif
-#endif
 
     struct DmaTagView
     {
@@ -723,6 +544,31 @@ namespace
 
 }
 
+#if defined(PLATFORM_XBOX)
+// TS_LAZY_GUEST_RAM 1: main RAM and GS VRAM are address space only, a page
+// committed when it is first touched (src/xbox/xbox_lazy_commit.cpp; the
+// functions are declared there in xbox_lazy_commit.h). 0: new[] and memset.
+#ifndef TS_LAZY_GUEST_RAM
+#define TS_LAZY_GUEST_RAM 1
+#endif
+#if TS_LAZY_GUEST_RAM
+uint8_t *xboxLazyReserve(size_t bytes, const char *name);
+void xboxLazyRelease(void *base);
+void xboxLazyFrameEnter(void *frame[2]);
+void xboxLazyFrameLeave(void *frame[2]);
+namespace
+{
+    // The first-touch handler on a worker thread, for its lifetime.
+    struct LazyCommitFrame
+    {
+        void *frame[2];
+        LazyCommitFrame() { xboxLazyFrameEnter(frame); }
+        ~LazyCommitFrame() { xboxLazyFrameLeave(frame); }
+    };
+}
+#endif
+#endif
+
 // Helpers for GS VRAM addressing (PSMCT32 path).
 static inline uint32_t gs_vram_offset(uint32_t basePage, uint32_t x, uint32_t y, uint32_t fbw)
 {
@@ -737,48 +583,33 @@ PS2Memory::PS2Memory()
     ps2SetScratchpadHostPtr(nullptr);
 }
 
-#if defined(PLATFORM_XBOX)
-// (The destructor: ps2_memory_alloc.cpp, with the guest memory allocation.)
-
-namespace
-#else
 PS2Memory::~PS2Memory()
-#endif
 {
-#if defined(PLATFORM_XBOX)
-    Vif1RecordHooks s_vif1RecordHooks{};
-}
-#else
     stopVif1Worker();
     if (m_rdram)
     {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_rdram);
+#else
         delete[] m_rdram;
+#endif
         m_rdram = nullptr;
     }
-#endif
 
-#if defined(PLATFORM_XBOX)
-void PS2Memory::setVif1RecordHooks(const Vif1RecordHooks &hooks)
-{
-    s_vif1RecordHooks = hooks;
-}
-#else
     if (m_scratchpad)
     {
         ps2SetScratchpadHostPtr(nullptr);
         delete[] m_scratchpad;
         m_scratchpad = nullptr;
     }
-#endif
 
-#if defined(PLATFORM_XBOX)
-const Vif1RecordHooks &PS2Memory::vif1RecordHooks()
-{
-    return s_vif1RecordHooks;
-#else
     if (m_gsVRAM)
     {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_gsVRAM);
+#else
         delete[] m_gsVRAM;
+#endif
         m_gsVRAM = nullptr;
     }
 
@@ -808,20 +639,24 @@ const Vif1RecordHooks &PS2Memory::vif1RecordHooks()
         delete[] iop_ram;
         iop_ram = nullptr;
     }
-#endif
 }
 
 bool PS2Memory::initialize(size_t ramSize)
 {
-#if defined(PLATFORM_XBOX)
-    freeGuestMemory();
-#else
     auto cleanup = [this]()
     {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_rdram);
+#else
         delete[] m_rdram;
+#endif
         delete[] m_scratchpad;
         delete[] iop_ram;
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyRelease(m_gsVRAM);
+#else
         delete[] m_gsVRAM;
+#endif
         delete[] m_vu0Code;
         delete[] m_vu0Data;
         delete[] m_vu1Code;
@@ -838,7 +673,6 @@ bool PS2Memory::initialize(size_t ramSize)
     };
 
     cleanup();
-#endif
     m_seenGifCopy = false;
     m_dmaStartCount.store(0, std::memory_order_relaxed);
     m_gifCopyCount.store(0, std::memory_order_relaxed);
@@ -858,26 +692,29 @@ bool PS2Memory::initialize(size_t ramSize)
     m_vif1PendingPath2DirectHl = false;
     resetEeTimers();
 
-#if defined(PLATFORM_XBOX)
-    // The guest memories (RDRAM, scratchpad, GS VRAM, VU0/VU1 code and
-    // data), zeroed: ps2_memory_alloc.cpp.
-    if (!allocateGuestMemory(ramSize))
-        return false;
-
-#endif
     PS2X_TRY
     {
-#if !defined(PLATFORM_XBOX)
         // Allocate main RAM
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        // Address space only: each page reads zero, as the memset left it,
+        // and takes memory when first touched (src/xbox/xbox_lazy_commit.cpp).
+        m_rdram = xboxLazyReserve(ramSize, "rdram");
+        if (!m_rdram)
+        {
+            std::cerr << "[TS:mem] no address space for " << ramSize / 1024u << " KB of PS2 RAM" << std::endl;
+            cleanup();
+            return false;
+        }
+#else
         m_rdram = new uint8_t[ramSize];
         std::memset(m_rdram, 0, ramSize);
+#endif
 
         // Allocate scratchpad
         m_scratchpad = new uint8_t[PS2_SCRATCHPAD_SIZE];
         std::memset(m_scratchpad, 0, PS2_SCRATCHPAD_SIZE);
         ps2SetScratchpadHostPtr(m_scratchpad);
 
-#endif
         // Initialize EE TLB entries (R5900 has 48 entries).
         m_tlbEntries.assign(48, TLBEntry{0, 0, 0, false});
 
@@ -898,10 +735,19 @@ bool PS2Memory::initialize(size_t ramSize)
         gs_regs.dispfb2 = gs_regs.dispfb1;
         gs_regs.display2 = gs_regs.display1;
 
-#if !defined(PLATFORM_XBOX)
         // Allocate GS VRAM (4MB)
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        m_gsVRAM = xboxLazyReserve(PS2_GS_VRAM_SIZE, "vram"); // as main RAM above
+        if (!m_gsVRAM)
+        {
+            std::cerr << "[TS:mem] no address space for the GS VRAM" << std::endl;
+            cleanup();
+            return false;
+        }
+#else
         m_gsVRAM = new uint8_t[PS2_GS_VRAM_SIZE];
         std::memset(m_gsVRAM, 0, PS2_GS_VRAM_SIZE);
+#endif
 
         m_vu0Code = new uint8_t[PS2_VU0_CODE_SIZE];
         m_vu0Data = new uint8_t[PS2_VU0_DATA_SIZE];
@@ -912,7 +758,6 @@ bool PS2Memory::initialize(size_t ramSize)
         m_vu1Data = new uint8_t[PS2_VU1_DATA_SIZE];
         std::memset(m_vu1Code, 0, PS2_VU1_CODE_SIZE);
         std::memset(m_vu1Data, 0, PS2_VU1_DATA_SIZE);
-#endif
         g_vu1WatchedRows.noteAll();
         markVU0CodeModified();
         markVU1CodeModified();
@@ -932,18 +777,11 @@ bool PS2Memory::initialize(size_t ramSize)
     PS2X_CATCH(const std::exception &, e)
     {
         std::cerr << "Error initializing PS2 memory: " << e.what() << std::endl;
-#if defined(PLATFORM_XBOX)
-        freeGuestMemory();
-#else
         cleanup();
-#endif
         return false;
     }
 }
 
-#if defined(PLATFORM_XBOX)
-// (resetEeTimers, advanceEeTimers, cyclesUntilNextEeTimerInterrupt: ps2_memory_timers.cpp.)
-#else
 void PS2Memory::resetEeTimers() noexcept
 {
     m_eeTimers = {};
@@ -1093,7 +931,6 @@ uint64_t PS2Memory::cyclesUntilNextEeTimerInterrupt() const noexcept
     }
     return nearest;
 }
-#endif
 
 bool PS2Memory::isScratchpad(uint32_t address) const
 {
@@ -1718,11 +1555,6 @@ void PS2Memory::write128(uint32_t address, __m128i value)
 bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 {
     syncVif1ForAddress(address);
-#if defined(PLATFORM_XBOX)
-    bool timerResult = false;
-    if (writeEeTimerRegister(address, value, timerResult)) // ps2_memory_timers.cpp
-        return timerResult;
-#else
     size_t timerIndex = 0u;
     uint32_t timerOffset = 0u;
     if (decodeEeTimerRegister(address, timerIndex, timerOffset))
@@ -1756,7 +1588,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
         }
         return true;
     }
-#endif
 
     if (isGsPrivReg(address))
     {
@@ -2073,41 +1904,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                         else
                             s_vif1Segments.emplace_back(data, bytes);
                     };
-#if defined(PLATFORM_XBOX)
-#if TS_NATIVE_RECORDS
-                    // A token piece: a piece of its own (emplace_back, never
-                    // joined to a neighbour; its 16 bytes in the chain's total).
-                    auto addTokenPiece = [&](Vif1TokenEntry *entry)
-                    {
-#if TS_WALK_SKIP_ZERO_TTE
-                        skippedTte = nullptr;
-#if TS_VIF_SELFCHECK
-                        s_vif1FullSegments.emplace_back(entry->piece, 16u);
-#endif
-#endif
-                        segmentBytes += 16u;
-                        s_vif1Segments.emplace_back(entry->piece, 16u);
-                    };
-                    auto appendListToken = [&](const Vif1RecordHooks &hooks, uint32_t tagAddress, uint32_t addrField)
-                    {
-                        Vif1Token token;
-                        if (!hooks.admitListToken || !hooks.admitListToken(hooks.owner, tagAddress, addrField, token))
-                        {
-                            ++g_renderCounters.tokStale;
-                            return;
-                        }
-                        Vif1TokenEntry *entry = g_vif1Tokens.take();
-                        if (!entry)
-                        {
-                            ++g_renderCounters.tokBad; // its packets are not in the list: lost
-                            return;
-                        }
-                        entry->token = token;
-                        addTokenPiece(entry);
-                        ++g_renderCounters.tokList;
-                    };
-#endif
-#endif
                     // Xbox: sized ahead by at most 64 KB, not by the largest
                     // chain of the session (over a megabyte): after one such
                     // chain every kick, however small, asked for that much
@@ -2198,34 +1994,12 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     const bool isVifChannel =
                         channelBase == 0x10009000u || channelBase == 0x10008000u;
                     const bool transferTagData = isVifChannel && (chcr & 0x40u) != 0u;
-#if defined(PLATFORM_XBOX)
-#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
-                    // D1: CALLs to registered chains and in-list token tags
-                    // (the records engine's hooks; the VIF1 list only, and
-                    // CALLs only with CHCR.TTE off, as the game kicks it:
-                    // a splice or token holds no tag halves).
-                    const Vif1RecordHooks &recordHooks = vif1RecordHooks();
-                    const bool admitCalls = recordSegments && !transferTagData && recordHooks.admitCall != nullptr;
-                    Vif1Admitted admitted;
-                    bool callAdmitted = false;
-#endif
-#endif
 
                     int tagsProcessed = 0;
                     uint32_t lastTagUpper = (chcr >> 16) & 0xFFFFu;
 
                     uint32_t chainTags = 0;
                     (void)chainTags;
-#if defined(PLATFORM_XBOX)
-#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
-                    // The walk's own time: the tag loop less the batches
-                    // decoded inside it (runtime/ps2_measure.h).
-                    if (recordSegments)
-                        xboxMeasureChcr(chcr);
-                    const uint64_t measureWalk0 = measureTsc();
-                    const uint64_t measureDecode0 = g_measure.decodeCycles[0] + g_measure.decodeCycles[1];
-#endif
-#endif
                     for (;;)
                     {
                         if (asp > 2u)
@@ -2290,9 +2064,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #if defined(PLATFORM_XBOX) && TS_RENDER_COUNTERS >= 2
                         const uint32_t inCall = asp != 0u ? 1u : 0u; // a CALLed chain's tag (render counters)
 #endif
-#if defined(PLATFORM_XBOX)
-                        TS_MEASURE(g_measure.pieceOriginNow = asp != 0u ? 1u : 0u); // this tag's pieces: a CALLed chain's
-#endif
 
                         uint32_t dataAddr = 0;
                         bool hasPayload = (tagQwc > 0);
@@ -2322,28 +2093,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                             dataAddr = tagAddr + 16;
                             {
                                 const uint32_t retAddr = dataAddr + static_cast<uint32_t>(tagQwc) * 16u;
-#if defined(PLATFORM_XBOX)
-#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
-                                // A registered chain: not descended into. The net
-                                // effect of CALL then RET on the registers (the
-                                // return address left in ASR[ASP], ASP as it was),
-                                // the walk going on at the return address; its
-                                // splice or token goes in after this tag's payload.
-                                // (Not a CALL that stops the transfer: IRQ with TIE.)
-                                if (admitCalls && asp < 2u && !(irq && tieEnabled) &&
-                                    admitCalledChain(recordHooks, addr, admitted))
-                                {
-                                    if (asp == 0u)
-                                        asr0 = retAddr;
-                                    else
-                                        asr1 = retAddr;
-                                    callAdmitted = true;
-                                    TS_MEASURE(xboxMeasureChainCall(addr));
-                                    tagAddr = retAddr;
-                                    break;
-                                }
-#endif
-#endif
                                 if (asp == 0u)
                                 {
                                     asr0 = retAddr;
@@ -2357,9 +2106,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                                 else
                                     PS2X_THROW(std::runtime_error("DMA CALL exceeds two-entry return stack"));
                             }
-#if defined(PLATFORM_XBOX)
-                            TS_MEASURE(xboxMeasureChainCall(addr)); // the chains CALLed a frame, all and distinct
-#endif
                             tagAddr = addr;
                             break;
                         case 6:
@@ -2442,16 +2188,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 #endif
                                 }
                             }
-#if defined(PLATFORM_XBOX)
-#if TS_NATIVE_RECORDS
-                            // An in-list token tag (D1): REF, QWC 0, ADDR
-                            // 0x7FE00000 | slot. Transfers nothing as a tag; a
-                            // token piece when the run table vouches for it,
-                            // else counted stale (must stay 0).
-                            if (id == 3u && tagQwc == 0u && (addr & 0x7FF00000u) == 0x7FE00000u)
-                                appendListToken(recordHooks, currentTagAddr, addr);
-#endif
-#endif
                             const uint32_t payloadBytes = static_cast<uint32_t>(tagQwc) * 16u;
                             if (hasPayload && dataAddr < PS2_RAM_SIZE && payloadBytes <= PS2_RAM_SIZE - dataAddr)
                             {
@@ -2472,25 +2208,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
 
                         if (hasPayload)
                             appendData(dataAddr, tagQwc);
-#if defined(PLATFORM_XBOX)
-#if defined(PLATFORM_XBOX) && TS_NATIVE_RECORDS
-                        // The admitted CALL's chain, after the CALL tag's payload.
-                        if (callAdmitted)
-                        {
-                            callAdmitted = false;
-                            TS_MEASURE(g_measure.pieceOriginNow = 1u); // a CALLed chain's
-                            if (admitted.entry)
-                                addTokenPiece(admitted.entry);
-                            else
-                                for (size_t i = 0; i < admitted.count; ++i)
-                                    addSegment(admitted.pieces[i].first, admitted.pieces[i].second);
-#if TS_VIF_SELFCHECK
-                            if (g_vif1StreamStats.checked < TS_VIF_SELFCHECK_CHAINS)
-                                vif1CheckAdmitted(recordHooks, m_rdram, addr, admitted);
-#endif
-                        }
-#endif
-#endif
                         if (irq && tieEnabled)
                             endChain = true;
                         if (endChain)
@@ -2507,17 +2224,6 @@ bool PS2Memory::writeIORegister(uint32_t address, uint32_t value)
                     chcr = (chcr & ~(0x3u << 4)) | ((asp & 0x3u) << 4);
                     chcr = (chcr & 0x0000FFFFu) | (lastTagUpper << 16);
                     m_ioRegisters[channelBase + 0x00] = chcr;
-#if defined(PLATFORM_XBOX)
-#if defined(PLATFORM_XBOX) && TS_MEASURE_PUSHBC
-                    if (recordSegments)
-                    {
-                        const uint64_t decoded = g_measure.decodeCycles[0] + g_measure.decodeCycles[1] - measureDecode0;
-                        const uint64_t span = measureTsc() - measureWalk0;
-                        g_measure.walkCycles += span > decoded ? span - decoded : 0u;
-                        ++g_measure.walks;
-                    }
-#endif
-#endif
 
 #if defined(PLATFORM_XBOX)
 #if TS_WALK_SKIP_ZERO_TTE
@@ -2965,33 +2671,6 @@ namespace
             gifBytes += bytes;
         };
 
-#if defined(PLATFORM_XBOX)
-#if TS_NATIVE_RECORDS
-        // Every decode here is dry (D1): the piece decoder expands each
-        // chain token instead of running it and reads a list token as its
-        // NOPs; the window path is given the same stream, the chain tokens'
-        // pieces in their place.
-        g_vif1DryDecode = true;
-        static std::vector<PS2Memory::Vif1Piece> windowPieces;
-        windowPieces.clear();
-        for (size_t i = 0; i < oldCount; ++i)
-        {
-            const Vif1TokenEntry *entry = g_vif1Tokens.entryOf(oldPieces[i].first);
-            const Vif1RecordHooks &hooks = PS2Memory::vif1RecordHooks();
-            size_t n = 0;
-            const PS2Memory::Vif1Piece *expanded =
-                entry && entry->token.kind == Vif1TokenKind::Chain && hooks.expand
-                    ? hooks.expand(hooks.owner, entry->token, n)
-                    : nullptr;
-            if (expanded && n != 0u)
-                windowPieces.insert(windowPieces.end(), expanded, expanded + n);
-            else
-                windowPieces.push_back(oldPieces[i]);
-        }
-        oldPieces = windowPieces.data();
-        oldCount = windowPieces.size();
-#endif
-#endif
         for (int run = 0; run < kRuns; ++run)
         {
             restore();
@@ -3016,11 +2695,6 @@ namespace
         }
 
         restore();
-#if defined(PLATFORM_XBOX)
-#if TS_NATIVE_RECORDS
-        g_vif1DryDecode = false;
-#endif
-#endif
 #if TS_VIF1_BATCH
         if (flushCount != 0u)
             now.load(m);
@@ -3395,14 +3069,6 @@ void PS2Memory::processPendingTransfers()
     }
 #if defined(PLATFORM_XBOX)
     s_vif1Segments.clear();
-#if defined(PLATFORM_XBOX)
-#if TS_NATIVE_RECORDS
-    // The pieces are gone, and every token piece with them: the ring
-    // starts again (a token taken and never consumed is a drop).
-    if (g_vif1Tokens.pending() != 0u)
-        g_renderCounters.tokDrop += g_vif1Tokens.reset();
-#endif
-#endif
 #if TS_VIF_SELFCHECK && TS_WALK_SKIP_ZERO_TTE
     s_vif1FullSegments.clear();
     s_vif1FullEnds.clear();
@@ -3559,6 +3225,9 @@ bool PS2Memory::startVif1Async()
 
 void PS2Memory::vif1WorkerLoop()
 {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+    LazyCommitFrame lazyCommit; // (the Xbox does not start this worker)
+#endif
     t_onVif1Worker = true;
     for (;;)
     {
@@ -3670,6 +3339,9 @@ void PS2Memory::gsStageWaitEmpty()
 
 void PS2Memory::gsStageLoop()
 {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+    LazyCommitFrame lazyCommit; // (the Xbox does not start this worker)
+#endif
     t_onVif1Worker = true; // part of the VIF1 pipeline: never waits for it
     for (;;)
     {
@@ -4115,11 +3787,6 @@ int PS2Memory::pollDmaRegisters()
 uint32_t PS2Memory::readIORegister(uint32_t address)
 {
     syncVif1ForAddress(address);
-#if defined(PLATFORM_XBOX)
-    uint32_t timerValue = 0u;
-    if (readEeTimerRegister(address, timerValue)) // ps2_memory_timers.cpp
-        return timerValue;
-#else
     size_t timerIndex = 0u;
     uint32_t timerOffset = 0u;
     if (decodeEeTimerRegister(address, timerIndex, timerOffset))
@@ -4139,7 +3806,6 @@ uint32_t PS2Memory::readIORegister(uint32_t address)
             return 0u;
         }
     }
-#endif
 
     if (isGsPrivReg(address))
     {

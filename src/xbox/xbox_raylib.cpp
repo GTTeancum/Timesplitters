@@ -8,12 +8,9 @@
 //   - gamepads and the audio stream go through nxdk's SDL2;
 //   - keyboard queries report nothing pressed.
 #include "raylib.h"
-#include "runtime/ps2_det.h"
 #include "runtime/ps2_music.h"
-#include "runtime/ps2_spu2.h"
-#include "xbox_diag.h"
 #include "xbox_log.h"
-#include "xbox_perf.h"
+#include "xbox_lazy_commit.h"
 
 #include <SDL.h>
 #include <hal/audio.h>
@@ -24,7 +21,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
@@ -47,10 +43,6 @@
 // events (the joystick's and the game controller's), each a heap block of
 // about 80 bytes until SDL's 65,535-event limit (5 MB): real play would fill
 // that, and a match has no free memory. 0: the events pile up, as before.
-// TS_PAD_LOG 1: controller 1's raw SDL state in the log once a second.
-#ifndef TS_PAD_LOG
-#define TS_PAD_LOG 0
-#endif
 #ifndef TS_SDL_EVENT_FLUSH
 #define TS_SDL_EVENT_FLUSH 1
 #endif
@@ -138,40 +130,6 @@ namespace
                 }
             }
         }
-#if TS_PAD_LOG
-        // Controller 1 as SDL reports it, once a second ([TS:pad]).
-        static DWORD nextPadLog = 0;
-        if (GetTickCount() >= nextPadLog)
-        {
-            nextPadLog = GetTickCount() + 1000;
-            if (SDL_GameController *pad = g_pads[0])
-            {
-                unsigned buttons = 0;
-                for (int b = 0; b < SDL_CONTROLLER_BUTTON_MAX; ++b)
-                    buttons |= SDL_GameControllerGetButton(pad, SDL_GameControllerButton(b)) ? 1u << b : 0u;
-                char line[200];
-                std::snprintf(line, sizeof(line), "[TS:pad] buttons=%05x lx=%d ly=%d rx=%d ry=%d lt=%d rt=%d name=%s\n",
-                              buttons, SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTX),
-                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_LEFTY),
-                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_RIGHTX),
-                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_RIGHTY),
-                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERLEFT),
-                              SDL_GameControllerGetAxis(pad, SDL_CONTROLLER_AXIS_TRIGGERRIGHT),
-                              SDL_GameControllerName(pad));
-                xboxLogWrite(line, unsigned(std::strlen(line)));
-            }
-        }
-#endif
-#if TS_DIAG
-        // The diagnostic switches (xbox_diag.h): controller 1's combo.
-        if (SDL_GameController *pad = g_pads[0])
-        {
-            auto down = [pad](SDL_GameControllerButton b) { return SDL_GameControllerGetButton(pad, b) != 0; };
-            xdiag::pollPad({down(SDL_CONTROLLER_BUTTON_BACK), down(SDL_CONTROLLER_BUTTON_LEFTSHOULDER),
-                            down(SDL_CONTROLLER_BUTTON_DPAD_UP), down(SDL_CONTROLLER_BUTTON_DPAD_DOWN),
-                            down(SDL_CONTROLLER_BUTTON_A), down(SDL_CONTROLLER_BUTTON_Y)});
-        }
-#endif
     }
 
     // The one audio stream (the SPU2 and music mix, 48 kHz 16-bit stereo)
@@ -183,6 +141,15 @@ namespace
     constexpr unsigned kAudioFrames = 1024; // per buffer: 21 ms
     constexpr unsigned kAudioRing = 8;      // DMA buffers (the descriptor ring is 32)
     constexpr unsigned kAudioAhead = 5;     // queued, about 0.1 s
+    // How long the feeder sleeps once the queue is full. 5 ms: 200 wakeups a
+    // second for 47 buffers. With the fast mixer (TS_SOUND_HW) 16 ms: about
+    // 60, each refilling about one buffer, and still 90 ms of sound queued
+    // when it wakes (a disc read of the music player can hold it longer).
+#if defined(TS_SOUND_HW) && TS_SOUND_HW
+    constexpr DWORD kAudioFeederSleepMs = 16;
+#else
+    constexpr DWORD kAudioFeederSleepMs = 5;
+#endif
     struct AudioOut
     {
         int16_t *buffers = nullptr; // kAudioRing x kAudioFrames stereo frames
@@ -209,6 +176,9 @@ namespace
 
     DWORD WINAPI audioFeeder(LPVOID)
     {
+#if TS_LAZY_GUEST_RAM
+        XboxLazyThreadScope lazyCommit; // the mix may read guest memory (xbox_lazy_commit.h)
+#endif
         volatile const uint8_t *ac97 = reinterpret_cast<volatile const uint8_t *>(0xFEC00000u);
         static uint64_t mixCycles = 0, musicCycles = 0, discCycles = 0;
         for (;;)
@@ -227,9 +197,12 @@ namespace
                 const uint64_t start = __builtin_ia32_rdtsc();
                 {
                     std::lock_guard<std::mutex> guard(g_audio.lock);
-                    // TS_DET (runtime/ps2_det.h): the det harness mixes the
-                    // pcm stream itself; the feeder plays silence.
-                    if (g_audio.playing && g_audio.callback && !xboxDetSilentAudio())
+#if defined(TS_KNOCKOUT) && TS_KNOCKOUT == 4
+                    // Measurement only (make TS_KNOCKOUT=4): no mixing, silence.
+                    if (false)
+#else
+                    if (g_audio.playing && g_audio.callback)
+#endif
                         g_audio.callback(mixInto, kAudioFrames);
                     else
                         std::memset(mixInto, 0, kAudioFrames * 4u);
@@ -250,7 +223,7 @@ namespace
                 ++g_audioBuffers;
                 provideAudio(buffer);
             }
-            Sleep(5);
+            Sleep(kAudioFeederSleepMs);
         }
     }
 
@@ -290,24 +263,6 @@ namespace
 // disc). About 47 buffers a second means sound plays; at 733 MHz, mix Kcyc
 // per second / 7330 is the feeder's percentage of the CPU.
 uint32_t g_audioBuffers = 0, g_audioMixKcyc = 0, g_audioMusicKcyc = 0, g_audioDiscKcyc = 0;
-
-// [TS:audio] (the report-line registry, xbox_perf.h; written on the status
-// hook's thread, never from the TIME_CRITICAL feeder): the feeder's figures
-// above, the music loader's (its reads' time in Kcyc, ranges it read ahead,
-// ranges the mix had to read itself) and the audio self-checks' counters
-// (TS_SPU2_SELFCHECK spu2diff, TS_MUSIC_SELFCHECK musicdiff; 0/0 when off).
-namespace
-{
-    void audioReportLine(XboxReportLine &line)
-    {
-        line.add(" buf=%u mix=%uK music=%uK disc=%uK loader=%uK ahead=%u sync=%u spu2check=%u spu2diff=%u musiccheck=%u "
-                 "musicdiff=%u",
-                 unsigned(g_audioBuffers), unsigned(g_audioMixKcyc), unsigned(g_audioMusicKcyc),
-                 unsigned(g_audioDiscKcyc), unsigned(g_musicLoaderCycles / 1000u), g_musicLoaderReads,
-                 g_musicSyncReads, g_spu2Checks, g_spu2Diffs, g_musicChecks, g_musicDiffs);
-    }
-    [[maybe_unused]] const bool g_audioLineRegistered = xboxRegisterReportLine("[TS:audio]", &audioReportLine);
-}
 
 // ------------------------------------------------------------------ window
 void InitWindow(int, int, const char *)
@@ -564,10 +519,6 @@ bool IsGamepadButtonDown(int gamepad, int button)
 {
     if (!IsGamepadAvailable(gamepad))
         return false;
-#if TS_DIAG
-    if (gamepad == 0 && xdiag::padCaptured())
-        return false; // the diagnostic combo holds controller 1
-#endif
     SDL_GameController *pad = g_pads[gamepad];
     auto down = [pad](SDL_GameControllerButton b) { return SDL_GameControllerGetButton(pad, b) != 0; };
     switch (button)
@@ -601,10 +552,6 @@ float GetGamepadAxisMovement(int gamepad, int axis)
                                                    SDL_CONTROLLER_AXIS_TRIGGERLEFT, SDL_CONTROLLER_AXIS_TRIGGERRIGHT};
     if (axis < 0 || axis > 5)
         return 0.0f;
-#if TS_DIAG
-    if (gamepad == 0 && xdiag::padCaptured())
-        return axis >= 4 ? -1.0f : 0.0f; // released triggers, centred sticks
-#endif
     const float value = SDL_GameControllerGetAxis(g_pads[gamepad], kAxes[axis]) / 32767.0f;
     // raylib reports triggers as -1 (released) .. 1 (pressed).
     return axis >= 4 ? value * 2.0f - 1.0f : std::clamp(value, -1.0f, 1.0f);

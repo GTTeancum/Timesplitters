@@ -76,6 +76,34 @@ struct Vu1WatchedRows
         if (hit)
             ++writes;
     }
+#if defined(PLATFORM_XBOX)
+    // note() for a write that nearly always misses every range (an UNPACK:
+    // most land past the watched rows): one that misses the ranges' hull
+    // without wrapping is done with two compares, the rest go to note().
+    // Ranges are only ever added (watch), so the hull is kept for this
+    // object's range count. (TS_FAST_DECODE's callers.)
+    void noteUnpack(uint32_t q, uint32_t count)
+    {
+        static const Vu1WatchedRows *s_owner = nullptr;
+        static uint32_t s_ranges = 0, s_first = 0, s_end = 0;
+        if (s_owner != this || s_ranges != ranges)
+        {
+            s_first = 1024u;
+            s_end = 0u;
+            for (uint32_t i = 0; i < ranges; ++i)
+            {
+                s_first = first[i] < s_first ? first[i] : s_first;
+                s_end = end[i] > s_end ? end[i] : s_end;
+            }
+            s_owner = this;
+            s_ranges = ranges;
+        }
+        const uint32_t from = q & 1023u;
+        if (count < 1024u && from + count <= 1024u && (from >= s_end || from + count <= s_first))
+            return; // (also no ranges: s_end 0)
+        note(q, count);
+    }
+#endif
     // A store of `bytes` at byte offset `offset` of VU1 data memory.
     void noteBytes(uint32_t offset, uint32_t bytes) { note(offset / 16u, (offset + bytes - 1u) / 16u - offset / 16u + 1u); }
     // Anything may have been written (a microprogram ran).

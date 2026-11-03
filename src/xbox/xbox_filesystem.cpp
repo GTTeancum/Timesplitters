@@ -717,6 +717,65 @@ file_status __status(const path &p, error_code *ec)
 
 file_status __symlink_status(const path &p, error_code *ec) { return __status(p, ec); }
 
+bool __equivalent(const path &first, const path &second, error_code *ec)
+{
+    if (first.empty() || second.empty())
+    {
+        setError(ec, ERROR_PATH_NOT_FOUND);
+        return false;
+    }
+    const std::string names[] = {kernelPath(first), kernelPath(second)};
+    // nxdk's CreateFileA asserts this bound before calling the kernel.
+    if (names[0].size() >= MAX_PATH || names[1].size() >= MAX_PATH)
+    {
+        setError(ec, ERROR_FILENAME_EXCED_RANGE);
+        return false;
+    }
+
+    struct OpenFile
+    {
+        HANDLE value;
+        ~OpenFile()
+        {
+            if (value != INVALID_HANDLE_VALUE)
+            {
+                const DWORD saved = GetLastError();
+                CloseHandle(value);
+                SetLastError(saved);
+            }
+        }
+    };
+    const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    // Keep both files open while comparing their kernel identities. Zero
+    // requested access lets CreateFileA add only metadata/synchronization
+    // rights; BACKUP_SEMANTICS permits directories as well as ordinary files.
+    OpenFile a{CreateFileA(names[0].c_str(), 0, share, nullptr, OPEN_EXISTING,
+                          FILE_FLAG_BACKUP_SEMANTICS, nullptr)};
+    if (a.value == INVALID_HANDLE_VALUE)
+    {
+        setError(ec, GetLastError());
+        return false;
+    }
+    OpenFile b{CreateFileA(names[1].c_str(), 0, share, nullptr, OPEN_EXISTING,
+                          FILE_FLAG_BACKUP_SEMANTICS, nullptr)};
+    if (b.value == INVALID_HANDLE_VALUE)
+    {
+        setError(ec, GetLastError());
+        return false;
+    }
+    BY_HANDLE_FILE_INFORMATION infoA{}, infoB{};
+    if (!GetFileInformationByHandle(a.value, &infoA) ||
+        !GetFileInformationByHandle(b.value, &infoB))
+    {
+        setError(ec, GetLastError());
+        return false;
+    }
+    clearError(ec);
+    return infoA.dwVolumeSerialNumber == infoB.dwVolumeSerialNumber &&
+           infoA.nFileIndexHigh == infoB.nFileIndexHigh &&
+           infoA.nFileIndexLow == infoB.nFileIndexLow;
+}
+
 uintmax_t __file_size(const path &p, error_code *ec)
 {
     WIN32_FILE_ATTRIBUTE_DATA data;

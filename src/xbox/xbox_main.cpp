@@ -6,6 +6,7 @@
 //   D:\ps2disc.iso            the PS2 disc image: the game reads its directory
 //                             sectors itself, as on the PC build
 //   D:\textures.xtp           prebuilt textures (optional; xbox_texture_pack.h)
+//   D:\native-bg\levelN.xbg   preconverted background geometry (TS_BG_NATIVE)
 //   D:\TitleImage.xbx, D:\SaveImage.xbx, D:\TitleMeta.xbx
 //                             the Xbox dashboard's icons and title name
 //                             (src/xbox/assets)
@@ -19,8 +20,20 @@
 #include "xbox_hwprof.h"
 #include "xbox_saves.h"
 #include "xbox_perf.h"
+#include "xbox_bg_game.h"
+#include "xbox_bg_runtime.h"
+#include "xbox_gif_native.h"
+#include "xbox_gif_direct.h"
+#include "xbox_dma_chain.h"
+#include "xbox_draw_record.h"
+#include "xbox_vif_record.h"
+#include "xbox_model_cache.h"
+#include "xbox_native_2d.h"
+#include "xbox_native_fx.h"
+#include "xbox_vif_source.h"
+#include "xbox_lazy_commit.h"
 #include "gs_nv2a_backend.h"
-#include "runtime/ps2_det.h"
+#include "runtime/ps2_vu1.h"
 #include "runtime/ps2_vu1.h"
 #include "runtime/ps2_spu2.h"
 
@@ -40,17 +53,10 @@
 #include "runtime/ps2_io_stats.h"
 #include "ps2_runtime_macros.h"
 #include "../../project/game/ts_native_math.h"
-#include "../../project/game/ts_game_hooks.h" // hooksmissing= in the status block
 
 void xboxSetFrameHook(void (*hook)());
 void xboxLastBlit(int &width, int &height, int &litPercent);
 #include <iostream>
-
-// Early platform set-up, right after the video mode and before anything
-// else takes memory (src/xbox/PUSH-BC-PLAN.md section 3.3 item 1: M8's P1
-// contiguous RDRAM reservation). A weak no-op here; C-XF's
-// xbox_guest_ram.cpp defines the real one.
-__attribute__((weak)) void xboxEarlyPlatformInit() {}
 
 extern uint32_t g_audioBuffers, g_audioMixKcyc; // xbox_raylib.cpp
 
@@ -160,8 +166,7 @@ namespace
                   << calls.lastRpcNumber.load() << std::dec << " sched it=" << g_eeSchedulerStats.loopIterations
                   << "/unw=" << g_eeSchedulerStats.unwinds << " mathdiff=" << g_tsNativeMath.mismatches << "("
                   << (g_tsNativeMath.firstFailed ? g_tsNativeMath.firstFailed : "-") << ") nan="
-                  << g_tsNativeMath.nanPayloads << " native=" << g_tsNativeMath.native
-                  << " hooksmissing=" << tsGameHooksMissing() << std::endl;
+                  << g_tsNativeMath.nanPayloads << " native=" << g_tsNativeMath.native << std::endl;
         if (const R5900Context *ctx = g_rt->eeScheduler().currentContext())
         {
             static uint32_t samples[8];
@@ -219,7 +224,165 @@ namespace
         xboxPerfReport(perf);
 #endif
         renderCountersReport(); // [TS:render] (project/game/ts_render_counters.cpp)
+#if TS_LAZY_GUEST_RAM
+        {
+            // Guest memory committed on first touch (xbox_lazy_commit.cpp):
+            // each range's committed/reserved KB; pages the handler committed
+            // on a read / a write, faults on a page just committed by another
+            // thread, and KB committed ahead of file reads.
+            XboxLazyStats lazy;
+            xboxLazyGetStats(lazy);
+            std::cout << "[TS:lazy]";
+            for (int i = 0; i < lazy.ranges; ++i)
+                std::cout << " " << lazy.names[i] << "=" << lazy.committedKB[i] << "/" << lazy.sizeKB[i] << "K";
+            std::cout << " faults r/w/again=" << lazy.readFaults << "/" << lazy.writeFaults << "/" << lazy.refaults
+                      << " precommit=" << lazy.precommitKB << "K" << std::endl;
+        }
+#endif
         std::cout << "[TS:tex] " << nv2aLookupStats() << std::endl;
+#if TS_BG_NATIVE
+        XboxBgRuntimeStats bg;
+        if (xboxBgGetStats(bg))
+            std::cout << "[TS:bg] level=" << bg.level << " active=" << bg.active
+                      << " pack/bind=" << bg.packBytes / 1024u << "/" << bg.bindingBytes / 1024u << "K"
+                      << " strips/verts=" << bg.matchedStrips << "/" << bg.matchedVertices
+                      << " fallback=" << bg.fallbackStrips << " diff=" << bg.geometryDiffs
+                      << " reject=" << bg.sourceRejects << "/" << bg.loadRejects
+                      << " invalid=" << bg.invalidations
+                      << " lookup hit/search=" << bg.bindingCacheHits << "/" << bg.bindingSearches
+                      << " provenance range/row=" << bg.provenanceFastRanges << "/" << bg.provenanceRowChecks
+                      << " batch accept/try/fallback=" << bg.batchAccepted << "/" << bg.batchAttempts
+                      << "/" << bg.batchFallbacks
+                      << " batch strips/verts=" << bg.batchStrips << "/" << bg.batchVertices
+                      << std::endl;
+#endif
+#if TS_GIF_NATIVE
+        const XboxGifNativeStats gif = xboxGifNativeGetStats();
+        std::cout << "[TS:gif-native] packets/tags/writes=" << gif.packets << "/" << gif.tags
+                  << "/" << gif.packedWrites << " plan hit/build=" << gif.planHits << "/" << gif.planBuilds
+                  << " reject/busy=" << gif.rejected << "/" << gif.cacheBusy
+                  << " fallback queue/worker/stream=" << gif.queuedFallbacks << "/"
+                  << gif.workerFallbacks << "/" << gif.streamFallbacks << std::endl;
+#endif
+#if TS_GIF_DIRECT
+        // Cumulative; declined = format/partial (native PACKED entry), debug, busy.
+        const XboxGifDirectStats &direct = g_xboxGifDirectStats;
+        std::cout << "[TS:gif-direct] packets=" << direct.packets << " runs/gpu/prims=" << direct.runs << "/"
+                  << direct.gpuRuns << "/" << direct.prims << " writes/skipped=" << direct.writes << "/"
+                  << direct.skipped << " images/carried=" << direct.images << "/" << direct.carried
+                  << " declined=" << direct.declined[XboxGifDirectStats::Format] << "/"
+                  << direct.declined[XboxGifDirectStats::Partial] << "/"
+                  << direct.declined[XboxGifDirectStats::Debug] << "/" << direct.declined[XboxGifDirectStats::Busy]
+#if TS_NATIVE_2D
+                  << " deferred=" << direct.deferred
+#endif
+                  << std::endl;
+#endif
+#if TS_NATIVE_2D
+        // Cumulative. nested: batches decoded as the original stream, by
+        // reason (parse/rows/program/arbiter/cycle/other); kept: builder calls
+        // in a kept list (dlPushDmaTag), run as originals.
+        XboxNative2dStats native2d;
+        xboxNative2dGetStats(native2d);
+        std::cout << "[TS:2d] items/tokens/walked/lost=" << native2d.items << "/" << native2d.tokens << "/"
+                  << native2d.walked << "/" << native2d.lost << " fast/kicks=" << native2d.fast << "/" << native2d.kicks
+                  << " nested=" << native2d.nested << " (" << native2d.declined[0] << "/" << native2d.declined[1] << "/"
+                  << native2d.declined[2] << "/" << native2d.declined[3] << "/" << native2d.declined[4] << "/"
+                  << native2d.declined[5] << ") kept=" << native2d.pushed << " gs-fallback=" << native2d.gsFallback
+                  << std::endl;
+#endif
+#if TS_NATIVE_FX
+        // Cumulative. kicks: 0x3FE0 kicks taken past VU1 memory; flushes: GS
+        // calls carrying them (spans: their pieces); gs-original: flushes the
+        // GS took the original way. Left on the original route: UNPACKs to
+        // TOPS+0 with no kick after them, program/arbiter/worker/capture
+        // state, rows, packet (IMAGE or past its rows).
+        {
+            const XboxNativeFxStats &fx = g_xboxNativeFxStats;
+            std::cout << "[TS:fx] kicks=" << fx.kicks << " flushes/spans=" << fx.flushes << "/" << fx.spans
+                      << " gs-original=" << fx.gsOriginal << " left not-kick/state/rows/packet=" << fx.notKick << "/"
+                      << fx.state << "/" << fx.rows << "/" << fx.packet << std::endl;
+        }
+#endif
+#if TS_DMA_CHAIN_CACHE
+        XboxDmaChainStats dma;
+        if (xboxDmaChainGetStats(dma))
+            std::cout << "[TS:dma-chain] request/hit/build=" << dma.requests << "/" << dma.hits
+                      << "/" << dma.built << " changed/declined=" << dma.changed << "/" << dma.declined
+                      << " admitted tags/bytes=" << dma.admittedTags << "/" << dma.admittedBytes
+                      << std::endl;
+#endif
+#if TS_DRAW_RECORDS
+        XboxDrawRecordStats records;
+        if (xboxDrawRecordGetStats(records))
+            std::cout << "[TS:draw-record] notes/new/reuse=" << records.notes << "/" << records.created
+                      << "/" << records.reused << " precalc/dbuf=" << records.notesPrecalc << "/" << records.notesDbuf
+                      << " ref=" << records.notesRef[0] << "/" << records.notesRef[1] << "/" << records.notesRef[2]
+                      << " lookup/hit/hint=" << records.lookups << "/"
+                      << records.hits << "/" << records.hintHits
+                      << " changed/reject/busy=" << records.changed << "/" << records.rejected
+                      << "/" << records.busy << " accepted=" << records.accepted
+                      << " payload/tte=" << records.transportAccepted[0] << "/" << records.transportAccepted[1]
+                      << " candidates/capped=" << records.candidates << "/" << records.candidateLimits
+                      << " dma prepared/lookup=" << records.dmaAccepted << "/" << records.dmaLookups
+                      << " dma tags/bytes=" << records.dmaTags << "/" << records.dmaBytes
+                      << std::endl;
+        XboxVifRecordStats prefixes;
+        if (xboxVifRecordGetStats(prefixes))
+            std::cout << "[TS:vif-record] attempt/hit/build=" << prefixes.attempts << "/" << prefixes.hits
+                      << "/" << prefixes.built << " reject/busy=" << prefixes.rejected << "/" << prefixes.busy
+                      << " prefixes/commands/vectors/bytes=" << prefixes.prefixes << "/" << prefixes.commands
+                      << "/" << prefixes.vectors << "/" << prefixes.bytes << std::endl;
+#endif
+#if TS_VIF_SOURCE
+        XboxVifSourceStats sources;
+        if (xboxVifSourceGetStats(sources))
+            std::cout << "[TS:vif-source] prefixes/armed/claimed=" << sources.prefixes << "/"
+                      << sources.armed << "/" << sources.claims
+                      << " reject/busy=" << sources.rejected << "/" << sources.busy
+                      << " groups/strips/vertices=" << sources.groups << "/" << sources.strips
+                      << "/" << sources.vertices << std::endl;
+#endif
+#if TS_NATIVE_MODELS
+        XboxModelStats models;
+        xboxModelGetStats(models);
+        std::cout << "[TS:models] models/ready/failed=" << models.models << "/" << models.ready << "/" << models.failed
+                  << " captures/ok=" << models.captures << "/" << models.captured << " fail=" << models.failures[1]
+                  << "," << models.failures[2] << "," << models.failures[3] << "," << models.failures[4] << ","
+                  << models.failures[5] << "," << models.failures[6] << "," << models.failures[7]
+                  << " replays/draws/runs/verts=" << models.replays << "/" << models.replayDraws << "/"
+                  << models.replayRuns << "/" << models.replayVertices << " declined/missing=" << models.replayDeclined
+                  << "/" << models.replayMissing << " steps/inline=" << models.replaySteps << "/" << models.inlined
+                  << " stale/verify/flush=" << models.stale << "/" << models.verifies << "/" << models.flushes
+                  << " evict/compact=" << models.evicted << "/" << models.compactions << " vtxKB=" << models.vertexBytes / 1024u << " files load/save/fail="
+                  << models.fileLoads << "/" << models.fileSaves << "/" << models.fileFailures << std::endl;
+        XboxPrologueStats prologues;
+        xboxPrologueGetStats(prologues);
+        std::cout << "[TS:prologue] tokens/expanded/lost=" << prologues.tokens << "/" << prologues.expanded << "/"
+                  << prologues.lost << " refs=" << prologues.refs
+#if TS_NATIVE_REPLAY
+                  << " native/run/inline/lost=" << prologues.native << "/" << prologues.nativeDecoded << "/"
+                  << prologues.nativeInline << "/" << prologues.nativeLost
+#endif
+                  << std::endl;
+#if TS_DIRECT_MODELS
+        // The direct model route (DIRECT-MODELS-PLAN.md): partGfx's precalc
+        // CALLs and those taken direct, the reasons the rest kept the CALL,
+        // the walker's markers (walked: expanded with the CALL instead), and
+        // the decoder's replays, chains decoded from guest memory and lost records.
+        XboxDirectStats direct;
+        if (xboxDirectGetStats(direct))
+            std::cout << "[TS:direct] calls/taken=" << direct.calls << "/" << direct.taken
+                      << " keep token/ready/kind/verify/record=" << direct.noToken << "/" << direct.notReady << "/"
+                      << direct.kind << "/" << direct.verify << "/" << direct.record << " marked/walked=" << direct.marked
+                      << "/" << direct.walked << " replayed/lean/inline/lost=" << direct.replayed << "/" << direct.lean
+                      << "/" << direct.inlined << "/" << direct.lost << " prologue native/decoded="
+                      << direct.prologueNative << "/" << direct.prologueDecoded << " vu1 in/first="
+                      << direct.materialized << "/" << direct.materializedFirst << " gs syncs=" << direct.gsSyncs
+                      << " cpu draws/runstrips=" << direct.cpuDraws << "/" << direct.cpuRunStrips
+                      << " strips nopre/short=" << direct.nonPreStrips << "/" << direct.shortStrips << std::endl;
+#endif
+#endif
     }
 
     // std::chrono on nxdk: check the clocks advance like the kernel timer.
@@ -299,10 +462,12 @@ namespace
 
 int main()
 {
+#if TS_LAZY_GUEST_RAM
+    XboxLazyThreadScope lazyCommit; // guest memory's first-touch handler (xbox_lazy_commit.h)
+#endif
     // Until the runtime draws its first frame, log lines are also printed on
     // screen, so a stall during start-up is visible.
     XVideoSetMode(640, 480, 32, REFRESH_DEFAULT);
-    xboxEarlyPlatformInit();
     xboxLogInit();
     xboxLogToScreen(true);
     const XboxSaveLayout saves = xboxSavesPrepare();
@@ -328,11 +493,10 @@ int main()
     logMemory("runtime constructed");
     // The screen is drawn by the NV2A (gs_nv2a_backend.cpp), installed
     // before the runtime sets up GS memory; without it, the software renderer.
-    // (xboxInstallBackend, xbox_perf.cpp: the timing wrapper with
-    // TS_PERF_BACKEND, the det wrapper with TS_DET, single-owner locking.)
+    // (TS_PERF_BACKEND: inside a timing wrapper, xbox_perf.cpp.)
     if (std::unique_ptr<GSNv2aBackend> gpu = GSNv2aBackend::Create())
     {
-        xboxInstallBackend(rt.gs(), std::move(gpu));
+        rt.gs().setRasterBackend(xboxPerfWrapBackend(std::move(gpu)));
         hwprofGpuReady();
         std::cout << "[TS:xbox] drawing on the NV2A" << std::endl;
     }
@@ -346,9 +510,33 @@ int main()
     nv2aSetGuestRam(rt.memory().getRDRAM()); // the player count: split screen's texture budget
     logMemory("runtime initialised");
 
+    std::cout << "[TS:opt] background=" << TS_BG_NATIVE
+              << " geometry-fast=" << TS_BG_FAST << " geometry-batch=" << TS_BG_BATCH
+              << " vif-fast=" << TS_VIF_FAST << " gif-native=" << TS_GIF_NATIVE
+              << " gif-direct=" << TS_GIF_DIRECT << " native-2d=" << TS_NATIVE_2D
+              << " dma-chain=" << TS_DMA_CHAIN_CACHE << " native-call-slots=" << TS_NATIVE_CALL_SLOTS
+              << " draw-records=" << TS_DRAW_RECORDS << " vif-source=" << TS_VIF_SOURCE
+              << " material-cache=" << TS_NV2A_MATERIAL_CACHE
+              << " texture-identity=" << TS_NV2A_PACK_IDENTITY_CACHE
+              << " profile-backend=" << TS_PERF_BACKEND
+              << " geometry-verify=" << TS_BG_VERIFY << std::endl;
+#if TS_NATIVE_FX
+    std::cout << "[TS:opt] native-fx=1" << std::endl;
+#endif
+
     const std::string elf = std::string(kGameData) + "\\SLUS_200.90";
     if (!rt.loadELF(elf))
         halt("could not load D:\\game-data\\SLUS_200.90");
+#if TS_DRAW_RECORDS
+    xboxDrawRecordReset();
+#endif
+#if TS_BG_NATIVE
+    xboxBgConfigure("D:\\native-bg", 4u * 1024u * 1024u);
+    xboxBgInstallGameHooks(rt);
+#endif
+#if TS_NATIVE_2D
+    xboxNative2dInstall(rt); // after the game's own overrides (dlSetClip's twin among them)
+#endif
     logMemory("game loaded");
 
     PS2Runtime::IoPaths paths = PS2Runtime::getIoPaths();
@@ -384,10 +572,6 @@ int main()
         else
             std::cout << "[TS:xbox] autoplay.pad: " << error << std::endl;
     }
-
-    // Deterministic mode (runtime/ps2_det.h): pinned host inputs, hashes,
-    // the det memory-card root. Nothing unless built with TS_DET.
-    xboxDetSetup();
 
     rt.gs().setHostPresentationMode(GS::HostPresentationMode::Signal);
     rt.setHostAspectRatio(4.0f / 3.0f);

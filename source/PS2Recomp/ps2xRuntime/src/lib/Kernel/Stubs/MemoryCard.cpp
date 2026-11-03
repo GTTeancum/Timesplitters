@@ -1,8 +1,5 @@
 #include "Common.h"
 #include "MemoryCard.h"
-#if defined(PLATFORM_XBOX)
-#include "runtime/ps2_host_time.h" // entry times as the guest sees them (pinned in det mode)
-#endif
 
 namespace ps2_stubs
 {
@@ -123,7 +120,6 @@ namespace ps2_stubs
 
         std::filesystem::path getMcRootPath(int32_t port)
         {
-#if !defined(PLATFORM_XBOX)
             // Empty until the ELF's folder (or setIoPaths) gives the cards a
             // home; never the working directory.
             std::filesystem::path root = PS2Runtime::getIoPaths().mcRoot;
@@ -131,23 +127,6 @@ namespace ps2_stubs
             {
                 return {};
             }
-#else
-            const PS2Runtime::IoPaths &paths = PS2Runtime::getIoPaths();
-            std::filesystem::path root = paths.mcRoot;
-            if (root.empty())
-            {
-                if (!paths.elfDirectory.empty())
-                {
-                    root = paths.elfDirectory / "mc0";
-                }
-                else
-                {
-                    std::error_code ec;
-                    const std::filesystem::path cwd = std::filesystem::current_path(ec);
-                    root = ec ? std::filesystem::path("mc0") : (cwd / "mc0");
-                }
-            }
-#endif
 
             root = root.lexically_normal();
             if (port <= 0)
@@ -172,7 +151,6 @@ namespace ps2_stubs
 
         void ensureMcRootExists(int32_t port)
         {
-#if !defined(PLATFORM_XBOX)
             const std::filesystem::path root = getMcRootPath(port);
             if (root.empty())
             {
@@ -180,10 +158,6 @@ namespace ps2_stubs
             }
             std::error_code ec;
             std::filesystem::create_directories(root, ec);
-#else
-            std::error_code ec;
-            std::filesystem::create_directories(getMcRootPath(port), ec);
-#endif
         }
 
 #if defined(PLATFORM_XBOX)
@@ -322,12 +296,10 @@ namespace ps2_stubs
         std::filesystem::path guestMcPathToHostPath(int32_t port, const std::string &guestPath)
         {
             std::filesystem::path resolved = getMcRootPath(port);
-#if !defined(PLATFORM_XBOX)
             if (resolved.empty())
             {
                 return {};
             }
-#endif
             if (guestPath.size() > 1u)
             {
                 resolved /= std::filesystem::path(guestPath.substr(1));
@@ -346,13 +318,9 @@ namespace ps2_stubs
 
         std::time_t fileTimeToTimeTMc(std::filesystem::file_time_type value)
         {
-#if defined(PLATFORM_XBOX)
-            return ps2xHostFileTime(value);
-#else
             const auto systemTime = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
                 value - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
             return std::chrono::system_clock::to_time_t(systemTime);
-#endif
         }
 
         void writeMcCString(uint8_t *rdram, uint32_t addr, const std::string &value)
@@ -908,11 +876,7 @@ namespace ps2_stubs
                     }
 
                     std::filesystem::path hostDir = getMcRootPath(port);
-#if !defined(PLATFORM_XBOX)
                     if (!parentRel.empty() && !hostDir.empty())
-#else
-                    if (!parentRel.empty())
-#endif
                     {
                         hostDir /= parentRel;
                     }
@@ -922,11 +886,7 @@ namespace ps2_stubs
                     if (std::filesystem::exists(hostDir, ec) && !ec &&
                         std::filesystem::is_directory(hostDir, ec))
                     {
-#if defined(PLATFORM_XBOX)
-                        const std::time_t now = ps2xHostTime();
-#else
                         const std::time_t now = std::time(nullptr);
-#endif
                         auto appendSpecial = [&](const std::string &name)
                         {
                             if (!wildcardMatch(pattern, name))

@@ -2,9 +2,6 @@
 #include "CD.h"
 #include "MPEG.h"
 #include "runtime/ee_scheduler.h"
-#if defined(PLATFORM_XBOX)
-#include "runtime/ps2_host_time.h" // the clock as the guest sees it (pinned in det mode)
-#endif
 
 namespace ps2_stubs
 {
@@ -537,11 +534,7 @@ namespace ps2_stubs
             return;
         }
 
-#if defined(PLATFORM_XBOX)
-        std::time_t now = ps2xHostTime();
-#else
         std::time_t now = std::time(nullptr);
-#endif
         std::tm localTm{};
 #ifdef _WIN32
         localtime_s(&localTm, &now);

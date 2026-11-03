@@ -49,14 +49,6 @@ public:
     bool loadScriptText(const std::string &text, std::string *error = nullptr);
     void setScriptTimeScale(double scale);
     void setScriptU32Reader(std::function<uint32_t(uint32_t)> reader);
-#if defined(PLATFORM_XBOX)
-    // "knob <name> <value>" script lines (read-count scripts; a control line
-    // like wait_u32, played when the script reaches it) go to this handler
-    // (project/game/ts_knobs.cpp sets it; null: the line is skipped). One
-    // for every script: file storage, PS2Runtime's layout stays.
-    using ScriptKnobHandler = void (*)(const char *name, uint32_t value);
-    static void setScriptKnobHandler(ScriptKnobHandler handler);
-#endif
     void clearScript();
     bool scriptActive() const { return !m_script.empty(); }
     bool scriptExhausted() const { return m_scriptExhausted; }
@@ -87,9 +79,6 @@ private:
             Frame,
             WaitU32,
             Repeat,
-#if defined(PLATFORM_XBOX)
-            Knob,
-#endif
         };
 
         Kind kind = Kind::Frame;
@@ -98,9 +87,7 @@ private:
         ScriptLane lanes[kMaxLanes];
         // WaitU32: address, comparison, value. Repeat (closes a repeat
         // block): waitAddress is the block's first frame, waitValue the
-        // passes after the first, reads the passes still to play. Knob:
-        // waitAddress indexes the script's knob names (file storage in
-        // ps2_pad.cpp: a frame stays this size), waitValue the value.
+        // passes after the first, reads the passes still to play.
         uint32_t waitAddress = 0;
         ScriptCompare waitCompare = ScriptCompare::Equal;
         uint32_t waitValue = 0;

@@ -1,9 +1,5 @@
 #include "ps2_runtime.h"
 #include "runtime/ps2_io_stats.h"
-#if defined(PLATFORM_XBOX)
-#include "runtime/ps2_host_time.h" // the guest's view of the host clock (pinned in det mode)
-#include "runtime/ps2_det.h"       // detTrace (no-ops unless TS_DET)
-#endif
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_host_settings.h"
@@ -43,6 +39,21 @@ static_assert(PS2X_GUEST_DISPATCH_CYCLES == EeScheduler::kGuestDispatchCycles,
 void *xboxThreadStart(uint32_t stackBytes, void (*entry)(void *), void *arg);
 void xboxThreadJoin(void *thread);
 void xboxStackReport();
+// TS_LAZY_GUEST_RAM 1 (src/xbox/xbox_lazy_commit.cpp): guest memory is
+// committed on first touch; the game thread installs the handler for it.
+#ifndef TS_LAZY_GUEST_RAM
+#define TS_LAZY_GUEST_RAM 1
+#endif
+#if TS_LAZY_GUEST_RAM
+void xboxLazyFrameEnter(void *frame[2]);
+void xboxLazyFrameLeave(void *frame[2]);
+#endif
+// TS_FLUSH_DENORMALS 1 (src/xbox/Makefile): the game thread flushes
+// denormals to zero as the PS2 does (src/xbox/xbox_shims.cpp).
+#ifndef TS_FLUSH_DENORMALS
+#define TS_FLUSH_DENORMALS 0
+#endif
+void xboxFlushDenormals();
 #endif
 #include "ThreadNaming.h"
 #include "Kernel/Stubs/Audio.h"
@@ -377,15 +388,11 @@ namespace
             defaults.elfDirectory = ec ? std::filesystem::path(".") : cwd.lexically_normal();
             defaults.hostRoot = defaults.elfDirectory;
             defaults.cdRoot = defaults.elfDirectory;
-#if !defined(PLATFORM_XBOX)
             // No memory card location until the game's ELF (or an explicit
             // setIoPaths) says where the cards live: they belong next to the
             // ELF, never in the working directory. Card code that runs
             // earlier (the IOP's MCSERV resets when PS2Runtime is built) finds
             // no card root and creates nothing.
-#else
-            defaults.mcRoot = defaults.elfDirectory / "mc0";
-#endif
             return defaults;
         }();
 
@@ -1250,11 +1257,7 @@ void PS2Runtime::setIoPaths(const IoPaths &paths)
     {
         normalized.cdRoot = normalized.elfDirectory;
     }
-#if !defined(PLATFORM_XBOX)
     if (normalized.mcRoot.empty() && !normalized.elfPath.empty())
-#else
-    if (normalized.mcRoot.empty())
-#endif
     {
         normalized.mcRoot = normalized.elfDirectory / "mc0";
     }
@@ -1271,11 +1274,7 @@ void PS2Runtime::configureIoPathsFromElf(const std::string &elfPath)
         paths.elfDirectory = paths.elfPath.parent_path();
     }
 
-#if !defined(PLATFORM_XBOX)
     if (!paths.elfPath.empty() && !paths.elfDirectory.empty())
-#else
-    if (!paths.elfDirectory.empty())
-#endif
     {
         paths.hostRoot = paths.elfDirectory;
         paths.cdRoot = paths.elfDirectory;
@@ -1749,91 +1748,8 @@ bool __attribute__((fastcall)) ps2xDirectCall(uint8_t *rdram, R5900Context *ctx,
     PS2X_CALL_ENTRY(*entry, target, resume, return false);
     return true;
 }
-#if defined(PLATFORM_XBOX)
-
-// The post-call cases other than "back at resume" (PS2X_CALL_RETURN_SLOW,
-// ps2_direct_call_xbox.h): the three tests the inline form used to make.
-bool __attribute__((fastcall)) ps2xCallReturnSlow(R5900Context *ctx, PS2Runtime *runtime, uint32_t target,
-                                                  uint32_t resume)
-{
-    if (runtime->isStopRequested() || ctx->pc == 0u)
-        return false;
-    if (ctx->pc == target)
-    {
-        ctx->pc = resume;
-        return true;
-    }
-    return false;
-}
-#endif
 #endif
 
-#if defined(PLATFORM_XBOX)
-// ---- The host clock as the guest sees it (runtime/ps2_host_time.h).
-namespace
-{
-    std::time_t s_hostTimePin = 0;
-    uint32_t s_hostTimePinnedReads = 0, s_hostTimeRealReads = 0;
-}
-
-std::time_t ps2xHostTime()
-{
-    if (s_hostTimePin != 0)
-    {
-        ++s_hostTimePinnedReads;
-        return s_hostTimePin;
-    }
-    return std::time(nullptr);
-}
-
-std::time_t ps2xHostFileTime(std::filesystem::file_time_type value)
-{
-    if (s_hostTimePin != 0)
-    {
-        ++s_hostTimePinnedReads;
-        return s_hostTimePin;
-    }
-    const auto systemValue = std::chrono::time_point_cast<std::chrono::system_clock::duration>(
-        value - std::filesystem::file_time_type::clock::now() + std::chrono::system_clock::now());
-    return std::chrono::system_clock::to_time_t(systemValue);
-}
-
-int ps2xHostTimezoneMinutes(int computed)
-{
-    if (s_hostTimePin != 0)
-    {
-        ++s_hostTimePinnedReads;
-        return 0;
-    }
-    return computed;
-}
-
-void ps2xPinHostTime(std::time_t instant)
-{
-    s_hostTimePin = instant;
-}
-
-bool ps2xHostTimePinned()
-{
-    return s_hostTimePin != 0;
-}
-
-uint32_t ps2xHostTimePinnedReads()
-{
-    return s_hostTimePinnedReads;
-}
-
-uint32_t ps2xHostTimeRealReads()
-{
-    return s_hostTimeRealReads;
-}
-
-void ps2xHostTimeNoteRealRead()
-{
-    ++s_hostTimeRealReads;
-}
-
-#endif
 void PS2Runtime::SignalException(R5900Context *ctx, PS2Exception exception)
 {
     if (exception == EXCEPTION_INTEGER_OVERFLOW)
@@ -1894,9 +1810,6 @@ void PS2Runtime::handleSyscall(uint8_t *rdram, R5900Context *ctx, uint32_t encod
 
     ps2x::guestCallProbe().lastSyscall.store(syscallId, std::memory_order_relaxed);
     ps2x::guestCallProbe().syscalls.fetch_add(1, std::memory_order_relaxed);
-#if defined(PLATFORM_XBOX)
-    detTrace(7u /* kDetTraceSyscall, EeScheduler.cpp */, syscallId, ctx->pc);
-#endif
     if (ps2_syscalls::dispatchNumericSyscall(syscallId, rdram, ctx, this))
     {
         return;
@@ -2842,6 +2755,13 @@ void PS2Runtime::run()
     auto gameMain = [&]()
                            {
         ThreadNaming::SetCurrentThreadName("GameThread");
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        void *lazyCommitFrame[2]; // the first-touch handler, until the thread ends
+        xboxLazyFrameEnter(lazyCommitFrame);
+#endif
+#if defined(PLATFORM_XBOX) && TS_FLUSH_DENORMALS
+        xboxFlushDenormals();
+#endif
         PS2X_TRY
         {
             m_eeScheduler->reset(m_memory.getRDRAM(), m_cpuContext);
@@ -2861,6 +2781,9 @@ void PS2Runtime::run()
             gameFailure = std::current_exception();
             std::cerr << "Error during program execution: unknown exception" << std::endl;
         }
+#endif
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM
+        xboxLazyFrameLeave(lazyCommitFrame);
 #endif
         gameThreadFinished.store(true, std::memory_order_release); };
 #if defined(PLATFORM_XBOX) && TS_GAME_THREAD_STACK

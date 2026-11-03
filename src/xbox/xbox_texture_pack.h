@@ -10,10 +10,25 @@
 // (render targets, palettes made at run time) keep the runtime path.
 //
 // File layout (little-endian):
-//   header, 32 bytes: char magic[4] "XTP1"; u32 version (1); u32 hashVersion
-//     (gs_texture_hash::kVersion); u32 count; u32 indexOffset;
-//     u32 dataOffset; u32 reserved[2]
+//   header, 32 bytes: char magic[4] "XTP1"; u32 version (1 or 2); u32
+//     hashVersion (gs_texture_hash::kVersion); u32 count; u32 indexOffset;
+//     u32 dataOffset; version 1: u32 reserved[2] (0); version 2: u32
+//     sourceCount; u32 sourceOffset (0 when sourceCount is 0)
 //   index at indexOffset: count Entry records, sorted by key
+//   version 2, at sourceOffset (after the index, before the data):
+//     sourceCount Source records, sorted by key: the entries again by
+//     their source keys (xbox_texture_source.h, kVersion 1), which the
+//     renderer works out without decoding a texture (TS_TEXTURE_SOURCE_KEYS)
+//   version 3: version 2 with a 32-byte extension after the header (the
+//     index from offset 64 on): u32 preloadCount; u32 preloadOffset; u32
+//     preloadDataOffset; u32 preloadDataBytes; u32 reserved[4] (0). At
+//     preloadOffset (between the index and the data) preloadCount Preload
+//     records sorted by entry; at preloadDataOffset (128-byte aligned,
+//     before the data) their texels: for each, one small level of its
+//     entry (its own format, 128-byte aligned), read once at start-up into
+//     memory of their own and drawn while the entry is on its way from the
+//     disc. Format kI8 entries (version 3 only) are 8-bit index textures,
+//     drawn with a palette the renderer makes (SZ_I8_A8R8G8B8).
 //   data: each entry's levels back to back from level 0, each entry
 //     128-byte aligned. DXT levels in plain block order (the NV2A reads
 //     compressed textures block by block, not swizzled), the others in the
@@ -38,6 +53,7 @@ public:
         kDxt5 = 1,
         kA8R8G8B8 = 2, // swizzled
         kA1R5G5B5 = 3, // swizzled
+        kI8 = 4,       // swizzled 8-bit indices; drawn with a palette (version 3)
     };
     enum Flags : uint8_t
     {
@@ -60,6 +76,32 @@ public:
     };
     static_assert(sizeof(Entry) == 24, "index record layout");
 
+    enum SourceKind : uint8_t
+    {
+        kSourceExact = 0, // this image with this CLUT (or a CLUT-less format): the entry is the texture
+        kSourceImage = 1, // these indices with some CLUT: the entry is one palette's (not the texture)
+    };
+    // One source-table record (version 2), exactly as on the disc.
+    struct Source
+    {
+        uint64_t key;   // xbox_texture_source::exactKey or imageOnlyKey
+        uint32_t entry; // index into the entries
+        uint8_t kind;   // SourceKind
+        uint8_t reserved[3];
+    };
+    static_assert(sizeof(Source) == 16, "source record layout");
+
+    // One preload record (version 3), exactly as on the disc.
+    struct Preload
+    {
+        uint32_t entry;         // index into the entries
+        uint32_t offset;        // from preloadDataOffset, 128-byte aligned
+        uint16_t width, height; // the level's size, powers of two
+        uint8_t format;         // the entry's
+        uint8_t reserved[3];
+    };
+    static_assert(sizeof(Preload) == 16, "preload record layout");
+
     // What acquire found.
     enum Status : uint8_t
     {
@@ -67,7 +109,7 @@ public:
         kLoading,     // asked for (now or before), not read yet: try again next frame
         kBusy,        // the loader's queue is full: try again next frame
         kNoRoom,      // the pool has no room that may be taken now: try again later
-        kUnavailable, // never (no pool, or the disc could not read it)
+        kUnavailable, // never (no pool, too large for it, or an unreadable entry)
     };
 
     struct Stats
@@ -87,19 +129,34 @@ public:
 
     // Reads and checks the header and the index. False when the file is
     // missing or is not a pack this reader understands (the reason is
-    // logged); the pack then stays unused.
+    // logged); the pack then stays unused. Reopening first closes the old
+    // pack: the caller must have stopped using all its borrowed entries.
     bool open(const char *path);
     // GPU memory for resident entries, 128-byte aligned, owned by the
     // caller (who must close() before freeing it), and starts the loader.
-    // False when the loader cannot start: the pack stays unused.
+    // The pool must hold at least 128 bytes. False for invalid pool storage
+    // or when the loader cannot start: the pack stays unused.
     bool attachPool(uint8_t *pool, uint32_t bytes);
-    // Stops the loader (after its current read) and closes the file.
+    // Stops the loader (after its current read), closes the file and frees
+    // metadata. Invalidates borrowed entries; the caller still owns pool.
     void close();
     bool enabled() const { return pool_ != nullptr; }
     uint32_t count() const { return uint32_t(index_.size()); }
 
     // The entry with this key, or -1.
     int find(uint64_t key) const;
+    // The entry with this source key (and its kind), or -1. Always -1 for a
+    // version 1 pack.
+    int findSource(uint64_t key, uint8_t &kind) const;
+    uint32_t sourceCount() const { return uint32_t(sources_.size()); }
+    // Version 3's preloads: the bytes of their texels (0: none), read into
+    // `dest` (128-byte aligned, GPU memory) once, after open and before
+    // attachPool (the loader then owns the file). False on a read error:
+    // the caller then does without them.
+    uint32_t preloadBytes() const { return preloadDataBytes_; }
+    bool readPreloads(uint8_t *dest);
+    // The entry's preload once readPreloads succeeded, else null.
+    const Preload *preload(int index) const;
     const Entry &entry(int index) const { return index_[size_t(index)]; }
 
     // The entry's levels in the pool (status kReady), else null. An entry
@@ -172,6 +229,10 @@ private:
 
     void *file_ = nullptr; // HANDLE
     std::vector<Entry> index_;
+    std::vector<Source> sources_;  // version 2's source table
+    std::vector<Preload> preloads_; // version 3's preloads
+    uint32_t preloadDataOffset_ = 0, preloadDataBytes_ = 0;
+    bool preloadsRead_ = false;
     std::vector<Slot> slots_;      // per entry
     std::vector<int> resident_;    // entries in the pool (queued or resident)
     std::vector<Range> free_;      // free pool ranges, by offset

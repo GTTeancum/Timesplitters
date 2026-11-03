@@ -1,13 +1,10 @@
 // GS renderer for the original Xbox (NV2A via pbkit). See gs_nv2a_backend.h.
 #include "gs_nv2a_backend.h"
 #include "gs_nv2a_clip.h"
-#include "gs_nv2a_screen_math.h" // the screen-vertex arithmetic (shared with the host test)
-#include "xbox_perf.h"           // TS_NATIVE_EMIT_TIER0 (the Tier 0 switch the bulk path follows)
 #include "xbox_texture_pack.h"
-#include "runtime/ps2_host_settings.h" // widescreen: the bulk path declines (gs_nv2a_screen.inl)
-#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: beginXfRun, keyFor, texture() and the DrawKey compares timed
+#include "xbox_texture_source.h"
 #include "runtime/gs/gs_texture_hash.h"
-#include "xbox_diag.h"           // TS_DIAG: the picture diagnostics' switches (src/xbox/DIAG.md)
+#include "runtime/gs/ps2_gs_memory.h"
 
 // Split screen (REWRITE-PLAN.md M2.3). Each switch at 0 restores the old path.
 // TS_NV2A_DISPLAY_HEIGHT 1: the GS frame's height (its mapping onto the
@@ -48,6 +45,7 @@
 #include <cstring>
 #include <iostream>
 #include <list>
+#include <new>
 #include <set>
 #include <vector>
 
@@ -68,6 +66,18 @@
 #ifndef TS_GPU_RANGE_MEMO
 #define TS_GPU_RANGE_MEMO 1
 #endif
+// Reuse the derived NV2A material registers across draws. Cached records own
+// no texture pointers; the current texture and window clip are attached only
+// after the exact material inputs match.
+#ifndef TS_NV2A_MATERIAL_CACHE
+#define TS_NV2A_MATERIAL_CACHE 1
+#endif
+// Remember which pack entry an unchanged GS texture decoded to, independently
+// of its GPU cache record. Exact page-write invalidation lets an evicted
+// texture return from the pack without another decode or content hash.
+#ifndef TS_NV2A_PACK_IDENTITY_CACHE
+#define TS_NV2A_PACK_IDENTITY_CACHE 1
+#endif
 // TS_CLUT_IDENTITY 1: full CLUT loads are found by identity (CBP, format and
 // GS page versions -> the content hash; 24 bytes an entry) and the CPU
 // renderer's CLUT buffer is filled only when something reads it; 0: the
@@ -76,37 +86,22 @@
 #ifndef TS_CLUT_IDENTITY
 #define TS_CLUT_IDENTITY 1
 #endif
+// TS_TEXTURE_SOURCE_KEYS 1 (make TS_TEXTURE_SOURCE_KEYS=1, which also builds
+// the pack with its source table): a texture-cache miss finds its pack entry
+// by what GS memory holds (8-bit indices and the CLUT's hash, or 32-bit
+// texels; xbox_texture_source.h), hashed as the game uploads it or read
+// back, instead of decoding it through its palette and hashing the RGBA;
+// a full CLUT load that repeats the last one costs a compare. Misses (and
+// packs without the table) take the decode as before. 0: as before.
+#ifndef TS_TEXTURE_SOURCE_KEYS
+#define TS_TEXTURE_SOURCE_KEYS 0
+#endif
 // TS_XF_DIRTY_ROWS 1: only the transform-constant rows the native pipeline
 // says changed (nv2aXfConstantsChanged) are rebuilt and compared, and only
 // rows rebuilt with a new value are sent to the GPU; 0: the whole block
 // rebuilt and compared, and every row compared with the GPU's copy.
 #ifndef TS_XF_DIRTY_ROWS
 #define TS_XF_DIRTY_ROWS 1
-#endif
-// TS_NATIVE_EMIT_BULK 1 (default: TS_NATIVE_EMIT_TIER0's value; src/xbox/
-// PUSH-BC-PLAN.md section 3.2, C-EMIT): the Tier 0 bulk path, SubmitPrimitives
-// in gs_nv2a_screen.inl, takes a run of decoded primitives of one PRIM in
-// one call (one texture lookup, one key, one reserve); the backend declares
-// it in DrawPaths. 0: the old path (the front end kicks primitives one by
-// one; DrawPaths has no bulk bit, so a build with TS_NATIVE_EMIT_TIER0 on
-// and this off refuses to start).
-#ifndef TS_NATIVE_EMIT_BULK
-#define TS_NATIVE_EMIT_BULK TS_NATIVE_EMIT_TIER0
-#endif
-// TS_NV2A_SCREEN_SEGMENTS 1 (C-EMIT, section 5.10): the screen vertex ring
-// is two fenced segments, like the transform ring; a full segment is
-// handed to the GPU behind a fence and the ring waits only for the other
-// segment's fence. 0: a full ring drains the whole GPU (waitIdle).
-#ifndef TS_NV2A_SCREEN_SEGMENTS
-#define TS_NV2A_SCREEN_SEGMENTS 1
-#endif
-// TS_NV2A_SPRITE_QUADS 1 (C-EMIT, section 5.10 "optional QUADS after T9"):
-// the bulk path sends sprites as one quad of four vertices (topology 2)
-// instead of two triangles of three. Only when the console probe's T9 has
-// shown a quad covers exactly the pixels of its triangle pair. 0 (default):
-// triangle pairs, as the per-primitive path.
-#ifndef TS_NV2A_SPRITE_QUADS
-#define TS_NV2A_SPRITE_QUADS 0
 #endif
 // TS_NV2A_SELFCHECK 1 (default: TS_NATIVE_DRAW_SELFCHECK's value): every
 // texture lookup also walks the list and every full CLUT load also takes
@@ -120,17 +115,22 @@
 #define TS_NV2A_SELFCHECK 0
 #endif
 #endif
+// TS_CLUT_REPEAT: the full CLUT load that repeats the last one costs a
+// compare (loadFullClut's lastFullClut). It came with the source keys; it
+// needs nothing of theirs (only that every other CLUT load forgets it,
+// which they all do), so TS_FAST_REPLAY takes it too: a replayed model
+// reloads the same palette for each of its draws.
+#if (TS_TEXTURE_SOURCE_KEYS || (TS_FAST_REPLAY && TS_NATIVE_MODELS && TS_NATIVE_REPLAY)) && !TS_NV2A_SELFCHECK
+#define TS_CLUT_REPEAT 1
+#else
+#define TS_CLUT_REPEAT 0
+#endif
 
 void xboxGpuOwnsDisplay(bool owns);
 void xboxLogToScreen(bool enabled);
 extern "C" void pb_ts_set_depth_format(unsigned int fmt); // src/xbox/pbkit/pbkit_ts.c
 extern "C" unsigned int pb_ts_end_count;                  // pb_end calls so far (pbkit_ts.c)
 extern "C" int pb_ts_back_buffer_on_screen(void);         // the next frame's target is on screen
-#if TS_DIAG
-extern "C" int pb_ts_diag_untiled, pb_ts_diag_back_buffers; // boot: set before pb_init (pbkit_ts.c)
-extern "C" int pb_ts_pending_flips(void);                    // finished frames not shown yet
-extern "C" int pb_ts_buffer_count(void);
-#endif
 
 namespace
 {
@@ -172,8 +172,9 @@ namespace
     // port's dump of a session) come to about 1.14 MB with mip chains.
     constexpr const char *kTexturePackPath = "D:\\textures.xtp";
 #if TS_HWPROF
-    // Profiler builds: the profiler's 96 KB table is reserved at start-up
-    // (xbox_hwprof.cpp) and comes out of this pool, not the game's memory.
+    // Profiler builds: the profiler's table and stack buffer (128 KB) are
+    // reserved at start-up (xbox_hwprof.cpp) and come out of this pool, not
+    // the game's memory.
     constexpr uint32_t kTexturePoolBytes = 1280u * 1024u - 128u * 1024u;
 #else
     constexpr uint32_t kTexturePoolBytes = 1280u * 1024u;
@@ -214,16 +215,6 @@ namespace
 #ifndef TS_NV2A_TEXTURE_SELFCHECK
 #define TS_NV2A_TEXTURE_SELFCHECK 0
 #endif
-// The whole-texture path's members: without streaming, for its self-check,
-// and in the diagnostic build (TS_DIAG), which switches between the two.
-#define TS_NV2A_TEXTURE_WHOLE (!TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK || TS_DIAG)
-#if TS_DIAG
-// The diagnostic build's switches: compiled in whatever their values, so the
-// renderer's own must be at their release settings.
-#if !TS_NV2A_DISPLAY_HEIGHT || !TS_NV2A_SCISSOR || !TS_NV2A_TEXTURE_STREAM || !TS_CLUT_IDENTITY || !TS_GPU_RANGE_MEMO
-#error "TS_DIAG needs TS_NV2A_DISPLAY_HEIGHT, TS_NV2A_SCISSOR, TS_NV2A_TEXTURE_STREAM, TS_CLUT_IDENTITY and TS_GPU_RANGE_MEMO at 1"
-#endif
-#endif
 #if TS_NV2A_TEXTURE_STREAM
     constexpr uint32_t kScratchTexels = 16384u; // 128 x 128 decoded at once: 64 KB
     constexpr size_t kStageBytes = 16384u;      // encoded texels on their way to the GPU
@@ -231,6 +222,30 @@ namespace
     // scratch, a multiple of 8 (whole 2x2 pairs and whole block rows of the
     // halved texture). At least 16: textures are at most 1,024 wide.
     constexpr uint32_t streamRows(uint32_t width) { return (kScratchTexels / width) & ~7u; }
+#endif
+#if TS_TEXTURE_SOURCE_KEYS && !TS_NV2A_TEXTURE_STREAM
+#error "TS_TEXTURE_SOURCE_KEYS reads GS memory back through TS_NV2A_TEXTURE_STREAM's scratch"
+#endif
+#if TS_TEXTURE_SOURCE_KEYS
+    // Palettes the pack lacks for indices it has, logged for the builder
+    // (xtpbuild.py --variants) once each, at most this many.
+    constexpr uint32_t kVariantLogs = 32u;
+#endif
+// TS_TEXTURE_DUMP 1 (development; make TS_TEXTURE_DUMP=1, needs
+// TS_TEXTURE_SOURCE_KEYS): a texture the pack has by neither key is written
+// to E:\TimeSplitters\texdump\<decoded key>.xtx (decoded texels, its image
+// as the source key hashes it, its palette, every key), at most
+// kDumpLimit, once each, for xtpbuild.py --xbox-dump: any format the pack
+// lacks (4-bit, 16-bit CLUTs, palettes made at run time, textures from other
+// containers) goes into the next pack. Writes the hard disk mid-game.
+#ifndef TS_TEXTURE_DUMP
+#define TS_TEXTURE_DUMP 0
+#endif
+#if TS_TEXTURE_DUMP && !TS_TEXTURE_SOURCE_KEYS
+#error "TS_TEXTURE_DUMP needs TS_TEXTURE_SOURCE_KEYS"
+#endif
+#if TS_TEXTURE_DUMP
+    constexpr uint32_t kDumpLimit = 4096u;
 #endif
 // TS_NV2A_MISS_KEYS_FIXED 1: the miss statistics' key sets are fixed tables
 // (Impl::KeySet), not std::sets allocating as the frame goes. 0: the sets.
@@ -304,13 +319,6 @@ namespace
         float s, t, r, q;
     };
     static_assert(sizeof(GpuVertex) == 36, "vertex layout");
-    // The screen half writes these through gs_nv2a_screen::Vertex (the same
-    // layout; gs_nv2a_screen_math.h).
-    static_assert(sizeof(GpuVertex) == sizeof(gs_nv2a_screen::Vertex) &&
-                      offsetof(GpuVertex, color) == offsetof(gs_nv2a_screen::Vertex, color) &&
-                      offsetof(GpuVertex, s) == offsetof(gs_nv2a_screen::Vertex, s) &&
-                      offsetof(GpuVertex, q) == offsetof(gs_nv2a_screen::Vertex, q),
-                  "GpuVertex and gs_nv2a_screen::Vertex layouts");
 
     // ----------------------------------------------------------- shaders
     const uint32_t kVertexProgram[] = {
@@ -328,14 +336,6 @@ namespace
     const uint32_t kXfSkin[] = {
 #include "gs_xf_skin.inl"
     };
-#if TS_NATIVE_INPLACE
-    // M8's skin program for in-place strips (vertex mode 8): the bone index
-    // read as the game keeps it (shaders/gs_xf.vs.cg, XF_SKIN_INPLACE; built
-    // by src/xbox/mk/c_xf.mk with TS_NATIVE_INPLACE=1).
-    const uint32_t kXfSkinInPlace[] = {
-#include "gs_xf_skininplace.inl"
-    };
-#endif
     struct VertexProgram
     {
         const uint32_t *words;
@@ -343,17 +343,10 @@ namespace
     };
     // Vertex mode 0: pass-through (screen-space vertices); 1 + variant: the
     // native pipeline's transform programs (GSXfConstants::Variant).
-    // (The in-place modes 5-8 run these too: gs_nv2a_xf.inl's programStart;
-    // a sixth, with TS_NATIVE_INPLACE, is mode 8's.)
-    const VertexProgram kVertexPrograms[] = {
+    const VertexProgram kVertexPrograms[5] = {
         {kVertexProgram, sizeof(kVertexProgram) / 4}, {kXfPlain, sizeof(kXfPlain) / 4},
         {kXfLit, sizeof(kXfLit) / 4},                 {kXfEnv, sizeof(kXfEnv) / 4},
-        {kXfSkin, sizeof(kXfSkin) / 4},
-#if TS_NATIVE_INPLACE
-        {kXfSkinInPlace, sizeof(kXfSkinInPlace) / 4},
-#endif
-    };
-    constexpr uint32_t kVertexProgramCount = uint32_t(sizeof(kVertexPrograms) / sizeof(kVertexPrograms[0]));
+        {kXfSkin, sizeof(kXfSkin) / 4}};
     constexpr uint32_t kXfConstantRegs = 35;   // k[0..33] and the compiler's literals at c[34]
     constexpr uint32_t kConstantBase = 96;     // vp20's c[0] in the NV2A's constant file
     constexpr uint32_t kMaxXfVertices = 8192u; // 352 KB
@@ -495,10 +488,21 @@ namespace
         default: return 1.0f / 256.0f;
         }
     }
-    // The screen-vertex arithmetic lives in gs_nv2a_screen_math.h (one copy
-    // for the per-primitive path, the bulk path and the host test).
-    using gs_nv2a_screen::d3dColor;
-    using gs_nv2a_screen::depth24;
+    float depth24(double z, uint32_t zpsm)
+    {
+        switch (zpsm)
+        {
+        case GS_PSM_Z16:
+        case GS_PSM_Z16S: return float(std::min(z, 65535.0) * 256.0);
+        case GS_PSM_Z24: return float(std::min(z, 16777215.0));
+        default: return float(std::min(z / 256.0, 16777215.0));
+        }
+    }
+
+    uint32_t d3dColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+    {
+        return uint32_t(b) | (uint32_t(g) << 8) | (uint32_t(r) << 16) | (uint32_t(a) << 24);
+    }
 
     // NV2A swizzled texture layout: texel coordinates interleaved bit by bit
     // (u first) while both sizes last, then the longer one's upper bits.
@@ -534,8 +538,8 @@ namespace
 // Development aid: the renderer's current step, read with a debugger.
 extern "C" volatile int g_nv2aStep = 0;
 // Presentation counters, cumulative from boot, read over XBDM from thread
-// context (names in build/xbox/main.map; the TS_DIAG summary prints them
-// a second at a time). pbkit_ts.c keeps g_tsPbkitDeferredSwaps.
+// context (names in build/xbox/main.map). pbkit_ts.c keeps
+// g_tsPbkitDeferredSwaps.
 extern "C" volatile uint32_t g_tsFramesPresented = 0;      // frames queued for a vblank (pb_finished)
 extern "C" volatile uint32_t g_tsEmptyPresents = 0;        // presentations with no frame to queue
 extern "C" volatile uint32_t g_tsScanoutGuardHits = 0;     // frames whose target was on screen at their start
@@ -565,7 +569,15 @@ std::ostream &operator<<(std::ostream &out, const GSNv2aLookupStats &s)
                << " miss new/conf/ver/other=" << s.clutNew << "/" << s.clutConflicts << "/" << s.clutVersions << "/"
                << s.clutOther << " old hit/new/conf/ver=" << s.oldHits << "/" << s.oldNew << "/" << s.oldConflicts
                << "/" << s.oldVersions << " fill=" << s.clutFills << " cdiff=" << s.clutDiffs << " krows=" << s.constRows
-               << " kup=" << s.constUploads << " keyhit=" << s.keyHits << " keydiff=" << s.keyChecks << "/" << s.keyDiffs;
+               << " kup=" << s.constUploads << " matkey=" << s.drawKeyHits << "/" << s.drawKeyMisses
+               << " packsrc=" << s.packSourceHits << "/" << s.packSourceMisses
+               << " inv=" << s.packSourceInvalidations
+#if TS_TEXTURE_SOURCE_KEYS
+               << " texsrc=" << s.sourceHits << "/" << s.sourceMisses << " up=" << s.sourceFromUpload << "/"
+               << s.sourceUploads << " var=" << s.sourceVariants << " crep=" << s.clutRepeats << " pal="
+               << s.sourcePalettes << "/" << s.paletteSlotsFull << " pre=" << s.sourcePreviews << " dump=" << s.sourceDumps
+#endif
+        ;
 }
 
 // Guest RAM, for the local player count (TS_NV2A_MP_TEXTURE_BUDGET).
@@ -590,6 +602,9 @@ struct GSNv2aBackend::Impl
 
     void bumpPages(const GSCpuBackend::VramRange &range)
     {
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        invalidatePackSources(range);
+#endif
         ++pageEpoch;
         if (range.end == UINT64_MAX || range.end > kPageCount * kPageBytes)
         {
@@ -648,15 +663,7 @@ struct GSNv2aBackend::Impl
     uint32_t gpuRangeRows = 0, gpuRangeFbp = 0, gpuRangeFbw = 0, gpuRangePsm = 0;
     GSCpuBackend::VramRange gpuRange()
     {
-#if TS_DIAG
-        // RBA: every displayed row counts as drawn; RGM 0: no memo.
-        const uint32_t rows = dv[xdiag::kReadbackAll] ? std::min<uint32_t>(frameHeight, kDisplayRows)
-                                                       : std::max<uint32_t>(gpuRows, 1u);
-        if (!dv[xdiag::kRangeMemo])
-            return frameRangeExact(framePsm, frameFbp, frameFbw, rows);
-#else
         const uint32_t rows = std::max<uint32_t>(gpuRows, 1u);
-#endif
         if (rows != gpuRangeRows || frameFbp != gpuRangeFbp || frameFbw != gpuRangeFbw || framePsm != gpuRangePsm)
         {
             gpuRangeRows = rows;
@@ -684,113 +691,2466 @@ struct GSNv2aBackend::Impl
         return f.fbp == displayFbp[0] || f.fbp == displayFbp[1];
     }
 
-#if TS_DIAG
-    // ---- picture diagnostics (TS_DIAG, xbox_diag.h): the switches as at
-    // this frame's start, and what was last logged.
-    uint8_t dv[xdiag::kItems] = {};
-    uint32_t diagGeneration = 0;
-    bool diagClutSelfTest = true; // the boot self-test's verdict (TS_CLUT_IDENTITY)
-    uint32_t diagFrameKey[5] = {UINT32_MAX, 0, 0, 0, 0}; // fbp, fbw, psm, height, display rows
-    uint64_t diagDisplayKey[3] = {~0ull, 0, 0};          // pmode, dispfb, display
-    uint64_t diagScissorKey = ~0ull;
-    uint32_t diagOffTarget[3] = {UINT32_MAX, 0, 0};      // off-screen target: fbp, fbw, psm
-
-    // The switches' values from now on; a change drops what was worked out
-    // under the old ones (kept clip and key, the GPU's state, the palette path).
-    void diagRefresh() { diagRefreshBody(); }
-    // Every screen draw: counted, partial ones (a scissor short of the
-    // frame) too, and a change of scissor logged.
-    void diagScreenDraw(const GSDrawState &state)
+    // ---------------------------------------------------------- textures
+    struct Texture
     {
-        ++xdiag::g_count.screenDraws;
-        const GSScissorReg &s = state.context.scissor;
-        if (s.x0 > 0u || s.y0 > 0u || uint32_t(s.x1) + 1u < frameFbw * 64u || uint32_t(s.y1) + 1u < frameHeight)
-            ++xdiag::g_count.partialDraws;
-        uint64_t key;
-        std::memcpy(&key, &s, sizeof(key));
-        if (key != diagScissorKey)
+        uint32_t tbp0, tbw, psm, width, height, cpsm, csm, csa, texa;
+        uint64_t clutHash, versions, lastUse;
+        GSCpuBackend::VramRange range;
+        void *texels = nullptr; // swizzled, GPU memory
+        uint32_t format = 0;    // NV097_SET_TEXTURE_FORMAT_COLOR_SZ_*
+        uint32_t gpuWidth = 0, gpuHeight = 0; // stored size (large textures are halved)
+        size_t bytes = 0;
+        uint32_t lastFrame = 0;
+        bool unitAlpha = false; // one alpha bit whose 1.0 is GS 0x80 (selects the pixel program)
+        // Texture pack: the entry with this texture's key (-1: none). Pooled
+        // textures are the pack's copy in its pool (bytes 0: the pack owns
+        // the memory); others are drawn from the runtime path while the
+        // entry is not in the pool (on its way from the disc, or no room for
+        // it), and try again from packRetryFrame on.
+        int packEntry = -1;
+        bool pooled = false;
+        bool forceLinear = false; // HD replacement: always filtered, as on the PC
+        uint32_t levels = 1;      // mip levels (pack textures only have more than one)
+        uint32_t packRetryFrame = 0;
+        uint32_t indexTag = 0;    // its key's hash (textureIndex)
+        // TS_TEXTURE_SOURCE_KEYS: a pack entry's preload drawn while the entry
+        // loads (memory the pack's, bytes 0, tries the pack again like a
+        // runtime-path texture); the GPU palette of an index texture
+        // (SZ_I8_A8R8G8B8: format says when it is bound) and its slot.
+        bool borrowed = false;
+        void *palette = nullptr;
+        int paletteSlot = -1;
+    };
+    // The contiguous memory a texture's texels take: whole pages (what
+    // MmAllocateContiguousMemoryEx gives); a pack copy takes none of its own.
+    // What the cache budget and the retired limit count.
+    static size_t gpuBytes(const Texture &t)
+    {
+        return t.pooled ? 0u : (t.bytes + kGpuPageBytes - 1u) & ~(kGpuPageBytes - 1u);
+    }
+    uint32_t frameNumber = 1, frameTextures = 0, frameTextureBytes = 0, frameFills = 0;
+#if TS_NV2A_MISS_KEYS_FIXED
+    // Address/size keys of this and last frame's misses (statistics:
+    // missEvicted), in two fixed tables rather than sets that allocated a
+    // node per miss and freed them every frame. Past 192 misses in a frame
+    // (fills are a few a frame) a key goes unrecorded.
+    struct KeySet
+    {
+        static constexpr uint32_t kSlots = 256u;
+        std::array<uint64_t, kSlots> keys{}; // 0: empty (a key holds the size, never 0)
+        uint32_t count = 0;
+        static uint32_t slot(uint64_t key) { return uint32_t((key * 0x9E3779B97F4A7C15ull) >> 56); }
+        bool contains(uint64_t key) const
         {
-            diagScissorKey = key;
-            if (xdiag::logAllowed())
+            for (uint32_t i = slot(key);; i = (i + 1u) % kSlots)
             {
-                uint32_t x, y;
-                gs_nv2a_clip::windowClip(s.x0, s.x1, s.y0, s.y1, frameFbw * 64u, frameHeight, x, y);
-                xdiag::logLine("[TS:diag] scissor %u-%u,%u-%u of %ux%u fbp=%u -> clip x %u-%u y %u-%u%s", unsigned(s.x0),
-                               unsigned(s.x1), unsigned(s.y0), unsigned(s.y1), unsigned(frameFbw * 64u),
-                               unsigned(frameHeight), unsigned(frameFbp), unsigned(x & 0xFFFu), unsigned(x >> 16),
-                               unsigned(y & 0xFFFu), unsigned(y >> 16), dv[xdiag::kScissor] ? "" : " (SCI off: whole screen)");
+                if (keys[i] == key)
+                    return true;
+                if (keys[i] == 0u)
+                    return false;
+            }
+        }
+        void insert(uint64_t key)
+        {
+            if (count >= kSlots * 3u / 4u)
+                return;
+            uint32_t i = slot(key);
+            for (; keys[i] != 0u; i = (i + 1u) % kSlots)
+                if (keys[i] == key)
+                    return;
+            keys[i] = key;
+            ++count;
+        }
+        void clear()
+        {
+            if (count != 0u)
+                keys.fill(0u);
+            count = 0;
+        }
+    };
+    KeySet missKeys[2];
+    uint32_t missKeysThis = 0; // missKeys[this] is this frame's, the other last frame's
+    KeySet &frameKeys() { return missKeys[missKeysThis]; }
+    const KeySet &lastFrameKeys() const { return missKeys[missKeysThis ^ 1u]; }
+#else
+    std::set<uint64_t> frameKeys, lastFrameKeys; // address/size keys drawn this and last frame (statistics)
+#endif
+    size_t retiredBytes = 0;
+    static constexpr size_t kRetiredLimit = 768u * 1024u; // beyond this, wait and free at once
+    size_t textureBudget = kTextureBudget; // lower while the pack carries the world (kTextureBudgetWithPack)
+#if TS_NV2A_MP_TEXTURE_BUDGET
+    // Split screen (the guest's local player count, read once a frame by
+    // updateSplitScreen): the lower limits of TS_NV2A_MP_TEXTURE_BUDGET.
+    bool splitScreen = false;
+    uint32_t localPlayers = 0;
+    size_t retiredLimit() const { return splitScreen ? kMultiplayerRetiredLimit : kRetiredLimit; }
+    size_t effectiveBudget() const
+    {
+        return splitScreen && pack.enabled() && packQuietFrames >= kMultiplayerQuietFrames
+                   ? std::min(textureBudget, kTextureBudgetWithPack)
+                   : textureBudget;
+    }
+    void updateSplitScreen()
+    {
+        uint32_t players = 0;
+        if (const uint8_t *ram = g_nv2aGuestRam)
+            std::memcpy(&players, ram + kLocalPlayersAddress, sizeof(players));
+        if (players == localPlayers)
+            return;
+        localPlayers = players;
+        const bool split = players > 1u && players <= 4u;
+        if (split == splitScreen)
+            return;
+        splitScreen = split;
+        std::cout << "[TS:mem] split-screen textures " << (split ? "on" : "off") << " (" << players
+                  << " players): retired limit " << retiredLimit() / 1024u << " KB" << std::endl;
+    }
+    // Drops what the cache holds over the budget, least recently used
+    // first, of what the last frame did not draw. At the frame's start,
+    // with the last frame done on the GPU: freed at once.
+    void trimCache()
+    {
+        while (textureBytes > effectiveBudget())
+        {
+            auto oldest = textures.end();
+            for (auto it = textures.begin(); it != textures.end(); ++it)
+                if (!it->pooled && it->lastFrame + 1u < frameNumber && (oldest == textures.end() || it->lastUse < oldest->lastUse))
+                    oldest = it;
+            if (oldest == textures.end())
+                break;
+            retireTexture(oldest);
+        }
+        freeRetired();
+    }
+#else
+    static constexpr size_t retiredLimit() { return kRetiredLimit; }
+    size_t effectiveBudget() const { return textureBudget; }
+#endif
+    uint32_t packQuietFrames = 0;          // frames in a row the runtime path stayed under half of that
+    // A list: draw keys hold pointers into it across insertions and removals.
+    // One record a key (a lookup that finds a record retires it before a new
+    // decode adds another), so a key finds at most one (textureIndex).
+    std::list<Texture> textures;
+    std::list<Texture> retired; // dropped textures the GPU may still read; freed at the frame's end
+    size_t textureBytes = 0;
+    uint64_t textureTick = 0;
+    uint64_t clutHash = 0;
+#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
+    std::vector<uint32_t> decoded;
+    std::vector<uint8_t> swizzled;
+    std::vector<uint32_t> spreadU, spreadV;
+#endif
+#if TS_NV2A_TEXTURE_STREAM
+    // TS_NV2A_TEXTURE_STREAM: a whole texture of up to kScratchTexels, or a
+    // band of rows of a bigger one (decoded RGBA; halved in place), and the
+    // encoded texels on their way to GPU memory.
+    alignas(16) uint32_t texScratch[kScratchTexels];
+    alignas(16) uint8_t texStage[kStageBytes];
+#endif
+
+    void refreshClutHash() { clutHash = cpu.ClutHash(); }
+
+    // TEXFLUSH reaches the CPU renderer (its texture page cache) just before
+    // the renderer is next used, not at once: every native draw run's
+    // render-state block flushes, and the CPU renderer is used rarely in
+    // between.
+    bool textureFlushPending = false;
+    GSCpuBackend &cpuFlushed()
+    {
+        if (textureFlushPending)
+        {
+            textureFlushPending = false;
+            cpu.TextureFlush();
+        }
+        return cpu;
+    }
+
+    // Full CLUT loads (8-bit indices, a 32-bit CSM1 palette from CSA 0: all
+    // 512 halfwords replaced) cached by source address and format and the
+    // version of its GS-memory pages. The game loads ~590 palettes a frame,
+    // a few dozen distinct; a hit skips the row reads, the unswizzle and
+    // the rehash.
+    struct Palette
+    {
+        uint32_t cbp = UINT32_MAX, cpsm = 0;
+        uint64_t versions = 0, hash = 0;
+        std::array<uint16_t, 512> clut;
+    };
+    static constexpr uint32_t kPalettes = 128u; // direct-mapped by address
+    std::vector<Palette> palettes;              // allocated at the first load
+    static bool fullClutLoad(const GSTex0Reg &t)
+    {
+        return (t.psm == GS_PSM_T8 || t.psm == GS_PSM_T8H) && t.csm == 0u &&
+               (t.cpsm == GS_PSM_CT32 || t.cpsm == GS_PSM_CT24) && (t.csa & 0x0Fu) == 0u;
+    }
+
+#if TS_CLUT_IDENTITY
+    // Full CLUT loads by identity (TS_CLUT_IDENTITY): source address and
+    // format, the version of its GS-memory pages, and the content hash of
+    // the CLUT buffer the load leaves. No buffer: the CPU renderer fills
+    // its own from local memory only if something reads it (DeferClutLoad),
+    // and a miss reads the source once, in a fixed order (ReadFullClut).
+    // 64 sets of four, the least recently used out.
+    struct PaletteId
+    {
+        uint32_t key = UINT32_MAX; // cbp | cpsm << 16 (UINT32_MAX: free)
+        uint32_t lastUse = 0;
+        uint64_t versions = 0, hash = 0;
+    };
+    static constexpr uint32_t kPaletteSets = 64u, kPaletteWays = 4u;
+    std::array<PaletteId, kPaletteSets * kPaletteWays> paletteIds{};
+    uint32_t paletteTick = 0;
+    bool clutIdentity = true;  // false: the boot self-test found the load order wrong
+    bool clutOrderChecked = false;
+    // The palette cache this replaces, as tags only (1 KB): what it would
+    // have done with each full load, so the [TS:tex] line tells whether its
+    // misses were slot conflicts or GS pages changing (old hit/new/conf/ver).
+    struct OldPaletteTag
+    {
+        uint32_t key = UINT32_MAX, versions = 0; // (versions: the sum's low half)
+    };
+    std::array<OldPaletteTag, kPalettes> oldPaletteTags{};
+
+    // Loads that take this path: full loads whose source is contiguous.
+    bool identityLoad(const GSTex0Reg &t) const
+    {
+        return clutIdentity && vram && GSCpuBackend::FullClutLoad(t) && t.cbp <= GSCpuBackend::kLastContiguousClutCbp;
+    }
+
+#if TS_CLUT_REPEAT
+    // The last full load (TS_CLUT_REPEAT), while no other CLUT load
+    // has reached the CPU renderer since (forgetFullClut). The same source,
+    // CLD and GS pages again would leave the CPU renderer's state as it is:
+    // the CLD mirror the same, the buffer the same content (deferred, or
+    // filled from unchanged pages), the same hash. The game reloads a
+    // palette for each strip of a model.
+    struct LastFullClut
+    {
+        bool valid = false;
+        uint32_t key = 0, cld = 0, epoch = 0;
+        uint64_t versions = 0, hash = 0;
+    };
+    LastFullClut lastFullClut;
+    void forgetFullClut() { lastFullClut.valid = false; }
+#else
+    void forgetFullClut() {}
+#endif
+
+    void loadFullClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
+    {
+        const uint32_t key = tex0.cbp | (uint32_t(tex0.cpsm) << 16);
+#if TS_CLUT_REPEAT
+        if (lastFullClut.valid && lastFullClut.key == key && lastFullClut.cld == tex0.cld &&
+            (lastFullClut.epoch == pageEpoch || versionSum(GSCpuBackend::ClutRange(tex0)) == lastFullClut.versions))
+        {
+            lastFullClut.epoch = pageEpoch;
+            ++s_lookupStats.clutHits;
+            ++s_lookupStats.clutRepeats;
+            ++g_nv2aTextureStats.paletteHits;
+            clutHash = lastFullClut.hash;
+            return;
+        }
+#endif
+        const uint64_t versions = versionSum(GSCpuBackend::ClutRange(tex0));
+        OldPaletteTag &old = oldPaletteTags[(tex0.cbp ^ (tex0.cbp >> 7)) % kPalettes]; // (its slot)
+        if (old.key != key)
+            ++(old.key == UINT32_MAX ? s_lookupStats.oldNew : s_lookupStats.oldConflicts);
+        else
+            ++(old.versions != uint32_t(versions) ? s_lookupStats.oldVersions : s_lookupStats.oldHits);
+        old = {key, uint32_t(versions)};
+        PaletteId *const set = &paletteIds[((tex0.cbp * 0x9E3779B1u) >> 26) * kPaletteWays];
+        PaletteId *entry = nullptr, *victim = set;
+        for (uint32_t way = 0; way < kPaletteWays; ++way)
+        {
+            if (set[way].key == key)
+            {
+                entry = &set[way];
+                break;
+            }
+            if (set[way].lastUse < victim->lastUse)
+                victim = &set[way];
+        }
+        if (entry && entry->versions == versions)
+        {
+            ++s_lookupStats.clutHits;
+            ++g_nv2aTextureStats.paletteHits;
+        }
+        else
+        {
+            if (entry)
+                ++s_lookupStats.clutVersions;
+            else
+            {
+                ++(victim->key == UINT32_MAX ? s_lookupStats.clutNew : s_lookupStats.clutConflicts);
+                entry = victim;
+                entry->key = key;
+            }
+            uint16_t clut[512];
+            cpu.ReadFullClut(tex0.cbp, tex0.cpsm, clut); // (identityLoad: the source is contiguous)
+            entry->versions = versions;
+            entry->hash = GSCpuBackend::HashClut(clut);
+        }
+        entry->lastUse = ++paletteTick;
+        cpu.DeferClutLoad(tex0, entry->hash);
+        clutHash = entry->hash;
+#if TS_CLUT_REPEAT
+        lastFullClut = {true, key, tex0.cld, pageEpoch, versions, entry->hash};
+#endif
+#if TS_NV2A_SELFCHECK
+        // The CPU renderer's own load over the deferred one: the same buffer
+        // and hash (DebugClutState's parts; the CLD mirrors are shared).
+        std::array<uint16_t, 512> fast, full;
+        std::array<uint32_t, 2> mirror;
+        cpu.GetClutState(fast, mirror);
+        cpu.LoadClutAgain(tex0, texclut);
+        cpu.GetClutState(full, mirror);
+        const uint64_t fullHash = cpu.ClutHash();
+        if (fast != full || fullHash != clutHash)
+        {
+            ++s_lookupStats.clutDiffs;
+            noteDrawDiff("CLUT identity", clutHash, fullHash);
+            clutHash = entry->hash = fullHash;
+        }
+#else
+        (void)texclut;
+#endif
+    }
+#endif
+
+    // The GS's CLUT-load decision (TEX0/TEX2 CLD), mirrored so that only
+    // real loads cost a read-back check, a lock and a rehash.
+    uint32_t clutCbp[2] = {UINT32_MAX, UINT32_MAX};
+    bool clutLoads(const GSTex0Reg &t)
+    {
+        if (!isIndexed(t.psm))
+            return false;
+        switch (t.cld)
+        {
+        case 1u: return true;
+        case 2u: clutCbp[0] = t.cbp; return true;
+        case 3u: clutCbp[1] = t.cbp; return true;
+        case 4u:
+            if (clutCbp[0] == t.cbp)
+                return false;
+            clutCbp[0] = t.cbp;
+            return true;
+        case 5u:
+            if (clutCbp[1] == t.cbp)
+                return false;
+            clutCbp[1] = t.cbp;
+            return true;
+        default: return false;
+        }
+    }
+
+    // Drops a texture from the cache. Its memory is released only once the
+    // GPU has finished the frame (finishFrame), so no stall here.
+    void retireTexture(std::list<Texture>::iterator it)
+    {
+#if TS_NATIVE_MODELS && TS_NATIVE_REPLAY
+        ++segmentGen; // renderer segments may hold it
+#endif
+        if (lastTexture == &*it)
+            lastTexture = nullptr;
+        if (batchCount && batchKey.texture == &*it)
+            flushBatch();
+        if (applied.texture == &*it)
+            stateValid = false; // the address may be reused by a new texture
+#if TS_TEXTURE_INDEX
+        indexRemove(it);
+#endif
+        if (it->pooled || it->borrowed)
+        {
+            // The texels belong to the pack, which keeps them while a frame
+            // in flight may read them: only the record goes, and with it
+            // the recent table's entries for it (they would point at freed
+            // memory, or at a new record in its place).
+            forgetRecent(&*it);
+            textures.erase(it);
+            return;
+        }
+        const size_t bytes = gpuBytes(*it);
+        textureBytes -= bytes;
+        retiredBytes += bytes;
+        retired.splice(retired.end(), textures, it);
+        if (retiredBytes > retiredLimit())
+        {
+            ++g_nv2aTextureStats.waitRetire;
+            waitIdle();
+            freeRetired();
+        }
+    }
+
+    void freeRetired()
+    {
+        lastTexture = nullptr; // may be a one-frame texture
+        if (batchCount)
+            flushBatch(); // a one-frame texture may be the batch's
+        if (!retired.empty())
+            recentTextures.fill({}); // may point at them
+        for (Texture &t : retired)
+            if (!t.pooled && !t.borrowed) // pool and preload memory are the pack's
+                MmFreeContiguousMemory(t.texels);
+        retired.clear();
+        retiredBytes = 0;
+        stateValid = false; // a bound one-frame texture's address may be reused
+        g_nv2aTextureStats.residentBytes = uint32_t(textureBytes);
+        g_nv2aTextureStats.resident = uint32_t(textures.size());
+    }
+
+    // The records stay under kRecordLimit. The byte budget bounds the
+    // runtime path's memory, but a pack copy costs it nothing, and its
+    // record (and index slot) stayed until the pack happened to evict the
+    // entry, so records of keys the game no longer draws (an earlier level's
+    // addresses and palettes) could stay for good (the cache held 400
+    // records after 74 minutes of the title's attract demo), towards the
+    // index's limit, past which every lookup walks the whole list. Over the
+    // limit, the least recently drawn of the records the last two frames
+    // did not draw go, down to kRecordTrimTo; a key drawn again later is
+    // looked up afresh (decoded, and a pack copy found by its key again).
+    // At a frame's start with the last frame done on the GPU (settleFrame):
+    // the runtime path's memory among them is freed right after
+    // (freeRetired). Sorting relinks the list's nodes: the index's
+    // iterators and every pointer to a record stay valid.
+    void trimRecords()
+    {
+        if (textures.size() <= kRecordLimit)
+            return;
+        textures.sort([](const Texture &a, const Texture &b) { return a.lastUse < b.lastUse; });
+        for (auto it = textures.begin(); it != textures.end() && textures.size() > kRecordTrimTo;)
+        {
+            const auto next = std::next(it);
+            if (it->lastFrame + 1u < frameNumber)
+            {
+                retireTexture(it);
+                ++g_nv2aTextureStats.recordTrims;
+            }
+            it = next;
+        }
+    }
+
+    // Out of contiguous memory: every runtime-path texture the last two
+    // frames did not draw goes, and with the GPU idle the dropped and
+    // one-frame textures are freed at once (as past kRetiredLimit).
+    void releaseIdleTextures()
+    {
+        for (auto it = textures.begin(); it != textures.end();)
+        {
+            const auto next = std::next(it);
+            if (!it->pooled && it->lastFrame + 1u < frameNumber)
+                retireTexture(it);
+            it = next;
+        }
+        waitIdle();
+        freeRetired();
+    }
+
+    // Recent lookups by TEX0: the texture an address, format, TEXA and CLUT
+    // resolved to. One stands while no GS memory page changed since
+    // (pageEpoch) or, after a change, while the texture's own pages still
+    // have the versions it was decoded from - lookupTexture's own test.
+    // Native draws alternate between a few dozen textures, which the single
+    // last-texture check below misses. Sets of kRecentWays (most recent
+    // first; TS_TEXTURE_RECENT_WAYS) chosen by address and format (and, with
+    // more than one way, the CLUT). Cleared when retired textures are freed
+    // (the pointers die).
+    struct RecentTexture
+    {
+        uint64_t tex0 = 0, clut = 0;
+        uint32_t texa = 0, size = 0, epoch = 0;
+        Texture *texture = nullptr;
+    };
+    static constexpr uint32_t kRecentSets = 64u, kRecentWays = TS_TEXTURE_RECENT_WAYS;
+    static_assert(kRecentWays >= 1u && kRecentWays <= 8u, "recent-texture ways");
+    std::array<RecentTexture, kRecentSets * kRecentWays> recentTextures{};
+    bool checkRun = false; // TS_NATIVE_DRAW_SELFCHECK: also take the full lookup and compare
+
+    RecentTexture *recentSet(const GSTex0Reg &tex, uint64_t clut)
+    {
+        uint32_t set = tex.tbp0 ^ (tex.tbp0 >> 6) ^ (uint32_t(tex.psm) << 3);
+        if (kRecentWays > 1u)
+            set ^= uint32_t(clut) ^ uint32_t(clut >> 32);
+        return &recentTextures[(set % kRecentSets) * kRecentWays];
+    }
+    // The set's entry for this key (its way, if any) becomes the first, as
+    // `entry`; the others move down one, the last one out.
+    static RecentTexture &rememberRecent(RecentTexture *set, uint32_t way, const RecentTexture entry)
+    {
+        for (; way > 0u; --way)
+            set[way] = set[way - 1u];
+        set[0] = entry;
+        return set[0];
+    }
+    void forgetRecent(const Texture *t)
+    {
+        for (RecentTexture &recent : recentTextures)
+            if (recent.texture == t)
+                recent = {};
+    }
+
+    const Texture *texture(const GSDrawState &state)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        const uint32_t w = std::max<uint32_t>(state.textureWidth, 1u), h = std::max<uint32_t>(state.textureHeight, 1u);
+        if (w > 1024u || h > 1024u)
+            return nullptr;
+        ++s_lookupStats.textures;
+        const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
+        const uint64_t hash = isIndexed(tex.psm) ? clutHash : 0u;
+        const uint64_t tex0Bits = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                                  (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+        const uint32_t size = w | (h << 16);
+        RecentTexture *const set = recentSet(tex, hash);
+        uint32_t way = 0;
+        while (way < kRecentWays && !(set[way].texture && set[way].tex0 == tex0Bits && set[way].texa == texa &&
+                                      set[way].clut == hash && set[way].size == size))
+            ++way;
+        if (way < kRecentWays)
+        {
+            Texture &t = *set[way].texture;
+            // The same range as the full path's (the same address, format and size).
+            if (screenGpuNewer && overlaps(t.range, gpuRange()))
+            {
+                ++g_nv2aTextureStats.wbTexture;
+                writeBackScreen();
+            }
+            // A runtime-path texture whose pack entry may be in the pool by now
+            // takes the full lookup, which swaps the pack's copy in (the
+            // self-check found the fast path keeping the fallback).
+            const bool packDue = t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame;
+            if (!packDue && (set[way].epoch == pageEpoch || versionSum(t.range) == t.versions))
+            {
+                RecentTexture &recent = way ? rememberRecent(set, way, set[way]) : set[0];
+                recent.epoch = pageEpoch;
+                t.lastUse = ++textureTick;
+                noteUse(t);
+                ++g_nv2aTextureStats.textureFast;
+                if (!checkRun)
+                    return &t;
+                const uint32_t fastTbp0 = t.tbp0; // (the lookup may free retired textures)
+                Texture *full = textureLookup(state);
+                if (full != &t)
+                {
+                    noteDrawDiff("texture", fastTbp0, full ? full->tbp0 : UINT32_MAX);
+                    recent = {tex0Bits, hash, texa, size, pageEpoch, full};
+                }
+                return full;
+            }
+        }
+        Texture *found = textureLookup(state);
+        if (found)
+            rememberRecent(set, way < kRecentWays ? way : kRecentWays - 1u, {tex0Bits, hash, texa, size, pageEpoch, found});
+        return found;
+    }
+
+    // A difference the self-check found (TS_NATIVE_DRAW_SELFCHECK); the first
+    // few are logged.
+    static void noteDrawDiff(const char *what, uint64_t fast, uint64_t full)
+    {
+        if (++g_nv2aTextureStats.drawDiffs <= 16u)
+            std::cout << "[TS:drawcheck] " << what << " differs: fast 0x" << std::hex << fast << ", full 0x" << full
+                      << std::dec << std::endl;
+    }
+
+    // The lookup without the recent table: the last texture, else the cache.
+    Texture *textureLookup(const GSDrawState &state)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        const uint32_t w = std::max<uint32_t>(state.textureWidth, 1u), h = std::max<uint32_t>(state.textureHeight, 1u);
+        if (w > 1024u || h > 1024u)
+            return nullptr;
+        GSDrawState full = state;
+        full.context.clamp = 0; // the decode covers the whole texture
+        const GSCpuBackend::VramRange range = GSCpuBackend::TextureRange(full);
+        // Render-to-texture from the screen: local memory needs the GPU's pixels.
+        if (screenGpuNewer && overlaps(range, gpuRange()))
+        {
+            ++g_nv2aTextureStats.wbTexture;
+            writeBackScreen();
+        }
+        const bool indexed = isIndexed(tex.psm);
+        const uint32_t texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
+        const uint64_t hash = indexed ? clutHash : 0u;
+        const uint64_t versions = versionSum(range);
+        // Consecutive draws mostly share a texture: remember the last hit.
+        const uint64_t tex0Bits = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                                  (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+        const bool packDue = lastTexture && lastTexture->packEntry >= 0 && !lastTexture->pooled &&
+                             frameNumber >= lastTexture->packRetryFrame;
+        if (lastTexture && !packDue && lastTex0 == tex0Bits && lastTexa == texa && lastClut == hash && lastVersions == versions &&
+            lastTexture->width == w && lastTexture->height == h)
+        {
+            lastTexture->lastUse = ++textureTick;
+            noteUse(*lastTexture);
+            return lastTexture;
+        }
+        Texture *found = lookupTexture(state, w, h, texa, hash, versions, range);
+        lastTexture = found;
+        lastTex0 = tex0Bits;
+        lastTexa = texa;
+        lastClut = hash;
+        lastVersions = versions;
+        return found;
+    }
+
+    Texture *lastTexture = nullptr;
+    uint64_t lastTex0 = 0, lastClut = 0, lastVersions = 0;
+    uint32_t lastTexa = 0;
+
+#if TS_TEXTURE_INDEX
+    // The records in `textures` by their whole key (TS_TEXTURE_INDEX): open
+    // addressing with linear probing, 1,024 slots (8 KB, part of the Impl,
+    // allocated with the renderer), each slot the key's hash and the record.
+    // A match keeps about 200 records. Past kIndexFull (a cache of tiny
+    // textures) the index is left (indexValid false) and lookups walk the
+    // list until the cache is back under kIndexRefill, when finishFrame
+    // builds it again.
+    struct IndexSlot
+    {
+        uint32_t tag = 0; // the key's hash, never 0 (0: a free slot)
+        std::list<Texture>::iterator texture;
+    };
+    static constexpr uint32_t kIndexSlots = 1024u, kIndexFull = 768u, kIndexRefill = 512u;
+    std::array<IndexSlot, kIndexSlots> textureIndex{};
+    uint32_t indexCount = 0;
+    bool indexValid = true;
+
+    // The hash of a whole key (CLUT fields 0 for formats without one, as
+    // lookupTexture's match ignores them there).
+    static uint32_t keyTag(uint32_t tbp0, uint32_t tbw, uint32_t psm, uint32_t w, uint32_t h, uint32_t texa,
+                           uint64_t clut, uint32_t cpsm, uint32_t csm, uint32_t csa)
+    {
+        uint32_t x = 0x9E3779B9u;
+        const uint32_t words[5] = {tbp0 | (tbw << 14) | (psm << 20) | (csm << 26) | (cpsm << 27),
+                                   w | (h << 11) | (csa << 22), texa, uint32_t(clut), uint32_t(clut >> 32)};
+        for (const uint32_t word : words)
+        {
+            x = (x ^ word) * 0x85EBCA6Bu;
+            x ^= x >> 13;
+        }
+        x *= 0xC2B2AE35u;
+        x ^= x >> 16;
+        return x ? x : 1u;
+    }
+
+    template <typename Matches>
+    std::list<Texture>::iterator indexFind(uint32_t tag, const Matches &matches)
+    {
+        for (uint32_t i = tag & (kIndexSlots - 1u);; i = (i + 1u) & (kIndexSlots - 1u))
+        {
+            const IndexSlot &slot = textureIndex[i];
+            if (!slot.tag)
+                return textures.end();
+            if (slot.tag == tag && matches(*slot.texture))
+                return slot.texture;
+        }
+    }
+
+    void indexAdd(std::list<Texture>::iterator it)
+    {
+        if (!indexValid)
+            return;
+        if (indexCount >= kIndexFull)
+        {
+            indexValid = false;
+            ++s_lookupStats.indexOverflows;
+            return;
+        }
+        uint32_t i = it->indexTag & (kIndexSlots - 1u);
+        while (textureIndex[i].tag)
+            i = (i + 1u) & (kIndexSlots - 1u);
+        textureIndex[i] = {it->indexTag, it};
+        ++indexCount;
+    }
+
+    void indexRemove(std::list<Texture>::iterator it)
+    {
+        if (!indexValid)
+            return;
+        constexpr uint32_t mask = kIndexSlots - 1u;
+        uint32_t i = it->indexTag & mask;
+        while (textureIndex[i].tag && textureIndex[i].texture != it)
+            i = (i + 1u) & mask;
+        if (!textureIndex[i].tag)
+            return;
+        // Backward shift: a later record of the run moves into the hole
+        // unless its home slot lies after the hole (cyclically, up to it).
+        for (uint32_t j = (i + 1u) & mask; textureIndex[j].tag; j = (j + 1u) & mask)
+        {
+            const uint32_t home = textureIndex[j].tag & mask;
+            const bool stays = i <= j ? (home > i && home <= j) : (home > i || home <= j);
+            if (!stays)
+            {
+                textureIndex[i] = textureIndex[j];
+                i = j;
+            }
+        }
+        textureIndex[i] = IndexSlot{};
+        --indexCount;
+    }
+
+    void rebuildIndex()
+    {
+        textureIndex.fill(IndexSlot{});
+        indexCount = 0;
+        indexValid = true;
+        for (auto it = textures.begin(); it != textures.end(); ++it)
+            indexAdd(it);
+    }
+#endif
+
+    // The first record of `textures` with this key (the old lookup's walk).
+    template <typename Matches>
+    std::list<Texture>::iterator walkTextures(const Matches &matches)
+    {
+        for (auto it = textures.begin(); it != textures.end(); ++it)
+            if (matches(*it))
+                return it;
+        return textures.end();
+    }
+
+    // A record joins the cache (and its index).
+    Texture &addTexture(const Texture &t)
+    {
+        textures.push_back(t);
+#if TS_TEXTURE_INDEX
+        indexAdd(std::prev(textures.end()));
+#endif
+        return textures.back();
+    }
+
+    Texture *lookupTexture(const GSDrawState &state, uint32_t w, uint32_t h, uint32_t texa, uint64_t hash,
+                           uint64_t versions, const GSCpuBackend::VramRange &range)
+    {
+        ++s_lookupStats.textureSlow;
+        const GSTex0Reg &tex = state.context.tex0;
+        const bool indexed = isIndexed(tex.psm);
+        auto matches = [&](const Texture &t) {
+            return t.tbp0 == tex.tbp0 && t.tbw == tex.tbw && t.psm == tex.psm && t.width == w && t.height == h &&
+                   t.texa == texa && t.clutHash == hash &&
+                   (!indexed || (t.cpsm == tex.cpsm && t.csm == tex.csm && t.csa == tex.csa));
+        };
+#if TS_TEXTURE_INDEX
+        const uint32_t tag = keyTag(tex.tbp0, tex.tbw, tex.psm, w, h, texa, hash, indexed ? tex.cpsm : 0u,
+                                    indexed ? tex.csm : 0u, indexed ? tex.csa : 0u);
+        auto it = indexValid ? indexFind(tag, matches) : walkTextures(matches);
+#if TS_NV2A_SELFCHECK
+        if (indexValid)
+        {
+            const auto walked = walkTextures(matches);
+            if (walked != it)
+            {
+                ++s_lookupStats.indexDiffs;
+                noteDrawDiff("texture index", tex.tbp0, walked != textures.end() ? walked->tbp0 : UINT32_MAX);
+                it = walked;
+            }
+        }
+#endif
+        if (it != textures.end())
+        {
+            Texture &t = *it;
+            if (t.versions == versions)
+            {
+                t.lastUse = ++textureTick;
+                if (t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame)
+                    if (Texture *pooled = retryPack(it))
+                        return pooled;
+                noteUse(t);
+                return &t;
+            }
+            retireTexture(it); // changed contents: decoded afresh below
+        }
+#else
+        for (auto it = textures.begin(); it != textures.end(); ++it)
+        {
+            Texture &t = *it;
+            if (!matches(t))
+                continue;
+            if (t.versions == versions)
+            {
+                t.lastUse = ++textureTick;
+                if (t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame)
+                    if (Texture *pooled = retryPack(it))
+                        return pooled;
+                noteUse(t);
+                return &t;
+            }
+            retireTexture(it); // changed contents: decoded afresh below
+            break;
+        }
+#endif
+        // One-frame textures (and evicted ones not yet freed) are reused
+        // until the frame ends rather than decoded again at each use.
+        for (Texture &t : retired)
+            if (t.versions == versions && matches(t))
+            {
+                t.lastUse = ++textureTick;
+                noteUse(t);
+                return &t;
+            }
+        {
+            // Why this is a miss (development statistics).
+            bool sameAddress = false, sameVersion = false;
+            for (const Texture &t : textures)
+                if (t.tbp0 == tex.tbp0 && t.psm == tex.psm && t.width == w && t.height == h)
+                {
+                    sameAddress = true;
+                    if (t.versions == versions)
+                        sameVersion = true;
+                }
+            for (const Texture &t : retired)
+                if (t.tbp0 == tex.tbp0 && t.psm == tex.psm && t.width == w && t.height == h)
+                {
+                    sameAddress = true;
+                    if (t.versions == versions)
+                        sameVersion = true;
+                }
+            const uint64_t key = uint64_t(tex.tbp0) | (uint64_t(tex.psm) << 16) | (uint64_t(w) << 24) | (uint64_t(h) << 40);
+            if (sameVersion)
+                ++g_nv2aTextureStats.missClut;
+            else if (sameAddress)
+                ++g_nv2aTextureStats.missVersion;
+#if TS_NV2A_MISS_KEYS_FIXED
+            else if (lastFrameKeys().contains(key))
+#else
+            else if (lastFrameKeys.count(key))
+#endif
+                ++g_nv2aTextureStats.missEvicted;
+            else
+                ++g_nv2aTextureStats.missNew;
+#if TS_NV2A_MISS_KEYS_FIXED
+            frameKeys().insert(key);
+#else
+            frameKeys.insert(key);
+#endif
+        }
+        Texture t{tex.tbp0, tex.tbw, tex.psm, w, h, tex.cpsm, tex.csm, tex.csa, texa, hash, versions, ++textureTick, range};
+#if TS_TEXTURE_INDEX
+        t.indexTag = tag;
+#endif
+        const bool packed = pack.enabled() && !renderTarget(range);
+        bool knownPackSource = false;
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        int knownPackEntry = -1;
+        if (packed && findPackSource(t, knownPackEntry))
+        {
+            knownPackSource = true;
+            if (knownPackEntry >= 0)
+            {
+                ++g_nv2aTextureStats.packHits;
+                if (usePack(t, knownPackEntry))
+                {
+                    Texture &added = addTexture(t);
+                    noteUse(added);
+                    return &added;
+                }
+            }
+            else
+                ++g_nv2aTextureStats.packMisses;
+        }
+#endif
+#if TS_TEXTURE_SOURCE_KEYS
+        // By source key (TS_TEXTURE_SOURCE_KEYS): a hit needs no decode for
+        // the pack (nor the RGBA hash); while its entry is on its way the
+        // texture is decoded for the runtime path only, as a known one. A
+        // miss takes the decoded key as before.
+        // These indices with a palette the pack lacks: its index texture
+        // with this palette, or (no index textures) the palette logged.
+        SourceKey source{};
+        if (packed && !knownPackSource && pack.sourceCount() != 0u && sourceKey(state, t, source))
+        {
+            uint8_t kind = 0;
+            const int index = pack.findSource(xbox_texture_source::exactKey(source.image, source.part), kind);
+            if (index >= 0 && kind == XboxTexturePack::kSourceExact && pack.entry(index).format != XboxTexturePack::kI8)
+            {
+                ++s_lookupStats.sourceHits;
+                ++g_nv2aTextureStats.packHits;
+                knownPackSource = true;
+#if TS_NV2A_PACK_IDENTITY_CACHE
+                rememberPackSource(t, index);
+#endif
+                if (usePack(t, index))
+                {
+                    Texture &added = addTexture(t);
+                    noteUse(added);
+                    return &added;
+                }
+            }
+            else
+            {
+                ++s_lookupStats.sourceMisses;
+                const int image = source.indexed ? pack.findSource(xbox_texture_source::imageOnlyKey(source.image), kind) : -1;
+                if (image >= 0 && kind == XboxTexturePack::kSourceImage)
+                {
+                    if (pack.entry(image).format == XboxTexturePack::kI8)
+                    {
+                        bool known = false;
+                        if (Texture *drawn = paletteTexture(state, t, image, known))
+                            return drawn;
+                        knownPackSource = known; // on its way: the runtime path meanwhile, without the key
+                    }
+                    else if (source.mode == kSourceModeClut)
+                        logVariant(source.image, hash, w, h);
+                }
+            }
+        }
+#endif
+#if TS_NV2A_TEXTURE_STREAM
+        // Decoded once when it fits the scratch (TexelPlan), else streamed.
+        TexelPlan plan;
+        beginTexels(state, t, packed && !knownPackSource, plan);
+        // The pack's copy when it has this texture (render targets and
+        // screen copies are never looked up, as on the PC).
+        if (packed && !knownPackSource)
+            if (Texture *pooled = packTexture(t, plan.key))
+                return pooled;
+#if TS_TEXTURE_SOURCE_KEYS && TS_TEXTURE_DUMP
+        // Neither key in the pack: the texture for the builder (--xbox-dump).
+        if (packed && !knownPackSource && source.valid && pack.find(plan.key) < 0)
+            dumpTexture(state, t, plan.key, source);
+#endif
+        // The CPU renderer's texture flush where the second decode took it.
+        (void)cpuFlushed();
+        planTexels(t, state, plan); // sets format and bytes; the texels are written once allocated
+#else
+        cpu.DecodeTexture(state, decoded);
+        const bool whole = decoded.size() >= size_t(w) * h;
+        if (!whole)
+            decoded.assign(size_t(w) * h, 0u);
+        // The pack's copy when it has this texture (render targets and
+        // screen copies are never looked up, as on the PC).
+        if (whole && packed && !knownPackSource)
+            if (Texture *pooled = packTexture(t))
+                return pooled;
+        encodeTexture(t, state); // sets format and bytes; the texels wait in `swizzled`
+#endif
+        // Room in the cache: textures not used in this or the last frame
+        // go first. When a frame's textures exceed the budget the cache
+        // keeps what it has (LRU would cycle the whole set every frame)
+        // and the newcomer lives in a one-frame slot (the retired list).
+        // Pack textures cost the cache nothing and stay.
+        bool cached = true;
+        const size_t bytes = gpuBytes(t);
+        while (textureBytes + bytes > effectiveBudget())
+        {
+            auto oldest = textures.end();
+            for (auto it = textures.begin(); it != textures.end(); ++it)
+                if (!it->pooled && it->lastFrame + 1u < frameNumber && (oldest == textures.end() || it->lastUse < oldest->lastUse))
+                    oldest = it;
+            if (oldest == textures.end())
+            {
+                cached = false;
+                break;
+            }
+            retireTexture(oldest);
+        }
+        if (!cached && retiredBytes + bytes > retiredLimit())
+        {
+            ++g_nv2aTextureStats.waitRetire;
+            waitIdle();
+            freeRetired();
+        }
+        t.texels = allocGpu(t.bytes);
+        if (!t.texels)
+        {
+            // No contiguous memory left: give back what the cache can and
+            // try once more (else the draw goes untextured, as before).
+            ++g_nv2aTextureStats.allocRetries;
+            releaseIdleTextures();
+            t.texels = allocGpu(t.bytes);
+            if (!t.texels)
+                return nullptr;
+        }
+#if TS_NV2A_TEXTURE_STREAM
+        writeTexels(t, state, plan);
+#if TS_NV2A_TEXTURE_SELFCHECK
+        checkTexels(t, state, plan);
+#endif
+#else
+        memcpy(t.texels, swizzled.data(), t.bytes);
+#endif
+        ++g_nv2aTextureStats.fills;
+        ++frameFills;
+        g_nv2aTextureStats.fillBytes += uint32_t(t.bytes);
+        if (cached)
+        {
+            textureBytes += bytes;
+            Texture &added = addTexture(t);
+            noteUse(added);
+            return &added;
+        }
+        retired.push_back(t);
+        retiredBytes += bytes;
+        noteUse(retired.back());
+        return &retired.back();
+    }
+
+    void noteUse(Texture &t)
+    {
+        if (t.lastFrame == frameNumber)
+            return;
+        t.lastFrame = frameNumber;
+        ++frameTextures;
+        frameTextureBytes += uint32_t(t.bytes);
+        if (t.pooled)
+            pack.touch(t.packEntry, frameNumber);
+#if TS_TEXTURE_SOURCE_KEYS
+        if (t.paletteSlot >= 0)
+            gpuPalettes[size_t(t.paletteSlot)].lastFrame = frameNumber;
+#endif
+    }
+
+    // ------------------------------------------------------ texture pack
+    XboxTexturePack pack;
+    uint8_t *packPool = nullptr;
+    std::vector<int> packEvicted;
+
+#if TS_NV2A_PACK_IDENTITY_CACHE
+    // A source identity is independent of a Texture record's lifetime and of
+    // a pack slot's residency. No GPU address is retained here. Every page
+    // write clears the exact affected slots through a reverse page mask;
+    // palette/TEXA changes require a different complete source key.
+    struct PackSourceKey
+    {
+        uint64_t clut;
+        uint32_t tbp0, tbw, psm, width, height, cpsm, csm, csa, texa;
+        bool operator==(const PackSourceKey &) const = default;
+    };
+    struct PackSource
+    {
+        PackSourceKey key{};
+        GSCpuBackend::VramRange range{};
+        int entry = -1; // a remembered miss also avoids a repeat content hash
+        uint32_t lastUse = 0;
+    };
+    static constexpr uint32_t kPackSourceSets = 32u, kPackSourceWays = 2u;
+    static constexpr uint32_t kPackSources = kPackSourceSets * kPackSourceWays;
+    static_assert(kPackSources == 64u, "one page mask covers the source table");
+    std::array<PackSource, kPackSources> packSources{};
+    std::array<uint64_t, kPageCount> packSourcePages{};
+    uint64_t packSourceValid = 0;
+    uint32_t packSourceTick = 0;
+
+    static PackSourceKey packSourceKey(const Texture &t)
+    {
+        const bool indexed = isIndexed(t.psm);
+        return {t.clutHash, t.tbp0, t.tbw, t.psm, t.width, t.height,
+                indexed ? t.cpsm : 0u, indexed ? t.csm : 0u, indexed ? t.csa : 0u, t.texa};
+    }
+
+    static uint32_t packSourceSet(const PackSourceKey &k)
+    {
+        const uint32_t hash = (k.tbp0 * 0x9E3779B1u) ^ (k.width * 0x85EBCA6Bu) ^
+                              (k.height * 0xC2B2AE35u) ^ (k.psm << 18) ^ k.texa ^
+                              uint32_t(k.clut) ^ uint32_t(k.clut >> 32);
+        return (hash >> 27) * kPackSourceWays;
+    }
+
+    void invalidatePackSources(const GSCpuBackend::VramRange &range)
+    {
+        if (packSourceValid == 0u)
+            return;
+        uint64_t invalid = 0;
+        if (range.end == UINT64_MAX || range.end > kPageCount * kPageBytes)
+        {
+            invalid = packSourceValid;
+            packSourcePages.fill(0u);
+        }
+        else
+            for (uint64_t p = range.begin / kPageBytes;
+                 p < (range.end + kPageBytes - 1u) / kPageBytes && p < kPageCount; ++p)
+                invalid |= packSourcePages[p];
+        invalid &= packSourceValid;
+        packSourceValid &= ~invalid;
+        for (; invalid; invalid &= invalid - 1u)
+            ++s_lookupStats.packSourceInvalidations;
+    }
+
+    bool findPackSource(const Texture &t, int &entry)
+    {
+        const PackSourceKey key = packSourceKey(t);
+        const uint32_t first = packSourceSet(key);
+        for (uint32_t i = first; i < first + kPackSourceWays; ++i)
+            if ((packSourceValid & (1ull << i)) && packSources[i].key == key)
+            {
+                packSources[i].lastUse = ++packSourceTick;
+                entry = packSources[i].entry;
+                ++s_lookupStats.packSourceHits;
+                return true;
+            }
+        ++s_lookupStats.packSourceMisses;
+        return false;
+    }
+
+    void rememberPackSource(const Texture &t, int entry)
+    {
+        // TextureRange may conservatively cover the whole VRAM for an
+        // unsupported layout. Those inputs keep the original decode path.
+        if (t.range.begin >= t.range.end || t.range.end > kPageCount * kPageBytes)
+            return;
+        const PackSourceKey key = packSourceKey(t);
+        const uint32_t first = packSourceSet(key);
+        uint32_t slot = first;
+        for (uint32_t i = first; i < first + kPackSourceWays; ++i)
+        {
+            if (!(packSourceValid & (1ull << i)) || packSources[i].key == key)
+            {
+                slot = i;
+                break;
+            }
+            if (packSources[i].lastUse < packSources[slot].lastUse)
+                slot = i;
+        }
+        const uint64_t bit = 1ull << slot;
+        PackSource &source = packSources[slot];
+        // Remove old reverse links even if a previous page write already
+        // invalidated this slot, before its bit is reused for another range.
+        for (uint64_t p = source.range.begin / kPageBytes;
+             p < (source.range.end + kPageBytes - 1u) / kPageBytes && p < kPageCount; ++p)
+            packSourcePages[p] &= ~bit;
+        source = {key, t.range, entry, ++packSourceTick};
+        for (uint64_t p = t.range.begin / kPageBytes;
+             p < (t.range.end + kPageBytes - 1u) / kPageBytes; ++p)
+            packSourcePages[p] |= bit;
+        packSourceValid |= bit;
+    }
+#endif
+
+#if TS_TEXTURE_SOURCE_KEYS
+    // TS_TEXTURE_SOURCE_KEYS: a miss looks its pack entry up by source key
+    // (xbox_texture_source.h) before any decode. The image part is the hash
+    // of the upload that wrote the texture, taken as the upload went by,
+    // while the texture's GS pages keep the versions that upload left them;
+    // else it is read back from GS memory (indices or texels: no palette,
+    // no TEXA). The CLUT part is the hash the CLUT load already has.
+    struct UploadSource
+    {
+        uint32_t dbp = UINT32_MAX, dbw = 0, dpsm = 0, size = 0; // size: width | height << 16
+        uint32_t lastUse = 0;
+        uint64_t versions = 0, image = 0;
+    };
+    static constexpr uint32_t kUploadSets = 128u, kUploadWays = 2u; // 10 KB, about a level's textures
+    std::array<UploadSource, kUploadSets * kUploadWays> uploadSources{};
+    uint32_t uploadTick = 0;
+    UploadSource uploadPending{}; // the IMAGE transfer being hashed
+    uint32_t uploadRemaining = 0; // its bytes still to come (0: none is)
+    xbox_texture_source::ImageHasher uploadHasher;
+    std::array<uint64_t, kVariantLogs> variantsLogged{};
+    uint32_t variantCount = 0;
+
+    // A miss's source key: the image part, the palette part and how it was
+    // made (the dump records it).
+    enum : uint8_t
+    {
+        kSourceModeNone = 0,    // PSMCT32
+        kSourceModeClut = 1,    // PSMT8, 32-bit CLUT from CSA 0: the CLUT buffer's hash
+        kSourceModePalette = 2, // other indexed: the decoded palette's paletteKey
+        kSourceModeTexa = 3,    // 24- and 16-bit colour: TEXA
+    };
+    struct SourceKey
+    {
+        bool valid = false, indexed = false;
+        uint8_t mode = kSourceModeNone;
+        uint64_t image = 0, part = 0;
+    };
+
+    // The palette the decode applies (decodePalette over the CPU renderer's
+    // CLUT buffer), remembered for the same CLUT, format and TEXA.
+    uint32_t decodedPaletteEntries[256];
+    uint32_t decodedPaletteCount = 0;
+    uint64_t decodedPaletteFor = 0, decodedPaletteClut = 0;
+    bool decodedPaletteValid = false;
+    uint32_t decodedPalette(const GSDrawState &state)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        const uint64_t inputs = uint64_t(xbox_texture_source::fourBitPsm(tex.psm)) | (uint64_t(tex.cpsm) << 1) |
+                                (uint64_t(tex.csm) << 7) | (uint64_t(tex.csa & 0x1Fu) << 8) | (uint64_t(state.texa.ta0) << 13) |
+                                (uint64_t(state.texa.ta1) << 21) | (uint64_t(state.texa.aem ? 1u : 0u) << 29);
+        if (decodedPaletteValid && decodedPaletteFor == inputs && decodedPaletteClut == clutHash)
+            return decodedPaletteCount;
+        std::array<uint16_t, 512> buffer;
+        std::array<uint32_t, 2> mirror;
+        cpu.GetClutState(buffer, mirror);
+        decodedPaletteCount = xbox_texture_source::decodePalette(buffer.data(), tex.psm, tex.cpsm, tex.csm, tex.csa,
+                                                                 state.texa.ta0, state.texa.ta1, state.texa.aem,
+                                                                 decodedPaletteEntries);
+        decodedPaletteFor = inputs;
+        decodedPaletteClut = clutHash;
+        decodedPaletteValid = true;
+        return decodedPaletteCount;
+    }
+
+    bool sourceKey(const GSDrawState &state, const Texture &t, SourceKey &key)
+    {
+        const GSTex0Reg &tex = state.context.tex0;
+        if (xbox_texture_source::imageBits(tex.psm) == 0u)
+            return false;
+        key.indexed = xbox_texture_source::indexedPsm(tex.psm);
+        if (key.indexed && !xbox_texture_source::clutFormat(tex.cpsm))
+            return false;
+        if (!sourceImage(tex, t, key.image))
+            return false;
+        if (tex.psm == GS_PSM_T8 && tex.cpsm == GS_PSM_CT32 && (tex.csa & 0x0Fu) == 0u)
+        {
+            key.mode = kSourceModeClut;
+            key.part = t.clutHash;
+        }
+        else if (key.indexed)
+        {
+            const uint32_t count = decodedPalette(state);
+            if (count == 0u)
+                return false;
+            key.mode = kSourceModePalette;
+            key.part = xbox_texture_source::paletteKey(decodedPaletteEntries, count);
+        }
+        else if (tex.psm != GS_PSM_CT32)
+        {
+            key.mode = kSourceModeTexa;
+            key.part = xbox_texture_source::texaKey(state.texa.ta0, state.texa.ta1, state.texa.aem);
+        }
+        key.valid = true;
+        return true;
+    }
+
+    // ------------------------------------------------- GPU palettes
+    // Index textures (format kI8) drawn with the palette of the moment:
+    // 256 A8R8G8B8 entries a slot (1 KB, 64-byte aligned as the NV2A wants),
+    // in one block taken when the pack opens. A slot used in this frame or
+    // the last is not taken for another palette (the GPU may still read it);
+    // records drawn with a slot that is taken are dropped first.
+    struct GpuPalette
+    {
+        uint64_t key = 0;
+        uint32_t lastFrame = 0;
+        bool used = false;
+    };
+    static constexpr uint32_t kGpuPalettes = 32u; // 32 KB
+    uint8_t *paletteBlock = nullptr;
+    std::array<GpuPalette, kGpuPalettes> gpuPalettes{};
+
+    // The slot holding the decoded palette, made if need be; -1 when every
+    // slot is in use, or the palette has alpha the pack's unit scale cannot
+    // hold (above 0x80).
+    int gpuPalette(const GSDrawState &state)
+    {
+        const uint32_t count = decodedPalette(state);
+        if (!paletteBlock || count == 0u)
+            return -1;
+        const uint64_t key = xbox_texture_source::paletteKey(decodedPaletteEntries, 256u);
+        int victim = -1;
+        for (uint32_t i = 0; i < kGpuPalettes; ++i)
+        {
+            GpuPalette &g = gpuPalettes[i];
+            if (g.used && g.key == key)
+            {
+                g.lastFrame = frameNumber;
+                return int(i);
+            }
+            if (!g.used || g.lastFrame + 1u < frameNumber)
+                if (victim < 0 || !g.used || (gpuPalettes[size_t(victim)].used && g.lastFrame < gpuPalettes[size_t(victim)].lastFrame))
+                    victim = int(i);
+        }
+        if (victim < 0)
+        {
+            ++s_lookupStats.paletteSlotsFull;
+            return -1;
+        }
+        for (uint32_t i = 0; i < 256u; ++i)
+            if ((decodedPaletteEntries[i] >> 24) > 0x80u)
+                return -1;
+        // Records still drawn with the slot's old palette go first.
+        uint8_t *const slot = paletteBlock + size_t(victim) * 1024u;
+        for (auto it = textures.begin(); it != textures.end();)
+        {
+            const auto next = std::next(it);
+            if (it->paletteSlot == victim)
+                retireTexture(it);
+            it = next;
+        }
+        for (Texture &r : retired)
+            if (r.paletteSlot == victim)
+                r.paletteSlot = -1, r.palette = nullptr;
+        uint32_t entries[256];
+        for (uint32_t i = 0; i < 256u; ++i)
+            entries[i] = xbox_texture_source::nv2aPaletteEntry(decodedPaletteEntries[i]);
+        std::memcpy(slot, entries, sizeof(entries));
+        gpuPalettes[size_t(victim)] = {key, frameNumber, true};
+        return victim;
+    }
+
+    // These indices (pack entry `index`, format kI8) with the palette of the
+    // moment. Null when not drawn from the pack now: `known` then says the
+    // entry is on its way (t keeps it, and tries again) rather than that the
+    // palette could not be made.
+    Texture *paletteTexture(const GSDrawState &state, Texture &t, int index, bool &known)
+    {
+        known = false;
+        const int slot = gpuPalette(state);
+        if (slot < 0)
+            return nullptr;
+        t.palette = paletteBlock + size_t(slot) * 1024u;
+        t.paletteSlot = slot;
+        ++g_nv2aTextureStats.packHits;
+        if (usePack(t, index))
+        {
+            ++s_lookupStats.sourcePalettes;
+            Texture &added = addTexture(t);
+            noteUse(added);
+            return &added;
+        }
+        known = t.packEntry >= 0;
+        return nullptr;
+    }
+
+    static uint32_t uploadSet(uint32_t dbp, uint32_t psm)
+    {
+        return (((dbp ^ (psm << 14)) * 0x9E3779B1u) >> 25) * kUploadWays;
+    }
+
+    // BeginTransfer: an upload of exactly one texture's image (from its
+    // origin, in its own format, in the usual pixel order) is hashed as it
+    // comes; any other transfer ends the one before.
+    void beginUploadSource(const GSTransferCommand &c)
+    {
+        uploadRemaining = 0;
+        const GSBitBltBuf &b = c.bitbltbuf;
+        const uint32_t w = c.trxreg.rrw, h = c.trxreg.rrh;
+        if (c.direction != 0u || xbox_texture_source::imageBits(b.dpsm) == 0u || c.trxpos.dsax != 0u ||
+            c.trxpos.dsay != 0u || c.trxpos.dir != 0u || b.dbw == 0u || w == 0u || h == 0u || w > 1024u || h > 1024u)
+            return;
+        uploadPending = {b.dbp, b.dbw, b.dpsm, w | (h << 16)};
+        uploadRemaining = xbox_texture_source::imageBytes(b.dpsm, w, h);
+        uploadHasher.reset(b.dpsm, w, h);
+    }
+
+    // UploadImage, once the pages' versions have moved: the image's next
+    // part and, when it is all there, its record (the versions it left).
+    void noteUploadSource(const uint8_t *data, uint32_t bytes)
+    {
+        if (uploadRemaining == 0u)
+            return;
+        const uint32_t n = std::min(bytes, uploadRemaining);
+        uploadHasher.add(data, n);
+        uploadRemaining -= n;
+        if (uploadRemaining != 0u)
+            return;
+        UploadSource s = uploadPending;
+        // The range textureLookup works out for this texture (clamp 0).
+        GSDrawState state{};
+        state.context.tex0.tbp0 = s.dbp;
+        state.context.tex0.tbw = uint8_t(s.dbw);
+        state.context.tex0.psm = uint8_t(s.dpsm);
+        state.textureWidth = uint16_t(s.size & 0xFFFFu);
+        state.textureHeight = uint16_t(s.size >> 16);
+        const GSCpuBackend::VramRange range = GSCpuBackend::TextureRange(state);
+        if (range.begin >= range.end || range.end > kPageCount * kPageBytes)
+            return;
+        s.versions = versionSum(range);
+        s.image = uploadHasher.value();
+        s.lastUse = ++uploadTick;
+        UploadSource *const set = &uploadSources[uploadSet(s.dbp, s.dpsm)];
+        UploadSource *slot = set;
+        for (uint32_t way = 0; way < kUploadWays; ++way)
+        {
+            if (set[way].dbp == s.dbp && set[way].dpsm == s.dpsm)
+            {
+                slot = &set[way];
+                break;
+            }
+            if (set[way].lastUse < slot->lastUse)
+                slot = &set[way];
+        }
+        *slot = s;
+        ++s_lookupStats.sourceUploads;
+    }
+
+    // The image part of t's source key (t a miss of a format with source
+    // keys, not a render target): its upload's, else read back.
+    bool sourceImage(const GSTex0Reg &tex, const Texture &t, uint64_t &image)
+    {
+        const UploadSource *const set = &uploadSources[uploadSet(tex.tbp0, tex.psm)];
+        const uint32_t size = t.width | (t.height << 16);
+        for (uint32_t way = 0; way < kUploadWays; ++way)
+        {
+            const UploadSource &s = set[way];
+            if (s.dbp == tex.tbp0 && s.dpsm == tex.psm && s.dbw == tex.tbw && s.size == size && s.versions == t.versions)
+            {
+                image = s.image;
+                ++s_lookupStats.sourceFromUpload;
+                return true;
+            }
+        }
+        if (!vram)
+            return false;
+        // GS memory read as the decode reads it, without the palette, packed
+        // as an upload carries it (packTexels, in place).
+        xbox_texture_source::ImageHasher hasher(tex.psm, t.width, t.height);
+        const uint32_t w = t.width, band = std::max<uint32_t>(kScratchTexels / w, 1u);
+        uint8_t *const bytes = reinterpret_cast<uint8_t *>(texScratch);
+        uint32_t nibble = 0;
+        for (uint32_t y = 0; y < t.height; y += band)
+        {
+            const uint32_t rows = std::min(band, t.height - y);
+            for (uint32_t r = 0; r < rows; ++r)
+                if (!GSMem::ReadRow(tex.psm, vram, tex.tbp0, tex.tbw, 0u, y + r, w, texScratch + size_t(r) * w))
+                    return false;
+            hasher.add(bytes, xbox_texture_source::packTexels(tex.psm, texScratch, size_t(rows) * w, bytes, nibble));
+        }
+        if (nibble)
+        {
+            const uint8_t last = uint8_t(nibble & 0x0Fu);
+            hasher.add(&last, 1u);
+        }
+        image = hasher.value();
+        return true;
+    }
+
+#if TS_TEXTURE_DUMP
+    // TS_TEXTURE_DUMP: the texture for xtpbuild.py --xbox-dump (layout at
+    // read_xbox_dumps there), a row at a time through a buffer of its own
+    // (the texture scratch holds the decode the miss goes on with).
+    struct DumpHeader
+    {
+        char magic[4];
+        uint32_t version;
+        uint16_t width, height;
+        uint8_t psm, cpsm, flags, mode;
+        uint64_t decoded, image, part, exact;
+        uint32_t paletteCount, imageBytes, texa, reserved;
+    };
+    static_assert(sizeof(DumpHeader) == 64, "dump header layout");
+    std::vector<uint64_t> dumped; // decoded keys written, sorted
+    bool dumpFolder = false;
+
+    void dumpTexture(const GSDrawState &state, const Texture &t, uint64_t decodedKey, const SourceKey &source)
+    {
+        const auto at = std::lower_bound(dumped.begin(), dumped.end(), decodedKey);
+        if (dumped.size() >= kDumpLimit || (at != dumped.end() && *at == decodedKey) || !vram)
+            return;
+        dumped.insert(at, decodedKey);
+        if (!dumpFolder)
+        {
+            CreateDirectoryA("E:\\TimeSplitters", nullptr);
+            CreateDirectoryA("E:\\TimeSplitters\\texdump", nullptr);
+            dumpFolder = true;
+        }
+        char name[64];
+        std::snprintf(name, sizeof(name), "E:\\TimeSplitters\\texdump\\%08x%08x.xtx", unsigned(decodedKey >> 32),
+                      unsigned(decodedKey));
+        HANDLE f = CreateFileA(name, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+        if (f == INVALID_HANDLE_VALUE)
+            return;
+        const GSTex0Reg &tex = state.context.tex0;
+        const uint32_t w = t.width, h = t.height;
+        const uint32_t count = source.indexed ? decodedPalette(state) : 0u;
+        DumpHeader header{};
+        std::memcpy(header.magic, "XTX1", 4);
+        header.version = 1u;
+        header.width = uint16_t(w);
+        header.height = uint16_t(h);
+        header.psm = tex.psm;
+        header.cpsm = tex.cpsm;
+        header.flags = source.indexed ? 1u : 0u;
+        header.mode = source.mode;
+        header.decoded = decodedKey;
+        header.image = source.image;
+        header.part = source.part;
+        header.exact = xbox_texture_source::exactKey(source.image, source.part);
+        header.paletteCount = count;
+        header.imageBytes = xbox_texture_source::imageBytes(tex.psm, w, h);
+        header.texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
+        auto write = [&](const void *data, uint32_t bytes) {
+            DWORD done = 0;
+            return bytes == 0u || (WriteFile(f, data, bytes, &done, nullptr) && done == bytes);
+        };
+        std::vector<uint32_t> row(w);
+        bool ok = write(&header, sizeof(header));
+        for (uint32_t y = 0; ok && y < h; ++y)
+        {
+            cpu.DecodeTextureRows(state, y, 1u, row.data());
+            ok = write(row.data(), w * 4u);
+        }
+        uint32_t nibble = 0;
+        uint8_t *const bytes = reinterpret_cast<uint8_t *>(row.data());
+        for (uint32_t y = 0; ok && y < h; ++y)
+        {
+            ok = GSMem::ReadRow(tex.psm, vram, tex.tbp0, tex.tbw, 0u, y, w, row.data()) &&
+                 write(bytes, uint32_t(xbox_texture_source::packTexels(tex.psm, row.data(), w, bytes, nibble)));
+        }
+        const uint8_t last = uint8_t(nibble & 0x0Fu);
+        ok = ok && (!nibble || write(&last, 1u)) && write(decodedPaletteEntries, count * 4u);
+        CloseHandle(f);
+        if (ok)
+            ++s_lookupStats.sourceDumps;
+        else
+            DeleteFileA(name);
+    }
+#endif
+
+    // Indices the pack has with another palette: this one, for the builder
+    // (xtpbuild.py --variants), as eight lines of 32 entries, once a pair.
+    void logVariant(uint64_t image, uint64_t clut, uint32_t w, uint32_t h)
+    {
+        const uint64_t key = xbox_texture_source::exactKey(image, clut);
+        for (uint32_t i = 0; i < variantCount; ++i)
+            if (variantsLogged[i] == key)
+                return;
+        if (variantCount >= kVariantLogs)
+            return;
+        variantsLogged[variantCount++] = key;
+        std::array<uint16_t, 512> buffer;
+        std::array<uint32_t, 2> mirror;
+        cpu.GetClutState(buffer, mirror);
+        if (GSCpuBackend::HashClut(buffer.data()) != clut)
+            return;
+        ++s_lookupStats.sourceVariants;
+        static const char kHex[] = "0123456789abcdef";
+        const auto hex = [](char *out, uint64_t v, int digits) {
+            for (int i = digits - 1; i >= 0; --i, v >>= 4)
+                out[i] = kHex[v & 15u];
+        };
+        for (uint32_t part = 0; part < 8u; ++part)
+        {
+            char line[400];
+            char *p = line;
+            std::memcpy(p, "[TS:texvariant] ", 16);
+            p += 16;
+            hex(p, image, 16);
+            p += 16;
+            *p++ = ' ';
+            hex(p, clut, 16);
+            p += 16;
+            p += std::snprintf(p, 32, " %ux%u %u/8 ", unsigned(w), unsigned(h), unsigned(part));
+            for (uint32_t e = part * 32u; e < part * 32u + 32u; ++e, p += 8)
+                hex(p, buffer[e] | (uint32_t(buffer[e + 256u]) << 16), 8);
+            *p = '\0';
+            std::cout << line << std::endl;
+        }
+    }
+#endif
+
+    // Only when Create gives up on the GPU: the software renderer gets the
+    // pool's memory back (once the loader has stopped writing into it).
+    ~Impl()
+    {
+        pack.close();
+        if (packPool)
+            MmFreeContiguousMemory(packPool);
+#if TS_TEXTURE_SOURCE_KEYS
+        if (preloadBlock)
+            MmFreeContiguousMemory(preloadBlock);
+        if (paletteBlock)
+            MmFreeContiguousMemory(paletteBlock);
+#endif
+    }
+
+    // Opens the pack and takes its pool: at start-up, while 1.25 MB of
+    // contiguous memory is still easy to find. Without the file (or the
+    // memory, or the loader) everything runs as before.
+    void openTexturePack()
+    {
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        invalidatePackSources({0, UINT64_MAX});
+#endif
+        if (!pack.open(kTexturePackPath))
+            return;
+        packPool = static_cast<uint8_t *>(allocGpu(kTexturePoolBytes));
+        if (!packPool)
+        {
+            std::cout << "[TS:xbox] texture pack: no memory for its pool, not used" << std::endl;
+            pack.close();
+            return;
+        }
+#if TS_TEXTURE_SOURCE_KEYS
+        // The preloads, read now (before the loader takes the file), and the
+        // GPU palettes when the pack has index textures. Either missing
+        // leaves that part out.
+        if (const uint32_t bytes = pack.preloadBytes())
+        {
+            preloadBlock = static_cast<uint8_t *>(allocGpu(bytes));
+            if (!preloadBlock || !pack.readPreloads(preloadBlock))
+            {
+                std::cout << "[TS:xbox] texture pack: preloads not used (" << (preloadBlock ? "unreadable" : "no memory")
+                          << ")" << std::endl;
+                if (preloadBlock)
+                    MmFreeContiguousMemory(preloadBlock);
+                preloadBlock = nullptr;
+            }
+        }
+        bool indexTextures = false;
+        for (uint32_t i = 0; i < pack.count() && !indexTextures; ++i)
+            indexTextures = pack.entry(int(i)).format == XboxTexturePack::kI8;
+        if (indexTextures && !(paletteBlock = static_cast<uint8_t *>(allocGpu(kGpuPalettes * 1024u))))
+            std::cout << "[TS:xbox] texture pack: no memory for GPU palettes, index textures not used" << std::endl;
+#endif
+        if (!pack.attachPool(packPool, kTexturePoolBytes))
+        {
+            MmFreeContiguousMemory(packPool);
+            packPool = nullptr;
+        }
+    }
+
+    // Once a frame: the loader's finished reads, the counters, and the
+    // runtime path's budget (kTextureBudgetWithPack). frameTextureBytes is
+    // what the runtime path drew this frame in texels (pack textures count
+    // nothing), against the trial's own measure (kPackTrialBytes).
+    void packFrameEnd()
+    {
+        if (!pack.enabled())
+            return;
+        pack.poll();
+        updatePackStats();
+        packQuietFrames = frameTextureBytes > kPackTrialBytes / 2u ? 0u : std::min(packQuietFrames + 1u, kPackTrialFrames);
+        if (frameTextureBytes > kPackTrialBytes * 3u / 4u)
+            textureBudget = kTextureBudget;
+        else if (packQuietFrames >= kPackTrialFrames)
+            textureBudget = kTextureBudgetWithPack;
+        g_nv2aTextureStats.textureBudgetKB = uint32_t(effectiveBudget() / 1024u);
+    }
+
+    void updatePackStats()
+    {
+        const XboxTexturePack::Stats &s = pack.stats();
+        g_nv2aTextureStats.packLoads = s.loads;
+        g_nv2aTextureStats.packEvictions = s.evictions;
+        g_nv2aTextureStats.packMostVictims = s.mostVictims;
+        g_nv2aTextureStats.packBusy = s.busy;
+        g_nv2aTextureStats.packPoolBytes = s.usedBytes;
+        g_nv2aTextureStats.packLoadMs = uint32_t(s.loadMicroseconds / 1000u);
+        g_nv2aTextureStats.packLongestMs = (s.longestMicroseconds + 999u) / 1000u;
+    }
+
+    // Records still pointing at entries the pack evicted.
+    void dropEvicted()
+    {
+        for (int entry : packEvicted)
+            for (auto it = textures.begin(); it != textures.end();)
+            {
+                const auto next = std::next(it);
+                if (it->pooled && it->packEntry == entry)
+                    retireTexture(it);
+                it = next;
+            }
+        packEvicted.clear();
+    }
+
+    // Makes t the pack's copy of entry `index` when that is in the pool.
+    // Otherwise t keeps the runtime path for now and remembers when to try
+    // again: next frame while the entry is on its way from the disc (or the
+    // loader is busy), later when the pool had no room, never when the
+    // entry cannot be read.
+#if TS_TEXTURE_SOURCE_KEYS
+    uint8_t *preloadBlock = nullptr; // the pack's preloads (version 3), read at start-up
+#endif
+
+    // The NV2A format of each XboxTexturePack::Format.
+    static constexpr uint32_t kPackFormats[5] = {
+        NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5, NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8,
+        NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8, NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5,
+        NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8};
+
+    // allowPreview (TS_TEXTURE_SOURCE_KEYS): an entry not in the pool yet
+    // but with a preload makes t that preload (borrowed, true is returned)
+    // until the entry arrives, instead of the runtime path's conversion.
+    bool usePack(Texture &t, int index, bool allowPreview = true)
+    {
+        XboxTexturePack::Status status = XboxTexturePack::kUnavailable;
+        uint8_t *texels = pack.acquire(index, frameNumber, packEvicted, status);
+        if (!packEvicted.empty())
+            dropEvicted();
+        if (!texels)
+        {
+            switch (status)
+            {
+            case XboxTexturePack::kLoading:
+            case XboxTexturePack::kBusy:
+                ++g_nv2aTextureStats.packWaits;
+                t.packEntry = index;
+                t.packRetryFrame = frameNumber + 1u;
+                break;
+            case XboxTexturePack::kNoRoom:
+                ++g_nv2aTextureStats.packNoRoom;
+                t.packEntry = index;
+                t.packRetryFrame = frameNumber + kPackRetryFrames;
+                break;
+            default:
+                t.packEntry = -1;
+                break;
+            }
+#if TS_TEXTURE_SOURCE_KEYS
+            if (allowPreview && t.packEntry >= 0)
+                if (const XboxTexturePack::Preload *preload = pack.preload(index))
+                {
+                    const XboxTexturePack::Entry &e = pack.entry(index);
+                    t.texels = preloadBlock + preload->offset;
+                    t.format = kPackFormats[preload->format];
+                    t.gpuWidth = preload->width;
+                    t.gpuHeight = preload->height;
+                    t.levels = 1;
+                    t.unitAlpha = (e.flags & XboxTexturePack::kUnitAlpha) != 0u;
+                    t.forceLinear = (e.flags & XboxTexturePack::kReplacement) != 0u;
+                    t.bytes = 0;
+                    t.pooled = false;
+                    t.borrowed = true;
+                    ++s_lookupStats.sourcePreviews;
+                    return true;
+                }
+#else
+            (void)allowPreview;
+#endif
+            return false;
+        }
+        const XboxTexturePack::Entry &e = pack.entry(index);
+        t.texels = texels;
+        t.format = kPackFormats[e.format]; // checked when the pack was opened
+        t.gpuWidth = e.width;
+        t.gpuHeight = e.height;
+        t.levels = e.levels;
+        t.unitAlpha = (e.flags & XboxTexturePack::kUnitAlpha) != 0u;
+        t.forceLinear = (e.flags & XboxTexturePack::kReplacement) != 0u;
+        t.bytes = 0;
+        t.packEntry = index;
+        t.pooled = true;
+        t.borrowed = false;
+        return true;
+    }
+
+    // A cache miss whose decoded texels (in `decoded`; with
+    // TS_NV2A_TEXTURE_STREAM their key) may be in the pack. Null when they
+    // are not, or not in the pool yet: then t remembers the entry and the
+    // caller encodes the texture as before.
+#if TS_NV2A_TEXTURE_STREAM
+    Texture *packTexture(Texture &t, uint64_t key)
+    {
+        const int index = pack.find(key);
+#else
+    Texture *packTexture(Texture &t)
+    {
+        const int index = pack.find(gs_texture_hash::hash(decoded.data(), t.width, t.height));
+#endif
+        // An index texture is never a decoded texture (its key is a source
+        // key): only a palette makes it one (paletteTexture).
+        if (index >= 0 && pack.entry(index).format == XboxTexturePack::kI8)
+        {
+            ++g_nv2aTextureStats.packMisses;
+            return nullptr;
+        }
+#if TS_NV2A_PACK_IDENTITY_CACHE
+        rememberPackSource(t, index);
+#endif
+        if (index < 0)
+        {
+            ++g_nv2aTextureStats.packMisses;
+            return nullptr;
+        }
+        ++g_nv2aTextureStats.packHits;
+        if (!usePack(t, index))
+            return nullptr;
+        Texture &added = addTexture(t);
+        noteUse(added);
+        return &added;
+    }
+
+    // A texture drawn from the runtime path while its pack entry was not in
+    // the pool tries again; once it is, the pack's copy replaces it (its
+    // own memory retires as usual).
+    Texture *retryPack(std::list<Texture>::iterator it)
+    {
+        Texture t = *it;
+        if (!usePack(t, it->packEntry, false)) // a preload in its place would change nothing
+        {
+            it->packEntry = t.packEntry;
+            it->packRetryFrame = t.packRetryFrame;
+            return nullptr;
+        }
+        retireTexture(it);
+        Texture &added = addTexture(t);
+        noteUse(added);
+        return &added;
+    }
+
+    // Render targets and screen copies: GS pages the GPU draws (the
+    // display buffers) or that off-screen draws and copies of either wrote,
+    // until an upload or a copy of texels replaces them. Their contents are
+    // never in the pack, and hashing them would cost time for nothing.
+    std::bitset<kPageCount> targetPages;
+    GSCpuBackend::VramRange lastTargetMark{}; // consecutive off-screen draws share a target
+
+    void markTargetPages(const GSCpuBackend::VramRange &range, bool target)
+    {
+        if (range.end == UINT64_MAX || (target && range.begin == lastTargetMark.begin && range.end == lastTargetMark.end))
+            return;
+        lastTargetMark = target ? range : GSCpuBackend::VramRange{};
+        for (uint64_t p = range.begin / kPageBytes; p < (range.end + kPageBytes - 1) / kPageBytes && p < kPageCount; ++p)
+            targetPages[p] = target;
+    }
+
+    bool renderTarget(const GSCpuBackend::VramRange &range) const
+    {
+        if (range.end == UINT64_MAX || range.end > kPageCount * kPageBytes)
+            return true;
+        const uint32_t rows = std::min<uint32_t>(frameHeight, kDisplayRows);
+        for (const uint32_t fbp : {displayFbp[0], displayFbp[1], frameFbp})
+            if (fbp != UINT32_MAX && overlaps(range, frameRangeExact(framePsm, fbp, frameFbw, rows)))
+                return true;
+        for (uint64_t p = range.begin / kPageBytes; p < (range.end + kPageBytes - 1) / kPageBytes; ++p)
+            if (targetPages[p])
+                return true;
+        return false;
+    }
+
+#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
+    // Encodes the decoded GS texture (`decoded`: CLUT and TEXA applied) into
+    // `swizzled`, the layout the NV2A samples with wrapping: DXT1/DXT5 from
+    // 8x8 up, else A1R5G5B5 when that loses nothing (16-bit sources,
+    // one-bit alpha as below), else A8R8G8B8.
+    void encodeTexture(Texture &t, const GSDrawState &state)
+    {
+        // 2D draws (sprites: HUD, text) keep their texels; the halving is
+        // for the world's triangles.
+        const bool allowHalf = state.prim.type != GS_PRIM_SPRITE;
+        cpuFlushed().DecodeTexture(state, decoded);
+        if (decoded.size() < size_t(t.width) * t.height)
+            decoded.assign(size_t(t.width) * t.height, 0u);
+        // Textures of 256 or more are stored at half size (2x2 average):
+        // a match's textures are about 3 MB a frame at full size, three
+        // times what 64 MB leaves for the cache.
+        t.gpuWidth = t.width;
+        t.gpuHeight = t.height;
+        if (allowHalf && (t.width >= 256u || t.height >= 256u) && t.width >= 16u && t.height >= 16u)
+        {
+            const uint32_t w = t.width, gw = w / 2u, gh = t.height / 2u;
+            for (uint32_t v = 0; v < gh; ++v)
+            {
+                const uint32_t *r0 = &decoded[size_t(2u * v) * w], *r1 = r0 + w;
+                uint32_t *dst = &decoded[size_t(v) * gw];
+                for (uint32_t u = 0; u < gw; ++u)
+                {
+                    const uint32_t a = r0[2u * u], b = r0[2u * u + 1u], c = r1[2u * u], d = r1[2u * u + 1u];
+                    uint32_t out = 0;
+                    for (uint32_t shift = 0; shift < 32u; shift += 8u)
+                        out |= ((((a >> shift) & 0xFFu) + ((b >> shift) & 0xFFu) + ((c >> shift) & 0xFFu) + ((d >> shift) & 0xFFu) + 2u) / 4u) << shift;
+                    dst[u] = out;
+                }
+            }
+            t.gpuWidth = gw;
+            t.gpuHeight = gh;
+        }
+        const uint32_t width = t.gpuWidth, height = t.gpuHeight;
+        const size_t count = size_t(width) * height;
+        // One alpha bit (texel alpha 0 or not) is enough when every alpha is
+        // 0 or the game's opaque 0x7F/0x80: stored 1.0 then stands for 0x80
+        // and the unit-alpha pixel programs read it so (0x7F comes out
+        // 1/128 high). Alpha only 0 or at least 0x80 also fits one bit, read
+        // through the x2 programs as 2.0 (exact for 0xFF; DECAL and
+        // HIGHLIGHT clamp any of them to 1).
+        bool unitAlpha = true, highAlpha = true, fits16 = true;
+        for (size_t i = 0; i < count && (unitAlpha || highAlpha); ++i)
+        {
+            const uint32_t c = decoded[i], a = c >> 24;
+            unitAlpha = unitAlpha && (a == 0u || a == 0x7Fu || a == 0x80u);
+            highAlpha = highAlpha && (a == 0u || a >= 0x80u);
+            if (c & 0x00070707u)
+                fits16 = false;
+        }
+        const bool binaryAlpha = unitAlpha || highAlpha;
+        // Most textures: DXT1 (4 bits a texel) so the cache holds a frame's
+        // worth; the alpha bit is the 3-colour mode's transparent entry.
+        if (width >= 8u && height >= 8u)
+        {
+            // Soft alpha: DXT5 (8 bits a texel, alpha interpolated per block).
+            t.format = binaryAlpha ? NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5
+                                   : NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8;
+            t.bytes = binaryAlpha ? count / 2u : count;
+            t.unitAlpha = unitAlpha;
+            swizzled.resize(t.bytes);
+            encodeDxt(width, height, !binaryAlpha, swizzled.data());
+            return;
+        }
+        fits16 = fits16 && binaryAlpha;
+        t.unitAlpha = fits16 && unitAlpha;
+        const Swizzle sw(width, height);
+        spreadU.resize(width);
+        for (uint32_t u = 0; u < width; ++u)
+            spreadU[u] = Swizzle::spread(u, sw.maskU);
+        spreadV.resize(height);
+        for (uint32_t v = 0; v < height; ++v)
+            spreadV[v] = Swizzle::spread(v, sw.maskV);
+        t.format = fits16 ? NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5 : NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8;
+        t.bytes = count * (fits16 ? 2u : 4u);
+        swizzled.resize(t.bytes);
+        if (fits16)
+        {
+            uint16_t *dst = reinterpret_cast<uint16_t *>(swizzled.data());
+            for (uint32_t v = 0; v < height; ++v)
+            {
+                const uint32_t *src = &decoded[size_t(v) * width];
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < width; ++u)
+                {
+                    const uint32_t c = src[u]; // R, G, B, A bytes
+                    dst[spreadU[u] | rowBits] = uint16_t(((c >> 24) ? 0x8000u : 0u) | ((c & 0xF8u) << 7) |
+                                                         ((c >> 6) & 0x03E0u) | ((c >> 19) & 0x1Fu));
+                }
+            }
+        }
+        else
+        {
+            uint32_t *dst = reinterpret_cast<uint32_t *>(swizzled.data());
+            for (uint32_t v = 0; v < height; ++v)
+            {
+                const uint32_t *src = &decoded[size_t(v) * width];
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < width; ++u)
+                {
+                    const uint32_t c = src[u];
+                    dst[spreadU[u] | rowBits] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);
+                }
+            }
+        }
+    }
+#endif
+
+#if TS_NV2A_TEXTURE_STREAM
+    // The texture being made (TS_NV2A_TEXTURE_STREAM), with encodeTexture's
+    // decisions. Whole: decoded into texScratch at once, halved there; else
+    // decoded streamRows() rows at a time, for the key (keyed), to scan, to
+    // encode.
+    struct TexelPlan
+    {
+        bool whole = false, halve = false, keyed = false;
+        bool unitAlpha = true, highAlpha = true, fits16 = true; // encodeTexture's scan of the stored texels
+        bool dxt = false, dxt5 = false;
+        uint64_t key = 0; // the pack key (gs_texture_hash), when keyed
+    };
+
+    // encodeTexture's 2x2 average: rows 2v and 2v + 1 of src (w wide) into
+    // row v of dst (w / 2 wide), for v < outRows; dst may be src.
+    static void halveRows(const uint32_t *src, uint32_t w, uint32_t outRows, uint32_t *dst)
+    {
+        const uint32_t gw = w / 2u;
+        for (uint32_t v = 0; v < outRows; ++v)
+        {
+            const uint32_t *r0 = src + size_t(2u * v) * w, *r1 = r0 + w;
+            uint32_t *out = dst + size_t(v) * gw;
+            for (uint32_t u = 0; u < gw; ++u)
+            {
+                const uint32_t a = r0[2u * u], b = r0[2u * u + 1u], c = r1[2u * u], d = r1[2u * u + 1u];
+                uint32_t value = 0;
+                for (uint32_t shift = 0; shift < 32u; shift += 8u)
+                    value |= ((((a >> shift) & 0xFFu) + ((b >> shift) & 0xFFu) + ((c >> shift) & 0xFFu) + ((d >> shift) & 0xFFu) + 2u) / 4u) << shift;
+                out[u] = value;
             }
         }
     }
 
-    // A draw for the other display buffer while a frame is open: true ends
-    // the frame (release); FBS 0 keeps drawing into it.
-    bool diagFrameSwitch(const GSDrawState &state)
+    // encodeTexture's alpha scan, a piece at a time. It stopped once both
+    // alpha flags were false; then fits16 is not used, so scanning on
+    // changes nothing.
+    static void scanAlpha(const uint32_t *texels, size_t count, TexelPlan &plan)
     {
-        ++xdiag::g_count.frameSwitches;
-        if (xdiag::logAllowed())
-            xdiag::logLine("[TS:diag] frame switch: draw to fbp %u while frame fbp %u is open (%s)",
-                           unsigned(state.context.frame.fbp), unsigned(frameFbp),
-                           dv[xdiag::kFrameSwitch] ? "frame ended" : "FBS off: kept");
-        if (dv[xdiag::kFrameSwitch])
-            return true;
-        ++xdiag::g_count.frameSwitchesKept;
-        return false;
-    }
-
-    // FLW: before a frame draws, the finished frames still waiting for a
-    // vblank: 1 keeps the next back buffer off the screen (at most
-    // buffers - 2 waiting), 2 waits for every flip. 100 ms at most.
-    void diagFlipWait()
-    {
-        const int mode = dv[xdiag::kFlipWait];
-        if (!mode)
-            return;
-        const int limit = mode == 1 ? std::max(pb_ts_buffer_count() - 2, 0) : 0;
-        if (pb_ts_pending_flips() <= limit)
-            return;
-        ++xdiag::g_count.flipWaits;
-        const DWORD start = GetTickCount();
-        while (pb_ts_pending_flips() > limit && GetTickCount() - start < 100u)
+        bool unitAlpha = plan.unitAlpha, highAlpha = plan.highAlpha, fits16 = plan.fits16;
+        for (size_t i = 0; i < count && (unitAlpha || highAlpha); ++i)
         {
+            const uint32_t c = texels[i], a = c >> 24;
+            unitAlpha = unitAlpha && (a == 0u || a == 0x7Fu || a == 0x80u);
+            highAlpha = highAlpha && (a == 0u || a >= 0x80u);
+            if (c & 0x00070707u)
+                fits16 = false;
         }
-        xdiag::g_count.flipWaitMs += GetTickCount() - start;
+        plan.unitAlpha = unitAlpha;
+        plan.highAlpha = highAlpha;
+        plan.fits16 = fits16;
     }
 
-    // The frame's target and height, logged when they change.
-    void diagFrameLog(const GSDrawState &state)
+    // Decodes the texture (whole when it fits the scratch) and, for the
+    // pack's lookup, its key. A streamed one that is not looked up is
+    // scanned on the way; one that is, only once the pack lacks it (a pack
+    // hit costs one decode and the key, as before).
+    void beginTexels(const GSDrawState &state, const Texture &t, bool keyed, TexelPlan &plan)
     {
-        const uint32_t key[5] = {frameFbp, frameFbw, framePsm, frameHeight, display.rows};
-        if (std::memcmp(key, diagFrameKey, sizeof(key)) == 0)
+        const uint32_t w = t.width, h = t.height;
+        // encodeTexture's halving: sprites (HUD, text) keep their texels.
+        plan.halve = state.prim.type != GS_PRIM_SPRITE && (w >= 256u || h >= 256u) && w >= 16u && h >= 16u;
+        plan.whole = size_t(w) * h <= kScratchTexels;
+        plan.keyed = keyed;
+        if (plan.whole)
+        {
+            cpu.DecodeTextureRows(state, 0u, h, texScratch);
+            if (keyed)
+                plan.key = gs_texture_hash::hash(texScratch, w, h);
             return;
-        std::memcpy(diagFrameKey, key, sizeof(key));
-        if (xdiag::logAllowed())
-            xdiag::logLine("[TS:diag] frame fbp=%u fbw=%u psm=%u height=%u (display rows %u fbw %u psm %u; first "
-                           "scissor rows %u; HGT %u)",
-                           unsigned(frameFbp), unsigned(frameFbw), unsigned(framePsm), unsigned(frameHeight),
-                           unsigned(display.rows), unsigned(display.fbw), unsigned(display.psm),
-                           unsigned(gs_nv2a_clip::scissorRows(state.context.scissor.y1)), unsigned(dv[xdiag::kHeight]));
+        }
+        if (!keyed)
+        {
+            scanTexels(state, t, plan);
+            return;
+        }
+        // Over 16,384 texels and neither side over 1,024: both powers of two
+        // from 32, so every band is a multiple of 8 rows: an even number of
+        // texels (the key's pairs) and of rows (the halving's pairs).
+        gs_texture_hash::Hasher hasher(w, h);
+        const uint32_t band = streamRows(w);
+        for (uint32_t y = 0; y < h; y += band)
+        {
+            const uint32_t rows = std::min(band, h - y);
+            cpu.DecodeTextureRows(state, y, rows, texScratch);
+            hasher.add(texScratch, size_t(rows) * w);
+        }
+        plan.key = hasher.value();
+    }
+
+    // A streamed texture's alpha scan of the stored (halved) texels, band
+    // by band.
+    void scanTexels(const GSDrawState &state, const Texture &t, TexelPlan &plan)
+    {
+        const uint32_t w = t.width, h = t.height, band = streamRows(w);
+        for (uint32_t y = 0; y < h; y += band)
+        {
+            const uint32_t rows = std::min(band, h - y);
+            cpu.DecodeTextureRows(state, y, rows, texScratch);
+            if (plan.halve)
+            {
+                halveRows(texScratch, w, rows / 2u, texScratch);
+                scanAlpha(texScratch, size_t(rows / 2u) * (w / 2u), plan);
+            }
+            else
+                scanAlpha(texScratch, size_t(rows) * w, plan);
+        }
+    }
+
+    // encodeTexture's choices for t: stored size, format, bytes, unit alpha.
+    void planTexels(Texture &t, const GSDrawState &state, TexelPlan &plan)
+    {
+        t.gpuWidth = plan.halve ? t.width / 2u : t.width;
+        t.gpuHeight = plan.halve ? t.height / 2u : t.height;
+        const uint32_t width = t.gpuWidth, height = t.gpuHeight;
+        const size_t count = size_t(width) * height;
+        if (plan.whole)
+        {
+            if (plan.halve)
+                halveRows(texScratch, t.width, height, texScratch);
+            scanAlpha(texScratch, count, plan);
+        }
+        else if (plan.keyed)
+            scanTexels(state, t, plan); // the pack lacks it (beginTexels only keyed it)
+        const bool binaryAlpha = plan.unitAlpha || plan.highAlpha;
+        if (width >= 8u && height >= 8u)
+        {
+            t.format = binaryAlpha ? NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT1_A1R5G5B5
+                                   : NV097_SET_TEXTURE_FORMAT_COLOR_L_DXT45_A8R8G8B8;
+            t.bytes = binaryAlpha ? count / 2u : count;
+            t.unitAlpha = plan.unitAlpha;
+            plan.dxt = true;
+            plan.dxt5 = !binaryAlpha;
+            return;
+        }
+        // Below 8 in a direction: never halved, at most 4 x 1024, so whole.
+        plan.fits16 = plan.fits16 && binaryAlpha;
+        t.unitAlpha = plan.fits16 && plan.unitAlpha;
+        t.format = plan.fits16 ? NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A1R5G5B5 : NV097_SET_TEXTURE_FORMAT_COLOR_SZ_A8R8G8B8;
+        t.bytes = count * (plan.fits16 ? 2u : 4u);
+    }
+
+    // The encoded texels into t's GPU memory, through texStage: DXT a row
+    // of blocks at a time (a streamed texture decoded again for it, band by
+    // band), the small swizzled formats whole.
+    void writeTexels(Texture &t, const GSDrawState &state, const TexelPlan &plan)
+    {
+        uint8_t *dst = static_cast<uint8_t *>(t.texels);
+        const uint32_t width = t.gpuWidth, height = t.gpuHeight;
+        if (plan.dxt)
+        {
+            size_t staged = 0;
+            const size_t blockRowBytes = size_t(width / 4u) * (plan.dxt5 ? 16u : 8u);
+            // Rows of texels (width apart, a multiple of 4) as block rows.
+            auto encodeRows = [&](const uint32_t *rows, uint32_t count)
+            {
+                for (uint32_t by = 0; by < count; by += 4u)
+                {
+                    if (staged + blockRowBytes > kStageBytes)
+                    {
+                        memcpy(dst, texStage, staged);
+                        dst += staged;
+                        staged = 0;
+                    }
+                    staged += encodeDxtBand(rows + size_t(by) * width, width, plan.dxt5, texStage + staged);
+                }
+            };
+            if (plan.whole)
+                encodeRows(texScratch, height);
+            else
+            {
+                const uint32_t band = streamRows(t.width);
+                for (uint32_t y = 0; y < t.height; y += band)
+                {
+                    const uint32_t rows = std::min(band, t.height - y);
+                    cpu.DecodeTextureRows(state, y, rows, texScratch);
+                    if (plan.halve)
+                        halveRows(texScratch, t.width, rows / 2u, texScratch);
+                    encodeRows(texScratch, plan.halve ? rows / 2u : rows);
+                }
+            }
+            memcpy(dst, texStage, staged);
+            return;
+        }
+        // encodeTexture's swizzle; the spread tables after the texels in
+        // the scratch (at most 4,096 texels and 1,028 entries).
+        const size_t count = size_t(width) * height;
+        const Swizzle sw(width, height);
+        uint32_t *const spreadU = texScratch + count, *const spreadV = spreadU + width;
+        for (uint32_t u = 0; u < width; ++u)
+            spreadU[u] = Swizzle::spread(u, sw.maskU);
+        for (uint32_t v = 0; v < height; ++v)
+            spreadV[v] = Swizzle::spread(v, sw.maskV);
+        if (plan.fits16)
+        {
+            uint16_t *out = reinterpret_cast<uint16_t *>(texStage);
+            for (uint32_t v = 0; v < height; ++v)
+            {
+                const uint32_t *src = texScratch + size_t(v) * width;
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < width; ++u)
+                {
+                    const uint32_t c = src[u]; // R, G, B, A bytes
+                    out[spreadU[u] | rowBits] = uint16_t(((c >> 24) ? 0x8000u : 0u) | ((c & 0xF8u) << 7) |
+                                                         ((c >> 6) & 0x03E0u) | ((c >> 19) & 0x1Fu));
+                }
+            }
+        }
+        else
+        {
+            uint32_t *out = reinterpret_cast<uint32_t *>(texStage);
+            for (uint32_t v = 0; v < height; ++v)
+            {
+                const uint32_t *src = texScratch + size_t(v) * width;
+                const uint32_t rowBits = spreadV[v];
+                for (uint32_t u = 0; u < width; ++u)
+                {
+                    const uint32_t c = src[u];
+                    out[spreadU[u] | rowBits] = (c & 0xFF00FF00u) | ((c & 0xFFu) << 16) | ((c >> 16) & 0xFFu);
+                }
+            }
+        }
+        memcpy(dst, texStage, t.bytes);
+    }
+
+#if TS_NV2A_TEXTURE_SELFCHECK
+    // The texture made again the old way (two decodes into `decoded`,
+    // encodeTexture into `swizzled`) and compared.
+    void checkTexels(const Texture &t, const GSDrawState &state, const TexelPlan &plan)
+    {
+        Texture ref = t;
+        cpu.DecodeTexture(state, decoded);
+        if (plan.keyed && plan.key != gs_texture_hash::hash(decoded.data(), t.width, t.height))
+            noteDrawDiff("texkey", plan.key, gs_texture_hash::hash(decoded.data(), t.width, t.height));
+        encodeTexture(ref, state);
+        if (ref.format != t.format || ref.bytes != t.bytes || ref.unitAlpha != t.unitAlpha ||
+            ref.gpuWidth != t.gpuWidth || ref.gpuHeight != t.gpuHeight)
+            noteDrawDiff("texenc", t.format | (uint64_t(t.bytes) << 32), ref.format | (uint64_t(ref.bytes) << 32));
+        else if (std::memcmp(t.texels, swizzled.data(), t.bytes) != 0)
+            noteDrawDiff("texenc", t.tbp0, t.width | (t.height << 16));
+    }
+#endif
+#endif
+
+    // Nearest 5/6-bit levels (truncation darkened the end points by up to
+    // 7 of 255).
+    static uint16_t to565(int r, int g, int b)
+    {
+        return uint16_t((((r * 31 + 127) / 255) << 11) | (((g * 63 + 127) / 255) << 5) | ((b * 31 + 127) / 255));
+    }
+    static void from565(uint16_t v, int &r, int &g, int &b)
+    {
+        r = (v >> 11) & 31; r = (r << 3) | (r >> 2);
+        g = (v >> 5) & 63;  g = (g << 2) | (g >> 4);
+        b = v & 31;         b = (b << 3) | (b >> 2);
+    }
+
+    // DXT1 by colour-extent fit: each 4x4 block's colours span a diagonal
+    // of the box of its opaque texels; a block with transparent texels
+    // (alpha 0: DXT1 textures have one-bit alpha) uses the 3-colour mode
+    // (colour0 <= colour1) whose fourth entry is transparent.
+    // DXT5: the same colour blocks (every texel coloured) preceded by an
+    // 8-byte alpha block (two end points, 3-bit indices into their 8-step
+    // interpolation).
+#if !TS_NV2A_TEXTURE_STREAM || TS_NV2A_TEXTURE_SELFCHECK
+    void encodeDxt(uint32_t w, uint32_t h, bool dxt5, uint8_t *out)
+    {
+        for (uint32_t by = 0; by < h; by += 4)
+            out += encodeDxtBand(&decoded[size_t(by) * w], w, dxt5, out);
     }
 #endif
 
-#include "gs_nv2a_state.inl"
-#include "gs_nv2a_screen.inl"
-
-#if TS_DIAG
-    void diagRefreshBody()
+    // One row of blocks: the four texel rows at `rows` (w apart) into
+    // w / 4 blocks at out; returns the bytes written.
+    uint32_t encodeDxtBand(const uint32_t *rows, uint32_t w, bool dxt5, uint8_t *out)
     {
-        const uint32_t generation = xdiag::g_generation;
-        if (generation == diagGeneration)
-            return;
-        diagGeneration = generation;
-        for (int i = 0; i < xdiag::kItems; ++i)
-            dv[i] = xdiag::g_value[i];
-        clipScissor = UINT64_MAX;
-        keyMemo.serial = 0;
-        stateValid = false;
-        lastTexture = nullptr;
-        clutIdentity = diagClutSelfTest && dv[xdiag::kClutId] != 0;
-        gpuRangeRows = 0;
+        uint8_t *const start = out;
+        {
+            for (uint32_t bx = 0; bx < w; bx += 4, out += 8)
+            {
+                uint32_t texel[16];
+                int minR = 255, minG = 255, minB = 255, maxR = 0, maxG = 0, maxB = 0;
+                int n = 0, sumR = 0, sumG = 0, sumB = 0, sumRG = 0, sumRB = 0, sumGB = 0;
+                uint32_t clear = 0; // transparent texels (bit i)
+                for (uint32_t y = 0; y < 4; ++y)
+                    for (uint32_t x = 0; x < 4; ++x)
+                    {
+                        const uint32_t c = rows[size_t(y) * w + bx + x];
+                        texel[y * 4 + x] = c;
+                        if (!dxt5 && (c >> 24) == 0u)
+                        {
+                            clear |= 1u << (y * 4 + x);
+                            continue;
+                        }
+                        const int r = int(c & 0xFFu), g = int((c >> 8) & 0xFFu), b = int((c >> 16) & 0xFFu);
+                        minR = std::min(minR, r); maxR = std::max(maxR, r);
+                        minG = std::min(minG, g); maxG = std::max(maxG, g);
+                        minB = std::min(minB, b); maxB = std::max(maxB, b);
+                        ++n;
+                        sumR += r; sumG += g; sumB += b;
+                        sumRG += r * g; sumRB += r * b; sumGB += g * b;
+                    }
+                const bool transparent = clear != 0u, opaque = n != 0;
+                if (dxt5)
+                {
+                    uint32_t aMax = 0, aMin = 255;
+                    for (int i = 0; i < 16; ++i)
+                    {
+                        const uint32_t a = texel[i] >> 24;
+                        aMax = std::max(aMax, a);
+                        aMin = std::min(aMin, a);
+                    }
+                    out[0] = uint8_t(aMax);
+                    out[1] = uint8_t(aMin);
+                    uint64_t bits = 0;
+                    if (aMax != aMin)
+                    {
+                        uint32_t steps[8] = {aMax, aMin};
+                        for (uint32_t i = 2; i < 8; ++i)
+                            steps[i] = ((8u - i) * aMax + (i - 1u) * aMin) / 7u;
+                        for (int i = 0; i < 16; ++i)
+                        {
+                            const int a = int(texel[i] >> 24);
+                            uint32_t best = 0, bestD = 1000;
+                            for (uint32_t e = 0; e < 8; ++e)
+                            {
+                                const uint32_t d = uint32_t(std::abs(a - int(steps[e])));
+                                if (d < bestD)
+                                {
+                                    bestD = d;
+                                    best = e;
+                                }
+                            }
+                            bits |= uint64_t(best) << (3 * i);
+                        }
+                    }
+                    for (int i = 0; i < 6; ++i)
+                        out[2 + i] = uint8_t(bits >> (8 * i));
+                    out += 8;
+                }
+                if (!opaque)
+                {
+                    memset(out, 0, 4);
+                    memset(out + 4, 0xFF, 4); // every texel the transparent entry
+                    continue;
+                }
+                // The end points are opposite corners of the box: the widest
+                // channel runs low to high and each other channel with it or
+                // against it, by the sign of their covariance (always both
+                // rising, as min/max alone gives, shifts the hues of blocks
+                // whose channels run against each other).
+                const int covRG = n * sumRG - sumR * sumG, covRB = n * sumRB - sumR * sumB,
+                          covGB = n * sumGB - sumG * sumB; // n^2 x covariance; fits 32 bits
+                const int spanR = maxR - minR, spanG = maxG - minG, spanB = maxB - minB;
+                bool flipR = false, flipG = false, flipB = false;
+                if (spanG >= spanR && spanG >= spanB)
+                {
+                    flipR = covRG < 0;
+                    flipB = covGB < 0;
+                }
+                else if (spanR >= spanB)
+                {
+                    flipG = covRG < 0;
+                    flipB = covRB < 0;
+                }
+                else
+                {
+                    flipR = covRB < 0;
+                    flipG = covGB < 0;
+                }
+                uint16_t c0 = to565(flipR ? minR : maxR, flipG ? minG : maxG, flipB ? minB : maxB);
+                uint16_t c1 = to565(flipR ? maxR : minR, flipG ? maxG : minG, flipB ? maxB : minB);
+                if (transparent ? c0 > c1 : c0 < c1)
+                    std::swap(c0, c1);
+                int pr[4], pg[4], pb[4];
+                from565(c0, pr[0], pg[0], pb[0]);
+                from565(c1, pr[1], pg[1], pb[1]);
+                int entries;
+                if (transparent || c0 == c1)
+                {
+                    pr[2] = (pr[0] + pr[1]) / 2; pg[2] = (pg[0] + pg[1]) / 2; pb[2] = (pb[0] + pb[1]) / 2;
+                    entries = c0 == c1 ? 1 : 3;
+                }
+                else
+                {
+                    pr[2] = (2 * pr[0] + pr[1]) / 3; pg[2] = (2 * pg[0] + pg[1]) / 3; pb[2] = (2 * pb[0] + pb[1]) / 3;
+                    pr[3] = (pr[0] + 2 * pr[1]) / 3; pg[3] = (pg[0] + 2 * pg[1]) / 3; pb[3] = (pb[0] + 2 * pb[1]) / 3;
+                    entries = 4;
+                }
+                uint32_t bits = 0;
+                for (int i = 0; i < 16; ++i)
+                {
+                    const uint32_t c = texel[i];
+                    uint32_t index = 3; // transparent
+                    if (!(clear & (1u << i)))
+                    {
+                        const int r = int(c & 0xFFu), g = int((c >> 8) & 0xFFu), b = int((c >> 16) & 0xFFu);
+                        int best = INT32_MAX;
+                        for (int e = 0; e < entries; ++e)
+                        {
+                            const int dr = r - pr[e], dg = g - pg[e], db = b - pb[e];
+                            const int d = dr * dr + dg * dg + db * db;
+                            if (d < best)
+                            {
+                                best = d;
+                                index = uint32_t(e);
+                            }
+                        }
+                    }
+                    bits |= index << (2 * i);
+                }
+                out[0] = uint8_t(c0); out[1] = uint8_t(c0 >> 8);
+                out[2] = uint8_t(c1); out[3] = uint8_t(c1 >> 8);
+                memcpy(out + 4, &bits, 4);
+            }
+        }
+        return uint32_t(out - start);
+    }
+
+    // ------------------------------------------------------------ drawing
+    GpuVertex *vertices = nullptr;
+    uint32_t verticesUsed = 0;
+
+    struct DrawKey
+    {
+        const Texture *texture = nullptr;
+        int program = 0;
+        uint32_t address = 0, filter = 0, levels = 0; // levels: the texture's mip count (CONTROL0's LOD clamp)
+        uint32_t blendEnable = 0, sfactor = 0, dfactor = 0, equation = 0, blendColor = 0;
+        uint32_t alphaTest = 0, alphaFunc = 0, alphaRef = 0;
+        uint32_t depthTest = 0, depthFunc = 0, depthMask = 0;
+        uint32_t colorMask = 0, shade = 0;
+        uint32_t vertexMode = 0, constSerial = 0; // transform programs (BeginXfRun)
+        uint32_t topology = 0;                    // 0 triangle list, 1 one triangle strip (joined)
+#if TS_NV2A_SCISSOR
+        uint32_t clipX = 0, clipY = 0; // the GS scissor as window-clip words (clipFor)
+#endif
+        bool operator==(const DrawKey &) const = default;
+    };
+#if TS_NV2A_MATERIAL_CACHE
+    // Only inputs read by buildMaterialKey. Neither a texture's address nor
+    // frame mapping belongs to this record: they are attached to its result
+    // afresh. Field equality, rather than a hash match, admits a cache hit.
+    struct MaterialInput
+    {
+        uint64_t alpha = 0, test = 0;
+        uint32_t fbmsk = 0, wrap = 0, flags = 0, levels = 0;
+        bool operator==(const MaterialInput &) const = default;
+    };
+    struct MaterialRecord
+    {
+        MaterialInput input{};
+        DrawKey key{}; // texture is always null; viewport clip is not cached
+        uint32_t lastUse = 0;
+        bool valid = false;
+    };
+    static constexpr uint32_t kMaterialSets = 32u, kMaterialWays = 2u;
+    std::array<MaterialRecord, kMaterialSets * kMaterialWays> materials{};
+    uint32_t lastMaterial = UINT32_MAX, materialTick = 0;
+
+    static MaterialInput materialInput(const GSDrawState &state, const Texture *tex)
+    {
+        const bool sixteen = state.context.frame.psm == GS_PSM_CT16 || state.context.frame.psm == GS_PSM_CT16S;
+        const uint32_t flags = uint32_t(state.prim.tme) | (uint32_t(state.prim.abe) << 1) |
+                               (uint32_t(state.prim.iip) << 2) | (uint32_t(state.context.zbuf.zmask) << 3) |
+                               (uint32_t(sixteen) << 4) |
+                               (uint32_t(state.linearFilter || (tex && tex->forceLinear)) << 5) |
+                               (uint32_t(tex != nullptr) << 6) | (uint32_t(tex && tex->unitAlpha) << 7) |
+                               (uint32_t(state.context.tex0.tfx) << 8) | (uint32_t(state.context.tex0.tcc) << 16);
+        return {state.context.alpha, state.context.test, state.context.frame.fbmsk,
+                uint32_t(state.context.clamp & 15u), flags, tex ? tex->levels : 0u};
+    }
+
+    static uint32_t materialSet(const MaterialInput &input)
+    {
+        uint32_t hash = uint32_t(input.alpha) ^ (uint32_t(input.alpha >> 32) * 0x85EBCA6Bu);
+        hash = (hash ^ uint32_t(input.test) ^ uint32_t(input.test >> 32)) * 0x9E3779B1u;
+        hash = (hash ^ input.fbmsk ^ (input.wrap << 24)) * 0x85EBCA6Bu;
+        hash = (hash ^ input.flags ^ (input.levels << 27)) * 0xC2B2AE35u;
+        return (hash >> 27) * kMaterialWays;
+    }
+#endif
+    DrawKey applied{};
+    bool stateValid = false;
+    DrawKey batchKey{};
+    uint32_t batchFirst = 0, batchCount = 0;
+    int currentProgram = -1;
+
+#if TS_NV2A_SCISSOR
+    // The GS scissor on the screen (gs_nv2a_clip.h): the screen pixels whose
+    // centre lies in a scissored frame pixel. The words of the last scissor
+    // are kept (until beginFrame, which may change the mapping): the game
+    // changes the scissor a few dozen times a frame (views, portals,
+    // overlays), and the mapping divides.
+    uint64_t clipScissor = UINT64_MAX; // UINT64_MAX: none (the registers hold 11-bit fields)
+    uint32_t clipWordX = 0, clipWordY = 0;
+    uint32_t clipNotes = 0; // clips other than the whole screen (logged, the first few)
+    // What the GPU's window clip holds: pbkit sets all eight rectangles to
+    // the whole screen, and only pushWindowClip changes them.
+    uint32_t gpuClipX = gs_nv2a_clip::kFullClipX, gpuClipY = gs_nv2a_clip::kFullClipY;
+
+    void clipFor(const GSScissorReg &s, uint32_t &x, uint32_t &y)
+    {
+        static_assert(sizeof(GSScissorReg) == sizeof(uint64_t), "scissor layout");
+        uint64_t key;
+        std::memcpy(&key, &s, sizeof(key));
+        if (key != clipScissor)
+        {
+            clipScissor = key;
+            gs_nv2a_clip::windowClip(s.x0, s.x1, s.y0, s.y1, frameFbw * 64u, frameHeight, clipWordX, clipWordY);
+            if ((clipWordX != gs_nv2a_clip::kFullClipX || clipWordY != gs_nv2a_clip::kFullClipY) && ++clipNotes <= 4u)
+                std::cout << "[TS:nv2a] window clip x " << (clipWordX & 0xFFFu) << "-" << (clipWordX >> 16) << " y "
+                          << (clipWordY & 0xFFFu) << "-" << (clipWordY >> 16) << " (scissor " << s.x0 << "-" << s.x1
+                          << ", " << s.y0 << "-" << s.y1 << " of " << frameFbw * 64u << "x" << frameHeight << ")"
+                          << std::endl;
+        }
+        x = clipWordX;
+        y = clipWordY;
+#if defined(TS_KNOCKOUT) && TS_KNOCKOUT == 2
+        // Measurement only (make TS_KNOCKOUT=2): every draw clipped to one
+        // pixel, so the GPU reads almost no textures or frame memory while
+        // the CPU does all its usual work.
+        x = 0u;
+        y = 0u;
+#endif
+    }
+
+    // All eight rectangles the same (the clip is inclusive: a pixel is drawn
+    // when it is inside any of them).
+    uint32_t *pushWindowClip(uint32_t *p, uint32_t x, uint32_t y)
+    {
+        static_assert(NV097_SET_WINDOW_CLIP_VERTICAL == NV097_SET_WINDOW_CLIP_HORIZONTAL + 32u, "one method");
+        p = pushMethod(p, NV097_SET_WINDOW_CLIP_HORIZONTAL, 16);
+        for (int i = 0; i < 8; ++i)
+            *p++ = x;
+        for (int i = 0; i < 8; ++i)
+            *p++ = y;
+        gpuClipX = x;
+        gpuClipY = y;
+        return p;
     }
 #endif
 
@@ -810,7 +3170,182 @@ struct GSNv2aBackend::Impl
         g_nv2aStep = 12;
     }
 
-#include "gs_nv2a_xf.inl"
+    // All vertex programs stay resident (78 of 136 slots); a mode switch is
+    // one PROGRAM_START write. Loaded once, with the first frame's setup
+    // (nothing else touches the GPU's program memory, the literals or the
+    // semaphore context).
+    uint32_t programStart[5] = {};
+    bool programsLoaded = false;
+    uint64_t waitCycles = 0, readbackCycles = 0;
+
+    uint32_t *uploadVertexProgram(uint32_t *p)
+    {
+        p = push1(p, NV097_SET_TRANSFORM_EXECUTION_MODE,
+                  NV097_SET_TRANSFORM_EXECUTION_MODE_MODE_PROGRAM |
+                      (NV097_SET_TRANSFORM_EXECUTION_MODE_RANGE_MODE_PRIV << 2));
+        p = push1(p, NV097_SET_TRANSFORM_PROGRAM_CXT_WRITE_EN, 0);
+        p = push1(p, NV097_SET_TRANSFORM_PROGRAM_LOAD, 0);
+        uint32_t slot = 0;
+        for (int m = 0; m < 5; ++m)
+        {
+            programStart[m] = slot;
+            const VertexProgram &vp = kVertexPrograms[m];
+            for (uint32_t i = 0; i < vp.count; i += 4)
+            {
+                p = pushMethod(p, NV097_SET_TRANSFORM_PROGRAM, 4);
+                std::memcpy(p, vp.words + i, 16);
+                p += 4;
+            }
+            slot += vp.count / 4;
+        }
+        p = push1(p, NV097_SET_TRANSFORM_PROGRAM_START, 0);
+        // Fences go through their own DMA object (pushFence).
+        p = push1(p, NV097_SET_CONTEXT_DMA_SEMAPHORE, kFenceDma);
+        // The compiler's literals (c[34] = 0, 1, 0.5).
+        p = push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + 34u);
+        p = pushMethod(p, NV097_SET_TRANSFORM_CONSTANT, 4);
+        const float literals[4] = {0.0f, 1.0f, 0.5f, 0.0f};
+        std::memcpy(p, literals, 16);
+        p += 4;
+        return p;
+    }
+
+    // Vertex array formats for a vertex mode (0: GpuVertex, else GSXfVertex).
+    uint32_t *setAttributes(uint32_t *p, uint32_t mode)
+    {
+#if TS_NATIVE_MODELS
+        residentBound = false;
+#endif
+        p = pushMethod(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT, 16);
+        for (int i = 0; i < 16; ++i)
+            *p++ = NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F; // size 0: disabled
+        struct Attribute
+        {
+            uint32_t index, type, components, offset;
+        };
+        static const Attribute screen[] = {
+            {0, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 0},
+            {3, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, 16},
+            {9, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 20},
+        };
+        static const Attribute raw[] = {
+            {0, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 3, 0},
+            {2, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 3, 12},
+            {3, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D, 4, 24},
+            {9, NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F, 4, 28},
+        };
+        const Attribute *list = mode ? raw : screen;
+        const int count = mode ? 4 : 3;
+        const uint32_t stride = mode ? uint32_t(sizeof(GSXfVertex)) : uint32_t(sizeof(GpuVertex));
+        const uint8_t *base = mode ? reinterpret_cast<const uint8_t *>(xfVertices) : reinterpret_cast<const uint8_t *>(vertices);
+        for (int i = 0; i < count; ++i)
+        {
+            const Attribute &a = list[i];
+            p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4 * a.index, a.type | (a.components << 4) | (stride << 8));
+            p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * a.index, physical(base + a.offset));
+        }
+        return p;
+    }
+
+    void setAttributes()
+    {
+        uint32_t *p = pb_begin();
+        p = setAttributes(p, 0);
+        pb_end(p);
+    }
+
+    // ------------------------------------------- native transform (GPU)
+    GSXfVertex *xfVertices = nullptr;
+    uint32_t xfUsed = 0, xfSerial = 0;
+    float xfK[kXfConstantRegs - 1][4] = {}; // k[0..33]; c[34] is loaded with the programs
+
+    // What the GPU's constant registers hold: only rows that differ are sent
+    // (an object changes its matrix rows; lights and viewport rarely change),
+    // which keeps ~900 objects a frame from filling the push buffer.
+#if TS_XF_DIRTY_ROWS
+    // The rows of xfK given a new value since they were last sent (all at
+    // first): the rows that differ from the GPU's, known without comparing.
+    static constexpr uint64_t kAllXfRows = (1ull << (kXfConstantRegs - 1u)) - 1u;
+    uint64_t gpuDirty = kAllXfRows;
+#endif
+#if !TS_XF_DIRTY_ROWS || TS_NV2A_SELFCHECK
+    float gpuK[kXfConstantRegs - 1][4]; // (with TS_XF_DIRTY_ROWS: the self-check's copy)
+    bool gpuKValid = false;
+#endif
+
+    uint32_t *uploadConstants(uint32_t *p)
+    {
+        constexpr uint32_t rows = kXfConstantRegs - 1u;
+#if TS_XF_DIRTY_ROWS
+        uint64_t dirty = gpuDirty;
+        gpuDirty = 0u;
+#if TS_NV2A_SELFCHECK
+        // The rows left out must hold the GPU's values already.
+        for (uint32_t r = 0; r < rows && gpuKValid; ++r)
+            if (!((dirty >> r) & 1u) && std::memcmp(gpuK[r], xfK[r], 16) != 0)
+            {
+                noteDrawDiff("constant upload", r, xfSerial);
+                dirty |= 1ull << r;
+            }
+#endif
+        for (uint32_t r = 0; (dirty >> r) != 0u;)
+        {
+            if (!((dirty >> r) & 1u))
+            {
+                ++r;
+                continue;
+            }
+            uint32_t end = r + 1u;
+            while (end < rows && ((dirty >> end) & 1u) && end - r < 8u)
+                ++end;
+            p = push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + r);
+            p = pushMethod(p, NV097_SET_TRANSFORM_CONSTANT, (end - r) * 4u);
+            std::memcpy(p, xfK[r], (end - r) * 16u);
+            p += (end - r) * 4u;
+            s_lookupStats.constUploads += end - r;
+#if TS_NV2A_SELFCHECK
+            std::memcpy(gpuK[r], xfK[r], (end - r) * 16u);
+#endif
+            r = end;
+        }
+#if TS_NV2A_SELFCHECK
+        gpuKValid = true;
+#endif
+        return p;
+#else
+        uint32_t r = 0;
+        while (r < rows)
+        {
+            if (gpuKValid && std::memcmp(gpuK[r], xfK[r], 16) == 0)
+            {
+                ++r;
+                continue;
+            }
+            uint32_t end = r + 1u;
+            while (end < rows && (!gpuKValid || std::memcmp(gpuK[end], xfK[end], 16) != 0) && end - r < 8u)
+                ++end;
+            p = push1(p, NV097_SET_TRANSFORM_CONSTANT_LOAD, kConstantBase + r);
+            p = pushMethod(p, NV097_SET_TRANSFORM_CONSTANT, (end - r) * 4u);
+            std::memcpy(p, xfK[r], (end - r) * 16u);
+            p += (end - r) * 4u;
+            std::memcpy(gpuK[r], xfK[r], (end - r) * 16u);
+            r = end;
+        }
+        gpuKValid = true;
+        return p;
+#endif
+    }
+
+    // The transform buffer is a ring of segments, each closed by a fence:
+    // the GPU writes the fence value (back-end semaphore, after the draws
+    // before it have rendered) and a segment is reused once its fence has
+    // passed, instead of draining the whole GPU when the buffer wraps.
+    // Segments of 4,096 vertices: each one closed is a hand-over to the GPU
+    // (nextXfSegment), so larger segments mean fewer of them. Two of them
+    // (the other gives the GPU 4,096 vertices of lead) keep the ring at
+    // 352 KB, leaving memory for triple buffering and the texture pack.
+    static constexpr uint32_t kXfSegments = 2u, kXfSegment = kMaxXfVertices / kXfSegments;
+    static_assert(kXfSegment == 4096u, "transform ring layout");
     volatile uint32_t *fence = nullptr; // GPU-written (semaphore offset)
     uint32_t fenceSerial = 0, xfSegment = 0, segmentFence[kXfSegments] = {};
 
@@ -853,6 +3388,48 @@ struct GSNv2aBackend::Impl
 #endif
     }
 
+    void nextXfSegment()
+    {
+        flushBatch(); // the segment's last draws, then its fence
+        segmentFence[xfSegment] = ++fenceSerial;
+        cursor = pushFence(openCursor(), fenceSerial);
+        // Hand the segment to the GPU now: held back until the block fills,
+        // the GPU starts late and the ring catches up with it (measured:
+        // about 4 ms a frame of transform-buffer waits).
+        closeBlock();
+        xfSegment = (xfSegment + 1u) % kXfSegments;
+        xfUsed = xfSegment * kXfSegment;
+        const uint32_t needed = segmentFence[xfSegment];
+        if (needed != 0u && int32_t(*fence - needed) < 0)
+        {
+            ++g_nv2aTextureStats.waitXf;
+            const uint64_t start = cycles();
+            // An idle GPU has passed every fence (also covers a semaphore
+            // that never arrives).
+            while (int32_t(*fence - needed) < 0 && pb_busy())
+            {
+            }
+            waitCycles += cycles() - start;
+            g_nv2aTextureStats.kcycWait = uint32_t(waitCycles / 1000u);
+        }
+    }
+
+    // Room for count more transformed vertices in the batch of `key`, which
+    // the caller has already compared with batchKey (beginXfRun: once a run).
+    GSXfVertex *reserveXf(const DrawKey &key, uint32_t count)
+    {
+        if (xfUsed + count > (xfSegment + 1u) * kXfSegment)
+            nextXfSegment();
+        if (batchCount == 0)
+        {
+            batchKey = key;
+            batchFirst = xfUsed;
+        }
+        GSXfVertex *out = xfVertices + xfUsed;
+        xfUsed += count;
+        batchCount += count;
+        return out;
+    }
 
     // A request to give memory back (g_nv2aReleaseRequests, from
     // xboxReleaseMemory): every texture of the runtime path goes, freed at
@@ -909,9 +3486,6 @@ struct GSNv2aBackend::Impl
     void beginFrame(const GSDrawState &state)
     {
         g_nv2aStep = 20;
-#if TS_DIAG
-        diagRefresh();
-#endif
         frameOpen = true;
         frameFbp = state.context.frame.fbp;
         frameFbw = state.context.frame.fbw;
@@ -926,20 +3500,12 @@ struct GSNv2aBackend::Impl
 #else
         frameHeight = std::clamp<uint32_t>(uint32_t(state.context.scissor.y1) + 1u, 1u, 512u);
 #endif
-#if TS_DIAG
-        if (!dv[xdiag::kHeight]) // HGT 0: the first draw's scissor, as before Push A
-            frameHeight = std::clamp<uint32_t>(uint32_t(state.context.scissor.y1) + 1u, 1u, 512u);
-        diagFrameLog(state);
-#endif
 #if TS_NV2A_SCISSOR
         clipScissor = UINT64_MAX; // the mapping may have changed (clipFor)
 #endif
         gpuRows = 0;
         settleFrame();
         releaseIfAsked();
-#if TS_DIAG
-        diagFlipWait();
-#endif
         waitBackBufferOffScreen();
         pb_reset();
         // The frame's setup goes to the GPU as one block (each hand-over is
@@ -970,22 +3536,14 @@ struct GSNv2aBackend::Impl
         *p++ = ((kScreenHeight - 1u) << 16);
         p = pushMethod(p, NV097_SET_ZSTENCIL_CLEAR_VALUE, 3);
         *p++ = 0;    // depth 0, stencil 0
-#if TS_DIAG
-        // CLR: the colour buffer too, black (1) or a bright colour (2: magenta
-        // read as R5G6B5, green as A8R8G8B8): rows nothing draws show it.
-        *p++ = dv[xdiag::kClear] == 2u ? 0xF81FF81Fu : 0u;
-        *p++ = dv[xdiag::kClear] ? 0xF3u : 0x03u;
-#else
         *p++ = 0;    // colour (unused)
         *p++ = 0x03; // clear depth and stencil
-#endif
         pb_end(p);
         lastPut = p;
         framePushDwords = 0;
         stateValid = false;
         currentProgram = -1;
         verticesUsed = 0;
-        resetScreenSegments();
         // The GPU is idle at a frame's start (settleFrame): every fence passed.
         xfUsed = 0;
         xfSegment = 0;
@@ -1005,19 +3563,6 @@ struct GSNv2aBackend::Impl
         closeBlock();
         g_nv2aTextureStats.pushPeakKB = std::max<uint32_t>(g_nv2aTextureStats.pushPeakKB,
             uint32_t((framePushDwords + size_t(lastPut - pushHead)) / 256u));
-#if TS_DIAG
-        ++xdiag::g_count.frames;
-        // DRN: the GPU finishes the frame before its flip is queued; the
-        // overlay is drawn by the CPU into the finished frame.
-        const bool overlay = xdiag::overlayVisible();
-        if (dv[xdiag::kGpuDrain] || overlay)
-            while (pb_busy())
-            {
-            }
-        if (overlay)
-            xdiag::drawOverlay(pb_back_buffer(), pb_back_buffer_pitch(), XVideoGetMode().bpp == 16);
-        xdiag::maybeSummary();
-#endif
         shownBuffer = pb_back_buffer(); // drawn into; on screen until the next flip
         g_nv2aStep = 31;
         while (pb_finished()) // only while both buffers wait for a vblank
@@ -1062,6 +3607,281 @@ struct GSNv2aBackend::Impl
     }
     uint32_t frameEndPbEnds = 0;
 
+    static uint32_t blendFactor(uint32_t sel, bool alphaFromDest)
+    {
+        (void)sel;
+        return alphaFromDest ? NV097_SET_BLEND_FUNC_SFACTOR_V_DST_ALPHA : NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA;
+    }
+
+    // GS blend: ((A - B) * C >> 7) + D, with A, B, D from {Cs, Cd, 0} and C
+    // from {As, Ad, FIX}. The common forms map onto the fixed blend unit
+    // (alphas already hold a/128 as 0..1).
+    void blendState(const GSDrawState &state, DrawKey &k)
+    {
+        const uint64_t alpha = state.context.alpha;
+        const uint32_t a = alpha & 3u, b = (alpha >> 2) & 3u, c = (alpha >> 4) & 3u, d = (alpha >> 6) & 3u;
+        const uint32_t fix = uint32_t((alpha >> 32) & 0xFFu);
+        k.blendEnable = 0;
+        k.equation = NV097_SET_BLEND_EQUATION_V_FUNC_ADD;
+        k.sfactor = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE;
+        k.dfactor = NV097_SET_BLEND_FUNC_DFACTOR_V_ZERO;
+        if (!state.prim.abe)
+            return;
+        uint32_t factor, inverse;
+        if (c == 2u)
+        {
+            factor = NV097_SET_BLEND_FUNC_SFACTOR_V_CONSTANT_ALPHA;
+            inverse = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_CONSTANT_ALPHA;
+            k.blendColor = uint32_t(std::min<uint32_t>(fix * 2u, 255u)) << 24;
+        }
+        else
+        {
+            factor = c == 0u ? NV097_SET_BLEND_FUNC_SFACTOR_V_SRC_ALPHA : NV097_SET_BLEND_FUNC_SFACTOR_V_DST_ALPHA;
+            inverse = c == 0u ? NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_SRC_ALPHA
+                              : NV097_SET_BLEND_FUNC_SFACTOR_V_ONE_MINUS_DST_ALPHA;
+        }
+        constexpr uint32_t Cs = 0, Cd = 1, Zero = 2;
+        k.blendEnable = 1;
+        if (a == Cs && b == Cd && d == Cd) // Cs*C + Cd*(1-C)
+        {
+            k.sfactor = factor;
+            k.dfactor = inverse;
+        }
+        else if (a == Cd && b == Cs && d == Cs) // Cd*C + Cs*(1-C)
+        {
+            k.sfactor = inverse;
+            k.dfactor = factor;
+        }
+        else if (a == Cs && b == Zero && d == Cd) // Cs*C + Cd
+        {
+            k.sfactor = factor;
+            k.dfactor = NV097_SET_BLEND_FUNC_DFACTOR_V_ONE;
+        }
+        else if (a == Zero && b == Cs && d == Cd) // Cd - Cs*C
+        {
+            k.sfactor = factor;
+            k.dfactor = NV097_SET_BLEND_FUNC_DFACTOR_V_ONE;
+            k.equation = NV097_SET_BLEND_EQUATION_V_FUNC_REVERSE_SUBTRACT;
+        }
+        else if (a == Cs && b == Zero && d == Zero) // Cs*C
+        {
+            k.sfactor = factor;
+            k.dfactor = NV097_SET_BLEND_FUNC_DFACTOR_V_ZERO;
+        }
+        else if (a == Cd && b == Zero && d == Zero) // Cd*C
+        {
+            k.sfactor = NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO;
+            k.dfactor = factor;
+        }
+        else if (a == Cd && b == Zero && d == Cs) // Cs + Cd*C
+        {
+            k.sfactor = NV097_SET_BLEND_FUNC_SFACTOR_V_ONE;
+            k.dfactor = factor;
+        }
+        else if (a == b || (a == Zero && b == Zero)) // D only
+        {
+            k.sfactor = d == Cs ? NV097_SET_BLEND_FUNC_SFACTOR_V_ONE : NV097_SET_BLEND_FUNC_SFACTOR_V_ZERO;
+            k.dfactor = d == Cd ? NV097_SET_BLEND_FUNC_DFACTOR_V_ONE : NV097_SET_BLEND_FUNC_DFACTOR_V_ZERO;
+        }
+        else
+        {
+            k.blendEnable = 0; // unusual form: drawn opaque
+        }
+        (void)blendFactor;
+    }
+
+    DrawKey buildMaterialKey(const GSDrawState &state, const Texture *tex)
+    {
+        DrawKey k;
+        k.texture = tex;
+        k.program = tex ? pixelProgramFor(state, tex->unitAlpha) : 0;
+        const uint64_t clamp = state.context.clamp;
+        const uint32_t wrapU = (clamp & 3u) == 0u || (clamp & 3u) == 3u ? 1u : 3u; // repeat : clamp to edge
+        const uint32_t wrapV = ((clamp >> 2) & 3u) == 0u || ((clamp >> 2) & 3u) == 3u ? 1u : 3u;
+        k.address = wrapU | (wrapV << 8) | (3u << 16);
+        // Linear : nearest (min/mag), level 0 only. Mipmapped (pack)
+        // textures drawn linear also blend between levels (min 6,
+        // TENT_TENT_LOD: trilinear), which is what stops the shimmer of
+        // distant surfaces; HD replacements are always drawn so, as on the PC.
+        const bool linear = state.linearFilter || (tex && tex->forceLinear);
+        k.filter = linear ? 0x02022000u : 0x01012000u;
+        k.levels = tex ? tex->levels : 0u;
+        if (linear && k.levels > 1u)
+            k.filter = 0x02062000u;
+        blendState(state, k);
+        const uint64_t test = state.context.test;
+        if (test & 1u)
+        {
+            static const uint32_t kFuncs[8] = {
+                NV097_SET_ALPHA_FUNC_V_NEVER, NV097_SET_ALPHA_FUNC_V_ALWAYS, NV097_SET_ALPHA_FUNC_V_LESS,
+                NV097_SET_ALPHA_FUNC_V_LEQUAL, NV097_SET_ALPHA_FUNC_V_EQUAL, NV097_SET_ALPHA_FUNC_V_GEQUAL,
+                NV097_SET_ALPHA_FUNC_V_GREATER, NV097_SET_ALPHA_FUNC_V_NOTEQUAL};
+            k.alphaTest = 1;
+            k.alphaFunc = kFuncs[(test >> 1) & 7u];
+            k.alphaRef = std::min<uint32_t>(uint32_t((test >> 4) & 0xFFu) * 2u, 255u);
+        }
+        // ZTST applies whatever ZTE says, as in the software renderer (the
+        // game leaves ZTE clear while relying on the comparison).
+        const uint32_t ztst = uint32_t((test >> 17) & 3u);
+        k.depthTest = 1u;
+        static const uint32_t kDepth[4] = {NV097_SET_DEPTH_FUNC_V_NEVER, NV097_SET_DEPTH_FUNC_V_ALWAYS,
+                                           NV097_SET_DEPTH_FUNC_V_GEQUAL, NV097_SET_DEPTH_FUNC_V_GREATER};
+        k.depthFunc = kDepth[ztst];
+        k.depthMask = state.context.zbuf.zmask ? 0u : 1u;
+        const uint32_t fbmsk = state.context.frame.fbmsk;
+        const bool sixteen = state.context.frame.psm == GS_PSM_CT16 || state.context.frame.psm == GS_PSM_CT16S;
+        const uint32_t rMask = sixteen ? 0x1Fu : 0xFFu, gMask = sixteen ? 0x3E0u : 0xFF00u,
+                       bMask = sixteen ? 0x7C00u : 0xFF0000u, aMask = sixteen ? 0x8000u : 0xFF000000u;
+        k.colorMask = ((fbmsk & rMask) != rMask ? NV097_SET_COLOR_MASK_RED_WRITE_ENABLE : 0u) |
+                      ((fbmsk & gMask) != gMask ? NV097_SET_COLOR_MASK_GREEN_WRITE_ENABLE : 0u) |
+                      ((fbmsk & bMask) != bMask ? NV097_SET_COLOR_MASK_BLUE_WRITE_ENABLE : 0u) |
+                      ((fbmsk & aMask) != aMask ? NV097_SET_COLOR_MASK_ALPHA_WRITE_ENABLE : 0u);
+        k.shade = state.prim.iip ? NV097_SET_SHADE_MODEL_SMOOTH : NV097_SET_SHADE_MODEL_FLAT;
+        return k;
+    }
+
+    DrawKey keyFor(const GSDrawState &state, const Texture *tex, bool verify = false)
+    {
+#if TS_NV2A_MATERIAL_CACHE
+        const MaterialInput input = materialInput(state, tex);
+        uint32_t slot = lastMaterial;
+        bool hit = slot < materials.size() && materials[slot].valid && materials[slot].input == input;
+        if (!hit)
+        {
+            const uint32_t first = materialSet(input);
+            slot = first;
+            for (uint32_t i = first; i < first + kMaterialWays; ++i)
+            {
+                if (materials[i].valid && materials[i].input == input)
+                {
+                    slot = i;
+                    hit = true;
+                    break;
+                }
+                if (!materials[i].valid || materials[i].lastUse < materials[slot].lastUse)
+                    slot = i;
+            }
+        }
+        MaterialRecord &record = materials[slot];
+        if (!hit)
+        {
+            record.input = input;
+            record.key = buildMaterialKey(state, tex);
+            record.key.texture = nullptr;
+            record.valid = true;
+            ++s_lookupStats.drawKeyMisses;
+        }
+        else
+            ++s_lookupStats.drawKeyHits;
+        record.lastUse = ++materialTick;
+        lastMaterial = slot;
+        DrawKey k = record.key;
+        k.texture = tex;
+        if (verify || TS_NV2A_SELFCHECK)
+        {
+            const DrawKey full = buildMaterialKey(state, tex);
+            if (!(k == full))
+            {
+                noteDrawDiff("material key", slot, input.flags);
+                k = full;
+                record.key = full;
+                record.key.texture = nullptr;
+            }
+        }
+#else
+        (void)verify;
+        DrawKey k = buildMaterialKey(state, tex);
+#endif
+#if TS_NV2A_SCISSOR
+        // The frame mapping and portal scissor can change while the same
+        // material repeats. Resolve them on every call through clipFor's
+        // existing mapping-aware cache, after the material lookup.
+        clipFor(state.context.scissor, k.clipX, k.clipY);
+#endif
+        return k;
+    }
+
+    // Pushes only the registers that differ from the applied state.
+    // Appends to an open push-buffer block (one block per batch: each
+    // pb_end hands the GPU a chunk, and that hand-over was a fifth of a
+    // frame's CPU time when done per state change).
+    uint32_t *applyState(uint32_t *p, const DrawKey &k)
+    {
+        const bool all = !stateValid;
+        const DrawKey &o = applied;
+        if (all || o.vertexMode != k.vertexMode)
+        {
+            p = setAttributes(p, k.vertexMode);
+            p = push1(p, NV097_SET_TRANSFORM_PROGRAM_START, programStart[k.vertexMode]);
+        }
+        if (k.vertexMode && (all || o.constSerial != k.constSerial || !o.vertexMode))
+            p = uploadConstants(p);
+        if (k.program != currentProgram)
+        {
+            p = kPixelPrograms[k.program](p);
+            // The untextured program leaves the texture stages as they were;
+            // a stage still set to sample with no texture bound is invalid.
+            if (k.program == 0)
+                p = push1(p, NV097_SET_SHADER_STAGE_PROGRAM, 0);
+            currentProgram = k.program;
+        }
+        if (k.texture)
+        {
+            const Texture &t = *k.texture;
+            if (all || o.texture != k.texture)
+            {
+                p = push1(p, NV097_SET_TEXTURE_OFFSET, physical(t.texels));
+                p = push1(p, NV097_SET_TEXTURE_FORMAT,
+                             0x0000002Au | (t.format << 8) | (t.levels << 16) |
+                                 (log2u(t.gpuWidth) << 20) | (log2u(t.gpuHeight) << 24));
+#if TS_TEXTURE_SOURCE_KEYS
+                // An index texture's palette: 256 entries through context
+                // DMA B, as the texels (format 0x2A's DMA field).
+                if (t.palette && t.format == NV097_SET_TEXTURE_FORMAT_COLOR_SZ_I8_A8R8G8B8)
+                    p = push1(p, NV097_SET_TEXTURE_PALETTE,
+                                 (physical(t.palette) & NV097_SET_TEXTURE_PALETTE_OFFSET) |
+                                     (NV097_SET_TEXTURE_PALETTE_LENGTH_256 << 2) | NV097_SET_TEXTURE_PALETTE_CONTEXT_DMA);
+#endif
+            }
+            // MAX_LOD_CLAMP (4.8 fixed point, bits 6..17) lets the sampler
+            // reach the last level; one level leaves it 0, as before.
+            if (all || !o.texture || o.levels != k.levels)
+                p = push1(p, NV097_SET_TEXTURE_CONTROL0,
+                             NV097_SET_TEXTURE_CONTROL0_ENABLE |
+                                 (((k.levels - 1u) << 8 << 6) & NV097_SET_TEXTURE_CONTROL0_MAX_LOD_CLAMP));
+            if (all || o.address != k.address || !o.texture)
+                p = push1(p, NV097_SET_TEXTURE_ADDRESS, k.address);
+            if (all || o.filter != k.filter || !o.texture)
+                p = push1(p, NV097_SET_TEXTURE_FILTER, k.filter);
+        }
+        else if (all || o.texture)
+            p = push1(p, NV097_SET_TEXTURE_CONTROL0, 0);
+#define TS_SET(field, reg)     if (all || o.field != k.field)         p = push1(p, reg, k.field);
+        TS_SET(blendEnable, NV097_SET_BLEND_ENABLE)
+        TS_SET(sfactor, NV097_SET_BLEND_FUNC_SFACTOR)
+        TS_SET(dfactor, NV097_SET_BLEND_FUNC_DFACTOR)
+        TS_SET(equation, NV097_SET_BLEND_EQUATION)
+        TS_SET(blendColor, NV097_SET_BLEND_COLOR)
+        TS_SET(alphaTest, NV097_SET_ALPHA_TEST_ENABLE)
+        if (all || o.alphaFunc != k.alphaFunc)
+            p = push1(p, NV097_SET_ALPHA_FUNC, k.alphaFunc ? k.alphaFunc : NV097_SET_ALPHA_FUNC_V_ALWAYS);
+        TS_SET(alphaRef, NV097_SET_ALPHA_REF)
+        TS_SET(depthTest, NV097_SET_DEPTH_TEST_ENABLE)
+        TS_SET(depthFunc, NV097_SET_DEPTH_FUNC)
+        TS_SET(depthMask, NV097_SET_DEPTH_MASK)
+        TS_SET(colorMask, NV097_SET_COLOR_MASK)
+        TS_SET(shade, NV097_SET_SHADE_MODEL)
+#undef TS_SET
+#if TS_NV2A_SCISSOR
+        // Against what the GPU holds, not `applied` (beginFrame also sets
+        // it): the game's full-screen scissor never pushes it.
+        if (k.clipX != gpuClipX || k.clipY != gpuClipY)
+            p = pushWindowClip(p, k.clipX, k.clipY);
+#endif
+        applied = k;
+        stateValid = true;
+        return p;
+    }
 
     // pbkit's push buffer is not a ring (and overflowing it corrupts
     // memory): when most of it is used, let the GPU catch up and restart at
@@ -1084,10 +3904,6 @@ struct GSNv2aBackend::Impl
     {
         if (!openBlock)
             return;
-#if TS_DIAG
-        if (dv[xdiag::kFence])
-            __asm__ __volatile__("sfence" ::: "memory"); // FNC: CPU writes to GPU memory out first
-#endif
         pb_end(cursor);
         lastPut = cursor;
         openBlock = cursor = nullptr;
@@ -1132,20 +3948,13 @@ struct GSNv2aBackend::Impl
         if (batchCount == 0)
             return;
         uint32_t *p = openCursor();
-        if (!stateMatches())
+        if (!stateValid || !(applied == batchKey))
             p = applyState(p, batchKey);
-        if (batchKey.topology == 2u)
-        {
-            // Quads (the Tier 0 bulk path's sprites, TS_NV2A_SPRITE_QUADS):
-            // 256 vertices a draw, whole quads each.
-            p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_QUADS);
-            for (uint32_t first = 0; first < batchCount; first += 256)
-            {
-                const uint32_t n = std::min<uint32_t>(batchCount - first, 256u);
-                p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (batchFirst + first));
-            }
-        }
-        else if (batchKey.topology == 1u)
+#if TS_NATIVE_MODELS
+        if (residentBound && batchKey.vertexMode)
+            p = setAttributes(p, batchKey.vertexMode);
+#endif
+        if (batchKey.topology == 1u)
         {
             // One strip; a draw takes at most 256 vertices, so consecutive
             // draws overlap by two (a fresh strip continues the triangles;
@@ -1177,7 +3986,549 @@ struct GSNv2aBackend::Impl
         batchCount = 0;
     }
 
+    // Room for count more vertices in the current batch (waits for the GPU
+    // to finish the frame's earlier vertices when the buffer is full).
+    GpuVertex *reserve(const DrawKey &key, uint32_t count)
+    {
+        if (batchCount && !(key == batchKey))
+            flushBatch();
+        if (verticesUsed + count > kMaxVertices)
+        {
+            ++g_nv2aTextureStats.waitVb;
+            waitIdle();
+            verticesUsed = 0;
+            batchFirst = 0;
+        }
+        if (batchCount == 0)
+        {
+            batchKey = key;
+            batchFirst = verticesUsed;
+        }
+        GpuVertex *out = vertices + verticesUsed;
+        verticesUsed += count;
+        batchCount += count;
+        return out;
+    }
 
+    // A primitive from the GS front end (count = its vertices) or a whole
+    // triangle strip from the native vertex pipeline (SubmitStrip). prims
+    // above 1: a run of primitives of count (2 or 3) vertices each, one
+    // after another in verts (the direct GIF decoder, SubmitRun), drawn as
+    // that many calls would draw them with one frame, texture and key lookup.
+    void submitScreenVerts(const GSDrawState &state, const GSVertex *verts, uint32_t count, uint32_t prims = 1u)
+    {
+        if (frameOpen && state.context.frame.fbp != frameFbp)
+            finishFrame();
+        if (!frameOpen)
+            beginFrame(state);
+        else if (screenVramNewer)
+            loadScreenFromVram();
+
+        const Texture *tex = state.prim.tme ? texture(state) : nullptr;
+        const DrawKey key = keyFor(state, tex);
+        const auto &ctx = state.context;
+        const float ofx = float(ctx.xyoffset.ofx >> 4), ofy = float(ctx.xyoffset.ofy >> 4);
+        const float sx = float(kScreenWidth) / float(frameFbw * 64u);
+        const float sy = float(kScreenHeight) / float(frameHeight);
+        const uint32_t zpsm = ctx.zbuf.psm;
+        const float texW = tex ? float(tex->width) : 1.0f, texH = tex ? float(tex->height) : 1.0f;
+        g_nv2aTextureStats.zpsm = zpsm;
+        g_nv2aTextureStats.test = uint32_t(ctx.test >> 16) & 0xFu;
+        g_nv2aTextureStats.zmask = ctx.zbuf.zmask ? 1u : 0u;
+        if (((ctx.test >> 17) & 3u) >= 2u) // depth-compared draws only
+            for (uint32_t i = 0; i < count * prims && i % count < 3u; ++i)
+            {
+                const uint32_t z = uint32_t(std::min(verts[i].z, 4294967295.0));
+                if (g_nv2aTextureStats.zmax == 0u || z > g_nv2aTextureStats.zmax) g_nv2aTextureStats.zmax = z;
+                if (g_nv2aTextureStats.zmin == 0u || z < g_nv2aTextureStats.zmin) g_nv2aTextureStats.zmin = z;
+            }
+
+        auto emit = [&](GpuVertex &o, const GSVertex &v, const GSVertex &colorSource, float x, float y) {
+            o.x = (x - ofx) * sx;
+            o.y = (y - ofy) * sy;
+            // Only the displayed rows count: the game clears all 512 rows of
+            // the frame region but keeps CLUTs below row 448 and uploads them
+            // after the clear, so local memory is the newer copy there.
+            const float row = y - ofy + 1.0f;
+            const uint32_t limit = std::min<uint32_t>(frameHeight, kDisplayRows);
+            if (row > float(gpuRows))
+                gpuRows = row >= float(limit) ? limit : uint32_t(row);
+            o.z = depth24(v.z, zpsm);
+            o.w = 1.0f;
+            o.color = d3dColor(colorSource.r, colorSource.g, colorSource.b, colorSource.a);
+            if (state.prim.fst)
+            {
+                o.s = float(v.u) / 16.0f / texW;
+                o.t = float(v.v) / 16.0f / texH;
+                o.q = 1.0f;
+            }
+            else
+            {
+                o.s = v.s;
+                o.t = v.t;
+                o.q = v.q != 0.0f ? v.q : 1.0f;
+            }
+            o.r = 0.0f;
+        };
+
+        switch (state.prim.type)
+        {
+        case GS_PRIM_TRIANGLE:
+        case GS_PRIM_TRISTRIP:
+        case GS_PRIM_TRIFAN:
+        {
+            if (count < 3)
+                return;
+            if (count == 3)
+            {
+                GpuVertex *out = reserve(key, 3u * prims);
+                for (uint32_t p = 0; p < prims; ++p, verts += 3, out += 3)
+                    for (int i = 0; i < 3; ++i)
+                    {
+                        const GSVertex &v = verts[i];
+                        emit(out[i], v, state.prim.iip ? v : verts[2], v.x, v.y);
+                    }
+                break;
+            }
+            // A whole strip: each vertex converted once, the triangles as a
+            // list (flat shading takes each triangle's last vertex colour).
+            GpuVertex strip[64];
+            const uint32_t n = std::min<uint32_t>(count, 64u);
+            for (uint32_t i = 0; i < n; ++i)
+                emit(strip[i], verts[i], verts[i], verts[i].x, verts[i].y);
+            GpuVertex *out = reserve(key, 3u * (n - 2u)); // one key check per strip
+            for (uint32_t i = 2; i < n; ++i, out += 3)
+            {
+                out[0] = strip[i - 2];
+                out[1] = strip[i - 1];
+                out[2] = strip[i];
+                if (!state.prim.iip)
+                    out[0].color = out[1].color = strip[i].color;
+            }
+            break;
+        }
+        case GS_PRIM_SPRITE:
+        {
+            if (count < 2)
+                return;
+            GpuVertex *out = reserve(key, 6u * prims);
+#if TS_NATIVE_2D || TS_NATIVE_FX
+            // Two triangles; colour, depth and q come from the second vertex
+            // (as the corner route below): each corner's values computed once
+            // per sprite instead of once per emitted vertex. The rows reached
+            // are the largest of the two edges' (emit's update only grows).
+            const uint32_t rowLimit = std::min<uint32_t>(frameHeight, kDisplayRows);
+            const bool fst = state.prim.fst;
+            for (uint32_t p = 0; p < prims; ++p, verts += count, out += 6)
+            {
+                const GSVertex &a = verts[0], &b = verts[1];
+                const float rows[2] = {a.y - ofy + 1.0f, b.y - ofy + 1.0f};
+                for (const float row : rows)
+                    if (row > float(gpuRows))
+                        gpuRows = row >= float(rowLimit) ? rowLimit : uint32_t(row);
+                const float xa = (a.x - ofx) * sx, xb = (b.x - ofx) * sx;
+                const float ya = (a.y - ofy) * sy, yb = (b.y - ofy) * sy;
+                const float z = depth24(b.z, zpsm);
+                const uint32_t color = d3dColor(b.r, b.g, b.b, b.a);
+                float sa, ta, sb, tb, q;
+                if (fst)
+                {
+                    sa = float(a.u) / 16.0f / texW;
+                    ta = float(a.v) / 16.0f / texH;
+                    sb = float(b.u) / 16.0f / texW;
+                    tb = float(b.v) / 16.0f / texH;
+                    q = 1.0f;
+                }
+                else
+                {
+                    sa = a.s;
+                    ta = a.t;
+                    sb = b.s;
+                    tb = b.t;
+                    q = b.q != 0.0f ? b.q : 1.0f;
+                }
+                auto put = [&](GpuVertex &o, float x, float y, float s, float t) {
+                    o.x = x;
+                    o.y = y;
+                    o.z = z;
+                    o.w = 1.0f;
+                    o.color = color;
+                    o.s = s;
+                    o.t = t;
+                    o.r = 0.0f;
+                    o.q = q;
+                };
+                put(out[0], xa, ya, sa, ta);
+                put(out[1], xb, ya, sb, ta);
+                put(out[2], xb, yb, sb, tb);
+                out[3] = out[0];
+                out[4] = out[2];
+                put(out[5], xa, yb, sa, tb);
+            }
+#else
+            for (uint32_t p = 0; p < prims; ++p, verts += count, out += 6)
+            {
+                const GSVertex &a = verts[0], &b = verts[1];
+                // Two triangles; colour, depth and fog come from the second vertex.
+                GSVertex corners[4] = {a, a, a, a};
+                corners[1].x = b.x; corners[1].u = b.u; corners[1].s = b.s;
+                corners[2].x = b.x; corners[2].y = b.y; corners[2].u = b.u; corners[2].v = b.v; corners[2].s = b.s; corners[2].t = b.t;
+                corners[3].y = b.y; corners[3].v = b.v; corners[3].t = b.t;
+                for (GSVertex &c : corners)
+                {
+                    c.z = b.z;
+                    c.q = b.q;
+                }
+                // Perspective-correct s/t use q per corner; sprites take the second's.
+                corners[0].q = corners[1].q = corners[2].q = corners[3].q = b.q;
+                static const int kOrder[6] = {0, 1, 2, 0, 2, 3};
+                for (int i = 0; i < 6; ++i)
+                {
+                    const GSVertex &c = corners[kOrder[i]];
+                    emit(out[i], c, b, c.x, c.y);
+                }
+            }
+#endif
+            break;
+        }
+        default:
+            return; // points and lines: not drawn on the GPU yet
+        }
+        screenGpuNewer = true;
+    }
+
+    // The transform constants k[0..33]: the native pipeline's rows as they
+    // are, its viewport mapped onto this 640x480 screen and depth format,
+    // and fixed values (clamp, depth range).
+    struct XfMapping
+    {
+        float sx, sy, dz, ofx, ofy;
+    };
+    static void buildXfConstants(const GSXfConstants &c, const XfMapping &m, float k[kXfConstantRegs - 1][4])
+    {
+        std::memcpy(k[0], c.mvp, sizeof(c.mvp));
+        std::memcpy(k[12], c.lightDir, sizeof(c.lightDir));
+        std::memcpy(k[24], c.lightColour, sizeof(c.lightColour));
+        const float scale[4] = {c.scale[0] * m.sx, c.scale[1] * m.sy, c.scale[2] * m.dz, 0.0f};
+        const float offset[4] = {(c.offset[0] - m.ofx) * m.sx, (c.offset[1] - m.ofy) * m.sy, c.offset[2] * m.dz, 0.0f};
+        std::memcpy(k[28], scale, 16);
+        std::memcpy(k[29], offset, 16);
+        std::memcpy(k[30], c.model, sizeof(c.model));
+        const float clampLit[4] = {127.0f / 255.0f, 0.0f, 0.5f, 16777215.0f}; // .w: depth range
+        std::memcpy(k[33], clampLit, 16);
+    }
+#if TS_XF_DIRTY_ROWS
+    // Row r of the same (GSXfConstants is 33 rows of four floats, which are
+    // k's rows 0-32: nv2aXfConstantsChanged counts them so).
+    static_assert(offsetof(GSXfConstants, lightDir) == 12u * 16u && offsetof(GSXfConstants, lightColour) == 24u * 16u &&
+                      offsetof(GSXfConstants, scale) == 28u * 16u && offsetof(GSXfConstants, offset) == 29u * 16u &&
+                      offsetof(GSXfConstants, model) == 30u * 16u && offsetof(GSXfConstants, variant) == 33u * 16u,
+                  "GSXfConstants rows");
+    static void xfRow(const GSXfConstants &c, const XfMapping &m, uint32_t r, float row[4])
+    {
+        switch (r)
+        {
+        case 28u:
+            row[0] = c.scale[0] * m.sx;
+            row[1] = c.scale[1] * m.sy;
+            row[2] = c.scale[2] * m.dz;
+            row[3] = 0.0f;
+            break;
+        case 29u:
+            row[0] = (c.offset[0] - m.ofx) * m.sx;
+            row[1] = (c.offset[1] - m.ofy) * m.sy;
+            row[2] = c.offset[2] * m.dz;
+            row[3] = 0.0f;
+            break;
+        case 33u:
+            row[0] = 127.0f / 255.0f;
+            row[1] = 0.0f;
+            row[2] = 0.5f;
+            row[3] = 16777215.0f;
+            break;
+        default:
+            std::memcpy(row, reinterpret_cast<const uint8_t *>(&c) + r * 16u, 16);
+            break;
+        }
+    }
+#endif
+
+    // A run of strips of raw vertices for the transform programs: the frame
+    // and texture handling of submitScreenVerts, then the constants (with
+    // this frame's 640x480 mapping and depth format folded in). The strips
+    // follow (the run's cursor / emitXfStrip), written into the transform ring
+    // by the caller or laid out from its array: one joined strip (gouraud),
+    // or a triangle list with each triangle's last vertex first (the GS
+    // flat-shades with the last vertex, the NV2A with the first). The caller
+    // sends no strip of fewer than three vertices.
+    bool beginXfRun(const GSDrawState &state, const GSXfConstants &c, GSXfCursor &cursor)
+    {
+#if TS_NATIVE_REPLAY
+        const uint32_t segmentHandle = pendingSegment; // (this run's only)
+        pendingSegment = 0u;
+        runSegment = nullptr;
+#endif
+        if (state.prim.type != GS_PRIM_TRISTRIP || state.prim.fst || c.variant > 3u || !isScreenTarget(state))
+            return false;
+        if (frameOpen && state.context.frame.fbp != frameFbp)
+            finishFrame();
+        if (!frameOpen)
+            beginFrame(state);
+        else if (screenVramNewer)
+            loadScreenFromVram();
+
+#if TS_NATIVE_REPLAY
+        // A stored model's run (xboxNv2aUseSegment): its texture and key as
+        // last built, while what they were built from stands.
+        Segment *seg = takeSegment(segmentHandle, c.check != 0u);
+        const Texture *tex = nullptr;
+        DrawKey key;
+        SegmentInputs inputs{};
+        if (seg)
+            inputs = segmentInputs(state);
+        if (seg && seg->handle == segmentHandle && seg->gen == segmentGen && seg->inputs == inputs &&
+            segmentTexture(*seg))
+        {
+            tex = seg->tex;
+            key = seg->key;
+#if TS_NV2A_SCISSOR
+            clipFor(state.context.scissor, key.clipX, key.clipY); // (keyFor's, afresh)
+#endif
+            ++segmentHits;
+        }
+        else
+        {
+            checkRun = c.check != 0u;
+            tex = state.prim.tme ? texture(state) : nullptr;
+            checkRun = false;
+            key = keyFor(state, tex, c.check != 0u);
+            if (seg)
+                storeSegment(*seg, segmentHandle, inputs, tex, key);
+        }
+        runSegment = seg;
+#else
+        checkRun = c.check != 0u;
+        const Texture *tex = state.prim.tme ? texture(state) : nullptr;
+        checkRun = false;
+        DrawKey key = keyFor(state, tex, c.check != 0u);
+#endif
+        key.vertexMode = 1u + c.variant;
+        key.topology = state.prim.iip ? 1u : 0u; // flat shading needs the list's vertex order
+#if TS_NV2A_SCISSOR
+        if (c.check)
+        {
+            // Self-check run: the kept window clip against the run's scissor
+            // mapped afresh.
+            uint32_t x, y;
+            const GSScissorReg &s = state.context.scissor;
+            gs_nv2a_clip::windowClip(s.x0, s.x1, s.y0, s.y1, frameFbw * 64u, frameHeight, x, y);
+            if (x != key.clipX || y != key.clipY)
+            {
+                noteDrawDiff("window clip", (uint64_t(key.clipY) << 32) | key.clipX, (uint64_t(y) << 32) | x);
+                key.clipX = x;
+                key.clipY = y;
+            }
+        }
+#endif
+
+        const auto &ctx = state.context;
+        // Constants stay while the native pipeline's do (c.serial: it moves
+        // only when their VU1 rows were written) and this frame's mapping
+        // does: rebuilt only when either changes.
+        const bool mapped = frameFbw == xfBuiltFbw && frameHeight == xfBuiltHeight && ctx.xyoffset.ofx == xfBuiltOfx &&
+                            ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm;
+        const bool built = c.serial != 0u && c.serial == xfBuiltSerial && mapped;
+        if (!built || c.check)
+        {
+#if TS_XF_DIRTY_ROWS
+            // Only the rows the pipeline named (nv2aXfConstantsChanged) when c
+            // is the serial after the one built last, under the same mapping
+            // (the other rows hold what they held); else every row. Each is
+            // compared with the row it replaces: rows written again with the
+            // same values (the viewport, the lights) change nothing.
+            const uint32_t next = xfBuiltSerial + 1u ? xfBuiltSerial + 1u : 1u;
+            uint64_t rows = kAllXfRows;
+            if (built)
+                rows = 0u; // a check run: the full rebuild below
+            else if (mapped && xfBuiltSerial != 0u && c.serial == next && c.serial == s_xfChangedSerial)
+                rows = s_xfChangedRows & kAllXfRows;
+#endif
+            xfBuiltSerial = c.serial;
+            xfBuiltFbw = frameFbw;
+            xfBuiltHeight = frameHeight;
+            xfBuiltOfx = ctx.xyoffset.ofx;
+            xfBuiltOfy = ctx.xyoffset.ofy;
+            xfBuiltZpsm = ctx.zbuf.psm;
+            const XfMapping map{float(kScreenWidth) / float(frameFbw * 64u), float(kScreenHeight) / float(frameHeight),
+                                depthScale(ctx.zbuf.psm), float(ctx.xyoffset.ofx >> 4), float(ctx.xyoffset.ofy >> 4)};
+#if TS_XF_DIRTY_ROWS
+            bool changed = false;
+            for (uint32_t r = 0; (rows >> r) != 0u; ++r)
+            {
+                if (!((rows >> r) & 1u))
+                    continue;
+                float row[4];
+                xfRow(c, map, r, row);
+#if TS_NATIVE_REPLAY
+                if (sameRow(row, xfK[r])) // (a dozen rows a model: memcmp calls were a hot spot)
+                    continue;
+#else
+                if (std::memcmp(row, xfK[r], 16) == 0)
+                    continue;
+#endif
+                if (!changed && batchCount)
+                    flushBatch(); // the batch so far uses the old constants
+                changed = true;
+                std::memcpy(xfK[r], row, 16);
+                gpuDirty |= 1ull << r;
+                ++s_lookupStats.constRows;
+            }
+            if (changed)
+                ++xfSerial;
+            if (c.check)
+#endif
+            {
+                float k[kXfConstantRegs - 1][4];
+                buildXfConstants(c, map, k);
+                if (std::memcmp(k, xfK, sizeof(k)) != 0)
+                {
+                    if (built || TS_XF_DIRTY_ROWS) // a check run: the rebuild the serial skipped (or the rows rebuilt) left them out
+                        noteDrawDiff("constants", c.serial, xfSerial);
+                    if (batchCount)
+                        flushBatch(); // the batch so far uses the old constants
+#if TS_XF_DIRTY_ROWS
+                    for (uint32_t r = 0; r < kXfConstantRegs - 1u; ++r)
+                        if (std::memcmp(k[r], xfK[r], 16) != 0)
+                            gpuDirty |= 1ull << r;
+#endif
+                    std::memcpy(xfK, k, sizeof(k));
+                    ++xfSerial;
+                }
+            }
+        }
+        key.constSerial = xfSerial;
+        // The run's strips share the key: one comparison for all of them
+        // (a batch open after it has this key; a segment change starts a
+        // new batch of it).
+        if (batchCount && !(key == batchKey))
+            flushBatch();
+        runKey = key;
+        cursor.direct = key.topology == 1u;
+        cursor.strips = cursor.vertices = 0u;
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        // Xbox-only extension of the flat cursor: admitted pack or source
+        // groups may write their triangle list here. direct stays false, so
+        // the original native path still uses EmitXfStrip on every miss.
+        // The GS run lock scopes this pointer; it never survives EndXfRun.
+        flatXfCursor = cursor.direct ? nullptr : &cursor;
+        openXfCursor(cursor);
+#else
+        if (cursor.direct)
+            openXfCursor(cursor);
+        else
+            cursor.next = cursor.end = nullptr;
+#endif
+        return true;
+    }
+
+    // The joined strips of a direct run are written by the caller (cursor):
+    // the ring from xfUsed to the segment's end is the open batch's, and
+    // what the caller wrote is taken into the batch when the cursor comes
+    // back (growXfCursor, endXfRun). No call per strip, one key comparison
+    // per run (beginXfRun), the segment check once per cursor.
+    void openXfCursor(GSXfCursor &cursor)
+    {
+        if (batchCount == 0)
+        {
+            batchKey = runKey;
+            batchFirst = xfUsed;
+        }
+        cursor.next = xfVertices + xfUsed;
+        cursor.end = xfVertices + (xfSegment + 1u) * kXfSegment;
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        cursor.join = cursor.direct && batchCount != 0u;
+#else
+        cursor.join = batchCount != 0u;
+#endif
+        if (cursor.join)
+            cursor.last = stripLast;
+    }
+    void takeXfCursor(GSXfCursor &cursor)
+    {
+        const uint32_t written = uint32_t(cursor.next - (xfVertices + xfUsed));
+        xfUsed += written;
+        batchCount += written;
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        if (written && cursor.direct)
+#else
+        if (written)
+#endif
+            stripLast = cursor.last;
+        g_nv2aTextureStats.xfStrips += cursor.strips;
+        g_nv2aTextureStats.xfVertices += cursor.vertices;
+        cursor.strips = cursor.vertices = 0u;
+    }
+    // The next strip (count records with its join) does not fit in the
+    // segment: the segment's draws and fence go, and the cursor continues
+    // in the next one (a fresh batch: its first strip needs no join).
+    void growXfCursor(GSXfCursor &cursor, uint32_t count)
+    {
+        takeXfCursor(cursor);
+        if (xfUsed + count > (xfSegment + 1u) * kXfSegment)
+            nextXfSegment();
+        openXfCursor(cursor);
+    }
+
+    uint32_t xfBuiltSerial = 0, xfBuiltFbw = 0, xfBuiltHeight = 0, xfBuiltOfx = 0, xfBuiltOfy = 0, xfBuiltZpsm = 0;
+
+    DrawKey runKey{};       // the open run's (beginXfRun)
+    GSXfVertex stripLast{}; // last vertex of the current strip batch (joins): a cached copy, the ring is write-combined
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+    GSXfCursor *flatXfCursor = nullptr; // borrowed only while the GS run lock is held
+#endif
+
+    // A strip of a run that is not direct (flat shading: a triangle list).
+    void emitXfStrip(const GSXfVertex *v, uint32_t n)
+    {
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        // A preceding admitted group may already occupy this segment.
+        // Commit it before reserveXf can flush/fence or advance the ring;
+        // the legacy array must follow it without overwriting its records.
+        if (flatXfCursor)
+            takeXfCursor(*flatXfCursor);
+#endif
+        ++g_nv2aTextureStats.xfStrips;
+        g_nv2aTextureStats.xfVertices += n;
+        // Each triangle's last vertex first: the GS flat-shades with the
+        // last vertex, the NV2A with the first.
+        GSXfVertex *out = reserveXf(runKey, 3u * (n - 2u));
+        for (uint32_t i = 2; i < n; ++i, out += 3)
+        {
+            out[0] = v[i];
+            out[1] = v[i - 2];
+            out[2] = v[i - 1];
+        }
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        // reserveXf may have moved to the next fenced segment. Publish only
+        // that segment's remaining span for the next optional direct group.
+        if (flatXfCursor)
+            openXfCursor(*flatXfCursor);
+#endif
+    }
+
+    void endXfRun(GSXfCursor &cursor)
+    {
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        if (cursor.direct || flatXfCursor == &cursor)
+            takeXfCursor(cursor);
+        flatXfCursor = nullptr;
+#else
+        if (cursor.direct)
+            takeXfCursor(cursor);
+#endif
+        gpuRows = std::min<uint32_t>(frameHeight, kDisplayRows); // where it lands is not known here
+        screenGpuNewer = true;
+    }
 
     // ----------------------------------------- screen <-> local memory
     // GPU pixels (back buffer, 640x480, R5G6B5 or X8R8G8B8) into the GS
@@ -1187,13 +4538,6 @@ struct GSNv2aBackend::Impl
         g_nv2aStep = 40;
         if (!screenGpuNewer)
             return;
-#if TS_DIAG
-        if (!dv[xdiag::kReadback])
-        {
-            ++xdiag::g_count.readbacksSkipped; // RB 0: GS memory keeps what it had
-            return;
-        }
-#endif
         ++g_nv2aTextureStats.waitReadback;
         const uint64_t readbackStart = cycles();
         waitIdle();
@@ -1201,15 +4545,7 @@ struct GSNv2aBackend::Impl
         const uint32_t pitch = pb_back_buffer_pitch();
         const bool fb16 = XVideoGetMode().bpp == 16;
         const uint32_t width = frameFbw * 64u, height = frameHeight;
-#if TS_DIAG
-        // RBA: every displayed row, not only those drawn this frame.
-        const uint32_t rows = dv[xdiag::kReadbackAll] ? std::min<uint32_t>(height, kDisplayRows)
-                                                       : std::min<uint32_t>(std::max<uint32_t>(gpuRows, 1u), height);
-        ++xdiag::g_count.readbacks;
-        xdiag::g_count.readbackRows += rows;
-#else
         const uint32_t rows = std::min<uint32_t>(std::max<uint32_t>(gpuRows, 1u), height);
-#endif
         const bool sixteen = framePsm == GS_PSM_CT16 || framePsm == GS_PSM_CT16S;
         // One row at a time: a whole frame's worth (up to 1.1 MB) is more
         // than the Xbox can be sure to spare.
@@ -1257,15 +4593,6 @@ struct GSNv2aBackend::Impl
     // uploaded into it: loading screens, movies, CPU-side draws).
     void loadScreenFromVram()
     {
-#if TS_DIAG
-        if (!dv[xdiag::kScreenLoad])
-        {
-            ++xdiag::g_count.screenLoadsSkipped; // LDS 0: the back buffer keeps the GPU's pixels
-            screenVramNewer = false;
-            return;
-        }
-        ++xdiag::g_count.screenLoads;
-#endif
         ++g_nv2aTextureStats.screenLoads;
         g_nv2aStep = 50;
         waitIdle();
@@ -1301,10 +4628,6 @@ struct GSNv2aBackend::Impl
                     row[x] = (a << 24) | (r << 16) | (g << 8) | b;
             }
         }
-#if TS_DIAG
-        if (dv[xdiag::kFence])
-            __asm__ __volatile__("sfence" ::: "memory");
-#endif
         screenVramNewer = false;
         screenGpuNewer = false;
     }
@@ -1332,7 +4655,525 @@ struct GSNv2aBackend::Impl
     }
 
     GSTransferCommand transfer{};
+
+#if TS_NATIVE_MODELS
+    // Native model cache (xbox_model_cache.cpp): stored records the NV2A
+    // reads where they lie, one joined strip per run, inside a run the
+    // caller opened (beginXfRun) and closes (endXfRun) without writing to
+    // the ring. Records come in four formats (xboxNv2aResidentStride): the
+    // full GSXfVertex, and three that leave out what a layout's vertex
+    // program never reads (plain: normal; environment map: texture
+    // coordinates; lit: the bone). The raw attributes point at the run;
+    // the next ring batch binds the ring again (setAttributes).
+    uint8_t *residentBase = nullptr;
+    bool residentBound = false;
+    uint32_t residentFormat = ~0u;
+    const uint8_t *residentBlock = nullptr; // the attributes' base while bound
+
+    struct ResidentFormat
+    {
+        uint32_t stride;
+        int8_t pos, nrm, col, tex; // byte offsets (-1: not stored)
+        uint8_t texComponents;
+    };
+    static constexpr ResidentFormat kResidentFormats[4] = {
+        {44, 0, 12, 24, 28, 4}, // full (skinned)
+        {28, 0, -1, 12, 16, 3}, // plain
+        {28, 0, 12, 24, -1, 0}, // environment map
+        {40, 0, 12, 24, 28, 3}, // lit
+    };
+
+    void drawResident(const uint8_t *block, uint32_t index, uint32_t count, uint32_t format)
+    {
+        if (!residentBase || count < 3u || runKey.topology != 1u || format > 3u)
+            return;
+        flushBatch(); // the ring's vertices before it go first
+        uint32_t *p = openCursor();
+        if (!stateValid || !(applied == runKey))
+            p = applyState(p, runKey);
+        const ResidentFormat &f = kResidentFormats[format];
+        const int8_t at[4] = {f.pos, f.nrm, f.col, f.tex};
+        static const uint32_t attribute[4] = {0, 2, 3, 9};
+        // One binding per block and format: the runs in it are drawn by index.
+        if (!residentBound || residentFormat != format || residentBlock != block)
+        {
+            const uint32_t types[4] = {NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F | (3u << 4),
+                                       NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F | (3u << 4),
+                                       NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_UB_D3D | (4u << 4),
+                                       NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F | (uint32_t(f.texComponents) << 4)};
+            for (int i = 0; i < 4; ++i)
+                p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_FORMAT + 4 * attribute[i],
+                          at[i] < 0 ? NV097_SET_VERTEX_DATA_ARRAY_FORMAT_TYPE_F // size 0: the default value
+                                    : types[i] | (f.stride << 8));
+            for (int i = 0; i < 4; ++i)
+                if (at[i] >= 0)
+                    p = push1(p, NV097_SET_VERTEX_DATA_ARRAY_OFFSET + 4 * attribute[i], physical(block + at[i]));
+            residentFormat = format;
+            residentBlock = block;
+        }
+        residentBound = true;
+#if TS_NATIVE_REPLAY
+        // The run's draw commands as its segment keeps them (built the first
+        // time, for this index and count), else built here.
+        Segment *seg = runSegment;
+        if (seg && seg->words != 0u && seg->index == index && seg->count == count)
+        {
+            std::memcpy(p, seg->command, seg->words * 4u);
+            p += seg->words;
+            cursor = p;
+            if (size_t(cursor - openBlock) >= kBlockDwords)
+                closeBlock();
+            screenGpuNewer = true;
+            return;
+        }
+        // Built in cached memory (the push buffer is write-combined: never
+        // read back), then copied out; one past 60 draws is built in place.
+        uint32_t built[64];
+        uint32_t *const out = p;
+        const bool local = count <= 254u * 29u;
+        if (local)
+            p = built;
+#endif
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_TRIANGLE_STRIP);
+        for (uint32_t done = 0;;)
+        {
+            const uint32_t n = std::min<uint32_t>(count - done, 256u);
+            p = push1(p, 0x40000000u | NV097_DRAW_ARRAYS, ((n - 1u) << 24) | (index + done));
+            if (done + n >= count)
+                break;
+            done += n - 2u;
+        }
+        p = push1(p, NV097_SET_BEGIN_END, NV097_SET_BEGIN_END_OP_END);
+#if TS_NATIVE_REPLAY
+        if (local)
+        {
+            const uint32_t words = uint32_t(p - built);
+            std::memcpy(out, built, words * 4u);
+            p = out + words;
+            if (seg)
+            {
+                seg->index = index;
+                seg->count = count;
+                seg->words = words <= kSegmentWords ? words : 0u; // (a long run: built each time)
+                if (seg->words)
+                    std::memcpy(seg->command, built, words * 4u);
+            }
+        }
+#endif
+        cursor = p;
+        if (size_t(cursor - openBlock) >= kBlockDwords)
+            closeBlock();
+        screenGpuNewer = true;
+    }
+
+#if TS_NATIVE_REPLAY
+    // Renderer segments of stored model runs (make TS_NATIVE_REPLAY=1): what
+    // beginXfRun derives for a run from the GS state (its texture, by the
+    // lookup texture() makes, and keyFor's material key) and drawResident's
+    // draw commands, kept per run (the model cache's run index, direct-mapped)
+    // and taken again while every input they came from is the same:
+    //  - the GS fields texture() and buildMaterialKey read (SegmentInputs),
+    //    the CLUT hash included;
+    //  - the texture still in the cache (segmentGen: every retire or free of
+    //    textures moves it), with the pages it was decoded from unchanged
+    //    (pageEpoch, else its versions, as the recent table's test), not due
+    //    for the pack, and its levels, alpha and filter flags as when built;
+    //  - the window clip comes from clipFor afresh; constants, frame and
+    //    batch handling are beginXfRun's own.
+    // A hit has texture()'s side effects (the screen write-back its range
+    // asks for, the use counts); anything else builds the segment again.
+    struct SegmentInputs
+    {
+        uint64_t tex0 = 0, clut = 0, clamp = 0, alpha = 0, test = 0;
+        uint32_t texa = 0, size = 0, fbmsk = 0, flags = 0;
+        bool operator==(const SegmentInputs &) const = default;
+    };
+    static constexpr uint32_t kSegments = 2048u, kSegmentWords = 12u;
+    struct Segment
+    {
+        uint32_t handle = 0;    // 1 + the run's index (0: empty)
+        uint32_t gen = 0;       // segmentGen when built
+        uint32_t epoch = 0;     // pageEpoch when the texture was last found current
+#if TS_FAST_REPLAY
+        uint32_t lastUse = 0;   // segmentTick at its last use (in the padding before the inputs)
+#endif
+        SegmentInputs inputs{};
+        const Texture *tex = nullptr;
+        uint32_t texLevels = 0;
+        bool texUnitAlpha = false, texForceLinear = false;
+        DrawKey key{}; // keyFor's
+        uint32_t index = 0, count = 0, words = 0; // drawResident's commands for this index and count
+        uint32_t command[kSegmentWords] = {};
+    };
+    Segment *segments = nullptr;   // allocated at the first xboxNv2aUseSegment
+    bool segmentsFailed = false;
+    uint32_t pendingSegment = 0;   // 1 + the next run's handle (xboxNv2aUseSegment)
+    Segment *runSegment = nullptr; // the open run's
+    uint32_t segmentGen = 1;
+    uint64_t segmentHits = 0;
+
+    void useSegment(uint32_t handle)
+    {
+        if (!segments && !segmentsFailed)
+        {
+            segments = new (std::nothrow) Segment[kSegments];
+            segmentsFailed = segments == nullptr;
+        }
+        pendingSegment = segments ? handle + 1u : 0u;
+    }
+
+#if TS_FAST_REPLAY
+    // Segments by run handle in sets of four, the least recently used out
+    // (direct-mapped, runs 2048 handles apart - the model cache has 8192 -
+    // pushed each other out every frame). Consecutive handles (a model's
+    // runs) fall in consecutive sets.
+    static constexpr uint32_t kSegmentWays = 4u, kSegmentSets = kSegments / kSegmentWays;
+    static_assert(kSegmentSets * kSegmentWays == kSegments, "segment sets");
+    uint32_t segmentTick = 0;
+
+    Segment *segmentSet(uint32_t handle) { return &segments[((handle - 1u) % kSegmentSets) * kSegmentWays]; }
+
+    // handle's segment, or null (no slot is taken).
+    Segment *findSegment(uint32_t handle)
+    {
+        Segment *const set = segmentSet(handle);
+        for (uint32_t way = 0; way < kSegmentWays; ++way)
+            if (set[way].handle == handle)
+                return &set[way];
+        return nullptr;
+    }
+#endif
+
+    Segment *takeSegment(uint32_t handle, bool check)
+    {
+        if (!handle || !segments || check || TS_NV2A_SELFCHECK)
+            return nullptr; // (a self-check run takes the full path)
+#if TS_FAST_REPLAY
+        // Its own slot, else the set's least recently used (storeSegment
+        // takes that over when the run is built).
+        Segment *const set = segmentSet(handle);
+        Segment *seg = set;
+        for (uint32_t way = 0; way < kSegmentWays; ++way)
+        {
+            if (set[way].handle == handle)
+            {
+                seg = &set[way];
+                break;
+            }
+            if (set[way].lastUse < seg->lastUse)
+                seg = &set[way];
+        }
+        seg->lastUse = ++segmentTick;
+        return seg;
+#else
+        return &segments[(handle - 1u) & (kSegments - 1u)];
+#endif
+    }
+
+    static bool sameRow(const float a[4], const float b[4])
+    {
+        uint32_t x[4], y[4];
+        std::memcpy(x, a, 16);
+        std::memcpy(y, b, 16);
+        return x[0] == y[0] && x[1] == y[1] && x[2] == y[2] && x[3] == y[3];
+    }
+
+    SegmentInputs segmentInputs(const GSDrawState &state) const
+    {
+        SegmentInputs in;
+        const GSTex0Reg &tex = state.context.tex0;
+        if (state.prim.tme)
+        {
+            // texture()'s key: TEX0's fields, TEXA, the CLUT, the size.
+            in.tex0 = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                      (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+            in.clut = isIndexed(tex.psm) ? clutHash : 0u;
+            in.texa = uint32_t(state.texa.ta0) | (uint32_t(state.texa.ta1) << 8) | (state.texa.aem ? 0x10000u : 0u);
+            in.size = std::max<uint32_t>(state.textureWidth, 1u) | (std::max<uint32_t>(state.textureHeight, 1u) << 16);
+        }
+        // buildMaterialKey's.
+        in.clamp = state.context.clamp;
+        in.alpha = state.context.alpha;
+        in.test = state.context.test;
+        in.fbmsk = state.context.frame.fbmsk;
+        in.flags = uint32_t(state.context.frame.psm) | (uint32_t(state.context.zbuf.zmask) << 8) |
+                   (uint32_t(state.prim.tme) << 9) | (uint32_t(state.prim.abe) << 10) | (uint32_t(state.prim.iip) << 11) |
+                   (uint32_t(tex.tfx & 3u) << 12) | (uint32_t(tex.tcc & 1u) << 14) | (uint32_t(state.linearFilter) << 15);
+        return in;
+    }
+
+    // The segment's texture still the one texture() would return, with its
+    // side effects when it is.
+    bool segmentTexture(Segment &s)
+    {
+        if (!s.tex)
+            return !(s.inputs.flags & (1u << 9)); // untextured; a texture not found is looked up again
+        Texture &t = *const_cast<Texture *>(s.tex);
+        if (t.levels != s.texLevels || t.unitAlpha != s.texUnitAlpha || t.forceLinear != s.texForceLinear)
+            return false;
+        // texture()'s order: the write-back its range asks for, then whether
+        // the pages it was decoded from changed (the write-back may move them).
+        if (screenGpuNewer && overlaps(t.range, gpuRange()))
+        {
+            ++g_nv2aTextureStats.wbTexture;
+            writeBackScreen();
+        }
+        if (t.packEntry >= 0 && !t.pooled && frameNumber >= t.packRetryFrame)
+            return false; // the pack's copy may be in: the full lookup swaps it in
+        if (s.epoch != pageEpoch)
+        {
+            if (versionSum(t.range) != t.versions)
+                return false;
+            s.epoch = pageEpoch;
+        }
+        ++s_lookupStats.textures;
+        t.lastUse = ++textureTick;
+        noteUse(t);
+        ++g_nv2aTextureStats.textureFast;
+        return true;
+    }
+
+    void storeSegment(Segment &s, uint32_t handle, const SegmentInputs &inputs, const Texture *tex, const DrawKey &key)
+    {
+        if (s.handle != handle)
+            s.words = 0u; // (another run's commands)
+        s.handle = handle;
+        s.gen = segmentGen;
+        s.epoch = pageEpoch;
+        s.inputs = inputs;
+        s.tex = tex;
+        s.texLevels = tex ? tex->levels : 0u;
+        s.texUnitAlpha = tex && tex->unitAlpha;
+        s.texForceLinear = tex && tex->forceLinear;
+        s.key = key;
+    }
+
+#if TS_FAST_REPLAY
+    // ------------------------------------------------- model fast lane
+    // A stored model run drawn without the GS front end's run (make
+    // TS_FAST_REPLAY=1, xbox_model_cache.cpp): the model cache hands over
+    // the GS context, PRIM and TEXA buildDrawBatch would have copied, and
+    // this does what beginXfRun, drawResident and endXfRun do, in their
+    // order, for a run whose segment is hit and whose draw commands are
+    // kept. Anything else (a frame to open, change or reload, no segment or
+    // no kept commands, a self-check run) is left to the full route before
+    // any change it would not make again itself: the only work a refusal
+    // can leave behind is segmentTexture's screen write-back, which the
+    // full route then finds done.
+
+    // isScreenTarget's test, on the frame register alone.
+    bool isScreenFrame(const GSFrameReg &f) const
+    {
+        if (f.fbw != 10u || (f.psm != GS_PSM_CT16 && f.psm != GS_PSM_CT16S && f.psm != GS_PSM_CT32 && f.psm != GS_PSM_CT24))
+            return false;
+        if (displayFbp[0] == UINT32_MAX)
+            return true;
+        return f.fbp == displayFbp[0] || f.fbp == displayFbp[1];
+    }
+
+    // segmentInputs of the state buildDrawBatch makes from these (its
+    // texture size and filter worked out as it works them out), but for
+    // the CLUT hash, which the caller adds.
+    static SegmentInputs segmentInputsOf(const GSContext &ctx, const GSPrimReg &prim, const GSTexaReg &texa)
+    {
+        SegmentInputs in;
+        const GSTex0Reg &tex = ctx.tex0;
+        const uint8_t mmag = uint8_t((ctx.tex1 >> 5u) & 0x1u), mmin = uint8_t((ctx.tex1 >> 6u) & 0x7u);
+        const bool linearFilter = mmag != 0u || mmin == 1u || (mmin & 0x4u) != 0u;
+        if (prim.tme)
+        {
+            const uint16_t width = uint16_t(1u << std::min<uint32_t>(tex.tw, 10u));
+            const uint16_t height = uint16_t(1u << std::min<uint32_t>(tex.th, 10u));
+            in.tex0 = uint64_t(tex.tbp0) | (uint64_t(tex.tbw) << 32) | (uint64_t(tex.psm) << 40) |
+                      (uint64_t(tex.cpsm) << 48) | (uint64_t(tex.csm) << 54) | (uint64_t(tex.csa & 0x1Fu) << 56);
+            in.texa = uint32_t(texa.ta0) | (uint32_t(texa.ta1) << 8) | (texa.aem ? 0x10000u : 0u);
+            in.size = std::max<uint32_t>(width, 1u) | (std::max<uint32_t>(height, 1u) << 16);
+        }
+        in.clamp = ctx.clamp;
+        in.alpha = ctx.alpha;
+        in.test = ctx.test;
+        in.fbmsk = ctx.frame.fbmsk;
+        in.flags = uint32_t(ctx.frame.psm) | (uint32_t(ctx.zbuf.zmask) << 8) | (uint32_t(prim.tme) << 9) |
+                   (uint32_t(prim.abe) << 10) | (uint32_t(prim.iip) << 11) | (uint32_t(tex.tfx & 3u) << 12) |
+                   (uint32_t(tex.tcc & 1u) << 14) | (uint32_t(linearFilter) << 15);
+        return in;
+    }
+
+    bool fastRun(uint32_t handle, const GSContext &ctx, const GSPrimReg &prim, const GSTexaReg &texa,
+                 const GSXfConstants &c, const uint8_t *block, uint32_t index, uint32_t count, uint32_t format,
+                 uint32_t strips)
+    {
+        // beginXfRun's own refusals, and the runs it would draw from the
+        // ring (flat shading) or open, change or reload a frame for.
+        if (prim.type != GS_PRIM_TRISTRIP || prim.fst || !prim.iip || c.variant > 3u || c.check || TS_NV2A_SELFCHECK)
+            return false;
+        if (!segments || !residentBase || count < 3u || format > 3u || !isScreenFrame(ctx.frame) || !frameOpen ||
+            ctx.frame.fbp != frameFbp || screenVramNewer)
+            return false;
+        // The segment as beginXfRun takes it on a hit, with drawResident's
+        // commands kept for this index and count.
+        Segment *const seg = findSegment(handle + 1u);
+        if (!seg || seg->gen != segmentGen || seg->words == 0u || seg->index != index || seg->count != count)
+            return false;
+        SegmentInputs inputs = segmentInputsOf(ctx, prim, texa);
+        if (prim.tme && isIndexed(ctx.tex0.psm))
+            inputs.clut = clutHash;
+        if (!(inputs == seg->inputs) || !segmentTexture(*seg))
+            return false;
+        // From here as the full route, with no refusal.
+        seg->lastUse = ++segmentTick;
+        pendingSegment = 0u;
+        DrawKey key = seg->key;
+#if TS_NV2A_SCISSOR
+        clipFor(ctx.scissor, key.clipX, key.clipY); // (keyFor's, afresh)
+#endif
+        ++segmentHits;
+        key.vertexMode = 1u + c.variant;
+        key.topology = 1u;
+        fastConstants(c, ctx);
+        key.constSerial = xfSerial;
+        if (batchCount && !(key == batchKey))
+            flushBatch();
+        runKey = key;
+        if (batchCount == 0) // (openXfCursor's)
+        {
+            batchKey = runKey;
+            batchFirst = xfUsed;
+        }
+#if (TS_BG_NATIVE && TS_BG_BATCH) || TS_VIF_SOURCE
+        flatXfCursor = nullptr;
+#endif
+        runSegment = seg;
+        drawResident(block, index, count, format); // (the segment's commands)
+        // endXfRun's (nothing was written into the ring).
+        g_nv2aTextureStats.xfStrips += strips;
+        g_nv2aTextureStats.xfVertices += count;
+        gpuRows = std::min<uint32_t>(frameHeight, kDisplayRows);
+        screenGpuNewer = true;
+        return true;
+    }
+
+    // beginXfRun's constant handling for a run that is not a self-check:
+    // the same tests and rows, from the context instead of the state.
+    void fastConstants(const GSXfConstants &c, const GSContext &ctx)
+    {
+        const bool mapped = frameFbw == xfBuiltFbw && frameHeight == xfBuiltHeight && ctx.xyoffset.ofx == xfBuiltOfx &&
+                            ctx.xyoffset.ofy == xfBuiltOfy && ctx.zbuf.psm == xfBuiltZpsm;
+        if (c.serial != 0u && c.serial == xfBuiltSerial && mapped)
+            return;
+#if TS_XF_DIRTY_ROWS
+        const uint32_t next = xfBuiltSerial + 1u ? xfBuiltSerial + 1u : 1u;
+        uint64_t rows = kAllXfRows;
+        if (mapped && xfBuiltSerial != 0u && c.serial == next && c.serial == s_xfChangedSerial)
+            rows = s_xfChangedRows & kAllXfRows;
+#endif
+        xfBuiltSerial = c.serial;
+        xfBuiltFbw = frameFbw;
+        xfBuiltHeight = frameHeight;
+        xfBuiltOfx = ctx.xyoffset.ofx;
+        xfBuiltOfy = ctx.xyoffset.ofy;
+        xfBuiltZpsm = ctx.zbuf.psm;
+        const XfMapping map{float(kScreenWidth) / float(frameFbw * 64u), float(kScreenHeight) / float(frameHeight),
+                            depthScale(ctx.zbuf.psm), float(ctx.xyoffset.ofx >> 4), float(ctx.xyoffset.ofy >> 4)};
+#if TS_XF_DIRTY_ROWS
+        bool changed = false;
+        for (uint32_t r = 0; (rows >> r) != 0u; ++r)
+        {
+            if (!((rows >> r) & 1u))
+                continue;
+            float row[4];
+            xfRow(c, map, r, row);
+            if (sameRow(row, xfK[r]))
+                continue;
+            if (!changed && batchCount)
+                flushBatch(); // the batch so far uses the old constants
+            changed = true;
+            std::memcpy(xfK[r], row, 16);
+            gpuDirty |= 1ull << r;
+            ++s_lookupStats.constRows;
+        }
+        if (changed)
+            ++xfSerial;
+#else
+        float k[kXfConstantRegs - 1][4];
+        buildXfConstants(c, map, k);
+        if (std::memcmp(k, xfK, sizeof(k)) != 0)
+        {
+            if (batchCount)
+                flushBatch(); // the batch so far uses the old constants
+            std::memcpy(xfK, k, sizeof(k));
+            ++xfSerial;
+        }
+#endif
+    }
+#endif
+#endif
+#endif
 };
+
+#if TS_NATIVE_MODELS
+namespace
+{
+    GSNv2aBackend::Impl *g_residentImpl = nullptr;
+}
+
+#if TS_NATIVE_REPLAY
+void xboxNv2aUseSegment(uint32_t handle)
+{
+    if (g_residentImpl)
+        g_residentImpl->useSegment(handle);
+}
+#endif
+
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+namespace
+{
+    const GSRasterBackend *g_fastBackend = nullptr; // the renderer g_residentImpl belongs to (Create)
+}
+
+bool xboxNv2aFastBackend(const GSRasterBackend *backend)
+{
+    return g_residentImpl && backend && backend == g_fastBackend;
+}
+
+bool xboxNv2aFastRun(uint32_t handle, const GSContext &context, const GSPrimReg &prim, const GSTexaReg &texa,
+                     const GSXfConstants &constants, const uint8_t *block, uint32_t index, uint32_t count,
+                     uint32_t format, uint32_t strips)
+{
+    return g_residentImpl &&
+           g_residentImpl->fastRun(handle, context, prim, texa, constants, block, index, count, format, strips);
+}
+#endif
+
+uint8_t *xboxNv2aAllocResident(uint32_t bytes)
+{
+    if (!g_residentImpl)
+        return nullptr;
+    if (!g_residentImpl->residentBase)
+        g_residentImpl->residentBase = static_cast<uint8_t *>(allocGpu(bytes));
+    return g_residentImpl->residentBase;
+}
+
+void xboxNv2aDrawResident(const uint8_t *block, uint32_t index, uint32_t count, uint32_t format)
+{
+    if (g_residentImpl)
+        g_residentImpl->drawResident(block, index, count, format);
+}
+
+void xboxNv2aWaitIdle()
+{
+    if (g_residentImpl)
+        g_residentImpl->waitIdle();
+}
+#endif
+
+#if TS_GIF_DIRECT || TS_NATIVE_FX
+#include "xbox_gif_direct.h"
+namespace
+{
+    GSNv2aBackend *g_runBackend = nullptr; // the GS's renderer (Create), for xboxNv2aSubmitRun
+}
+#endif
 
 // ------------------------------------------------------------------------
 std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
@@ -1342,14 +5183,6 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     // their share.
     std::unique_ptr<GSNv2aBackend> backend(new GSNv2aBackend());
     backend->m->openTexturePack();
-#if TS_DIAG
-    // The diagnostic switches' starting values and the boot settings
-    // (D:\diag.ini), before pbkit allocates its buffers.
-    xdiag::loadIni();
-    pb_ts_diag_untiled = xdiag::g_boot.untiledColour;
-    pb_ts_diag_back_buffers = xdiag::g_boot.buffers - 1;
-    backend->m->diagRefresh();
-#endif
     // 16-bit colour and depth, like the game's own buffers: a 640x480 screen
     // buffer is 0.6 MB instead of 1.2, and there are two plus the depth buffer.
     XVideoSetMode(640, 480, 16, REFRESH_DEFAULT);
@@ -1364,6 +5197,12 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
         return nullptr;
     }
     Impl &impl = *backend->m;
+#if TS_NATIVE_MODELS
+    g_residentImpl = &impl;
+#if TS_NATIVE_REPLAY && TS_FAST_REPLAY
+    g_fastBackend = backend.get();
+#endif
+#endif
     impl.vertices = static_cast<GpuVertex *>(allocGpu(kMaxVertices * sizeof(GpuVertex)));       // 288 KB
     impl.xfVertices = static_cast<GSXfVertex *>(allocGpu(kMaxXfVertices * sizeof(GSXfVertex))); // 352 KB
     impl.fence = static_cast<volatile uint32_t *>(allocGpu(64));
@@ -1397,32 +5236,23 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
     if (unsigned char *old = XVideoGetFB())
         MmFreeContiguousMemory(old);
     xboxGpuOwnsDisplay(true);
+#if TS_GIF_DIRECT || TS_NATIVE_FX
+    g_runBackend = backend.get();
+#endif
     return backend;
 }
 
-// The renderer the in-place writer hooks reach (one NV2A backend at a time).
-namespace
-{
-    GSNv2aBackend::Impl *s_inPlaceImpl = nullptr;
-}
-
-GSNv2aBackend::GSNv2aBackend() : m(std::make_unique<Impl>()) { s_inPlaceImpl = m.get(); }
+GSNv2aBackend::GSNv2aBackend() : m(std::make_unique<Impl>()) {}
 GSNv2aBackend::~GSNv2aBackend()
 {
-    if (s_inPlaceImpl == m.get())
-        s_inPlaceImpl = nullptr;
-}
-
-void nv2aInPlaceBeforeWrite()
-{
-    if (s_inPlaceImpl)
-        s_inPlaceImpl->inPlaceBarrier();
-}
-
-void nv2aInPlaceAfterWrite(bool flushCache)
-{
-    if (s_inPlaceImpl)
-        s_inPlaceImpl->inPlaceAfterWrite(flushCache);
+#if TS_NATIVE_MODELS && TS_NATIVE_REPLAY && TS_FAST_REPLAY
+    if (g_fastBackend == this)
+        g_fastBackend = nullptr;
+#endif
+#if TS_GIF_DIRECT || TS_NATIVE_FX
+    if (g_runBackend == this)
+        g_runBackend = nullptr;
+#endif
 }
 
 void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
@@ -1430,6 +5260,9 @@ void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
     m->vram = vram;
     m->vramSize = vramSize;
     m->cpu.Initialize(vram, vramSize);
+#if TS_CLUT_REPEAT && TS_FAST_REPLAY
+    m->forgetFullClut(); // (a new CPU renderer state)
+#endif
 #if TS_CLUT_IDENTITY
     // Boot self-test: the full-load order against the row reads it
     // replaces, over random local memory (restored); palette identities
@@ -1438,10 +5271,6 @@ void GSNv2aBackend::Initialize(uint8_t *vram, uint32_t vramSize)
     {
         m->clutOrderChecked = true;
         m->clutIdentity = m->cpu.CheckFullClutOrder();
-#if TS_DIAG
-        m->diagClutSelfTest = m->clutIdentity;
-        m->clutIdentity = m->clutIdentity && m->dv[xdiag::kClutId] != 0;
-#endif
         std::cout << "[TS:xbox] CLUT load order self-test: "
                   << (m->clutIdentity ? "ok" : "differs, palette identities off") << std::endl;
     }
@@ -1454,52 +5283,66 @@ void GSNv2aBackend::Reset()
     m->textureFlushPending = false; // the reset invalidated the page cache
     m->bumpPages({0, UINT64_MAX});
     m->clutCbp[0] = m->clutCbp[1] = UINT32_MAX;
+#if TS_CLUT_IDENTITY
+    m->forgetFullClut(); // the CPU renderer's CLUT state went with the reset
+#endif
     m->targetPages.reset();
+}
+
+namespace
+{
+    // Off-screen target: the CPU renderer draws it into local memory.
+    void submitOffscreen(GSNv2aBackend::Impl &m, const GSPrimitiveBatch &batch)
+    {
+        ++g_nv2aTextureStats.offscreenDraws;
+        g_nv2aTextureStats.offscreenFbp = batch.state.context.frame.fbp;
+        g_nv2aTextureStats.offscreenFbw = batch.state.context.frame.fbw;
+        g_nv2aTextureStats.offscreenPsm = batch.state.context.frame.psm;
+        g_nv2aTextureStats.offscreenPrim = batch.state.prim.type;
+        const GSCpuBackend::VramRange textureRange = GSCpuBackend::TextureRange(batch.state);
+        if (batch.state.prim.tme && m.screenGpuNewer && overlaps(textureRange, m.gpuRange()))
+        {
+            ++g_nv2aTextureStats.wbDraw;
+            m.writeBackScreen();
+        }
+        m.cpuFlushed().Submit(batch);
+        const GSCpuBackend::VramRange target = GSCpuBackend::FrameRange(batch.state);
+        m.noteCpuWrite(target);
+        m.markTargetPages(target, true);
+    }
+
+    // Submit and SubmitRun (TS_GIF_DIRECT): prims primitives of per vertices
+    // and one state - Submit's batch, or a run of the direct GIF decoder - on
+    // screen in one call, off screen one by one as the GS front end's batches.
+    void submitPrimitives(GSNv2aBackend::Impl &m, const GSPrimitiveBatch *batch, const GSDrawState &state,
+                          const GSVertex *vertices, uint32_t per, uint32_t prims)
+    {
+        g_nv2aStep = 80;
+        if (m.isScreenTarget(state))
+        {
+            m.submitScreenVerts(state, vertices, per, prims);
+            return;
+        }
+        if (batch)
+        {
+            submitOffscreen(m, *batch);
+            return;
+        }
+        GSPrimitiveBatch one{}; // vertices past per as the front end leaves them
+        one.state = state;
+        one.vertexCount = uint8_t(per);
+        for (uint32_t p = 0; p < prims; ++p)
+        {
+            for (uint32_t i = 0; i < per; ++i)
+                one.vertices[i] = vertices[p * per + i];
+            submitOffscreen(m, one);
+        }
+    }
 }
 
 void GSNv2aBackend::Submit(const GSPrimitiveBatch &batch)
 {
-        g_nv2aStep = 80;
-    if (m->isScreenTarget(batch.state))
-    {
-        m->submitScreen(batch);
-        return;
-    }
-    // Off-screen target: the CPU renderer draws it into local memory.
-#if TS_DIAG
-    ++xdiag::g_count.offscreenDraws;
-    {
-        const GSFrameReg &f = batch.state.context.frame;
-        const uint32_t key[3] = {uint32_t(f.fbp), uint32_t(f.fbw), uint32_t(f.psm)};
-        if (std::memcmp(key, m->diagOffTarget, sizeof(key)) != 0)
-        {
-            std::memcpy(m->diagOffTarget, key, sizeof(key));
-            const GSScissorReg &s = batch.state.context.scissor;
-            if (xdiag::logAllowed())
-                xdiag::logLine("[TS:diag] off-screen target fbp=%u fbw=%u psm=%u prim=%u scissor %u-%u,%u-%u tex=%u "
-                               "tbp0=%u (screen fbp %u/%u)",
-                               unsigned(key[0]), unsigned(key[1]), unsigned(key[2]), unsigned(batch.state.prim.type),
-                               unsigned(s.x0), unsigned(s.x1), unsigned(s.y0), unsigned(s.y1),
-                               unsigned(batch.state.prim.tme), unsigned(batch.state.context.tex0.tbp0),
-                               unsigned(m->displayFbp[0]), unsigned(m->displayFbp[1]));
-        }
-    }
-#endif
-    ++g_nv2aTextureStats.offscreenDraws;
-    g_nv2aTextureStats.offscreenFbp = batch.state.context.frame.fbp;
-    g_nv2aTextureStats.offscreenFbw = batch.state.context.frame.fbw;
-    g_nv2aTextureStats.offscreenPsm = batch.state.context.frame.psm;
-    g_nv2aTextureStats.offscreenPrim = batch.state.prim.type;
-    const GSCpuBackend::VramRange textureRange = GSCpuBackend::TextureRange(batch.state);
-    if (batch.state.prim.tme && m->screenGpuNewer && overlaps(textureRange, m->gpuRange()))
-    {
-        ++g_nv2aTextureStats.wbDraw;
-        m->writeBackScreen();
-    }
-    m->cpuFlushed().Submit(batch);
-    const GSCpuBackend::VramRange target = GSCpuBackend::FrameRange(batch.state);
-    m->noteCpuWrite(target);
-    m->markTargetPages(target, true);
+    submitPrimitives(*m, &batch, batch.state, batch.vertices.data(), batch.vertexCount, 1u);
 }
 
 bool GSNv2aBackend::BeginXfRun(const GSDrawState &state, const GSXfConstants &constants, GSXfCursor &cursor)
@@ -1521,27 +5364,21 @@ bool GSNv2aBackend::SubmitStrip(const GSDrawState &state, const GSVertex *vertic
     return true;
 }
 
-// The Push B/C draw paths: each fragment's member answers the old path until
-// its track lands it (gs_nv2a_backend.h).
-uint32_t GSNv2aBackend::DrawPaths() const
+#if TS_GIF_DIRECT || TS_NATIVE_FX
+// As Submit for each primitive (the same code).
+bool GSNv2aBackend::SubmitRun(const GSDrawState &state, const GSVertex *vertices, uint32_t per, uint32_t prims)
 {
-    return Impl::kStateDrawPaths | Impl::kScreenDrawPaths | Impl::kXfDrawPaths;
+    submitPrimitives(*m, nullptr, state, vertices, per, prims);
+    return true;
 }
 
-bool GSNv2aBackend::SubmitPrimitives(const GSDrawState &state, uint32_t prim, const GSVertex *vertices, uint32_t count)
+bool xboxNv2aSubmitRun(GSRasterBackend *backend, const GSDrawState &state, const GSVertex *vertices,
+                       uint32_t per, uint32_t prims)
 {
-    return m->submitPrimitives(state, prim, vertices, count);
+    // A wrapped renderer (TS_PERF_BACKEND) is not this one: its Submit calls.
+    return g_runBackend && backend == g_runBackend && g_runBackend->SubmitRun(state, vertices, per, prims);
 }
-
-void GSNv2aBackend::XfInPlace(GSXfCursor &cursor, const GSXfInPlaceStrip *strips, uint32_t count)
-{
-    m->xfInPlace(cursor, strips, count);
-}
-
-GSNativeRunResult GSNv2aBackend::BeginNativeRun(const GSNativeRun &run, GSXfCursor &cursor)
-{
-    return m->beginNativeRun(run, cursor);
-}
+#endif
 
 void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
 {
@@ -1573,6 +5410,7 @@ void GSNv2aBackend::LoadClut(const GSTex0Reg &tex0, const GSTexClutReg &texclut)
     {
         // Not a full load, or its source wraps the end of GS memory.
         ++s_lookupStats.clutOther;
+        m->forgetFullClut();
         m->cpu.LoadClut(tex0, texclut);
         m->refreshClutHash();
         return;
@@ -1628,16 +5466,6 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
 {
     m->transfer = command;
     const GSBitBltBuf &buf = command.bitbltbuf;
-#if TS_DIAG
-    if (command.direction == 1u || command.direction == 2u)
-    {
-        ++xdiag::g_count.transfers;
-        const auto read = frameRangeRows(buf.spsm, buf.sbp / 32u, buf.sbw,
-                                         uint32_t(command.trxpos.ssay) + command.trxreg.rrh + 1u);
-        if (overlaps(read, m->screenRange()))
-            ++xdiag::g_count.screenTransfers;
-    }
-#endif
     if (command.direction == 1u || command.direction == 2u)
     {
         // Reads local memory: the GPU's screen pixels must be there.
@@ -1661,6 +5489,9 @@ void GSNv2aBackend::BeginTransfer(const GSTransferCommand &command)
                                            uint32_t(command.trxpos.ssay) + command.trxreg.rrh + 1u);
         m->markTargetPages(dest, m->renderTarget(source));
     }
+#if TS_TEXTURE_SOURCE_KEYS
+    m->beginUploadSource(command);
+#endif
 }
 
 void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
@@ -1671,6 +5502,9 @@ void GSNv2aBackend::UploadImage(const uint8_t *data, uint32_t sizeBytes)
                                      uint32_t(c.trxpos.dsay) + c.trxreg.rrh + 1u);
     m->noteCpuWrite({dest.begin, dest.end == UINT64_MAX ? UINT64_MAX : dest.end + 2u * kPageBytes});
     m->markTargetPages(dest, false); // uploaded texels: textures again
+#if TS_TEXTURE_SOURCE_KEYS
+    m->noteUploadSource(data, sizeBytes);
+#endif
 }
 
 void GSNv2aBackend::Flush() { m->flushBatch(); }
@@ -1690,31 +5524,6 @@ PresentationFrame GSNv2aBackend::Present(const GSPresentationRequest &request)
     // The next frame's height (beginFrame, gs_nv2a_clip::frameRows).
     gs_nv2a_clip::displaySetup(request.pmode, request.dispfb1, request.display1, request.dispfb2, request.display2,
                                m->display);
-#endif
-#if TS_DIAG
-    {
-        // The GS display registers, logged when they change (DISPFB's FBP
-        // alternates every frame: left out of the comparison).
-        const bool first = (request.pmode & 1u) != 0u;
-        const uint64_t dispfb = first ? request.dispfb1 : request.dispfb2;
-        const uint64_t display = first ? request.display1 : request.display2;
-        const uint64_t key[3] = {uint64_t(request.pmode), dispfb & ~uint64_t(0x1FFu), display};
-        if (std::memcmp(key, m->diagDisplayKey, sizeof(key)) != 0)
-        {
-            std::memcpy(m->diagDisplayKey, key, sizeof(key));
-            if (xdiag::logAllowed())
-                xdiag::logLine("[TS:diag] display pmode=0x%x circuit %d fbp=%u fbw=%u psm=%u dbx=%u dby=%u "
-                               "dx=%u dy=%u magh=%u magv=%u dw=%u dh=%u -> rows %u",
-                               unsigned(request.pmode & 0xFFFFu), first ? 1 : 2, unsigned(dispfb & 0x1FFu),
-                               unsigned((dispfb >> 9) & 0x3Fu), unsigned((dispfb >> 15) & 0x1Fu),
-                               unsigned((dispfb >> 32) & 0x7FFu), unsigned((dispfb >> 43) & 0x7FFu),
-                               unsigned(display & 0xFFFu), unsigned((display >> 12) & 0x7FFu),
-                               unsigned((display >> 23) & 0xFu), unsigned((display >> 27) & 0x3u),
-                               unsigned((display >> 32) & 0xFFFu), unsigned((display >> 44) & 0x7FFu),
-                               unsigned(m->display.rows));
-        }
-        xdiag::maybeSummary();
-    }
 #endif
     if (m->frameOpen)
         m->finishFrame();
@@ -1741,12 +5550,6 @@ bool GSNv2aBackend::ClearFramebuffer(const GSContext &context, uint32_t rgba)
 {
     GSDrawState state{};
     state.context = context;
-#if TS_DIAG
-    ++xdiag::g_count.clears;
-    if (xdiag::logAllowed())
-        xdiag::logLine("[TS:diag] clear fbp=%u fbw=%u psm=%u rgba=0x%08x (CPU renderer)", unsigned(context.frame.fbp),
-                       unsigned(context.frame.fbw), unsigned(context.frame.psm), unsigned(rgba));
-#endif
     const bool result = m->cpuFlushed().ClearFramebuffer(context, rgba);
     m->noteCpuWrite(GSCpuBackend::FrameRange(state));
     return result;

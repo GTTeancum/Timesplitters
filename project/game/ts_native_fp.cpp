@@ -31,7 +31,6 @@
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
 #include "runtime/ee_scheduler.h"
-#include "runtime/ee_checkpoint_clock.h"
 #include "ts_native_math.h"
 
 #include <chrono>
@@ -2097,10 +2096,32 @@ namespace
     }
 
     // The originals' loops and calls run scheduler checkpoints; none may
-    // come due or charge cycles before the game runs: the clock is frozen
-    // for the test (runtime/ee_checkpoint_clock.h, the one copy for every
-    // self-test).
-    using ClockHold = EeClockFreeze;
+    // come due or charge cycles before the game runs (see
+    // ts_native_math.cpp).
+    class ClockHold
+    {
+    public:
+        explicit ClockHold(PS2Runtime &runtime)
+            : m_clock((EeCheckpointClock &)runtime.eeScheduler()), m_cycle(m_clock.m_eeCycle),
+              m_fastUntil(m_clock.m_fastUntil),
+              m_pending(m_clock.m_checkpointPending.exchange(false, std::memory_order_acq_rel))
+        {
+            m_clock.m_fastUntil = UINT64_MAX;
+        }
+
+        ~ClockHold()
+        {
+            m_clock.m_eeCycle = m_cycle;
+            m_clock.m_fastUntil = m_fastUntil;
+            if (m_pending)
+                m_clock.m_checkpointPending.store(true, std::memory_order_release);
+        }
+
+    private:
+        EeCheckpointClock &m_clock;
+        uint64_t m_cycle, m_fastUntil;
+        bool m_pending;
+    };
 
     uint32_t g_testSeed = 0; // a host harness varies it between batches
 

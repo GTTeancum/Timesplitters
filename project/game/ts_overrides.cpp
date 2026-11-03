@@ -10,24 +10,14 @@
 
 #if defined(PLATFORM_XBOX)
 #include "../../src/xbox/gs_nv2a_backend.h" // status counters
-#include "../../src/xbox/xbox_perf.h"       // frame times, phase brackets, registerTsPacing
+#include "../../src/xbox/xbox_perf.h"       // frame times, phase brackets
+#include "../../src/xbox/xbox_sweep.h"      // the sweep's replacements
 #include "runtime/ee_scheduler.h"
-#if defined(PLATFORM_XBOX)
-#include "runtime/ps2_det.h"     // xboxDetFrame at the frame boundary
-#include "runtime/ps2_measure.h" // TS_MEASURE_PUSHBC: its game-function hooks
-#include "native/ts_native_idiom.h"
-#include "ts_game_hooks.h"
-#include "ts_knobs.h"
-#include "ts_native_dl.h"
-#endif
 #include "ts_native_fp.h"
 #include "ts_native_game.h"
 #include "ts_native_game2.h"
 #include "ts_native_game3.h"
 #include "ts_native_math.h"
-#if defined(PLATFORM_XBOX)
-#include "ts_record_desc.h"
-#endif
 #endif
 
 #include <algorithm>
@@ -844,28 +834,6 @@ namespace
         WRITE32(kFrameSlots + READ32(gp - kGpDrawSlot) * kFrameSlotBytes + 8u, 2u); // no second draw
         ++g_nv2aTextureStats.gameFrames;
         xboxPerfGameFrame(); // the frame-time histogram
-#if defined(PLATFORM_XBOX)
-        tsKnobApplyFrame();  // knobs change here, at the frame boundary, on the game's thread (ts_knobs.h)
-#if TS_DET
-        {
-            // The det exclusions of src/xbox/PUSH-BC-PLAN.md D4: the two
-            // display-list buffers (gp-0x6CF0[0..1]; static and adjacent, so
-            // their distance is a buffer's size) and the game's list
-            // high-water mark (gp-0x6CA0). In-list tokens change only these.
-            // Re-registering the same range is free (xboxDetExclude dedups).
-            const uint32_t list0 = READ32(gp - 0x6CF0u) & 0x01FFFFFFu;
-            const uint32_t list1 = READ32(gp - 0x6CF0u + 4u) & 0x01FFFFFFu;
-            const uint32_t listBytes = list1 > list0 ? list1 - list0 : list0 - list1;
-            if (list0 != 0u && list1 != 0u && listBytes != 0u && listBytes <= 0x00400000u)
-            {
-                xboxDetExclude(list0, listBytes, 0u);
-                xboxDetExclude(list1, listBytes, 0u);
-            }
-            xboxDetExclude(gp - 0x6CA0u, 4u, 0u);
-        }
-#endif
-        xboxDetFrame();      // TS_DET: the frame's hashes (runtime/ps2_det.h; nothing otherwise, whatever TS_PERF says)
-#endif
         const uint32_t next = 1u - READ32(gp - 0x4CDCu);
         WRITE32(gp - 0x4CDCu, next);
         SET_GPR_S32(ctx, 2, static_cast<int32_t>(next));
@@ -901,226 +869,484 @@ namespace
     // address: that address's own table entry (a resume label of the
     // caller) is wrapped too and closes the bracket. Both wrappers call the
     // entry they replaced with the same arguments: the game runs as before.
-#if defined(PLATFORM_XBOX)
-    //
-    // A bracket may name several return addresses (animMtxTick is called
-    // from four places in lvTickAfter), and two brackets may share one (a
-    // tail-called function returns where its caller would): each distinct
-    // return address gets one resume wrapper, which closes every bracket
-    // that names it. The sub-brackets (TS_PERF_SUBBRACKETS, src/xbox/
-    // PUSH-BC-PLAN.md section 3.6 item 10) come first in the table, so a
-    // shared address is wrapped by them and the phase bracket after finds
-    // the wrapper there.
-    //
-    // Only calls through the function table can be bracketed. camTick is
-    // not: lvTickPlayer reaches it by a tail jump (0x226614) that the
-    // recompiler turned into a direct host call (lvTickPlayer_0x2265a8.cpp:
-    // camTick_0x27e320(...); return;), which no table wrapper sees, and
-    // its one JAL (0x2266C4) has no resume label. [TS:sub] camtick stays 0
-    // (a replaceFunction override of camTick would be bypassed the same
-    // way). animMtxTick is bracketed but lvTickAfter does not call it in
-    // an arcade match (the character screens do): 0 there is the figure.
-    constexpr uint32_t kBracketRets = 4;
-#endif
     struct PerfBracket
     {
-#if defined(PLATFORM_XBOX)
-        uint32_t function;          // the bracketed function
-        uint32_t caller;            // the function that calls it
-        uint32_t ret[kBracketRets]; // the calls' return addresses in the caller (0: unused)
-#else
         uint32_t function; // the bracketed function
         uint32_t caller;   // the function that calls it
         uint32_t ret;      // the call's return address in the caller
-#endif
         uint32_t phase;
-#if defined(PLATFORM_XBOX)
-        PS2Runtime::RecompiledFunction original;
-#else
         PS2Runtime::RecompiledFunction original, resumeOriginal;
-#endif
     };
     PerfBracket g_perfBrackets[] = {
-#if defined(PLATFORM_XBOX)
-#if TS_PERF_SUBBRACKETS
-        {0x273BB0u, 0x2263A0u, {0x2263FCu, 0x226448u, 0x2264D0u, 0x226524u}, kPerfSubAnimMtx}, // animMtxTick, from lvTickAfter
-        {0x281248u, 0x2265A8u, {0x2266BCu}, kPerfSubPlayerTick},                                 // playerTick, from lvTickPlayer
-        {0x2586C0u, 0x2265A8u, {0x2266DCu}, kPerfSubPortalTick},                                 // bgPortalTick, from lvTickPlayer
-        // (camTick: not reachable through the table, see above)
-#endif
-        {0x21EEB8u, 0x200638u, {0x2006C4u}, kPerfGameTick},   // gameTick
-        {0x2262C8u, 0x200638u, {0x2006CCu}, kPerfTickBefore}, // lvTickBefore
-        {0x2265A8u, 0x200638u, {0x20074Cu}, kPerfTickPlayer}, // lvTickPlayer, once per player
-        {0x2263A0u, 0x200638u, {0x200764u}, kPerfTickAfter},  // lvTickAfter
-        {0x2266F8u, 0x200638u, {0x200A00u}, kPerfGfx},        // lvGfx, once per viewport
-        {0x2CF4A0u, 0x200F20u, {0x201064u}, kPerfKick},       // sceDmaSend (its other callers are not timed)
-#else
         {0x21EEB8u, 0x200638u, 0x2006C4u, kPerfGameTick},   // gameTick
         {0x2262C8u, 0x200638u, 0x2006CCu, kPerfTickBefore}, // lvTickBefore
         {0x2265A8u, 0x200638u, 0x20074Cu, kPerfTickPlayer}, // lvTickPlayer, once per player
         {0x2263A0u, 0x200638u, 0x200764u, kPerfTickAfter},  // lvTickAfter
         {0x2266F8u, 0x200638u, 0x200A00u, kPerfGfx},        // lvGfx, once per viewport
         {0x2CF4A0u, 0x200F20u, 0x201064u, kPerfKick},       // sceDmaSend (its other callers are not timed)
-#endif
     };
-#if defined(PLATFORM_XBOX)
-    constexpr size_t kBracketCount = std::size(g_perfBrackets);
 
-    // One per distinct return address: the entry it replaced and the
-    // phases (a bit each) it closes.
-    struct ResumeSite
+#if TS_PERF_JOBS
+    // Job brackets (make TS_PERF_JOBS=1, measurement): every direct call the
+    // four steps make (lvTickBefore, lvTickPlayer, lvTickAfter, lvGfx) and
+    // those of the six biggest of those calls, one
+    // timer per called function ([TS:jobs]), opened when it is called from
+    // one of its listed call sites and closed when it returns there or when
+    // the scheduler resumes the caller at that return address, as above. Jobs
+    // may contain each other: each has its own clock.
+    struct JobSite
     {
-        uint32_t ret = 0;
-        uint32_t phases = 0;
-        PS2Runtime::RecompiledFunction original = nullptr;
+        uint32_t function, caller, ret;
+        uint32_t job;
+        PS2Runtime::RecompiledFunction resumeOriginal;
     };
-    constexpr size_t kResumeSites = kBracketCount * kBracketRets;
-    ResumeSite g_resumeSites[kResumeSites];
+    JobSite g_jobSites[] = {
+        {0x296610u, 0x2262C8u, 0x226334u}, // ipTick
+        {0x2A8B40u, 0x2262C8u, 0x22633Cu}, // starfieldTick
+        {0x2A84F0u, 0x2262C8u, 0x226344u}, // weatherTick
+        {0x256C58u, 0x2262C8u, 0x22634Cu}, // bgGetRoomsTick
+        {0x2BA9C8u, 0x2262C8u, 0x226354u}, // aiTickBefore
+        {0x26F500u, 0x2262C8u, 0x22635Cu}, // propTickBefore
+        {0x28A8E8u, 0x2262C8u, 0x226364u}, // bulletTick
+        {0x2A4BD8u, 0x2262C8u, 0x22636Cu}, // decalTick
+        {0x295A00u, 0x2262C8u, 0x226374u}, // cartridgesTick
+        {0x2ADB50u, 0x2262C8u, 0x22637Cu}, // specialfxTick
+        {0x29BC58u, 0x2262C8u, 0x226384u}, // particleTick
+        {0x22CB20u, 0x2265A8u, 0x2265BCu}, // frontSet
+        {0x20C7E0u, 0x2265A8u, 0x2265C4u}, // windowTick
+        {0x20C420u, 0x2265A8u, 0x2265DCu}, // windowSet
+        {0x22CB58u, 0x2265A8u, 0x2265E4u}, // frontTick
+        {0x20CE18u, 0x2265A8u, 0x226634u}, // menuTick
+        {0x20DB28u, 0x2265A8u, 0x22663Cu}, // debugmenuGetJoyMode
+        {0x2038E8u, 0x2265A8u, 0x226650u}, // joyNewBut
+        {0x2129E0u, 0x2265A8u, 0x226670u}, // ingamemenuPause
+        {0x2039E8u, 0x2265A8u, 0x226680u}, // joyClearButs
+        {0x2038E8u, 0x2265A8u, 0x226690u}, // joyNewBut
+        {0x212930u, 0x2265A8u, 0x2266A4u}, // ingamemenuStart
+        {0x2039E8u, 0x2265A8u, 0x2266B4u}, // joyClearButs
+        {0x281248u, 0x2265A8u, 0x2266BCu}, // playerTick
+        {0x2B0E80u, 0x2265A8u, 0x2266C4u}, // hudTick
+        {0x27E320u, 0x2265A8u, 0x2266CCu}, // camTick
+        {0x2946C0u, 0x2265A8u, 0x2266D4u}, // gunTick
+        {0x2586C0u, 0x2265A8u, 0x2266DCu}, // bgPortalTick
+        {0x20C7E0u, 0x2263A0u, 0x2263DCu}, // windowTick
+        {0x20C420u, 0x2263A0u, 0x2263F4u}, // windowSet
+        {0x273BB0u, 0x2263A0u, 0x2263FCu}, // animMtxTick
+        {0x26F9E8u, 0x2263A0u, 0x226404u}, // propTickAfter
+        {0x204EC0u, 0x2263A0u, 0x22640Cu}, // soundTick
+        {0x205D10u, 0x2263A0u, 0x226414u}, // musicTick
+        {0x20C7E0u, 0x2263A0u, 0x226428u}, // windowTick
+        {0x20C420u, 0x2263A0u, 0x226440u}, // windowSet
+        {0x273BB0u, 0x2263A0u, 0x226448u}, // animMtxTick
+        {0x26F9E8u, 0x2263A0u, 0x226450u}, // propTickAfter
+        {0x204EC0u, 0x2263A0u, 0x226458u}, // soundTick
+        {0x205D10u, 0x2263A0u, 0x226460u}, // musicTick
+        {0x20C7E0u, 0x2263A0u, 0x226474u}, // windowTick
+        {0x20C420u, 0x2263A0u, 0x22648Cu}, // windowSet
+        {0x20C7E0u, 0x2263A0u, 0x2264A0u}, // windowTick
+        {0x20C420u, 0x2263A0u, 0x2264B8u}, // windowSet
+        {0x246AE8u, 0x2263A0u, 0x2264C0u}, // mapmakerTick
+        {0x27E320u, 0x2263A0u, 0x2264C8u}, // camTick
+        {0x273BB0u, 0x2263A0u, 0x2264D0u}, // animMtxTick
+        {0x26F9E8u, 0x2263A0u, 0x2264D8u}, // propTickAfter
+        {0x204EC0u, 0x2263A0u, 0x2264E0u}, // soundTick
+        {0x205D10u, 0x2263A0u, 0x2264E8u}, // musicTick
+        {0x20C7E0u, 0x2263A0u, 0x2264FCu}, // windowTick
+        {0x20C420u, 0x2263A0u, 0x226514u}, // windowSet
+        {0x2AE698u, 0x2263A0u, 0x22651Cu}, // creditsTick
+        {0x273BB0u, 0x2263A0u, 0x226524u}, // animMtxTick
+        {0x26F9E8u, 0x2263A0u, 0x22652Cu}, // propTickAfter
+        {0x204EC0u, 0x2263A0u, 0x226534u}, // soundTick
+        {0x25A3B8u, 0x2263A0u, 0x226548u}, // bgTick
+        {0x273BB0u, 0x2263A0u, 0x226550u}, // animMtxTick
+        {0x2A7D20u, 0x2263A0u, 0x226558u}, // roomlightTick
+        {0x26F9E8u, 0x2263A0u, 0x226560u}, // propTickAfter
+        {0x294970u, 0x2263A0u, 0x226568u}, // chrgunTick
+        {0x2CD248u, 0x2263A0u, 0x226570u}, // aiEndTick
+        {0x204EC0u, 0x2263A0u, 0x226578u}, // soundTick
+        {0x205D10u, 0x2263A0u, 0x226580u}, // musicTick
+        {0x2CDBC0u, 0x2263A0u, 0x226588u}, // timerTick
+        {0x220BA8u, 0x2263A0u, 0x226590u}, // StatsTick
+        {0x226DF0u, 0x2263A0u, 0x226598u}, // lvSoundsTick
+        {0x269EF8u, 0x2266F8u, 0x226708u}, // propUpdateRooms
+        {0x26FD40u, 0x2266F8u, 0x226710u}, // propGfxRoomPreproc
+        {0x22CB20u, 0x2266F8u, 0x22671Cu}, // frontSet
+        {0x22E208u, 0x2266F8u, 0x226734u}, // guiFlashAlpha
+        {0x20C420u, 0x2266F8u, 0x226778u}, // windowSet
+        {0x20C7E8u, 0x2266F8u, 0x226780u}, // windowGfx
+        {0x2B7C98u, 0x2266F8u, 0x226788u}, // dlSetClipTag
+        {0x22CD30u, 0x2266F8u, 0x226790u}, // frontGfx
+        {0x22A190u, 0x2266F8u, 0x2267A0u}, // loadingGfx
+        {0x20C420u, 0x2266F8u, 0x2267C0u}, // windowSet
+        {0x20C7E8u, 0x2266F8u, 0x2267C8u}, // windowGfx
+        {0x2B7C98u, 0x2266F8u, 0x2267D0u}, // dlSetClipTag
+        {0x24B688u, 0x2266F8u, 0x2267D8u}, // mapmakerGfx
+        {0x22CD30u, 0x2266F8u, 0x2267E0u}, // frontGfx
+        {0x20C420u, 0x2266F8u, 0x226800u}, // windowSet
+        {0x20C7E8u, 0x2266F8u, 0x226808u}, // windowGfx
+        {0x2B7C98u, 0x2266F8u, 0x226810u}, // dlSetClipTag
+        {0x2AE6C8u, 0x2266F8u, 0x226818u}, // creditsGfx
+        {0x20C420u, 0x2266F8u, 0x226838u}, // windowSet
+        {0x20C7E8u, 0x2266F8u, 0x226840u}, // windowGfx
+        {0x2B7C98u, 0x2266F8u, 0x226848u}, // dlSetClipTag
+        {0x27E318u, 0x2266F8u, 0x226890u}, // camGetMode
+        {0x28D2D8u, 0x2266F8u, 0x2268A4u}, // bulletMakeAttachedMinesInvisible
+        {0x256830u, 0x2266F8u, 0x226968u}, // bgGfx
+        {0x27E318u, 0x2266F8u, 0x2269C4u}, // camGetMode
+        {0x2949E0u, 0x2266F8u, 0x2269D8u}, // gunGfx
+        {0x201F78u, 0x2266F8u, 0x2269E0u}, // memdbAlloc
+        {0x272CC8u, 0x2266F8u, 0x226B04u}, // pickupposGfx
+        {0x2A9068u, 0x2266F8u, 0x226B0Cu}, // starfieldGfx
+        {0x2A8620u, 0x2266F8u, 0x226B14u}, // weatherGfx
+        {0x28D000u, 0x2266F8u, 0x226B1Cu}, // bulletGfx
+        {0x2A1908u, 0x2266F8u, 0x226B24u}, // particleGfx
+        {0x2ABDF8u, 0x2266F8u, 0x226B2Cu}, // specialfxGfx
+        {0x2A6B78u, 0x2266F8u, 0x226B34u}, // zbtestGfx
+        {0x258868u, 0x2266F8u, 0x226B48u}, // bgFloorGfx
+        {0x258878u, 0x2266F8u, 0x226B5Cu}, // bgWallGfx
+        {0x258860u, 0x2266F8u, 0x226B70u}, // bgVolumeGfx
+        {0x258840u, 0x2266F8u, 0x226B84u}, // bgPortalGfx
+        {0x258850u, 0x2266F8u, 0x226B98u}, // bgPortalRectGfx
+        {0x264DF8u, 0x2266F8u, 0x226BA0u}, // padGfx
+        {0x27C4A0u, 0x2266F8u, 0x226BA8u}, // propEditGfx
+        {0x296678u, 0x2266F8u, 0x226BB0u}, // ipGfx
+        {0x283E88u, 0x2266F8u, 0x226BB8u}, // playerHitPosGfx
+        {0x2B2D68u, 0x2266F8u, 0x226BC0u}, // hudGfx
+        {0x20CFF8u, 0x2266F8u, 0x226BC8u}, // menuGfx
+        {0x22CD30u, 0x2266F8u, 0x226BD0u}, // frontGfx
+        // One level deeper: the calls of the six biggest jobs (2026-11-02, 4P).
+        {0x201F78u, 0x26F500u, 0x26F58Cu}, // memdbAlloc from propTickBefore
+        {0x201F78u, 0x26F500u, 0x26F59Cu}, // memdbAlloc from propTickBefore
+        {0x201F78u, 0x26F500u, 0x26F5ACu}, // memdbAlloc from propTickBefore
+        {0x201F78u, 0x26F500u, 0x26F5BCu}, // memdbAlloc from propTickBefore
+        {0x201F78u, 0x26F500u, 0x26F5CCu}, // memdbAlloc from propTickBefore
+        {0x201F78u, 0x26F500u, 0x26F62Cu}, // memdbAlloc from propTickBefore
+        {0x201F78u, 0x26F500u, 0x26F63Cu}, // memdbAlloc from propTickBefore
+        {0x274400u, 0x26F500u, 0x26F658u}, // nullOverridePointers from propTickBefore
+        {0x26ECF0u, 0x26F500u, 0x26F6D8u}, // droppingPickupPropTick from propTickBefore
+        {0x26B710u, 0x26F500u, 0x26F6E8u}, // headPropTick from propTickBefore
+        {0x26A330u, 0x26F500u, 0x26F770u}, // pickupPropTick from propTickBefore
+        {0x212CF8u, 0x26F500u, 0x26F79Cu}, // animUpdate from propTickBefore
+        {0x26ECB8u, 0x26F500u, 0x26F84Cu}, // corpsePropTick from propTickBefore
+        {0x276678u, 0x26F500u, 0x26F85Cu}, // carPropTick from propTickBefore
+        {0x27BFC8u, 0x26F500u, 0x26F86Cu}, // specialPropTick from propTickBefore
+        {0x26BE78u, 0x26F500u, 0x26F87Cu}, // doorPropTick from propTickBefore
+        {0x26DDC0u, 0x26F500u, 0x26F88Cu}, // chrPropTick from propTickBefore
+        {0x26ECE8u, 0x26F500u, 0x26F89Cu}, // gunPropTick from propTickBefore
+        {0x26C440u, 0x26F500u, 0x26F8ACu}, // remotePropTick from propTickBefore
+        {0x278BB0u, 0x26F500u, 0x26F8BCu}, // waterPropTick from propTickBefore
+        {0x267338u, 0x26F500u, 0x26F920u}, // propCalculateWalls from propTickBefore
+        {0x2675B8u, 0x26F500u, 0x26F92Cu}, // propCalculateFloors from propTickBefore
+        {0x2B4A58u, 0x26F500u, 0x26F964u}, // matrixRotY from propTickBefore
+        {0x2B54C8u, 0x26F500u, 0x26F9A4u}, // matrixVecMulAligned from propTickBefore
+        {0x25C160u, 0x26F9E8u, 0x26FAACu}, // obInstLightUpdate from propTickAfter
+        {0x269D78u, 0x26F9E8u, 0x26FACCu}, // propUpdate from propTickAfter
+        {0x26E8D8u, 0x26F9E8u, 0x26FAE0u}, // chrPropTickAfter from propTickAfter
+        {0x26FF10u, 0x26F9E8u, 0x26FB3Cu}, // propAttachUpdate from propTickAfter
+        {0x26B710u, 0x26F9E8u, 0x26FB50u}, // headPropTick from propTickAfter
+        {0x25C160u, 0x26F9E8u, 0x26FBB0u}, // obInstLightUpdate from propTickAfter
+        {0x269D78u, 0x26F9E8u, 0x26FBD0u}, // propUpdate from propTickAfter
+        {0x26F460u, 0x26F9E8u, 0x26FBE8u}, // propUnattach from propTickAfter
+        {0x2B7CD0u, 0x256830u, 0x256868u}, // dlSetZB from bgGfx
+        {0x2B7EA8u, 0x256830u, 0x2569D8u}, // dlSetBlend from bgGfx
+        {0x2B8050u, 0x256830u, 0x2569F0u}, // dlSetClip from bgGfx
+        {0x26FE08u, 0x256830u, 0x256A0Cu}, // propGfxRoom from bgGfx
+        {0x2B7EA8u, 0x256830u, 0x256A14u}, // dlSetBlend from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256A1Cu}, // dlSetZB from bgGfx
+        {0x26FE08u, 0x256830u, 0x256A28u}, // propGfxRoom from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256A30u}, // dlSetZB from bgGfx
+        {0x26FE08u, 0x256830u, 0x256A3Cu}, // propGfxRoom from bgGfx
+        {0x26FE08u, 0x256830u, 0x256A48u}, // propGfxRoom from bgGfx
+        {0x2B7EA8u, 0x256830u, 0x256A50u}, // dlSetBlend from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256A58u}, // dlSetZB from bgGfx
+        {0x26FE08u, 0x256830u, 0x256A64u}, // propGfxRoom from bgGfx
+        {0x2B7EA8u, 0x256830u, 0x256A6Cu}, // dlSetBlend from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256A74u}, // dlSetZB from bgGfx
+        {0x26FE08u, 0x256830u, 0x256A80u}, // propGfxRoom from bgGfx
+        {0x2B7EA8u, 0x256830u, 0x256B44u}, // dlSetBlend from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256B4Cu}, // dlSetZB from bgGfx
+        {0x2B7DF0u, 0x256830u, 0x256B54u}, // dlSetDitherMatrix from bgGfx
+        {0x26FE08u, 0x256830u, 0x256B60u}, // propGfxRoom from bgGfx
+        {0x2A61C8u, 0x256830u, 0x256B68u}, // decalGfx from bgGfx
+        {0x2B7EA8u, 0x256830u, 0x256B70u}, // dlSetBlend from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256B78u}, // dlSetZB from bgGfx
+        {0x226DF8u, 0x256830u, 0x256B80u}, // lvGetDitherForXLU from bgGfx
+        {0x2B7DF0u, 0x256830u, 0x256B88u}, // dlSetDitherMatrix from bgGfx
+        {0x26FE08u, 0x256830u, 0x256B94u}, // propGfxRoom from bgGfx
+        {0x258888u, 0x256830u, 0x256B9Cu}, // bgGlassGfxRoom from bgGfx
+        {0x2A6250u, 0x256830u, 0x256BECu}, // decalGfxMoving from bgGfx
+        {0x2B7EA8u, 0x256830u, 0x256BF4u}, // dlSetBlend from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256BFCu}, // dlSetZB from bgGfx
+        {0x26FE08u, 0x256830u, 0x256C08u}, // propGfxRoom from bgGfx
+        {0x26FE08u, 0x256830u, 0x256C14u}, // propGfxRoom from bgGfx
+        {0x2B7CD0u, 0x256830u, 0x256C1Cu}, // dlSetZB from bgGfx
+        {0x2B4C50u, 0x281248u, 0x2812F0u}, // matrixTransRotY from playerTick
+        {0x2D5E98u, 0x281248u, 0x281320u}, // sceVu0MulMatrix from playerTick
+        {0x224338u, 0x281248u, 0x281390u}, // StatsAddChar from playerTick
+        {0x20DB28u, 0x281248u, 0x281438u}, // debugmenuGetJoyMode from playerTick
+        {0x203BB8u, 0x281248u, 0x281450u}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x281464u}, // joyGetAxis from playerTick
+        {0x2D8398u, 0x281248u, 0x2814C4u}, // sqrtf from playerTick
+        {0x2D8398u, 0x281248u, 0x2814F4u}, // sqrtf from playerTick
+        {0x2038E8u, 0x281248u, 0x281598u}, // joyNewBut from playerTick
+        {0x203860u, 0x281248u, 0x2815C0u}, // joyBut from playerTick
+        {0x223E60u, 0x281248u, 0x281610u}, // StatsAdd from playerTick
+        {0x2038E8u, 0x281248u, 0x281634u}, // joyNewBut from playerTick
+        {0x203968u, 0x281248u, 0x281680u}, // joyReleaseBut from playerTick
+        {0x203860u, 0x281248u, 0x2816E8u}, // joyBut from playerTick
+        {0x203860u, 0x281248u, 0x281710u}, // joyBut from playerTick
+        {0x223E60u, 0x281248u, 0x281788u}, // StatsAdd from playerTick
+        {0x203B30u, 0x281248u, 0x281824u}, // joySetCentreZone from playerTick
+        {0x203BB8u, 0x281248u, 0x281834u}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x281848u}, // joyGetAxis from playerTick
+        {0x203B30u, 0x281248u, 0x281860u}, // joySetCentreZone from playerTick
+        {0x203BB8u, 0x281248u, 0x281988u}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x2819A0u}, // joyGetAxis from playerTick
+        {0x295238u, 0x281248u, 0x281A64u}, // gunDoesAutoAim from playerTick
+        {0x2B4C50u, 0x281248u, 0x281B1Cu}, // matrixTransRotY from playerTick
+        {0x2D5E98u, 0x281248u, 0x281B44u}, // sceVu0MulMatrix from playerTick
+        {0x2B4C50u, 0x281248u, 0x281B94u}, // matrixTransRotY from playerTick
+        {0x2D5E98u, 0x281248u, 0x281BC0u}, // sceVu0MulMatrix from playerTick
+        {0x280780u, 0x281248u, 0x281C04u}, // playerAutoAimCalc from playerTick
+        {0x2B4C50u, 0x281248u, 0x281C84u}, // matrixTransRotY from playerTick
+        {0x2D5E98u, 0x281248u, 0x281CACu}, // sceVu0MulMatrix from playerTick
+        {0x2B4C50u, 0x281248u, 0x281CFCu}, // matrixTransRotY from playerTick
+        {0x2D5E98u, 0x281248u, 0x281D28u}, // sceVu0MulMatrix from playerTick
+        {0x2B5638u, 0x281248u, 0x281D68u}, // matrixVecRotAligned from playerTick
+        {0x203BB8u, 0x281248u, 0x281E10u}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x281E4Cu}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x281EE4u}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x281EF8u}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x281F0Cu}, // joyGetAxis from playerTick
+        {0x203BB8u, 0x281248u, 0x281F20u}, // joyGetAxis from playerTick
+        {0x223E60u, 0x281248u, 0x281F4Cu}, // StatsAdd from playerTick
+        {0x2AE1C0u, 0x281248u, 0x282024u}, // specialfxFreeSpawn from playerTick
+        {0x2D7398u, 0x281248u, 0x282638u}, // sinf from playerTick
+        {0x2D7398u, 0x281248u, 0x282660u}, // sinf from playerTick
+        {0x2D71C8u, 0x281248u, 0x2826A0u}, // cosf from playerTick
+        {0x2D7398u, 0x281248u, 0x2826CCu}, // sinf from playerTick
+        {0x2D71C8u, 0x281248u, 0x2826F8u}, // cosf from playerTick
+        {0x2D7398u, 0x281248u, 0x282724u}, // sinf from playerTick
+        {0x2D71C8u, 0x281248u, 0x282754u}, // cosf from playerTick
+        {0x2D7398u, 0x281248u, 0x282774u}, // sinf from playerTick
+        {0x2D71C8u, 0x281248u, 0x282794u}, // cosf from playerTick
+        {0x2D7398u, 0x281248u, 0x2827B4u}, // sinf from playerTick
+        {0x223E60u, 0x281248u, 0x282940u}, // StatsAdd from playerTick
+        {0x223E60u, 0x281248u, 0x282950u}, // StatsAdd from playerTick
+        {0x2E4608u, 0x281248u, 0x282958u}, // fptodp from playerTick
+        {0x2E3768u, 0x281248u, 0x282964u}, // dpcmp from playerTick
+        {0x223E60u, 0x281248u, 0x282978u}, // StatsAdd from playerTick
+        {0x223E60u, 0x281248u, 0x28298Cu}, // StatsAdd from playerTick
+        {0x2D8398u, 0x281248u, 0x282AD4u}, // sqrtf from playerTick
+        {0x285070u, 0x281248u, 0x282C00u}, // chrAddFloorMoveToPos from playerTick
+        {0x27DB10u, 0x281248u, 0x282C28u}, // moveTestDoSlide from playerTick
+        {0x2D8398u, 0x281248u, 0x282E70u}, // sqrtf from playerTick
+        {0x27DB10u, 0x281248u, 0x282F80u}, // moveTestDoSlide from playerTick
+        {0x27DB10u, 0x281248u, 0x283028u}, // moveTestDoSlide from playerTick
+        {0x223E60u, 0x281248u, 0x283098u}, // StatsAdd from playerTick
+        {0x280588u, 0x281248u, 0x28317Cu}, // playerOnGroundDie from playerTick
+        {0x27DB10u, 0x281248u, 0x283228u}, // moveTestDoSlide from playerTick
+        {0x2B4A58u, 0x281248u, 0x2832DCu}, // matrixRotY from playerTick
+        {0x2B5638u, 0x281248u, 0x2832ECu}, // matrixVecRotAligned from playerTick
+        {0x27DB10u, 0x281248u, 0x283344u}, // moveTestDoSlide from playerTick
+        {0x27C870u, 0x281248u, 0x28338Cu}, // moveFindRoom from playerTick
+        {0x280178u, 0x281248u, 0x2833C0u}, // playerRespawn from playerTick
+        {0x2038E8u, 0x281248u, 0x2833CCu}, // joyNewBut from playerTick
+        {0x2C7ED0u, 0x281248u, 0x283404u}, // enemyGetNumBases from playerTick
+        {0x2ADB70u, 0x281248u, 0x283428u}, // specialfxNewSpawn from playerTick
+        {0x280B60u, 0x281248u, 0x283448u}, // playerDeathView from playerTick
+        {0x284E38u, 0x281248u, 0x283464u}, // anglediff from playerTick
+        {0x26C1C8u, 0x281248u, 0x283484u}, // remoteGetStandPos from playerTick
+        {0x284E38u, 0x281248u, 0x2834FCu}, // anglediff from playerTick
+        {0x26C1C8u, 0x281248u, 0x283600u}, // remoteGetStandPos from playerTick
+        {0x27D0C0u, 0x281248u, 0x28363Cu}, // moveTest from playerTick
+        {0x26C318u, 0x281248u, 0x283654u}, // remoteGetStandAngle from playerTick
+        {0x283F60u, 0x281248u, 0x2837C0u}, // playerselectanim from playerTick
+        {0x258CF0u, 0x281248u, 0x283830u}, // bgPortalCrossed from playerTick
+        {0x2D8398u, 0x281248u, 0x2838E8u}, // sqrtf from playerTick
+        {0x2D8398u, 0x281248u, 0x28398Cu}, // sqrtf from playerTick
+        {0x259038u, 0x281248u, 0x283AA8u}, // bgLineTest from playerTick
+        {0x2D8398u, 0x281248u, 0x283B60u}, // sqrtf from playerTick
+        {0x2D8398u, 0x281248u, 0x283BC4u}, // sqrtf from playerTick
+        {0x2D7D68u, 0x281248u, 0x283BD8u}, // atan2f from playerTick
+        {0x2D7D68u, 0x281248u, 0x283C00u}, // atan2f from playerTick
+        {0x203D70u, 0x281248u, 0x283CC4u}, // joyGetShockLeft from playerTick
+        {0x203DF0u, 0x281248u, 0x283CF4u}, // joyGetShockRight from playerTick
+        {0x203CC0u, 0x281248u, 0x283D04u}, // joySetShock from playerTick
+        {0x27E318u, 0x281248u, 0x283D54u}, // camGetMode from playerTick
+        {0x2728D0u, 0x281248u, 0x283DCCu}, // propKill from playerTick
+        {0x2728D0u, 0x281248u, 0x283E20u}, // propKill from playerTick
+        {0x2CDDE0u, 0x2B2D68u, 0x2B2DD4u}, // ilinkGetNumLocalPlayers from hudGfx
+        {0x202270u, 0x2B2D68u, 0x2B2DE0u}, // textSelect from hudGfx
+        {0x2B7CD0u, 0x2B2D68u, 0x2B2DECu}, // dlSetZB from hudGfx
+        {0x2B7EA8u, 0x2B2D68u, 0x2B2DF8u}, // dlSetBlend from hudGfx
+        {0x2B2948u, 0x2B2D68u, 0x2B2E94u}, // hudPainGfx from hudGfx
+        {0x202270u, 0x2B2D68u, 0x2B2F18u}, // textSelect from hudGfx
+        {0x2023B0u, 0x2B2D68u, 0x2B2F88u}, // textOutline from hudGfx
+        {0x202270u, 0x2B2D68u, 0x2B2F90u}, // textSelect from hudGfx
+        {0x21F318u, 0x2B2D68u, 0x2B2FD0u}, // GetChallengeTimeLeft from hudGfx
+        {0x2B1780u, 0x2B2D68u, 0x2B2FE0u}, // hudChallengeTimeLeftGfx from hudGfx
+        {0x21CC30u, 0x2B2D68u, 0x2B2FFCu}, // gameModeDisplayRank from hudGfx
+        {0x2B1598u, 0x2B2D68u, 0x2B3010u}, // hudScoreWidth from hudGfx
+        {0x2B15B8u, 0x2B2D68u, 0x2B3088u}, // hudScoreGfx from hudGfx
+        {0x2B1900u, 0x2B2D68u, 0x2B30B0u}, // hudLSScoreGfx from hudGfx
+        {0x2B19B8u, 0x2B2D68u, 0x2B30CCu}, // hudRankGfx from hudGfx
+        {0x2B1858u, 0x2B2D68u, 0x2B3100u}, // hudChallengeScoreGfx from hudGfx
+        {0x2B1AC0u, 0x2B2D68u, 0x2B3124u}, // hudBagIconGfx from hudGfx
+        {0x2B7DF0u, 0x2B2D68u, 0x2B3138u}, // dlSetDitherMatrix from hudGfx
+        {0x2CDDE0u, 0x2B2D68u, 0x2B3170u}, // ilinkGetNumLocalPlayers from hudGfx
+        {0x202270u, 0x2B2D68u, 0x2B3184u}, // textSelect from hudGfx
+        {0x202A38u, 0x2B2D68u, 0x2B3190u}, // textWidth from hudGfx
+        {0x2023B0u, 0x2B2D68u, 0x2B31D8u}, // textOutline from hudGfx
+        {0x202270u, 0x2B2D68u, 0x2B31E0u}, // textSelect from hudGfx
+        {0x2B7DF0u, 0x2B2D68u, 0x2B31E8u}, // dlSetDitherMatrix from hudGfx
+        {0x2B0A30u, 0x2B2D68u, 0x2B31F4u}, // hudMessageDraw from hudGfx
+        {0x2B2C10u, 0x2B2D68u, 0x2B32CCu}, // hudMeterGfx from hudGfx
+        {0x2B2C10u, 0x2B2D68u, 0x2B33B4u}, // hudMeterGfx from hudGfx
+        {0x2B2258u, 0x2B2D68u, 0x2B33D0u}, // hudRadarGfx from hudGfx
+        {0x2943E0u, 0x2B2D68u, 0x2B33ECu}, // gunIsLeftGunVisible from hudGfx
+        {0x2B1C20u, 0x2B2D68u, 0x2B3420u}, // hudAmmoGfx from hudGfx
+        {0x2B1C20u, 0x2B2D68u, 0x2B3458u}, // hudAmmoGfx from hudGfx
+        {0x2B1E98u, 0x2B2D68u, 0x2B3468u}, // hudMinesGfx from hudGfx
+        {0x2B1180u, 0x2B2D68u, 0x2B348Cu}, // hudBaseGfx from hudGfx
+        {0x2B0FC0u, 0x2B2D68u, 0x2B3538u}, // drawTitleBox from hudGfx
+        {0x2B1328u, 0x2B2D68u, 0x2B3554u}, // hudAmountBarGfx from hudGfx
+        {0x202270u, 0x2B2D68u, 0x2B355Cu}, // textSelect from hudGfx
+        {0x2B7CD0u, 0x2B2D68u, 0x2B3564u}, // dlSetZB from hudGfx
+        {0x2D5E98u, 0x2586C0u, 0x2586FCu}, // sceVu0MulMatrix from bgPortalTick
+        {0x257680u, 0x2586C0u, 0x258704u}, // bgPortalCalcInit from bgPortalTick
+        {0x2578F0u, 0x2586C0u, 0x25870Cu}, // bgPortalCalcBackFace from bgPortalTick
+        {0x2579F8u, 0x2586C0u, 0x258754u}, // bgPortalCalcRoomDepth from bgPortalTick
+        {0x257B80u, 0x2586C0u, 0x2587C8u}, // bgRoomCalcClip from bgPortalTick
+        {0x258108u, 0x2586C0u, 0x2587D4u}, // bgPortalCalcPos from bgPortalTick
+    };
+    struct JobFunction
+    {
+        uint32_t function = 0;
+        PS2Runtime::RecompiledFunction original = nullptr;
+        uint32_t rets[8] = {};
+        uint32_t count = 0;
+    };
+    JobFunction g_jobFunctions[kPerfJobs];
+
+    template <size_t J>
+    void jobEntry(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const JobFunction &j = g_jobFunctions[J];
+        const uint32_t ra = GPR_U32(ctx, 31);
+        bool timed = false;
+        for (uint32_t i = 0; i < j.count; ++i)
+            timed = timed || j.rets[i] == ra;
+        if (timed)
+            xboxPerfJobOpen(J);
+        j.original(rdram, ctx, runtime);
+        if (timed && (ctx->pc == ra || ctx->pc == j.function))
+            xboxPerfJobClose(J);
+    }
+
+    template <size_t K>
+    void jobResume(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const JobSite &s = g_jobSites[K];
+        xboxPerfJobClose(s.job); // nothing when it is not open
+        s.resumeOriginal(rdram, ctx, runtime);
+    }
+
+    // Before the step brackets: a return address inside a step must still
+    // resolve to the step's own (unwrapped) function to be recognised.
+    template <size_t... J, size_t... K>
+    void installJobBrackets(PS2Runtime &runtime, std::index_sequence<J...>, std::index_sequence<K...>)
+    {
+        const PS2Runtime::RecompiledFunction entries[] = {&jobEntry<J>...};
+        const PS2Runtime::RecompiledFunction resumes[] = {&jobResume<K>...};
+        uint32_t functions = 0, timedSites = 0;
+        for (size_t k = 0; k < sizeof...(K); ++k)
+        {
+            JobSite &s = g_jobSites[k];
+            if (!runtime.hasFunction(s.function) || !runtime.hasFunction(s.ret) || !runtime.hasFunction(s.caller) ||
+                runtime.lookupFunction(s.ret) != runtime.lookupFunction(s.caller))
+                continue;
+            uint32_t j = 0;
+            while (j < functions && g_jobFunctions[j].function != s.function)
+                ++j;
+            if (j == functions)
+            {
+                if (functions == sizeof...(J))
+                    continue;
+                g_jobFunctions[j].function = s.function;
+                g_jobFunctions[j].original = runtime.lookupFunction(s.function);
+                ++functions;
+            }
+            JobFunction &f = g_jobFunctions[j];
+            if (f.count == 8u)
+                continue;
+            f.rets[f.count++] = s.ret;
+            s.job = j;
+            s.resumeOriginal = runtime.lookupFunction(s.ret);
+            runtime.replaceFunction(s.ret, resumes[k]);
+            ++timedSites;
+        }
+        for (uint32_t j = 0; j < functions; ++j)
+        {
+            runtime.replaceFunction(g_jobFunctions[j].function, entries[j]);
+            xboxPerfJobName(j, g_jobFunctions[j].function);
+        }
+        std::fprintf(stderr, "[TS:perf] job brackets: %u functions at %u of %u call sites\n", functions, timedSites,
+                     unsigned(sizeof...(K)));
+    }
 #endif
 
     template <size_t I>
     void perfBracketEntry(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         const PerfBracket &b = g_perfBrackets[I];
-#if defined(PLATFORM_XBOX)
-        const uint32_t ra = GPR_U32(ctx, 31);
-        bool timed = false;
-        for (uint32_t ret : b.ret)
-            timed = timed || (ret != 0u && ra == ret);
-#else
         const bool timed = GPR_U32(ctx, 31) == b.ret;
-#endif
         if (timed)
             xboxPerfPhaseOpen(b.phase);
         b.original(rdram, ctx, runtime);
         // Back at the call site (a native override may leave pc at its entry).
-#if defined(PLATFORM_XBOX)
-        if (timed && (ctx->pc == ra || ctx->pc == b.function))
-#else
         if (timed && (ctx->pc == b.ret || ctx->pc == b.function))
-#endif
             xboxPerfPhaseClose(b.phase);
     }
 
-#if defined(PLATFORM_XBOX)
-    template <size_t S>
-#else
     template <size_t I>
-#endif
     void perfBracketResume(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
-#if defined(PLATFORM_XBOX)
-        const ResumeSite &site = g_resumeSites[S];
-        for (uint32_t phase = 0; phase < kPerfPhaseCount; ++phase)
-            if (site.phases & (1u << phase))
-                xboxPerfPhaseClose(phase); // nothing when it is not open
-        site.original(rdram, ctx, runtime);
-#else
         const PerfBracket &b = g_perfBrackets[I];
         xboxPerfPhaseClose(b.phase); // nothing when it is not open
         b.resumeOriginal(rdram, ctx, runtime);
-#endif
     }
 
     // After the natives: whatever each entry holds then is what is wrapped.
-#if defined(PLATFORM_XBOX)
-    template <size_t... I, size_t... S>
-    void installPerfBrackets(PS2Runtime &runtime, std::index_sequence<I...>, std::index_sequence<S...>)
-#else
     template <size_t... I>
     void installPerfBrackets(PS2Runtime &runtime, std::index_sequence<I...>)
-#endif
     {
         const PS2Runtime::RecompiledFunction entries[] = {&perfBracketEntry<I>...};
-#if defined(PLATFORM_XBOX)
-        const PS2Runtime::RecompiledFunction resumes[] = {&perfBracketResume<S>...};
-#else
         const PS2Runtime::RecompiledFunction resumes[] = {&perfBracketResume<I>...};
-#endif
         unsigned installed = 0;
-#if defined(PLATFORM_XBOX)
-        size_t sites = 0;
-        // The resume site made for ret so far (sites: none yet).
-        const auto siteOf = [&](uint32_t ret) {
-            size_t s = 0;
-            while (s < sites && g_resumeSites[s].ret != ret)
-                ++s;
-            return s;
-        };
-        for (size_t i = 0; i < kBracketCount; ++i)
-#else
         for (size_t i = 0; i < sizeof...(I); ++i)
-#endif
         {
             PerfBracket &b = g_perfBrackets[i];
-#if defined(PLATFORM_XBOX)
-            bool usable = runtime.hasFunction(b.function) && runtime.hasFunction(b.caller);
-            for (uint32_t ret : b.ret)
-                usable = usable && (ret == 0u || runtime.hasFunction(ret));
-#else
             bool usable = runtime.hasFunction(b.function) && runtime.hasFunction(b.caller) && runtime.hasFunction(b.ret);
-#endif
             if (usable)
             {
                 b.original = runtime.lookupFunction(b.function);
-#if defined(PLATFORM_XBOX)
-                usable = b.original != entries[i]; // nothing is wrapped twice
-            }
-            // Every return address must be a resume label of the caller
-            // (its entry still the caller's), or already this pass's
-            // resume wrapper for it (a shared address).
-            for (uint32_t r = 0; usable && r < kBracketRets; ++r)
-            {
-                const uint32_t ret = b.ret[r];
-                if (ret == 0u || siteOf(ret) < sites)
-                    continue;
-                const PS2Runtime::RecompiledFunction current = runtime.lookupFunction(ret);
-                usable = current == runtime.lookupFunction(b.caller);
-                for (size_t k = 0; k < kResumeSites; ++k)
-                    usable = usable && current != resumes[k];
-#else
                 b.resumeOriginal = runtime.lookupFunction(b.ret);
                 // The return address must be a resume label of the caller,
                 // and nothing is wrapped twice.
                 usable = b.resumeOriginal == runtime.lookupFunction(b.caller) && b.original != entries[i] &&
                          b.resumeOriginal != resumes[i];
-#endif
             }
             if (!usable)
             {
                 std::fprintf(stderr, "[TS:perf] %06x called from %06x: not timed\n", b.function, b.caller);
                 continue;
             }
-#if defined(PLATFORM_XBOX)
-            // One site per distinct address: a bracket's second new address
-            // gets the next one (sites moved on when the first was made).
-            for (uint32_t r = 0; r < kBracketRets; ++r)
-            {
-                const uint32_t ret = b.ret[r];
-                if (ret == 0u)
-                    continue;
-                const size_t s = siteOf(ret);
-                if (s == sites)
-                {
-                    g_resumeSites[s] = {ret, 0u, runtime.lookupFunction(ret)};
-                    runtime.replaceFunction(ret, resumes[s]);
-                    ++sites;
-                }
-                g_resumeSites[s].phases |= 1u << b.phase;
-            }
-#endif
             runtime.replaceFunction(b.function, entries[i]);
-#if !defined(PLATFORM_XBOX)
             runtime.replaceFunction(b.ret, resumes[i]);
-#endif
             ++installed;
         }
-#if defined(PLATFORM_XBOX)
-        std::fprintf(stderr, "[TS:perf] phase brackets: %u of %u (%u resume sites)\n", installed,
-                     unsigned(kBracketCount), unsigned(sites));
-#else
         std::fprintf(stderr, "[TS:perf] phase brackets: %u of %u\n", installed, unsigned(sizeof...(I)));
-#endif
     }
 #endif
 #endif
@@ -1136,27 +1362,12 @@ namespace
         registerTsNativeGame(runtime); // portals, floor height, slerp, acosf, display-list packets, ...
         registerTsNativeGame2(runtime); // partGfx, calMatrices, animMtxTick, rotateChr, moveTest, ambient light, ...
         registerTsNativeGame3(runtime); // decals, chrPropTick, setAnimation, particles, animUpdate, routes, ...
-#if defined(PLATFORM_XBOX)
-        // The Push B/C modules (src/xbox/PUSH-BC-PLAN.md): each a stub in
-        // its owner's file until its track lands it.
-        registerTsNativeIdiom(runtime); // idiomatic game-logic modules (B-LOGIC, project/game/native)
-        registerTsNativeDl(runtime);    // display-list builders (C-EMIT)
-        registerTsRecords(runtime);     // native draw records (C-REC)
-        registerTsPacing(runtime);      // frame pacing (B-SCHED)
-        tsKnobsInstall();               // knob.* settings and the pad script's knob lines (ts_knobs.h)
-#endif
+        registerXboxSweep(runtime);     // src/xbox/xbox_sweep.h: the sweep's switched-on packages
 #if TS_PERF_DETAIL
-#if defined(PLATFORM_XBOX)
-        installPerfBrackets(runtime, std::make_index_sequence<kBracketCount>{}, std::make_index_sequence<kResumeSites>{});
-#else
+#if TS_PERF_JOBS
+        installJobBrackets(runtime, std::make_index_sequence<kPerfJobs>{}, std::make_index_sequence<std::size(g_jobSites)>{});
+#endif
         installPerfBrackets(runtime, std::make_index_sequence<std::size(g_perfBrackets)>{});
-#endif
-#endif
-#if defined(PLATFORM_XBOX)
-        // The game-function hook registry, after every native (its wrappers
-        // go over whatever the entries hold then; ts_game_hooks.h).
-        tsGameHooksInstall(runtime);
-        TS_MEASURE(xboxMeasureGameHooks()); // the measurement build's chain, level and memdb counts
 #endif
 #endif
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
@@ -1192,12 +1403,4 @@ namespace
     }
 }
 
-// The registration's symbols are named after __LINE__: each build keeps the
-// line it had before the release split (PC: master, Xbox: Push B/C), so
-// neither build's object changes.
-#if defined(PLATFORM_XBOX)
-#line 1103
-#else
-#line 990
-#endif
 PS2_REGISTER_GAME_OVERRIDE("TimeSplitters music", "SLUS_200.90", 0u, 0u, applyTimeSplittersOverrides)

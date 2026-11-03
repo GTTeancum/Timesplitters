@@ -1,5 +1,6 @@
 // Prebuilt texture pack reader and pool. See xbox_texture_pack.h.
 #include "xbox_texture_pack.h"
+#include "xbox_lazy_commit.h"
 
 #include "runtime/gs/gs_texture_hash.h"
 
@@ -18,10 +19,18 @@ namespace
         uint32_t version, hashVersion, count, indexOffset, dataOffset, reserved[2];
     };
     static_assert(sizeof(Header) == 32, "header layout");
+    // Version 3, right after the header.
+    struct Extension
+    {
+        uint32_t preloadCount, preloadOffset, preloadDataOffset, preloadDataBytes, reserved[4];
+    };
+    static_assert(sizeof(Extension) == 32, "extension layout");
 
     // Far above any disc (2,303 textures); a corrupt count fails here
     // instead of asking for gigabytes.
     constexpr uint32_t kMaxEntries = 65536u;
+    // A few keys an entry (an image with each palette, and without one).
+    constexpr uint32_t kMaxSources = 4u * kMaxEntries;
 
     // Eviction. Entries used in this frame or the last are never taken (the
     // GPU may still read them, and the next frame draws them again). Of the
@@ -43,18 +52,18 @@ namespace
     // Bytes of an entry's levels as the NV2A reads them: DXT in 4x4 blocks
     // (a level narrower than 4 still takes whole blocks), the others a
     // texel at a time. Zero for a format this reader does not know.
-    uint64_t levelBytes(const XboxTexturePack::Entry &e)
+    uint64_t levelBytes(uint32_t format, uint32_t w, uint32_t h, uint32_t levels)
     {
         uint64_t total = 0;
-        uint32_t w = e.width, h = e.height;
-        for (uint32_t level = 0; level < e.levels; ++level)
+        for (uint32_t level = 0; level < levels; ++level)
         {
-            switch (e.format)
+            switch (format)
             {
             case XboxTexturePack::kDxt1: total += uint64_t((w + 3u) / 4u) * ((h + 3u) / 4u) * 8u; break;
             case XboxTexturePack::kDxt5: total += uint64_t((w + 3u) / 4u) * ((h + 3u) / 4u) * 16u; break;
             case XboxTexturePack::kA8R8G8B8: total += uint64_t(w) * h * 4u; break;
             case XboxTexturePack::kA1R5G5B5: total += uint64_t(w) * h * 2u; break;
+            case XboxTexturePack::kI8: total += uint64_t(w) * h; break;
             default: return 0;
             }
             w = std::max(w / 2u, 1u);
@@ -62,6 +71,7 @@ namespace
         }
         return total;
     }
+    uint64_t levelBytes(const XboxTexturePack::Entry &e) { return levelBytes(e.format, e.width, e.height, e.levels); }
 
     uint32_t fullChain(uint32_t w, uint32_t h)
     {
@@ -97,6 +107,32 @@ void XboxTexturePack::close()
         file_ = nullptr;
     }
     pool_ = nullptr;
+    poolBytes_ = 0;
+    ticksPerSecond_ = 0;
+    // Reopening is a fresh pack. In particular, no queued request may
+    // retain a pointer into the caller's old pool, and the next loader
+    // starts at request zero with stop_ cleared. The join above must
+    // precede every reset of storage visible to the loader.
+    std::vector<Entry>().swap(index_);
+    std::vector<Source>().swap(sources_);
+    std::vector<Preload>().swap(preloads_);
+    preloadDataOffset_ = preloadDataBytes_ = 0;
+    preloadsRead_ = false;
+    std::vector<Slot>().swap(slots_);
+    std::vector<int>().swap(resident_);
+    std::vector<Range>().swap(free_);
+    std::vector<Block>().swap(blocks_);
+    for (Request &r : requests_)
+    {
+        r.index = -1;
+        r.dest = nullptr;
+        r.fileOffset = r.bytes = r.microseconds = 0;
+        r.state.store(kPending, std::memory_order_relaxed);
+    }
+    issued_ = collected_ = 0;
+    noRoomFrame_ = noRoomBytes_ = 0;
+    stop_.store(false, std::memory_order_relaxed);
+    stats_ = Stats{};
 }
 
 bool XboxTexturePack::readAt(uint32_t offset, void *out, uint32_t bytes)
@@ -118,6 +154,7 @@ bool XboxTexturePack::readAt(uint32_t offset, void *out, uint32_t bytes)
 
 bool XboxTexturePack::open(const char *path)
 {
+    close();
     HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_FLAG_RANDOM_ACCESS, nullptr);
     if (file == INVALID_HANDLE_VALUE)
     {
@@ -130,10 +167,7 @@ bool XboxTexturePack::open(const char *path)
         if (detail >= 0)
             std::cout << " " << detail;
         std::cout << std::endl;
-        CloseHandle(file);
-        file_ = nullptr;
-        index_.clear();
-        index_.shrink_to_fit();
+        close();
         return false;
     };
 
@@ -146,16 +180,33 @@ bool XboxTexturePack::open(const char *path)
         return fail("header unreadable");
     if (std::memcmp(header.magic, "XTP1", 4) != 0)
         return fail("not a texture pack");
-    if (header.version != 1u)
+    if (header.version < 1u || header.version > 3u)
         return fail("format version", header.version);
     if (header.hashVersion != gs_texture_hash::kVersion)
         return fail("texture key version", header.hashVersion);
+    // Version 2 and 3: the source table's count and offset.
+    const uint32_t sourceCount = header.version >= 2u ? header.reserved[0] : 0u;
+    const uint32_t sourceOffset = header.version >= 2u ? header.reserved[1] : 0u;
+    if (header.version == 1u && (header.reserved[0] != 0u || header.reserved[1] != 0u))
+        return fail("unsupported header flags");
     if (header.count == 0u || header.count > kMaxEntries)
         return fail("entry count", header.count);
-    if (header.indexOffset < sizeof(Header) || uint64_t(header.indexOffset) + uint64_t(header.count) * sizeof(Entry) > size)
+    // Version 3: the extension after the header.
+    Extension extension{};
+    const uint32_t headerBytes = header.version >= 3u ? uint32_t(sizeof(Header) + sizeof(Extension)) : uint32_t(sizeof(Header));
+    if (header.version >= 3u)
+    {
+        if (size < headerBytes || !readAt(sizeof(Header), &extension, sizeof(extension)))
+            return fail("header extension unreadable");
+        for (const uint32_t r : extension.reserved)
+            if (r != 0u)
+                return fail("unsupported header extension");
+    }
+    const uint64_t indexEnd = uint64_t(header.indexOffset) + uint64_t(header.count) * sizeof(Entry);
+    if (header.indexOffset < headerBytes || indexEnd > size)
         return fail("index outside the file", header.indexOffset);
-    if (header.dataOffset > size)
-        return fail("data outside the file", header.dataOffset);
+    if (header.dataOffset < indexEnd || header.dataOffset > size)
+        return fail("data outside the file or overlapping the index", header.dataOffset);
 
     index_.resize(header.count);
     if (!readAt(header.indexOffset, index_.data(), header.count * uint32_t(sizeof(Entry))))
@@ -166,6 +217,10 @@ bool XboxTexturePack::open(const char *path)
     for (uint32_t i = 0; i < header.count; ++i)
     {
         const Entry &e = index_[i];
+        if (e.reserved != 0u || (e.flags & ~(kUnitAlpha | kBinaryAlpha | kReplacement)) != 0u)
+            return fail("unsupported entry flags: entry", i);
+        if (e.format == kI8 && header.version < 3u)
+            return fail("index texture in a pack before version 3: entry", i);
         if (i > 0 && e.key <= index_[i - 1u].key)
             return fail("index not sorted by key, or a key twice: entry", i);
         if (!powerOfTwo(e.width) || !powerOfTwo(e.height) || e.width > 4096u || e.height > 4096u)
@@ -180,17 +235,81 @@ bool XboxTexturePack::open(const char *path)
         if (e.offset % kAlign != 0u || e.offset < header.dataOffset || uint64_t(e.offset) + e.size > size)
             return fail("data offset: entry", i);
     }
+    // The source table: between the index and the data, each record naming
+    // an entry that exists.
+    if (sourceCount == 0u ? sourceOffset != 0u : sourceCount > kMaxSources)
+        return fail("source count", sourceCount);
+    if (sourceCount != 0u)
+    {
+        const uint64_t sourceEnd = uint64_t(sourceOffset) + uint64_t(sourceCount) * sizeof(Source);
+        if (sourceOffset < indexEnd || sourceOffset % 8u != 0u || sourceEnd > header.dataOffset)
+            return fail("source table outside the space between index and data", sourceOffset);
+        sources_.resize(sourceCount);
+        if (!readAt(sourceOffset, sources_.data(), sourceCount * uint32_t(sizeof(Source))))
+            return fail("source table unreadable");
+        for (uint32_t i = 0; i < sourceCount; ++i)
+        {
+            const Source &s = sources_[i];
+            if (s.kind > kSourceImage || s.reserved[0] != 0u || s.reserved[1] != 0u || s.reserved[2] != 0u)
+                return fail("unsupported source record: source", i);
+            if (s.entry >= header.count)
+                return fail("source names no entry: source", i);
+            if (i > 0 && s.key <= sources_[i - 1u].key)
+                return fail("source table not sorted by key, or a key twice: source", i);
+        }
+    }
+    // The preloads: records between the index and the data, their texels
+    // in a 128-byte aligned block before the data, each one level of its
+    // entry's format no larger than the entry.
+    const Extension &x = extension;
+    if (x.preloadCount > header.count ||
+        (x.preloadCount == 0u && (x.preloadOffset | x.preloadDataOffset | x.preloadDataBytes) != 0u))
+        return fail("preload count", x.preloadCount);
+    if (x.preloadCount != 0u)
+    {
+        const uint64_t recordsEnd = uint64_t(x.preloadOffset) + uint64_t(x.preloadCount) * sizeof(Preload);
+        if (x.preloadOffset < indexEnd || x.preloadOffset % 8u != 0u || recordsEnd > header.dataOffset)
+            return fail("preload table outside the space between index and data", x.preloadOffset);
+        if (x.preloadDataOffset % kAlign != 0u || x.preloadDataOffset < recordsEnd || x.preloadDataBytes == 0u ||
+            x.preloadDataBytes % kAlign != 0u || uint64_t(x.preloadDataOffset) + x.preloadDataBytes > header.dataOffset)
+            return fail("preload texels outside the space before the data", x.preloadDataOffset);
+        preloads_.resize(x.preloadCount);
+        if (!readAt(x.preloadOffset, preloads_.data(), x.preloadCount * uint32_t(sizeof(Preload))))
+            return fail("preload table unreadable");
+        for (uint32_t i = 0; i < x.preloadCount; ++i)
+        {
+            const Preload &p = preloads_[i];
+            if (p.entry >= header.count || (i > 0 && p.entry <= preloads_[i - 1u].entry))
+                return fail("preload table not sorted by entry, or an entry twice: preload", i);
+            const Entry &e = index_[p.entry];
+            if (p.reserved[0] != 0u || p.reserved[1] != 0u || p.reserved[2] != 0u || p.format != e.format)
+                return fail("unsupported preload record: preload", i);
+            if (!powerOfTwo(p.width) || !powerOfTwo(p.height) || p.width > e.width || p.height > e.height)
+                return fail("preload size: preload", i);
+            const uint64_t bytes = levelBytes(p.format, p.width, p.height, 1u);
+            if (p.offset % kAlign != 0u || uint64_t(p.offset) + bytes > x.preloadDataBytes)
+                return fail("preload texels offset: preload", i);
+        }
+        preloadDataOffset_ = x.preloadDataOffset;
+        preloadDataBytes_ = x.preloadDataBytes;
+    }
     slots_.assign(header.count, Slot{});
     LARGE_INTEGER frequency{};
     QueryPerformanceFrequency(&frequency);
     ticksPerSecond_ = frequency.QuadPart;
-    std::cout << "[TS:xbox] texture pack: " << header.count << " textures in " << path << std::endl;
+    std::cout << "[TS:xbox] texture pack: " << header.count << " textures";
+    if (sourceCount != 0u)
+        std::cout << " (" << sourceCount << " source keys)";
+    if (!preloads_.empty())
+        std::cout << " (" << preloads_.size() << " preloads, " << preloadDataBytes_ / 1024u << " KB)";
+    std::cout << " in " << path << std::endl;
     return true;
 }
 
 bool XboxTexturePack::attachPool(uint8_t *pool, uint32_t bytes)
 {
-    if (!file_ || !pool || thread_)
+    if (!file_ || !pool || thread_ || bytes < kAlign ||
+        (reinterpret_cast<uintptr_t>(pool) & (kAlign - 1u)) != 0u)
         return false;
     work_ = CreateSemaphore(nullptr, 0, LONG(kQueue) + 1, nullptr); // + 1: close()'s wake-up
     if (work_)
@@ -212,6 +331,9 @@ bool XboxTexturePack::attachPool(uint8_t *pool, uint32_t bytes)
 
 unsigned long __stdcall XboxTexturePack::loaderMain(void *self)
 {
+#if defined(PLATFORM_XBOX) && TS_LAZY_GUEST_RAM // (not in the host test, test_xtexture_pack.py)
+    XboxLazyThreadScope lazyCommit; // guest memory's first-touch handler (xbox_lazy_commit.h)
+#endif
     static_cast<XboxTexturePack *>(self)->runLoader();
     return 0;
 }
@@ -263,6 +385,10 @@ void XboxTexturePack::poll()
         if (state == kRead)
         {
             slot.state = kResident;
+            // A queued slot was protected from eviction. If this read
+            // spans frames, its now-resident entry can immediately be
+            // old enough to evict, invalidating a failed search too.
+            noRoomBytes_ = 0;
             ++stats_.loads;
             continue;
         }
@@ -283,6 +409,36 @@ int XboxTexturePack::find(uint64_t key) const
     const auto it = std::lower_bound(index_.begin(), index_.end(), key,
                                      [](const Entry &e, uint64_t k) { return e.key < k; });
     return it != index_.end() && it->key == key ? int(it - index_.begin()) : -1;
+}
+
+bool XboxTexturePack::readPreloads(uint8_t *dest)
+{
+    // Before the loader starts: it is the file's only user from then on.
+    if (!file_ || thread_ || !dest || preloadDataBytes_ == 0u || (reinterpret_cast<uintptr_t>(dest) & (kAlign - 1u)) != 0u)
+        return false;
+    preloadsRead_ = readAt(preloadDataOffset_, dest, preloadDataBytes_);
+    if (!preloadsRead_)
+        std::cout << "[TS:xbox] texture pack: preloads unreadable, not used" << std::endl;
+    return preloadsRead_;
+}
+
+const XboxTexturePack::Preload *XboxTexturePack::preload(int index) const
+{
+    if (!preloadsRead_)
+        return nullptr;
+    const auto it = std::lower_bound(preloads_.begin(), preloads_.end(), uint32_t(index),
+                                     [](const Preload &p, uint32_t e) { return p.entry < e; });
+    return it != preloads_.end() && it->entry == uint32_t(index) ? &*it : nullptr;
+}
+
+int XboxTexturePack::findSource(uint64_t key, uint8_t &kind) const
+{
+    const auto it = std::lower_bound(sources_.begin(), sources_.end(), key,
+                                     [](const Source &s, uint64_t k) { return s.key < k; });
+    if (it == sources_.end() || it->key != key)
+        return -1;
+    kind = it->kind;
+    return int(it->entry);
 }
 
 // First fit: the pool holds a few hundred entries, the free list a handful
@@ -307,6 +463,9 @@ uint32_t XboxTexturePack::allocate(uint32_t bytes)
 // Back into the free list, joined with its neighbours.
 void XboxTexturePack::release(uint32_t offset, uint32_t bytes)
 {
+    // A completed failed read can free room in the same frame as a
+    // rejected allocation. Its old negative result is no longer valid.
+    noRoomBytes_ = 0;
     auto next = std::lower_bound(free_.begin(), free_.end(), offset,
                                  [](const Range &r, uint32_t at) { return r.offset < at; });
     const bool joinsNext = next != free_.end() && offset + bytes == next->offset;
@@ -351,7 +510,7 @@ void XboxTexturePack::evict(int index)
 // least cost, its entries evicted. kNoOffset when no run may be taken.
 uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<int> &evicted)
 {
-    if (frame == noRoomFrame_ && bytes >= noRoomBytes_)
+    if (noRoomBytes_ != 0u && frame == noRoomFrame_ && bytes >= noRoomBytes_)
         return kNoOffset;
     blocks_.clear();
     for (const Range &r : free_)
@@ -372,9 +531,10 @@ uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<i
             if (b.entry >= 0)
             {
                 const Slot &s = slots_[size_t(b.entry)];
-                if (s.state != kResident || s.lastFrame + 1u >= frame)
+                const uint32_t age = frame - s.lastFrame;
+                if (s.state != kResident || age <= 1u)
                     break; // queued for the loader, or in use
-                cost += frame - s.lastFrame >= kLongIdle ? 1u : kRecentCost;
+                cost += age >= kLongIdle ? 1u : kRecentCost;
                 if (++victims > kMaxVictims || cost >= bestCost)
                     break;
             }
@@ -390,7 +550,7 @@ uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<i
     }
     if (bestCost == UINT32_MAX)
     {
-        if (noRoomFrame_ != frame || bytes < noRoomBytes_)
+        if (noRoomBytes_ == 0u || noRoomFrame_ != frame || bytes < noRoomBytes_)
             noRoomBytes_ = bytes;
         noRoomFrame_ = frame;
         return kNoOffset;
@@ -409,7 +569,7 @@ uint32_t XboxTexturePack::makeRoom(uint32_t bytes, uint32_t frame, std::vector<i
 
 uint8_t *XboxTexturePack::acquire(int index, uint32_t frame, std::vector<int> &evicted, Status &status)
 {
-    if (!pool_)
+    if (!pool_ || index < 0 || size_t(index) >= slots_.size())
     {
         status = kUnavailable;
         return nullptr;
@@ -426,14 +586,22 @@ uint8_t *XboxTexturePack::acquire(int index, uint32_t frame, std::vector<int> &e
     case kUnreadable: status = kUnavailable; return nullptr;
     default: break;
     }
+    const Entry &e = index_[size_t(index)];
+    const uint32_t bytes = poolBytesOf(e);
+    if (bytes > poolBytes_)
+    {
+        // This entry can never fit this pool, even after eviction. Keep
+        // its runtime texture permanently instead of rescanning the pool
+        // on every retry (large replacements can exceed the whole pool).
+        status = kUnavailable;
+        return nullptr;
+    }
     if (issued_ - collected_ >= kQueue)
     {
         ++stats_.busy;
         status = kBusy;
         return nullptr;
     }
-    const Entry &e = index_[size_t(index)];
-    const uint32_t bytes = poolBytesOf(e);
     uint32_t at = allocate(bytes);
     if (at == kNoOffset)
         at = makeRoom(bytes, frame, evicted);

@@ -1797,14 +1797,6 @@ DWORD pb_get_vbl_counter(void)
     return pb_vbl_counter; //allows caller to know if a frame has been missed
 }
 
-//Push B/C (src/xbox/PUSH-BC-PLAN.md M6.5): the vblank count, as the EE
-//scheduler's VBlankStart source candidate (B-SCHED). The same counter as
-//pb_get_vbl_counter, with a fixed-width name the C++ side declares itself.
-unsigned int pb_vbl_count(void)
-{
-    return (unsigned int)pb_vbl_counter;
-}
-
 
 DWORD pb_wait_for_vbl(void)
 {

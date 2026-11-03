@@ -20,6 +20,8 @@
 #include "native_format_test.h"
 #include "native_audio_memory_test.h"
 #include "../../source/PS2Recomp/ps2xRuntime/src/lib/Kernel/Stubs/MemoryCard.h"
+
+void registerPcButtonGlyphs(); // pc_glyphs.cpp
 #include <cstdio>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -140,6 +142,7 @@ int main(int argc, char** argv) {
         rt.gs().setHostPresentationMode(GS::HostPresentationMode::Signal);
         rt.setHostAspectRatio(4.0f / 3.0f);
         rt.padBackend().setKeyboardAnalogEnabled(true);
+        registerPcButtonGlyphs(); // Xbox controller and keyboard button prompts (pc_glyphs.cpp)
         if (const char* padScript=std::getenv("TS_PAD_SCRIPT"); padScript && *padScript) {
             std::string error;
             if (!rt.padBackend().loadScriptFile(padScript, &error))

@@ -10,6 +10,7 @@
 #include "runtime/gs/gs_gpu_backend.h"
 #include "runtime/gs/gs_cpu_backend.h"
 #include "runtime/gs/gs_texture_replacement.h"
+#include "runtime/ps2_pad_host.h"
 #include "ThreadNaming.h"
 #include "runtime/ps2_sample_profiler.h"
 
@@ -315,6 +316,7 @@ struct GSGpuBackend::Impl
     };
     // Replacement images by content hash (0: looked up, none exists).
     std::unordered_map<uint64_t, GLuint> replacementTextures;
+    std::unordered_map<uint64_t, GLuint> buttonTextures; // contentHash * 4 + glyph set
     std::vector<TextureEntry> textures;
     uint64_t textureTick = 0;
     std::array<uint32_t, kPageCount> pageVersion{};
@@ -1031,8 +1033,7 @@ struct GSGpuBackend::Impl
                 else
                     dumpIfNew(e, state, texW, texH);
                 e.lastUse = ++textureTick;
-                replaced = e.replacement != 0;
-                return replaced ? e.replacement : e.texture;
+                return drawnTexture(e, replaced);
             }
         }
         if (textures.size() >= 512)
@@ -1048,8 +1049,7 @@ struct GSGpuBackend::Impl
         glGenTextures(1, &e.texture);
         uploadTexture(e, state, texW, texH);
         textures.push_back(e);
-        replaced = e.replacement != 0;
-        return replaced ? e.replacement : e.texture;
+        return drawnTexture(e, replaced);
     }
 
     // Menus, HUD and text: drawn with no depth test or depth write.
@@ -1100,6 +1100,44 @@ struct GSGpuBackend::Impl
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, int(w), int(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, texels.data());
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
+
+    // The GL texture a cached entry draws with: its button glyph in the set
+    // of the device the player uses (gs_texture_replacement::isButton), else
+    // its replacement PNG, else itself.
+    GLuint drawnTexture(const TextureEntry &e, bool &replaced)
+    {
+        if (!e.renderTarget && e.contentHash && gs_texture_replacement::isButton(e.contentHash))
+        {
+            if (const GLuint glyph = buttonTexture(e.contentHash, ps2PadButtonSet()))
+            {
+                replaced = true;
+                return glyph;
+            }
+        }
+        replaced = e.replacement != 0;
+        return replaced ? e.replacement : e.texture;
+    }
+
+    GLuint buttonTexture(uint64_t contentHash, int set)
+    {
+        const uint64_t key = contentHash * 4u + static_cast<uint64_t>(set & 3);
+        if (const auto found = buttonTextures.find(key); found != buttonTextures.end())
+            return found->second;
+        GLuint texture = 0;
+        std::vector<uint32_t> texels;
+        int width = 0, height = 0;
+        if (gs_texture_replacement::loadButton(set, contentHash, texels, width, height))
+        {
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texels.data());
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
+        buttonTextures[key] = texture;
+        return texture;
     }
 
     GLuint replacementTexture(uint64_t contentHash, bool rawAlpha)

@@ -6,6 +6,7 @@
 #include "runtime/ps2_music.h"
 #include "runtime/ps2_vfs.h"
 #include "runtime/ps2_host_settings.h"
+#include "runtime/ps2_pad_host.h"
 #include "ps2_recompiled_functions.h"
 
 #if defined(PLATFORM_XBOX)
@@ -255,6 +256,7 @@ namespace
     constexpr uint32_t kDispOnOff = 0x352D60u;
     constexpr uint32_t kOriginalItems = 5u;       // before the page-link item
     constexpr uint32_t kItemSize = 32u, kGvSize = 40u;
+    constexpr uint32_t kMouseSpeedLevels = 10u;
 
     struct Resolution
     {
@@ -265,6 +267,7 @@ namespace
     {
         uint32_t menu = 0;
         uint32_t gvWidescreen = 0, gvFxaa = 0, gvResolution = 0, gvFullscreen = 0, gvScale = 0;
+        uint32_t gvVsync = 0, gvMouse = 0, gvMouseSpeed = 0; // PC only (0 on the Xbox)
         uint32_t scaleLabel = 0; // notes when the change waits for a restart
         std::vector<Resolution> resolutions;
         int startupScale = 1;
@@ -348,6 +351,14 @@ namespace
         m.gvResolution = gv(static_cast<uint32_t>(m.resolutions.size() - 1u), choices(resolutionTexts));
         m.gvFullscreen = gv(1u, kDispOnOff);
         m.gvScale = gv(3u, choices({text("Original"), text("2x"), text("3x"), text("4x")}));
+#if !defined(PLATFORM_XBOX)
+        m.gvVsync = gv(1u, kDispOnOff);
+        m.gvMouse = gv(1u, kDispOnOff);
+        std::vector<uint32_t> speedTexts;
+        for (uint32_t level = 1; level <= kMouseSpeedLevels; ++level)
+            speedTexts.push_back(text(std::to_string(level)));
+        m.gvMouseSpeed = gv(kMouseSpeedLevels - 1u, choices(speedTexts));
+#endif
 
         struct NewItem
         {
@@ -360,12 +371,17 @@ namespace
             {"Resolution", m.gvResolution},
             {"Full screen", m.gvFullscreen},
             {"Render quality", m.gvScale},
+#if !defined(PLATFORM_XBOX)
+            {"V-Sync", m.gvVsync},
+            {"Mouse", m.gvMouse},
+            {"Mouse speed", m.gvMouseSpeed},
+#endif
         };
         const uint32_t itemCount = kOriginalItems + static_cast<uint32_t>(std::size(added));
         uint32_t labels[std::size(added)];
         for (size_t i = 0; i < std::size(added); ++i)
             labels[i] = text(added[i].label, 48u);
-        m.scaleLabel = labels[std::size(added) - 1];
+        m.scaleLabel = labels[4]; // Render quality
 
         m.menu = take(16u + (itemCount + 1u) * kItemSize);
         std::memcpy(rdram + m.menu, rdram + kAudioVideoMenu, 16u + kOriginalItems * kItemSize);
@@ -394,6 +410,15 @@ namespace
         return m.menu;
     }
 
+#if !defined(PLATFORM_XBOX)
+    // Mouse speed 1-10 in the menu is mouse_sensitivity 0.2-2.0 (5: 1.0).
+    uint32_t mouseSpeedLevel(float sensitivity)
+    {
+        return static_cast<uint32_t>(std::clamp(static_cast<int>(std::lround(sensitivity * 5.0f)), 1,
+                                                static_cast<int>(kMouseSpeedLevels)));
+    }
+#endif
+
     int resolutionIndex(const DisplayMenu &m, const HostSettings &settings)
     {
         for (size_t i = 0; i < m.resolutions.size(); ++i)
@@ -415,6 +440,11 @@ namespace
         guestWord(rdram, m.gvResolution) = static_cast<uint32_t>(resolutionIndex(m, settings));
         guestWord(rdram, m.gvFullscreen) = settings.fullscreen ? 1u : 0u;
         guestWord(rdram, m.gvScale) = static_cast<uint32_t>(std::clamp(settings.renderScale.load(), 1, 4) - 1);
+#if !defined(PLATFORM_XBOX)
+        guestWord(rdram, m.gvVsync) = settings.vsync ? 1u : 0u;
+        guestWord(rdram, m.gvMouse) = settings.mouse ? 1u : 0u;
+        guestWord(rdram, m.gvMouseSpeed) = mouseSpeedLevel(settings.mouseSensitivity) - 1u;
+#endif
         writeGuestString(rdram, m.scaleLabel,
                          settings.renderScale == m.startupScale ? "Render quality" : "Render quality (on restart)");
         for (uint32_t i = 0; i < kOriginalItems; ++i)
@@ -459,6 +489,26 @@ namespace
             settings.windowHeight = m.resolutions[resolution].height;
             changed = windowChanged = true;
         }
+#if !defined(PLATFORM_XBOX)
+        const bool vsync = guestWord(rdram, m.gvVsync) != 0u;
+        const bool mouse = guestWord(rdram, m.gvMouse) != 0u;
+        const uint32_t speed = std::min(guestWord(rdram, m.gvMouseSpeed), kMouseSpeedLevels - 1u) + 1u;
+        if (vsync != settings.vsync)
+        {
+            settings.vsync = vsync;
+            changed = true;
+        }
+        if (mouse != settings.mouse)
+        {
+            settings.mouse = mouse;
+            changed = true;
+        }
+        if (speed != mouseSpeedLevel(settings.mouseSensitivity))
+        {
+            settings.mouseSensitivity = static_cast<float>(speed) / 5.0f;
+            changed = true;
+        }
+#endif
         if (windowChanged)
             ++settings.windowChanges;
         if (changed)
@@ -571,8 +621,72 @@ namespace
         return (guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) & 0x40u) != 0u;
     }
 
+#if !defined(PLATFORM_XBOX)
+    // The PC has no PlayStation 2 memory cards: its two cards are save
+    // folders. The game's save and controller texts (ELF data, English only)
+    // are reworded in place, each no longer than the original so it stays in
+    // its own slot, and only where the original is found exactly. The game
+    // builds sentences from pieces ("TimeSplitters Sign Ons on" + "MEMORY
+    // CARD slot" + " 1"), so the pieces are reworded to read together:
+    // "TimeSplitters Sign Ons in SAVE SLOT 1". Applied once, at the first
+    // menu tick (the ELF is loaded by then, and no save text has shown).
+    struct Rewording
+    {
+        uint32_t address;
+        const char *original, *text;
+    };
+    constexpr Rewording kGenericWording[] = {
+        {0x384980u, "on Memory Card (PS2) in", "in"},
+        {0x3849C0u, "There is no MEMORY CARD\n`^2 OK", "There is no save slot\n`^2 OK"},
+        {0x387490u, "^4 Check Memory Card (PS2)(s)\n", "^4 Check save slots\n"},
+        {0x3874B0u, "Insert Memory Card (PS2) and press ^4.", "Save slot not found. Press ^4."},
+        {0x3875B8u, "DO NOT REMOVE MEMORY CARD (PS2)!", "Saving. Do not quit the game!"},
+        {0x3875E0u, "No Memory Card (PS2) inserted\nPlease insert Memory Card (PS2)", "Save slot not available"},
+        {0x387650u, "Select Memory Card (PS2)", "Select Save Slot"},
+        {0x387670u, "No Memory Card (PS2) inserted", "Save slot not available"},
+        {0x387690u, "MEMORY CARD (PS2)", "SAVE SLOT"},
+        {0x387D40u, "free space on the Memory Card (PS2).", "free space in the save slot."},
+        {0x387D88u, "Insufficient free space on", "Insufficient free space in"},
+        {0x387E48u, "No Memory Card (PS2) inserted\n", "Save slot not available\n"},
+        {0x387E68u, "No Memory Card (PS2) inserted.", "Save slot not available."},
+        {0x387F10u, "MEMORY CARD slot", "SAVE SLOT"},
+        {0x387F78u, "from Memory Card (PS2) in", "from"},
+        {0x388360u, "Maps on MEMORY CARD slot", "Maps in SAVE SLOT"},
+        {0x388380u, "There is no Memory Card (PS2)\n`^2 OK", "There is no save slot\n`^2 OK"},
+        {0x3883E8u, "^3 Exit   ^4 Change Memory Card (PS2)", "^3 Exit   ^4 Change Save Slot"},
+        {0x388628u, "Memory Card (PS2)", "Save data in"},
+        {0x388658u, "Please insert Memory Card (PS2) containing", "Cannot find the save containing"},
+        {0x3886A0u, "already exists on Memory Card (PS2)", "already exists in the save slot"},
+        {0x388780u, "No TimeSplitters Sign Ons on", "No TimeSplitters Sign Ons in"},
+        {0x3887B8u, "Memory Card (PS2) in", "Save data in"},
+        {0x3887D0u, "TimeSplitters Sign Ons on", "TimeSplitters Sign Ons in"},
+        {0x3845A0u, "Right Analog Stick", "Right Stick"},
+        {0x3845B8u, "Left Analog Stick", "Left Stick"},
+    };
+
+    void applyGenericWording(uint8_t *rdram)
+    {
+        uint32_t applied = 0;
+        for (const Rewording &r : kGenericWording)
+        {
+            const size_t length = std::strlen(r.original);
+            if (std::strlen(r.text) > length || std::memcmp(rdram + r.address, r.original, length + 1) != 0)
+                continue;
+            std::memset(rdram + r.address, 0, length + 1);
+            std::memcpy(rdram + r.address, r.text, std::strlen(r.text));
+            ++applied;
+        }
+        std::fprintf(stderr, "[TS:text] save and controller wording: %u of %u texts reworded\n", applied,
+                     static_cast<unsigned>(std::size(kGenericWording)));
+    }
+#endif
+
     void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+#if !defined(PLATFORM_XBOX)
+        static const bool reworded = (applyGenericWording(rdram), true);
+        (void)reworded;
+#endif
         static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
         static uint32_t lastMenu = 0;
         if (trace) // also left in guest RAM for pad scripts (wait_u32 0x7eff0)
@@ -611,6 +725,80 @@ namespace
         std_menumake_0x22daf8(rdram, ctx, runtime);
     }
 
+
+#if !defined(PLATFORM_XBOX)
+    // Typing on the PC keyboard into the game's text entry: sign-on names
+    // and the map maker's names run stringeditTick(pad), the on-screen
+    // keyboard. Its state, *(gp-0x5FCC): +0x18 text length, +0x1C the
+    // layout (11 x 5 bytes: the characters, then the bottom row's CAPS 0xFC,
+    // SPACE 0xFD, DELETE 0xFE and END 0xFF), +0x28/+0x2C the cursor's column
+    // and row, +0x30 the text. A newly pressed Cross (joyNewBut & 0x40) acts
+    // on the key under the cursor. Each tick takes one typed character
+    // (ps2PadTakeTypedChar), puts the cursor on its key and presses Cross for
+    // that tick only, so the game itself adds it (its length and width
+    // limits, line breaks, sounds). A letter only in the other case's layout
+    // presses CAPS first and is typed on the next tick. The cursor stays on
+    // the key typed, as if it had been chosen with the pad.
+    constexpr uint32_t kStringeditTick = 0x22F820u;
+    constexpr uint32_t kStringeditLayouts[2] = {0x352F40u, 0x352F78u};
+    constexpr uint32_t kKeyColumns = 11u, kCharKeys = 44u, kLayoutKeys = 55u;
+    constexpr uint8_t kKeyCaps = 0xFCu, kKeySpace = 0xFDu, kKeyDelete = 0xFEu, kKeyEnd = 0xFFu;
+
+    // The key index of c in a layout, or -1.
+    int stringeditKey(uint8_t *rdram, uint32_t layout, int c)
+    {
+        const uint8_t code = c == ' ' ? kKeySpace : c == '\b' ? kKeyDelete : c == '\n' ? kKeyEnd : static_cast<uint8_t>(c);
+        const bool special = code >= kKeyCaps;
+        for (uint32_t i = special ? kCharKeys : 0u; i < (special ? kLayoutKeys : kCharKeys); ++i)
+            if (rdram[layout + i] == code)
+                return static_cast<int>(i);
+        return -1;
+    }
+
+    void typedStringeditTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        ps2PadNoteTextEntry();
+        static int capsThen = 0; // a letter waiting for the CAPS press before it
+        const uint32_t pad = GPR_U32(ctx, 4);
+        const uint32_t state = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FCCu);
+        // Only the keyboard's own player types (pad = that player's lane in
+        // the menus), or anyone while no player has used the keyboard yet.
+        const int keyboardLane = ps2PadKeyboardLane();
+        const bool keyboardPlayer = keyboardLane < 0 || static_cast<uint32_t>(keyboardLane) == pad;
+        int c = capsThen ? capsThen : keyboardPlayer ? ps2PadTakeTypedChar() : 0;
+        capsThen = 0;
+        uint32_t pressedAt = 0, pressedWas = 0;
+        if (c && state && pad <= 7u)
+        {
+            const uint32_t layout = guestWord(rdram, state + 0x1Cu);
+            int key = stringeditKey(rdram, layout, c);
+            if (key < 0 && std::isalpha(c))
+            {
+                const uint32_t other = layout == kStringeditLayouts[0] ? kStringeditLayouts[1] : kStringeditLayouts[0];
+                if (stringeditKey(rdram, other, c) >= 0)
+                {
+                    key = stringeditKey(rdram, layout, kKeyCaps);
+                    capsThen = c;
+                }
+            }
+            // (joyNewBut's pad record, as exitGameChosen finds it)
+            const uint32_t record = guestWord(rdram, 0x31DF68u + pad * 4u);
+            if (key >= 0 && record <= 7u)
+            {
+                guestWord(rdram, state + 0x28u) = static_cast<uint32_t>(key) % kKeyColumns;
+                guestWord(rdram, state + 0x2Cu) = static_cast<uint32_t>(key) / kKeyColumns;
+                pressedAt = 0x31C740u + record * 0x180u + 0x124u;
+                pressedWas = guestWord(rdram, pressedAt);
+                guestWord(rdram, pressedAt) = pressedWas | 0x40u;
+            }
+            else
+                capsThen = 0;
+        }
+        stringeditTick_0x22f820(rdram, ctx, runtime);
+        if (pressedAt)
+            guestWord(rdram, pressedAt) = pressedWas;
+    }
+#endif
 
     // Cheat: a sign-on named "time2split" (any case) has everything unlocked.
     // unlockedEx(condition, ...) decides every unlock (characters, levels,
@@ -1374,6 +1562,9 @@ namespace
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);
         runtime.replaceFunction(kUnlockedEx, &cheatUnlockedEx);
         runtime.replaceFunction(kChallengeAvail, &cheatChallengeAvail);
+#if !defined(PLATFORM_XBOX)
+        runtime.replaceFunction(kStringeditTick, &typedStringeditTick);
+#endif
         if (const char *menu = std::getenv("TS_DISPLAY_MENU"); !(menu && *menu == '0'))
         {
             runtime.replaceFunction(kMenuTick, &displayMenuTick);

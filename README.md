@@ -104,24 +104,39 @@ and R2; Start and Back are Start and Select; the sticks are the sticks. The
 Xbox version uses the console's own controllers and shows their buttons in
 the game's prompts.
 
-With no controller in the first slot, player 1 plays on the keyboard:
+On the PC the keyboard and mouse count as one more device, beside up to four
+controllers. Each player is the device they first press something on:
+player 1 is whichever device is used first, the next device used becomes
+player 2, and so on, so the four players can be any mix (three controllers
+and the keyboard, say). A controller that is unplugged frees its player's
+place. Moving the mouse looks around (the right stick); the left button is
+R1 (fire), the right L1, the middle R2. The pointer stays in the window while
+it has focus. Names (Sign On, the map maker) can be typed straight on the
+keyboard, Backspace and Enter included. The game's button prompts show the
+buttons of the device used last: an Xbox controller's A, B, X, Y, Back, LB
+and LT, or the keys. The game's Audio / Video Options page switches the mouse
+on or off and sets its speed (1-10), and switches V-Sync (frames shown in
+step with the display, no tearing; on by default); all three are saved in
+`timesplitters.ini`.
+
+The keyboard:
 
 | PS2 | Keyboard |
 |---|---|
 | Left stick (move) | W, A, S, D |
 | Right stick (look) | I, J, K, L |
 | D-pad | Arrow keys |
-| Cross | X or Space |
+| Cross (accept) | Enter |
+| Triangle (back, cancel) | Esc |
 | Circle | C |
-| Square | Z or numpad 0 |
-| Triangle | V or numpad 1 |
+| Square | Z |
 | L1 / R1 | Q / E |
 | L2 / R2 | Left Shift / Right Shift |
-| Start | Enter |
+| Start (pause) | P |
 | Select | Tab |
 
 While playing on the PC: F9 toggles FXAA, F10 widescreen, F11 fullscreen;
-Esc, Alt+F4, the menu's Exit Game, or holding Select + Start for two seconds
+Alt+F4, the menu's Exit Game, or holding Select + Start for two seconds
 quits. The default settings (`timesplitters.ini`) are a 1920x1080 window,
 widescreen, FXAA and 4x render scale.
 

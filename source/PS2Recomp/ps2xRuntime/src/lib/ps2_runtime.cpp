@@ -3,6 +3,7 @@
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_host_settings.h"
+#include "runtime/ps2_pad_host.h"
 
 namespace
 {
@@ -903,16 +904,35 @@ bool PS2Runtime::initialize(const char *title)
 #if defined(PLATFORM_VITA)
         InitWindow(HOST_WINDOW_WIDTH, HOST_WINDOW_HEIGHT, title); // raylib vita does not support audio
 #else
+        // vsync (timesplitters.ini): each present waits for the display's
+        // refresh, so a frame is never shown half drawn (tearing).
+#if defined(PLATFORM_XBOX)
         SetConfigFlags(FLAG_WINDOW_RESIZABLE |
             (std::getenv("TS_TEST_HIDDEN") ? FLAG_WINDOW_HIDDEN : 0));
+#else
+        SetConfigFlags(FLAG_WINDOW_RESIZABLE |
+            (std::getenv("TS_TEST_HIDDEN") ? FLAG_WINDOW_HIDDEN : 0) |
+            (hostSettings().vsync ? FLAG_VSYNC_HINT : 0));
+#endif
         // Window size and fullscreen come from timesplitters.ini.
         InitWindow(hostSettings().windowWidth, hostSettings().windowHeight, title);
+#if !defined(PLATFORM_XBOX)
+        SetExitKey(KEY_NULL); // Esc is the game's Back (ps2_pad.cpp); Alt+F4 or Exit Game quits
+#endif
         if (hostSettings().fullscreen && !std::getenv("TS_TEST_HIDDEN"))
             ToggleBorderlessWindowed();
         InitAudioDevice();
         m_audioBackend.setAudioReady(IsAudioDeviceReady());
 #endif
+#if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
+        // With vsync the swap paces the window at the display's rate (the
+        // game keeps its own 60 Hz clock and the window shows its latest
+        // frame); a 60 FPS cap on top would drop refreshes on a 144 Hz
+        // display. 240 only bounds a driver that overrides vsync off.
+        SetTargetFPS(hostSettings().vsync ? 240 : 60);
+#else
         SetTargetFPS(60);
+#endif
 #if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
         // Draw on the GPU (OpenGL, needs the window's context) unless
         // TS_GS_GPU=0 or TS_GS_SYNC=1 asks for the CPU rasterizer.
@@ -2983,6 +3003,43 @@ void PS2Runtime::run()
             }
         }
         EndDrawing();
+#if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
+        // Mouse look (timesplitters.ini mouse): the cursor is held in the
+        // window while it has focus, and each window frame's movement goes
+        // to player 1's next pad read (ps2PadNoteMouseMotion).
+        {
+            static bool cursorHeld = false;
+            const bool hold = hostSettings().mouse && IsWindowFocused() && !std::getenv("TS_TEST_HIDDEN");
+            if (hold != cursorHeld)
+            {
+                cursorHeld = hold;
+                if (hold)
+                    DisableCursor();
+                else
+                    EnableCursor();
+            }
+            else if (hold)
+            {
+                const Vector2 delta = GetMouseDelta();
+                ps2PadNoteMouseMotion(delta.x, delta.y);
+            }
+        }
+        ps2PadNoteTypedKeys(); // typing into the game's text entry
+        // V-Sync switched in the game's options menu: the swap interval and
+        // the frame cap change at once (as at start-up, initialize).
+        {
+            static bool vsyncOn = hostSettings().vsync;
+            if (hostSettings().vsync != vsyncOn)
+            {
+                vsyncOn = !vsyncOn;
+                if (vsyncOn)
+                    SetWindowState(FLAG_VSYNC_HINT);
+                else
+                    ClearWindowState(FLAG_VSYNC_HINT);
+                SetTargetFPS(vsyncOn ? 240 : 60);
+            }
+        }
+#endif
 
         // Quitting without a title bar (fullscreen): Esc (raylib's exit key),
         // Alt+F4, or holding Select + Start on the controller for 2 seconds.

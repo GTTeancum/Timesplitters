@@ -44,12 +44,19 @@ constexpr int16_t XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE = 7849;
 constexpr int16_t XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE = 8689;
 #endif
 #include "ps2_host_backend.h"
+#include "runtime/ps2_host_settings.h"
+#include "runtime/ps2_pad_host.h"
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
+#include <deque>
 #include <fstream>
+#include <iostream>
+#include <mutex>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
@@ -212,6 +219,67 @@ namespace
         return buttons;
     }
 
+#if !defined(PLATFORM_XBOX)
+    // Mouse movement the window thread saw since player 1's last pad read.
+    std::mutex g_mouseMutex;
+    float g_mouseDx = 0.0f, g_mouseDy = 0.0f;
+
+    // Typing: the characters typed while the game's text entry runs, and
+    // until when it counts as running (a tick of it renews it).
+    std::mutex g_typedMutex;
+    std::deque<int> g_typed;
+    std::atomic<int64_t> g_textEntryUntil{0};
+
+    int64_t steadyMs()
+    {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+            .count();
+    }
+
+    bool textEntryActive()
+    {
+        return steadyMs() < g_textEntryUntil.load(std::memory_order_relaxed);
+    }
+
+    // The mouse on player 1's pad: its movement since the last read as the
+    // right stick, its buttons as R1 (left: fire), L1 (right), R2 (middle).
+    // A stick deflection turns the view at a rate, so a read's movement
+    // deflects the stick in proportion (a mouse at rest: the stick centred,
+    // the view still), starting past the game's own dead zone so slow
+    // movements turn too. A stick the mouse does not move keeps its value.
+    void applyMouse(uint8_t *data, uint16_t &buttons)
+    {
+        if (!hostSettings().mouse || !IsWindowReady())
+            return;
+        float dx, dy;
+        {
+            std::lock_guard<std::mutex> lock(g_mouseMutex);
+            dx = g_mouseDx;
+            dy = g_mouseDy;
+            g_mouseDx = g_mouseDy = 0.0f;
+        }
+        constexpr float kPixelsForFull = 24.0f; // at sensitivity 1: pixels a read for a full deflection
+        constexpr float kDeadZone = 0.2f;
+        auto deflect = [](float pixels)
+        {
+            if (pixels == 0.0f)
+                return 0.0f;
+            const float amount = std::min(std::abs(pixels) * hostSettings().mouseSensitivity / kPixelsForFull, 1.0f);
+            return std::copysign(kDeadZone + (1.0f - kDeadZone) * amount, pixels);
+        };
+        if (dx != 0.0f)
+            data[4] = PSPadBackend::analogAxisFromUnit(deflect(dx));
+        if (dy != 0.0f)
+            data[5] = PSPadBackend::analogAxisFromUnit(deflect(dy));
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+            clearButton(buttons, PAD_R1);
+        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
+            clearButton(buttons, PAD_L1);
+        if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
+            clearButton(buttons, PAD_R2);
+    }
+#endif
+
 #if defined(_WIN32)
     bool readXInputState(XInputDword user, uint8_t *data, uint16_t &buttons)
     {
@@ -260,6 +328,223 @@ namespace
         data[4] = PSPadBackend::xinputThumbAxis(state.Gamepad.sThumbRX, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, false);
         data[5] = PSPadBackend::xinputThumbAxis(state.Gamepad.sThumbRY, XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE, true);
         return true;
+    }
+#endif
+
+#if !defined(PLATFORM_XBOX)
+    // Players' devices (PC). Device 0 is the keyboard and mouse, devices 1-4
+    // controllers 0-3 (an XInput controller, else raylib's gamepad of that
+    // number). Player 1's lane locks to the first device used; every other
+    // device used afterwards locks to the next free lane, which then reads as
+    // connected (Pad.cpp sees a controller plugged in), so players 1-4 can be
+    // any mix of the keyboard and controllers. A controller unplugged frees
+    // its lane. Until a device locks to it, lane 0 reads as an idle pad.
+    constexpr int kKeyboardDevice = 0, kDeviceCount = 5;
+    constexpr int kStickActive = 48; // a stick this far from centre counts as used
+
+    // One device's state this game frame: the pad's buttons (active low) and
+    // sticks as data[4..7] (right x, y, left x, y).
+    struct DeviceRead
+    {
+        bool present = false;
+        uint16_t buttons = 0xFFFFu;
+        uint8_t sticks[4] = {kPadStickCenter, kPadStickCenter, kPadStickCenter, kPadStickCenter};
+    };
+
+    std::mutex g_laneMutex;
+    int g_laneDevice[PSPadBackend::kMaxLanes];
+    const bool g_laneDeviceCleared = [] {
+        for (int &device : g_laneDevice)
+            device = -1;
+        return true;
+    }();
+    DeviceRead g_deviceRead[kDeviceCount];
+    std::atomic<int> g_lastActiveDevice{-1};
+
+    bool deviceActive(const DeviceRead &read)
+    {
+        if (read.buttons != 0xFFFFu)
+            return true;
+        for (uint8_t stick : read.sticks)
+            if (std::abs(static_cast<int>(stick) - kPadStickCenter) > kStickActive)
+                return true;
+        return false;
+    }
+
+    void readControllerDevice(int index, DeviceRead &read)
+    {
+        uint8_t data[8];
+        data[4] = data[5] = data[6] = data[7] = kPadStickCenter;
+        uint16_t buttons = 0xFFFFu;
+#if defined(_WIN32)
+        if (readXInputState(static_cast<XInputDword>(index), data, buttons))
+        {
+            read.present = true;
+            read.buttons = buttons;
+            std::memcpy(read.sticks, data + 4, 4);
+            return;
+        }
+#endif
+        if (!IsWindowReady() || !IsGamepadAvailable(index))
+            return;
+        read.present = true;
+        static const struct
+        {
+            int button;
+            uint16_t pad;
+        } kButtons[] = {
+            {GAMEPAD_BUTTON_LEFT_FACE_UP, PAD_UP},          {GAMEPAD_BUTTON_LEFT_FACE_DOWN, PAD_DOWN},
+            {GAMEPAD_BUTTON_LEFT_FACE_LEFT, PAD_LEFT},      {GAMEPAD_BUTTON_LEFT_FACE_RIGHT, PAD_RIGHT},
+            {GAMEPAD_BUTTON_RIGHT_FACE_DOWN, PAD_CROSS},    {GAMEPAD_BUTTON_RIGHT_FACE_RIGHT, PAD_CIRCLE},
+            {GAMEPAD_BUTTON_RIGHT_FACE_LEFT, PAD_SQUARE},   {GAMEPAD_BUTTON_RIGHT_FACE_UP, PAD_TRIANGLE},
+            {GAMEPAD_BUTTON_LEFT_TRIGGER_1, PAD_L1},        {GAMEPAD_BUTTON_RIGHT_TRIGGER_1, PAD_R1},
+            {GAMEPAD_BUTTON_LEFT_TRIGGER_2, PAD_L2},        {GAMEPAD_BUTTON_RIGHT_TRIGGER_2, PAD_R2},
+            {GAMEPAD_BUTTON_MIDDLE_RIGHT, PAD_START},       {GAMEPAD_BUTTON_MIDDLE_LEFT, PAD_SELECT},
+            {GAMEPAD_BUTTON_LEFT_THUMB, PAD_L3},            {GAMEPAD_BUTTON_RIGHT_THUMB, PAD_R3},
+        };
+        for (const auto &b : kButtons)
+            if (IsGamepadButtonDown(index, b.button))
+                clearButton(read.buttons, b.pad);
+        read.sticks[0] = PSPadBackend::analogAxisFromUnit(GetGamepadAxisMovement(index, GAMEPAD_AXIS_RIGHT_X));
+        read.sticks[1] = PSPadBackend::analogAxisFromUnit(GetGamepadAxisMovement(index, GAMEPAD_AXIS_RIGHT_Y));
+        read.sticks[2] = PSPadBackend::analogAxisFromUnit(GetGamepadAxisMovement(index, GAMEPAD_AXIS_LEFT_X));
+        read.sticks[3] = PSPadBackend::analogAxisFromUnit(GetGamepadAxisMovement(index, GAMEPAD_AXIS_LEFT_Y));
+    }
+
+    // The keyboard and mouse as a pad. analogSticks: WASD and IJKL are the
+    // sticks (the PC game sets it), else WASD is the D-pad too.
+    void readKeyboardDevice(DeviceRead &read, bool analogSticks)
+    {
+        read.present = true;
+        if (!IsWindowReady())
+            return;
+        uint16_t &buttons = read.buttons;
+        if (IsKeyDown(KEY_UP) || (!analogSticks && IsKeyDown(KEY_W)))
+            clearButton(buttons, PAD_UP);
+        if (IsKeyDown(KEY_DOWN) || (!analogSticks && IsKeyDown(KEY_S)))
+            clearButton(buttons, PAD_DOWN);
+        if (IsKeyDown(KEY_LEFT) || (!analogSticks && IsKeyDown(KEY_A)))
+            clearButton(buttons, PAD_LEFT);
+        if (IsKeyDown(KEY_RIGHT) || (!analogSticks && IsKeyDown(KEY_D)))
+            clearButton(buttons, PAD_RIGHT);
+        // In the game's text entry the letter, number and space keys type
+        // (the stringeditTick hook), and Enter ends the text: none of them
+        // also press the pad button they map to. The arrows still move the
+        // on-screen keyboard's cursor (WASD, the sticks, do not), and Esc
+        // still cancels.
+        if (textEntryActive())
+        {
+            if (IsKeyDown(KEY_ESCAPE))
+                clearButton(buttons, PAD_TRIANGLE);
+            // (and the mouse's movement meanwhile is not saved up)
+            std::lock_guard<std::mutex> lock(g_mouseMutex);
+            g_mouseDx = g_mouseDy = 0.0f;
+            return;
+        }
+        uint8_t data[8];
+        data[4] = data[5] = data[6] = data[7] = kPadStickCenter;
+        if (analogSticks)
+        {
+            data[6] = PSPadBackend::keyboardAxis(IsKeyDown(KEY_A), IsKeyDown(KEY_D));
+            data[7] = PSPadBackend::keyboardAxis(IsKeyDown(KEY_W), IsKeyDown(KEY_S));
+            data[4] = PSPadBackend::keyboardAxis(IsKeyDown(KEY_J), IsKeyDown(KEY_L));
+            data[5] = PSPadBackend::keyboardAxis(IsKeyDown(KEY_I), IsKeyDown(KEY_K));
+        }
+        applyMouse(data, buttons);
+        std::memcpy(read.sticks, data + 4, 4);
+        static const struct
+        {
+            KeyboardKey key, alternate;
+            uint16_t pad;
+        } kKeys[] = {
+            // Enter accepts and Esc goes back (the game's Cross and
+            // Triangle in every menu); P pauses (Start).
+            {KEY_ENTER, KEY_KP_ENTER, PAD_CROSS}, {KEY_ESCAPE, KEY_NULL, PAD_TRIANGLE}, {KEY_C, KEY_NULL, PAD_CIRCLE},
+            {KEY_Z, KEY_NULL, PAD_SQUARE},        {KEY_Q, KEY_NULL, PAD_L1},             {KEY_E, KEY_NULL, PAD_R1},
+            {KEY_LEFT_SHIFT, KEY_NULL, PAD_L2},   {KEY_RIGHT_SHIFT, KEY_NULL, PAD_R2},
+            {KEY_P, KEY_NULL, PAD_START},         {KEY_TAB, KEY_NULL, PAD_SELECT},
+        };
+        for (const auto &k : kKeys)
+            if (IsKeyDown(k.key) || (k.alternate != KEY_NULL && IsKeyDown(k.alternate)))
+                clearButton(buttons, k.pad);
+    }
+
+    int laneOfDeviceLocked(int device)
+    {
+        for (int lane = 0; lane < PSPadBackend::kMaxLanes; ++lane)
+            if (g_laneDevice[lane] == device)
+                return lane;
+        return -1;
+    }
+
+    // Once a game frame (lane 0's read): every device read once, unplugged
+    // controllers' lanes freed, newly used devices locked to free lanes.
+    void updateLaneDevices(bool analogSticks)
+    {
+        std::lock_guard<std::mutex> lock(g_laneMutex);
+        for (int device = 0; device < kDeviceCount; ++device)
+        {
+            g_deviceRead[device] = DeviceRead{};
+            if (device == kKeyboardDevice)
+                readKeyboardDevice(g_deviceRead[device], analogSticks);
+            else
+                readControllerDevice(device - 1, g_deviceRead[device]);
+        }
+        for (int lane = 0; lane < PSPadBackend::kMaxLanes; ++lane)
+        {
+            const int device = g_laneDevice[lane];
+            if (device >= 0 && !g_deviceRead[device].present)
+            {
+                g_laneDevice[lane] = -1;
+                std::cout << "[pad:lanes] player " << lane + 1 << "'s controller is gone; the slot is free\n";
+            }
+        }
+        for (int device = 0; device < kDeviceCount; ++device)
+        {
+            if (!deviceActive(g_deviceRead[device]))
+                continue;
+            g_lastActiveDevice.store(device, std::memory_order_relaxed);
+            if (laneOfDeviceLocked(device) >= 0)
+                continue;
+            for (int lane = 0; lane < PSPadBackend::kMaxLanes; ++lane)
+            {
+                if (g_laneDevice[lane] < 0)
+                {
+                    g_laneDevice[lane] = device;
+                    std::cout << "[pad:lanes] player " << lane + 1 << " plays on "
+                              << (device == kKeyboardDevice ? std::string("the keyboard and mouse")
+                                                            : "controller " + std::to_string(device))
+                              << '\n';
+                    break;
+                }
+            }
+        }
+    }
+
+    // The state of the device locked to a lane this frame, or false.
+    bool laneDeviceRead(int lane, DeviceRead &out)
+    {
+        std::lock_guard<std::mutex> lock(g_laneMutex);
+        const int device = lane >= 0 && lane < PSPadBackend::kMaxLanes ? g_laneDevice[lane] : -1;
+        if (device < 0)
+            return false;
+        out = g_deviceRead[device];
+        return true;
+    }
+
+    bool laneLocked(int lane)
+    {
+        std::lock_guard<std::mutex> lock(g_laneMutex);
+        return lane >= 0 && lane < PSPadBackend::kMaxLanes && g_laneDevice[lane] >= 0;
+    }
+
+    int presentDeviceCount()
+    {
+        std::lock_guard<std::mutex> lock(g_laneMutex);
+        int count = 0;
+        for (const DeviceRead &read : g_deviceRead)
+            count += read.present ? 1 : 0;
+        return std::max(count, 1);
     }
 #endif
 }
@@ -581,6 +866,10 @@ int PSPadBackend::laneForPort(int port, int slot)
 
 int PSPadBackend::liveLaneCount() const
 {
+#if !defined(PLATFORM_XBOX)
+    // Devices present (the keyboard counts): the lanes they could fill.
+    return std::min(presentDeviceCount(), int(kMaxLanes));
+#endif
     int lanes = 1;
     for (int lane = 1; lane < kMaxLanes; ++lane)
     {
@@ -598,7 +887,11 @@ bool PSPadBackend::laneConnected(int lane) const
         return false;
     if (!m_script.empty())
         return lane < m_scriptLanes;
+#if !defined(PLATFORM_XBOX)
+    return laneLocked(lane); // a device locked to it (players' devices)
+#else
     return IsGamepadAvailable(lane);
+#endif
 }
 
 bool PSPadBackend::multitapOnPort(int port) const
@@ -643,6 +936,107 @@ uint8_t PSPadBackend::xinputThumbAxis(int16_t value, int16_t deadzone, bool inve
 bool PSPadBackend::xinputTriggerPressed(uint8_t value, uint8_t threshold)
 {
     return value > threshold;
+}
+
+void ps2PadNoteTextEntry()
+{
+#if !defined(PLATFORM_XBOX)
+    g_textEntryUntil.store(steadyMs() + 250, std::memory_order_relaxed);
+#endif
+}
+
+void ps2PadNoteTypedKeys()
+{
+#if !defined(PLATFORM_XBOX)
+    const bool active = textEntryActive();
+    std::lock_guard<std::mutex> lock(g_typedMutex);
+    if (!active)
+        g_typed.clear();
+    // TS_TEST_TYPED=<text> (tests): typed into the first text entry, '|'
+    // as Enter.
+    static const char *testTyped = std::getenv("TS_TEST_TYPED");
+    if (active && testTyped && *testTyped)
+    {
+        for (const char *t = testTyped; *t; ++t)
+            g_typed.push_back(*t == '|' ? '\n' : *t);
+        testTyped = nullptr;
+    }
+    // raylib's typed characters (layout and Shift applied); outside text
+    // entry they are read and dropped, so none wait for the next name.
+    for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
+    {
+        if (active && c >= 32 && c < 127)
+            g_typed.push_back(c);
+    }
+    if (active)
+    {
+        if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE))
+            g_typed.push_back('\b');
+        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
+            g_typed.push_back('\n');
+    }
+#endif
+}
+
+int ps2PadButtonSet()
+{
+#if !defined(PLATFORM_XBOX)
+    // TS_TEST_BUTTON_SET=1|2 (tests): that set whatever is used.
+    static const int forced = [] {
+        const char *v = std::getenv("TS_TEST_BUTTON_SET");
+        return v && (*v == '1' || *v == '2') ? *v - '0' : 0;
+    }();
+    if (forced)
+        return forced;
+    // The device used last; before any, a controller if one is plugged in.
+    int device = g_lastActiveDevice.load(std::memory_order_relaxed);
+    if (device < 0)
+    {
+        std::lock_guard<std::mutex> lock(g_laneMutex);
+        for (int d = 1; d < kDeviceCount && device < 0; ++d)
+            if (g_deviceRead[d].present)
+                device = d;
+    }
+    return device > 0 ? 1 : 2;
+#else
+    return 0;
+#endif
+}
+
+int ps2PadKeyboardLane()
+{
+#if !defined(PLATFORM_XBOX)
+    std::lock_guard<std::mutex> lock(g_laneMutex);
+    return laneOfDeviceLocked(kKeyboardDevice);
+#else
+    return -1;
+#endif
+}
+
+int ps2PadTakeTypedChar()
+{
+#if !defined(PLATFORM_XBOX)
+    std::lock_guard<std::mutex> lock(g_typedMutex);
+    if (g_typed.empty())
+        return 0;
+    const int c = g_typed.front();
+    g_typed.pop_front();
+    return c;
+#else
+    return 0;
+#endif
+}
+
+void ps2PadNoteMouseMotion(float dx, float dy)
+{
+#if !defined(PLATFORM_XBOX)
+    std::lock_guard<std::mutex> lock(g_mouseMutex);
+    g_mouseDx += dx;
+    g_mouseDy += dy;
+#else
+    (void)dx;
+    (void)dy;
+#endif
 }
 
 bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
@@ -767,6 +1161,7 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
     auto clearBit = [&btns](uint16_t mask)
     { btns &= ~mask; };
 
+#if defined(PLATFORM_XBOX)
 #if defined(_WIN32)
     if (readXInputState(static_cast<XInputDword>(gamepad), data, btns))
     {
@@ -858,6 +1253,22 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
             clearBit(PAD_SELECT);
     }
 
+#else
+    // Live input (PC): each lane plays the device locked to it (players'
+    // devices, above). Lane 0's read is the first of a game frame: it reads
+    // every device and locks newly used ones to lanes.
+    (void)useGamepad;
+    (void)clearBit;
+    if (lane == 0)
+        updateLaneDevices(m_keyboardAnalogEnabled);
+    DeviceRead read;
+    if (laneDeviceRead(lane, read))
+    {
+        btns = read.buttons;
+        std::memcpy(data + 4, read.sticks, 4);
+    }
+
+#endif
     data[2] = static_cast<uint8_t>(btns & 0xFF);
     data[3] = static_cast<uint8_t>(btns >> 8);
     return true;

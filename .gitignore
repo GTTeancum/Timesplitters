@@ -49,6 +49,7 @@ ps2_log.txt
 *.avi
 *.png
 !src/xbox/assets/icon.png
+!project/game/pc_glyphs/*/*.png
 *.ppm
 *.bmp
 *.tga

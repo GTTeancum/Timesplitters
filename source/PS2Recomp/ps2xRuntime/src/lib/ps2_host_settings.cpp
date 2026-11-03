@@ -81,6 +81,12 @@ namespace
             }
             else if (key == "fxaa")
                 settings.fxaa = parseBool(value);
+            else if (key == "vsync")
+                settings.vsync = parseBool(value);
+            else if (key == "mouse")
+                settings.mouse = parseBool(value);
+            else if (key == "mouse_sensitivity")
+                settings.mouseSensitivity = std::clamp(static_cast<float>(std::atof(value.c_str())), 0.1f, 10.0f);
             else if (key == "texture_dump")
                 settings.textureDump = parseBool(value);
             else if (key == "texture_replace")
@@ -88,6 +94,16 @@ namespace
             else if (key == "render_scale")
                 settings.renderScale = std::clamp(std::atoi(value.c_str()), 1, 4);
         }
+    }
+}
+
+namespace
+{
+    std::string sensitivityText(float value)
+    {
+        char text[16];
+        std::snprintf(text, sizeof(text), "%.2f", value);
+        return text;
     }
 }
 
@@ -108,6 +124,9 @@ void saveHostSettings()
         {"widescreen", settings.widescreen ? "1" : "0"},
         {"fxaa", settings.fxaa ? "1" : "0"},
         {"render_scale", std::to_string(settings.renderScale.load())},
+        {"vsync", settings.vsync ? "1" : "0"},
+        {"mouse", settings.mouse ? "1" : "0"},
+        {"mouse_sensitivity", sensitivityText(settings.mouseSensitivity)},
     };
     std::vector<std::string> lines;
     {

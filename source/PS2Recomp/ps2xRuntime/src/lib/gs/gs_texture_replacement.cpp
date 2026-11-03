@@ -132,6 +132,28 @@ namespace
         static State s;
         return s;
     }
+
+    // Built-in button glyphs: (hash, set) -> the PNG's bytes (the program's
+    // own data, registered before the first frame and never changed).
+    struct ButtonImage
+    {
+        const unsigned char *png;
+        size_t size;
+    };
+    std::unordered_map<uint64_t, ButtonImage> &buttonImages()
+    {
+        static std::unordered_map<uint64_t, ButtonImage> images;
+        return images;
+    }
+    std::unordered_set<uint64_t> &buttonHashes()
+    {
+        static std::unordered_set<uint64_t> hashes;
+        return hashes;
+    }
+    uint64_t buttonKey(int set, uint64_t hash)
+    {
+        return hash * 4u + static_cast<uint64_t>(set & 3);
+    }
 }
 
 namespace gs_texture_replacement
@@ -139,7 +161,38 @@ namespace gs_texture_replacement
     bool active()
     {
         const State &s = state();
-        return s.dumping || !s.replacements.empty();
+        return s.dumping || !s.replacements.empty() || !buttonHashes().empty();
+    }
+
+    void addButtonImage(int set, uint64_t hash, const unsigned char *png, size_t size)
+    {
+        buttonImages()[buttonKey(set, hash)] = {png, size};
+        buttonHashes().insert(hash);
+    }
+
+    bool isButton(uint64_t hash)
+    {
+        return buttonHashes().count(hash) != 0;
+    }
+
+    bool loadButton(int set, uint64_t hash, std::vector<uint32_t> &texels, int &width, int &height)
+    {
+        const auto found = buttonImages().find(buttonKey(set, hash));
+        if (found == buttonImages().end())
+            return false;
+        Image image = LoadImageFromMemory(".png", found->second.png, static_cast<int>(found->second.size));
+        if (!image.data)
+            return false;
+        ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+        width = image.width;
+        height = image.height;
+        texels.resize(size_t(width) * height);
+        std::memcpy(texels.data(), image.data, texels.size() * sizeof(uint32_t));
+        UnloadImage(image);
+        // PNG alpha 0..255 -> GS 0..128, as load() does.
+        for (uint32_t &texel : texels)
+            texel = (texel & 0x00FFFFFFu) | ((((texel >> 24) + 1u) / 2u) << 24);
+        return true;
     }
 
     bool dumping()

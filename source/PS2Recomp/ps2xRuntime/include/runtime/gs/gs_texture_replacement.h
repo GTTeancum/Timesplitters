@@ -38,4 +38,15 @@ namespace gs_texture_replacement
     // Loads the replacement for this hash, if there is one, as RGBA8 with GS
     // alpha. Returns false when there is none.
     bool load(uint64_t hash, bool rawAlpha, std::vector<uint32_t> &texels, int &width, int &height);
+
+    // Button glyph sets (PC): the game's button prompt textures drawn as the
+    // buttons of the device the player uses (ps2PadButtonSet,
+    // runtime/ps2_pad_host.h: 1 an Xbox-style controller, 2 the keyboard).
+    // The program registers its built-in PNGs (any size; PNG alpha) before
+    // the first frame; the renderer asks for a texture's glyph every time it
+    // draws it, so a change of device shows at once. A glyph set wins over a
+    // replacement PNG of the same hash.
+    void addButtonImage(int set, uint64_t hash, const unsigned char *png, size_t size);
+    bool isButton(uint64_t hash);
+    bool loadButton(int set, uint64_t hash, std::vector<uint32_t> &texels, int &width, int &height);
 }

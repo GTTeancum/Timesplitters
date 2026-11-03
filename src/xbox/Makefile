@@ -1400,6 +1400,9 @@ $(OUT)/iso/ps2disc.iso: $(ROOT)/project/disc/TimeSplitters.iso
 	@echo "[ COPY    ] $@"
 	@cp $< $@
 
+# The Xbox button glyphs written over the PS2 ones in that copy (mk/glyphs.mk).
+include $(XBOX)/mk/glyphs.mk
+
 # make TS_TEXTURE_SOURCE_KEYS=1: a texture-cache miss finds its pack entry by
 # what GS memory holds (indices and palette, or colour texels and TEXA, every
 # GS texture format; xbox_texture_source.h), hashed as the game uploads it or

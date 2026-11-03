@@ -247,10 +247,19 @@ namespace
     // deflects the stick in proportion (a mouse at rest: the stick centred,
     // the view still), starting past the game's own dead zone so slow
     // movements turn too. A stick the mouse does not move keeps its value.
+    std::atomic<int64_t> g_menuUntil{0};
+
     void applyMouse(uint8_t *data, uint16_t &buttons)
     {
         if (!hostSettings().mouse || !IsWindowReady())
             return;
+        if (steadyMs() < g_menuUntil.load(std::memory_order_relaxed))
+        {
+            // In the menus the mouse points and clicks (ps2PadTakeMenuPointer).
+            std::lock_guard<std::mutex> lock(g_mouseMutex);
+            g_mouseDx = g_mouseDy = 0.0f;
+            return;
+        }
         float dx, dy;
         {
             std::lock_guard<std::mutex> lock(g_mouseMutex);
@@ -975,6 +984,98 @@ void ps2PadNoteTypedKeys()
         if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER))
             g_typed.push_back('\n');
     }
+#endif
+}
+
+namespace
+{
+#if !defined(PLATFORM_XBOX)
+    std::mutex g_menuPointerMutex;
+    Ps2MenuPointer g_menuPointer;
+#endif
+}
+
+void ps2PadNoteMenu()
+{
+#if !defined(PLATFORM_XBOX)
+    g_menuUntil.store(steadyMs() + 250, std::memory_order_relaxed);
+#endif
+}
+
+bool ps2PadMenuActive()
+{
+#if !defined(PLATFORM_XBOX)
+    return steadyMs() < g_menuUntil.load(std::memory_order_relaxed);
+#else
+    return false;
+#endif
+}
+
+void ps2PadNoteMenuPointer(bool inside, float x, float y, bool click, bool rightClick, float wheel)
+{
+#if !defined(PLATFORM_XBOX)
+    std::lock_guard<std::mutex> lock(g_menuPointerMutex);
+    Ps2MenuPointer &p = g_menuPointer;
+    if (inside != p.inside || x != p.x || y != p.y)
+        p.moved = true;
+    p.inside = inside;
+    p.x = x;
+    p.y = y;
+    p.clicks += click ? 1 : 0;
+    p.rightClicks += rightClick ? 1 : 0;
+    p.wheel += wheel > 0.0f ? 1 : wheel < 0.0f ? -1 : 0;
+#else
+    (void)inside, (void)x, (void)y, (void)click, (void)rightClick, (void)wheel;
+#endif
+}
+
+Ps2MenuPointer ps2PadTakeMenuPointer()
+{
+#if !defined(PLATFORM_XBOX)
+    // TS_TEST_MENU_MOUSE=<steps> (tests): steps "h X Y" (move there), "c X
+    // Y" (move and left click), "u X Y" / "d X Y" (move and wheel up or
+    // down), "r" (right click), separated by ';', one every 90 menu ticks,
+    // in game pixels; the real pointer is ignored while they play.
+    static std::vector<std::string> testSteps = [] {
+        std::vector<std::string> steps;
+        if (const char *v = std::getenv("TS_TEST_MENU_MOUSE"); v && *v)
+        {
+            std::stringstream list(v);
+            for (std::string step; std::getline(list, step, ';');)
+                steps.push_back(step);
+        }
+        return steps;
+    }();
+    if (!testSteps.empty())
+    {
+        static size_t ticks = 0, next = 0;
+        static Ps2MenuPointer at;
+        Ps2MenuPointer taken = at;
+        taken.moved = taken.clicks = taken.rightClicks = taken.wheel = 0;
+        if (ticks++ % 90u == 89u && next < testSteps.size())
+        {
+            char kind = 0;
+            float x = at.x, y = at.y;
+            std::sscanf(testSteps[next++].c_str(), " %c %f %f", &kind, &x, &y);
+            at.inside = true;
+            taken.inside = true;
+            taken.moved = x != at.x || y != at.y || kind == 'h';
+            at.x = taken.x = x;
+            at.y = taken.y = y;
+            taken.clicks = kind == 'c';
+            taken.rightClicks = kind == 'r';
+            taken.wheel = kind == 'u' ? 1 : kind == 'd' ? -1 : 0;
+            std::fprintf(stderr, "[TS:menu-mouse] step %c %.0f,%.0f\n", kind, x, y);
+        }
+        return taken;
+    }
+    std::lock_guard<std::mutex> lock(g_menuPointerMutex);
+    Ps2MenuPointer taken = g_menuPointer;
+    g_menuPointer.moved = false;
+    g_menuPointer.clicks = g_menuPointer.rightClicks = g_menuPointer.wheel = 0;
+    return taken;
+#else
+    return {};
 #endif
 }
 

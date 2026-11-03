@@ -2883,6 +2883,10 @@ void PS2Runtime::run()
 
             }
         });
+        // Where the game's picture was last drawn in the window, and its size
+        // in game pixels (the menus' mouse maps the pointer through them).
+        static Rectangle presentRect{};
+        static float presentPixelsX = 640.0f, presentPixelsY = 448.0f;
         uint32_t presentWidth = FB_WIDTH;
         uint32_t presentHeight = DEFAULT_DISPLAY_HEIGHT;
         UploadFrame(frameTex, this, presentWidth, presentHeight, uploadState);
@@ -2959,6 +2963,9 @@ void PS2Runtime::run()
             (screenHeight - dstHeight) * 0.5f,
             dstWidth,
             dstHeight};
+        presentRect = dstRect; // (the menus' mouse, below)
+        presentPixelsX = static_cast<float>(std::max<uint32_t>(1u, presentWidth));
+        presentPixelsY = static_cast<float>(std::max<uint32_t>(1u, presentHeight));
         const bool fxaa = hostSettings().fxaa && fxaaShader.id != 0;
         if (fxaa)
         {
@@ -3006,10 +3013,24 @@ void PS2Runtime::run()
 #if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
         // Mouse look (timesplitters.ini mouse): the cursor is held in the
         // window while it has focus, and each window frame's movement goes
-        // to player 1's next pad read (ps2PadNoteMouseMotion).
+        // to player 1's next pad read (ps2PadNoteMouseMotion). In the game's
+        // menus the pointer is free instead, and where it is over the game's
+        // picture (in its pixels, as presented: presentRect) goes to the
+        // menu tick with the clicks and wheel (ps2PadNoteMenuPointer).
         {
             static bool cursorHeld = false;
-            const bool hold = hostSettings().mouse && IsWindowFocused() && !std::getenv("TS_TEST_HIDDEN");
+            const bool inMenu = ps2PadMenuActive();
+            if (inMenu && hostSettings().mouse && !std::getenv("TS_TEST_HIDDEN"))
+            {
+                const Vector2 at = GetMousePosition();
+                const float fx = (at.x - presentRect.x) / presentRect.width * presentPixelsX;
+                const float fy = (at.y - presentRect.y) / presentRect.height * presentPixelsY;
+                const bool inside = IsWindowFocused() && presentRect.width > 0.0f && fx >= 0.0f && fy >= 0.0f &&
+                                    fx < presentPixelsX && fy < presentPixelsY;
+                ps2PadNoteMenuPointer(inside, fx, fy, inside && IsMouseButtonPressed(MOUSE_BUTTON_LEFT),
+                                      inside && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT), inside ? GetMouseWheelMove() : 0.0f);
+            }
+            const bool hold = hostSettings().mouse && IsWindowFocused() && !inMenu && !std::getenv("TS_TEST_HIDDEN");
             if (hold != cursorHeld)
             {
                 cursorHeld = hold;

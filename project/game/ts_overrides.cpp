@@ -681,8 +681,156 @@ namespace
     }
 #endif
 
+#if !defined(PLATFORM_XBOX)
+    // The front end's menu items as drawn (draw_menuitem(entry): the laid
+    // out entry's x at +0 and y at +2, its item at +0x10, whose id is at +8
+    // and flags at +10, 0x200 hidden), collected over a frame's drawing and
+    // used by the next menu tick for the mouse (menuMouse).
+    constexpr uint32_t kDrawMenuItem = 0x22D230u;
+    struct MenuRow
+    {
+        uint16_t id, flags;
+        int x, y;
+    };
+    std::vector<MenuRow> g_menuRows, g_menuRowsDrawn;
+
+    void traceMenuRows(const std::vector<MenuRow> &rows)
+    {
+        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
+        static size_t lastCount = 0;
+        static int lastY = -1;
+        if (!trace || rows.empty() || (rows.size() == lastCount && rows.front().y == lastY))
+            return;
+        lastCount = rows.size();
+        lastY = rows.front().y;
+        std::fprintf(stderr, "[TS:menu] rows");
+        for (const MenuRow &r : rows)
+            std::fprintf(stderr, " %u@%d,%d/%x", r.id, r.x, r.y, r.flags);
+        std::fprintf(stderr, "\n");
+    }
+
+    void drawMenuItemRecorded(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const uint32_t entry = GPR_U32(ctx, 4);
+        const uint32_t item = guestWord(rdram, entry + 0x10u);
+        if (item)
+        {
+            const uint16_t flags = guestHalf(rdram, item + 10u);
+            if (!(flags & 0x200u))
+                g_menuRowsDrawn.push_back({guestHalf(rdram, item + 8u), flags, static_cast<int16_t>(guestHalf(rdram, entry)),
+                                           static_cast<int16_t>(guestHalf(rdram, entry + 2u))});
+        }
+        draw_menuitem_0x22d230(rdram, ctx, runtime);
+    }
+
+    // The mouse in the front end's menus. Rows are those drawn last frame;
+    // the pointer comes in the game picture's pixels, and menu coordinates
+    // are those pixels across and half of them down (the GS field), so a
+    // row's text spans y .. y + 8. Moving the pointer onto a row highlights
+    // it (the page's highlighted id, a0 + 4; a still pointer leaves the pad
+    // and keyboard their way); a left click on it presses Cross, or on a
+    // value (flags 0x4: On/Off, a list, a slider) steps it to the next one;
+    // the wheel over a value steps it either way; a right click presses
+    // Triangle (back), as does a click on the page's back item (id 0x8000).
+    // The presses are the game's own input for that tick: the newly pressed
+    // buttons joyNewBut reads (Cross 0x40, Triangle 0x10; the pad record as
+    // exitGameChosen finds it) and the menu input's directions at
+    // *(gp-0x5FFC) + 12 (left 0x10, right 0x20) with their amount at + 16
+    // (menutick steps a value by amount >> 5: a pad's press is +-32), all
+    // put back after.
+    struct MenuPress
+    {
+        uint32_t buttonsAt = 0, buttonsWas = 0, directionsAt = 0, directionsWas = 0, amountWas = 0;
+    };
+
+    const MenuRow *menuRowAt(float x, float y)
+    {
+        const MenuRow *best = nullptr;
+        int bestDistance = 0;
+        for (const MenuRow &r : g_menuRows)
+        {
+            if (r.id == 0u || x < r.x - 12.0f || y < r.y - 2.0f || y > r.y + 9.0f)
+                continue;
+            const int distance = std::abs(static_cast<int>(y) - (r.y + 4));
+            if (!best || distance < bestDistance)
+            {
+                best = &r;
+                bestDistance = distance;
+            }
+        }
+        return best;
+    }
+
+    MenuPress menuMouse(uint8_t *rdram, R5900Context *ctx)
+    {
+        MenuPress press;
+        ps2PadNoteMenu();
+        const Ps2MenuPointer pointer = ps2PadTakeMenuPointer();
+        if (!hostSettings().mouse || !pointer.inside)
+            return press;
+        const uint32_t page = GPR_U32(ctx, 4);
+        const MenuRow *row = menuRowAt(pointer.x, pointer.y * 0.5f);
+        if (row && (pointer.moved || pointer.clicks || pointer.wheel))
+            guestHalf(rdram, page + 4u) = row->id;
+        uint32_t buttons = 0, directions = 0;
+        if (pointer.rightClicks)
+            buttons = 0x10u;
+        else if (row && pointer.clicks)
+        {
+            if (row->id == 0x8000u)
+                buttons = 0x10u;
+            else if (row->flags & 0x4u)
+                directions = 0x20u;
+            else
+                buttons = 0x40u;
+        }
+        else if (row && pointer.wheel && (row->flags & 0x4u))
+            directions = pointer.wheel > 0 ? 0x20u : 0x10u;
+        const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
+        if (!input)
+            return press;
+        if (buttons)
+        {
+            const uint32_t pad = guestWord(rdram, input);
+            const uint32_t record = pad <= 7u ? guestWord(rdram, 0x31DF68u + pad * 4u) : 8u;
+            if (record <= 7u)
+            {
+                press.buttonsAt = 0x31C740u + record * 0x180u + 0x124u;
+                press.buttonsWas = guestWord(rdram, press.buttonsAt);
+                guestWord(rdram, press.buttonsAt) = press.buttonsWas | buttons;
+            }
+        }
+        if (directions)
+        {
+            press.directionsAt = input + 12u;
+            press.directionsWas = guestWord(rdram, press.directionsAt);
+            press.amountWas = guestWord(rdram, input + 16u);
+            guestWord(rdram, press.directionsAt) = press.directionsWas | directions;
+            guestWord(rdram, input + 16u) = directions == 0x20u ? 32u : static_cast<uint32_t>(-32);
+        }
+        return press;
+    }
+
+    void menuMouseRelease(uint8_t *rdram, const MenuPress &press)
+    {
+        if (press.buttonsAt)
+            guestWord(rdram, press.buttonsAt) = press.buttonsWas;
+        if (press.directionsAt)
+        {
+            guestWord(rdram, press.directionsAt) = press.directionsWas;
+            guestWord(rdram, press.directionsAt + 4u) = press.amountWas;
+        }
+    }
+#endif
+
     void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+#if !defined(PLATFORM_XBOX)
+        g_menuRows.swap(g_menuRowsDrawn);
+        g_menuRowsDrawn.clear();
+        traceMenuRows(g_menuRows);
+        const MenuPress mousePress = menuMouse(rdram, ctx);
+#endif
 #if !defined(PLATFORM_XBOX)
         static const bool reworded = (applyGenericWording(rdram), true);
         (void)reworded;
@@ -714,6 +862,9 @@ namespace
         }
         const bool ours = useDisplayMenu(rdram, ctx);
         menutick_0x230238(rdram, ctx, runtime);
+#if !defined(PLATFORM_XBOX)
+        menuMouseRelease(rdram, mousePress);
+#endif
         if (ours)
             applyDisplayMenuToSettings(rdram);
     }
@@ -1564,6 +1715,7 @@ namespace
         runtime.replaceFunction(kChallengeAvail, &cheatChallengeAvail);
 #if !defined(PLATFORM_XBOX)
         runtime.replaceFunction(kStringeditTick, &typedStringeditTick);
+        runtime.replaceFunction(kDrawMenuItem, &drawMenuItemRecorded);
 #endif
         if (const char *menu = std::getenv("TS_DISPLAY_MENU"); !(menu && *menu == '0'))
         {

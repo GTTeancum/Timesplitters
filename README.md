@@ -111,7 +111,10 @@ player 2, and so on, so the four players can be any mix (three controllers
 and the keyboard, say). A controller that is unplugged frees its player's
 place. Moving the mouse looks around (the right stick); the left button is
 R1 (fire), the right L1, the middle R2. The pointer stays in the window while
-it has focus. Names (Sign On, the map maker) can be typed straight on the
+it has focus. In the front end's menus the pointer is free: pointing at an
+item highlights it, a left click chooses it (or steps an option such as On /
+Off to its next value), the wheel steps an option either way, and a right
+click goes back. (The pause menu during play still takes keys and the pad.) Names (Sign On, the map maker) can be typed straight on the
 keyboard, Backspace and Enter included. The game's button prompts show the
 buttons of the device used last: an Xbox controller's A, B, X, Y, Back, LB
 and LT, or the keys. The game's Audio / Video Options page switches the mouse

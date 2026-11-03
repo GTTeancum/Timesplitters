@@ -29,3 +29,23 @@ int ps2PadKeyboardLane();
 // keyboard; the device used last, or a controller while none has been and
 // one is plugged in. 0 on the Xbox (its own disc glyphs).
 int ps2PadButtonSet();
+
+// The mouse in the game's front-end menus (PC). The menu tick hook
+// (project/game/ts_overrides.cpp) calls ps2PadNoteMenu every tick a menu
+// runs: for a moment after, the pointer is free (not held for mouse look)
+// and the mouse drives no pad input. The window thread hands over, once a
+// window frame, where the pointer is over the game's picture, in its pixels
+// (inside false off it), and the clicks and wheel since; the menu tick takes
+// them with ps2PadTakeMenuPointer.
+struct Ps2MenuPointer
+{
+    bool inside = false;
+    bool moved = false;   // since the last take
+    float x = 0.0f, y = 0.0f;
+    int clicks = 0, rightClicks = 0;
+    int wheel = 0;        // notches, up positive
+};
+void ps2PadNoteMenu();
+bool ps2PadMenuActive();
+void ps2PadNoteMenuPointer(bool inside, float x, float y, bool click, bool rightClick, float wheel);
+Ps2MenuPointer ps2PadTakeMenuPointer();

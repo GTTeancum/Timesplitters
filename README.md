@@ -42,7 +42,9 @@ here at half size) and one capture of its TV output.
 - PC: any window size or borderless fullscreen, 16:9 widescreen (the game
   shows a wider view; the HUD keeps its proportions), rendering at up to 4x
   the PS2 resolution, FXAA edge smoothing, and texture replacement from PNG
-  files. All of it is set from the game's own Audio / Video Options menu or
+  files. The game's five UI fonts are redrawn at high resolution from Jost
+  (each matched to its original's sizes and weight), so text stays sharp at
+  any scale. All of it is set from the game's own Audio / Video Options menu or
   from `timesplitters.ini`.
 - Xbox: runs from the hard disk of a modded original Xbox, draws with the
   NV2A GPU, shows the Xbox controller's buttons in the game's prompts, and
@@ -109,12 +111,18 @@ controllers. Each player is the device they first press something on:
 player 1 is whichever device is used first, the next device used becomes
 player 2, and so on, so the four players can be any mix (three controllers
 and the keyboard, say). A controller that is unplugged frees its player's
-place. Moving the mouse looks around (the right stick); the left button is
-R1 (fire), the right L1, the middle R2. The pointer stays in the window while
-it has focus. In the front end's menus the pointer is free: pointing at an
-item highlights it, a left click chooses it (or steps an option such as On /
-Off to its next value), the wheel steps an option either way, and a right
-click goes back. (The pause menu during play still takes keys and the pad.) Names (Sign On, the map maker) can be typed straight on the
+place. Moving the mouse turns and tilts the view directly (by distance, not
+at a stick's rate; Mouse speed sets how far); the left button is R1 (fire),
+the right L1, the middle R2. The pointer stays in the window while
+it has focus. In the menus (the front end and the pause screen) the pointer
+is free: pointing at an item highlights it, a left click chooses it (or steps
+an option such as On / Off to its next value), the wheel steps an option
+either way, and a right click goes back. The mouse alone can start the game:
+a click on 1up signs the keyboard and mouse in as player 1. Any click, key or
+button skips the logo's fly-in at the title. Every button prompt (the
+button picture and its words: "Enter OK", "Esc Cancel", "Enter Add") is
+clickable and presses its button. Names (Sign On, the map maker)
+can be typed straight on the
 keyboard, Backspace and Enter included. The game's button prompts show the
 buttons of the device used last: an Xbox controller's A, B, X, Y, Back, LB
 and LT, or the keys. The game's Audio / Video Options page switches the mouse
@@ -130,18 +138,19 @@ The keyboard:
 | Right stick (look) | I, J, K, L |
 | D-pad | Arrow keys |
 | Cross (accept) | Enter |
-| Triangle (back, cancel) | Esc |
+| Triangle (back, cancel) | Esc (in menus) |
 | Circle | C |
 | Square | Z |
 | L1 / R1 | Q / E |
 | L2 / R2 | Left Shift / Right Shift |
-| Start (pause) | P |
+| Start (pause) | P, or Esc during play |
 | Select | Tab |
 
 While playing on the PC: F9 toggles FXAA, F10 widescreen, F11 fullscreen;
-Alt+F4, Exit Game (on the Select Game Type page: choose it twice within
-three seconds; in the pause screen's SETUP tab: then Confirm), or holding
-Select + Start for two seconds quits. The default settings (`timesplitters.ini`) are a 1920x1080 window,
+Alt+F4, Esc on the title screen (then Exit), Exit Game (on the Select Game
+Type page: choose it twice within five seconds; in the pause screen's SETUP
+tab: then Confirm), or holding Select + Start for two seconds quits.
+Fullscreen is borderless and Alt+Tab switches away from it. The default settings (`timesplitters.ini`) are a 1920x1080 window,
 widescreen, FXAA and 4x render scale.
 
 ## Known issues
@@ -197,5 +206,7 @@ General Public License version 3 (`source/PS2Recomp/LICENSE`); this
 repository's own code is distributed under the same terms. The Xbox build
 uses nxdk (the Xbox Development Kit by XboxDev), whose components are under
 the MIT, Apache 2.0, NCSA, CC0 and NVIDIA Cg licences, and PC builds use
-raylib (zlib licence). There is no separate licence file at the top of this
+raylib (zlib licence). The PC build's redrawn UI fonts are drawn from Jost
+by the Jost Project Authors, under the SIL Open Font License 1.1
+(`tools/fonts/Jost-OFL.txt`). There is no separate licence file at the top of this
 repository.

@@ -241,13 +241,63 @@ namespace
         return steadyMs() < g_textEntryUntil.load(std::memory_order_relaxed);
     }
 
-    // The mouse on player 1's pad: its movement since the last read as the
-    // right stick, its buttons as R1 (left: fire), L1 (right), R2 (middle).
-    // A stick deflection turns the view at a rate, so a read's movement
-    // deflects the stick in proportion (a mouse at rest: the stick centred,
-    // the view still), starting past the game's own dead zone so slow
-    // movements turn too. A stick the mouse does not move keeps its value.
+    // The mouse on its player's pad: its buttons as R1 (left: fire), L1
+    // (right), R2 (middle). Its movement turns the view directly (the
+    // playerTick hook in project/game/ts_overrides.cpp takes it with
+    // ps2PadTakeMouseLook), not through the stick: a stick turns at a rate,
+    // which made the mouse step.
     std::atomic<int64_t> g_menuUntil{0};
+    std::atomic<bool> g_testClick{false}; // a TS_TEST_MENU_MOUSE click, as a mouse button press
+    // The menu presses the mouse made (ps2PadQueueMenuPress), in turn: each
+    // one's pad buttons held down for two reads of the keyboard and mouse
+    // device, then one read up, so two clicks are two presses however soon
+    // the second comes.
+    std::mutex g_menuPressMutex;
+    std::deque<uint16_t> g_menuPresses;
+    uint16_t g_menuPressNow = 0;
+    int g_menuPressReads = 0; // > 0: reads it stays down; < 0: the read up after
+
+    uint16_t menuPressThisRead()
+    {
+        std::lock_guard<std::mutex> lock(g_menuPressMutex);
+        if (g_menuPressReads > 0)
+        {
+            if (--g_menuPressReads == 0)
+                g_menuPressReads = -1;
+            return g_menuPressNow;
+        }
+        if (g_menuPressReads < 0)
+        {
+            g_menuPressReads = 0;
+            return 0;
+        }
+        if (g_menuPresses.empty())
+            return 0;
+        g_menuPressNow = g_menuPresses.front();
+        g_menuPresses.pop_front();
+        g_menuPressReads = 1;
+        return g_menuPressNow;
+    }
+    std::atomic<uint32_t> g_clicks{0}; // mouse button presses so far (ps2PadClickCount)
+    std::atomic<int (*)(float, float)> g_promptLookup{nullptr};
+
+    // A left click at (x, y), in 640 x 448 game pixels, on a button prompt:
+    // its button is pressed and true returned.
+    bool clickedPrompt(float x, float y)
+    {
+        const auto lookup = g_promptLookup.load(std::memory_order_relaxed);
+        const int press = lookup ? lookup(x / 640.0f, y / 448.0f) : -1;
+        if (press < 0)
+            return false;
+        ps2PadQueueMenuPress(static_cast<Ps2MenuPress>(press));
+        if (std::getenv("TS_TRACE_MENUS"))
+            std::fprintf(stderr, "[TS:menu-mouse] click at %.0f,%.0f on a prompt: press %d\n", x, y, press);
+        return true;
+    }
+    // TS_PAD_SCRIPT_KEYBOARD: the script frame the keyboard device plays
+    // (buttons low, high; sticks rx, ry, lx, ly).
+    uint8_t g_keyboardScript[6] = {0xFF, 0xFF, kPadStickCenter, kPadStickCenter, kPadStickCenter, kPadStickCenter};
+    std::atomic<bool> g_keyboardScriptSet{false};
 
     void applyMouse(uint8_t *data, uint16_t &buttons)
     {
@@ -260,26 +310,7 @@ namespace
             g_mouseDx = g_mouseDy = 0.0f;
             return;
         }
-        float dx, dy;
-        {
-            std::lock_guard<std::mutex> lock(g_mouseMutex);
-            dx = g_mouseDx;
-            dy = g_mouseDy;
-            g_mouseDx = g_mouseDy = 0.0f;
-        }
-        constexpr float kPixelsForFull = 24.0f; // at sensitivity 1: pixels a read for a full deflection
-        constexpr float kDeadZone = 0.2f;
-        auto deflect = [](float pixels)
-        {
-            if (pixels == 0.0f)
-                return 0.0f;
-            const float amount = std::min(std::abs(pixels) * hostSettings().mouseSensitivity / kPixelsForFull, 1.0f);
-            return std::copysign(kDeadZone + (1.0f - kDeadZone) * amount, pixels);
-        };
-        if (dx != 0.0f)
-            data[4] = PSPadBackend::analogAxisFromUnit(deflect(dx));
-        if (dy != 0.0f)
-            data[5] = PSPadBackend::analogAxisFromUnit(deflect(dy));
+        (void)data;
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
             clearButton(buttons, PAD_R1);
         if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
@@ -358,6 +389,7 @@ namespace
         bool present = false;
         uint16_t buttons = 0xFFFFu;
         uint8_t sticks[4] = {kPadStickCenter, kPadStickCenter, kPadStickCenter, kPadStickCenter};
+        bool clicked = false; // a mouse button (the keyboard and mouse device): counts as using it
     };
 
     std::mutex g_laneMutex;
@@ -370,18 +402,44 @@ namespace
     DeviceRead g_deviceRead[kDeviceCount];
     std::atomic<int> g_lastActiveDevice{-1};
 
-    bool deviceActive(const DeviceRead &read)
+    // Where each device's sticks rest (their first reading while present):
+    // a device counts as used by a button, or by a stick moved from there,
+    // so one whose axis rests away from the centre (a throttle, a trigger
+    // read as a stick, a drifting stick) does not take a player's place.
+    struct StickRest
     {
-        if (read.buttons != 0xFFFFu)
+        bool known = false;
+        uint8_t sticks[4] = {};
+    };
+    StickRest g_stickRest[kDeviceCount];
+
+    bool deviceActive(int device, const DeviceRead &read)
+    {
+        StickRest &rest = g_stickRest[device];
+        if (!read.present)
+        {
+            rest.known = false;
+            return false;
+        }
+        if (!rest.known)
+        {
+            rest.known = true;
+            std::memcpy(rest.sticks, read.sticks, 4);
+        }
+        if (read.buttons != 0xFFFFu || read.clicked)
             return true;
-        for (uint8_t stick : read.sticks)
-            if (std::abs(static_cast<int>(stick) - kPadStickCenter) > kStickActive)
+        for (int i = 0; i < 4; ++i)
+            if (std::abs(static_cast<int>(read.sticks[i]) - rest.sticks[i]) > kStickActive)
                 return true;
         return false;
     }
 
     void readControllerDevice(int index, DeviceRead &read)
     {
+        // TS_TEST_NO_CONTROLLERS=1 (tests): the PC's real controllers are not read.
+        static const bool ignored = [] { const char *v = std::getenv("TS_TEST_NO_CONTROLLERS"); return v && *v == '1'; }();
+        if (ignored)
+            return;
         uint8_t data[8];
         data[4] = data[5] = data[6] = data[7] = kPadStickCenter;
         uint16_t buttons = 0xFFFFu;
@@ -428,6 +486,25 @@ namespace
         if (!IsWindowReady())
             return;
         uint16_t &buttons = read.buttons;
+        // A click in the menus presses no pad button (the menu tick hook
+        // reads the pointer) but still signs the keyboard and mouse in as a
+        // player, so a mouse alone can start the game.
+        read.clicked = g_testClick.exchange(false, std::memory_order_relaxed) ||
+                       (hostSettings().mouse && (IsMouseButtonDown(MOUSE_BUTTON_LEFT) ||
+                                                 IsMouseButtonDown(MOUSE_BUTTON_RIGHT)));
+        static bool wasClicked = false;
+        if (read.clicked && !wasClicked)
+            g_clicks.fetch_add(1u, std::memory_order_relaxed);
+        wasClicked = read.clicked;
+        buttons &= static_cast<uint16_t>(~menuPressThisRead());
+        if (g_keyboardScriptSet.load(std::memory_order_relaxed))
+        {
+            buttons &= static_cast<uint16_t>(g_keyboardScript[0] | (g_keyboardScript[1] << 8));
+            for (int i = 0; i < 4; ++i)
+                if (g_keyboardScript[2 + i] != kPadStickCenter)
+                    read.sticks[i] = g_keyboardScript[2 + i];
+            read.clicked = read.clicked || buttons != 0xFFFFu;
+        }
         if (IsKeyDown(KEY_UP) || (!analogSticks && IsKeyDown(KEY_W)))
             clearButton(buttons, PAD_UP);
         if (IsKeyDown(KEY_DOWN) || (!analogSticks && IsKeyDown(KEY_S)))
@@ -460,15 +537,18 @@ namespace
             data[5] = PSPadBackend::keyboardAxis(IsKeyDown(KEY_I), IsKeyDown(KEY_K));
         }
         applyMouse(data, buttons);
+        for (int i = 0; i < 4; ++i)
+            if (read.sticks[i] != kPadStickCenter && data[4 + i] == kPadStickCenter)
+                data[4 + i] = read.sticks[i]; // (a scripted stick, above)
         std::memcpy(read.sticks, data + 4, 4);
         static const struct
         {
             KeyboardKey key, alternate;
             uint16_t pad;
         } kKeys[] = {
-            // Enter accepts and Esc goes back (the game's Cross and
-            // Triangle in every menu); P pauses (Start).
-            {KEY_ENTER, KEY_KP_ENTER, PAD_CROSS}, {KEY_ESCAPE, KEY_NULL, PAD_TRIANGLE}, {KEY_C, KEY_NULL, PAD_CIRCLE},
+            // Enter accepts (the game's Cross in every menu); P pauses
+            // (Start). Esc: below.
+            {KEY_ENTER, KEY_KP_ENTER, PAD_CROSS}, {KEY_C, KEY_NULL, PAD_CIRCLE},
             {KEY_Z, KEY_NULL, PAD_SQUARE},        {KEY_Q, KEY_NULL, PAD_L1},             {KEY_E, KEY_NULL, PAD_R1},
             {KEY_LEFT_SHIFT, KEY_NULL, PAD_L2},   {KEY_RIGHT_SHIFT, KEY_NULL, PAD_R2},
             {KEY_P, KEY_NULL, PAD_START},         {KEY_TAB, KEY_NULL, PAD_SELECT},
@@ -476,6 +556,16 @@ namespace
         for (const auto &k : kKeys)
             if (IsKeyDown(k.key) || (k.alternate != KEY_NULL && IsKeyDown(k.alternate)))
                 clearButton(buttons, k.pad);
+        // Esc goes back in a menu (Triangle) and pauses during play (Start),
+        // decided when it goes down: held, it stays the button it began as
+        // (so the pause menu it opens does not take it as back).
+        static uint16_t escButton = 0;
+        if (!IsKeyDown(KEY_ESCAPE))
+            escButton = 0;
+        else if (!escButton)
+            escButton = steadyMs() < g_menuUntil.load(std::memory_order_relaxed) ? PAD_TRIANGLE : PAD_START;
+        if (escButton)
+            clearButton(buttons, escButton);
     }
 
     int laneOfDeviceLocked(int device)
@@ -510,7 +600,7 @@ namespace
         }
         for (int device = 0; device < kDeviceCount; ++device)
         {
-            if (!deviceActive(g_deviceRead[device]))
+            if (!deviceActive(device, g_deviceRead[device]))
                 continue;
             g_lastActiveDevice.store(device, std::memory_order_relaxed);
             if (laneOfDeviceLocked(device) >= 0)
@@ -520,10 +610,19 @@ namespace
                 if (g_laneDevice[lane] < 0)
                 {
                     g_laneDevice[lane] = device;
+                    const char *name = device != kKeyboardDevice && IsWindowReady() ? GetGamepadName(device - 1) : nullptr;
                     std::cout << "[pad:lanes] player " << lane + 1 << " plays on "
                               << (device == kKeyboardDevice ? std::string("the keyboard and mouse")
                                                             : "controller " + std::to_string(device))
-                              << '\n';
+                              << (name && *name ? std::string(" (") + name + ")" : std::string()) << '\n';
+                    if (device != kKeyboardDevice)
+                    {
+                        const DeviceRead &r = g_deviceRead[device];
+                        const StickRest &rest = g_stickRest[device];
+                        std::fprintf(stderr, "[pad:lanes] (buttons %04x, sticks %u %u %u %u resting at %u %u %u %u)\n",
+                                     r.buttons, r.sticks[0], r.sticks[1], r.sticks[2], r.sticks[3], rest.sticks[0],
+                                     rest.sticks[1], rest.sticks[2], rest.sticks[3]);
+                    }
                     break;
                 }
             }
@@ -959,8 +1058,15 @@ void ps2PadNoteTypedKeys()
 #if !defined(PLATFORM_XBOX)
     const bool active = textEntryActive();
     std::lock_guard<std::mutex> lock(g_typedMutex);
-    if (!active)
+    // What was typed and not yet taken goes only once the text entry has
+    // been gone a while: a slow frame (a hitch longer than the moment
+    // textEntryActive lasts) must not lose the letters typed meanwhile.
+    static int64_t activeAt = 0;
+    if (active)
+        activeAt = steadyMs();
+    else if (steadyMs() - activeAt > 1500)
         g_typed.clear();
+    const bool entering = steadyMs() - activeAt <= 1500;
     // TS_TEST_TYPED=<text> (tests): typed into the first text entry, '|'
     // as Enter.
     static const char *testTyped = std::getenv("TS_TEST_TYPED");
@@ -974,10 +1080,10 @@ void ps2PadNoteTypedKeys()
     // entry they are read and dropped, so none wait for the next name.
     for (int c = GetCharPressed(); c != 0; c = GetCharPressed())
     {
-        if (active && c >= 32 && c < 127)
+        if (entering && c >= 32 && c < 127)
             g_typed.push_back(c);
     }
-    if (active)
+    if (entering)
     {
         if (IsKeyPressed(KEY_BACKSPACE) || IsKeyPressedRepeat(KEY_BACKSPACE))
             g_typed.push_back('\b');
@@ -992,13 +1098,96 @@ namespace
 #if !defined(PLATFORM_XBOX)
     std::mutex g_menuPointerMutex;
     Ps2MenuPointer g_menuPointer;
+    int64_t g_menuPointerPressedAt = 0; // when its last click, right click or wheel notch came
 #endif
 }
 
 void ps2PadNoteMenu()
 {
 #if !defined(PLATFORM_XBOX)
-    g_menuUntil.store(steadyMs() + 250, std::memory_order_relaxed);
+    g_menuUntil.store(steadyMs() + 500, std::memory_order_relaxed);
+#endif
+}
+
+bool ps2PadTakeMouseLook(float &dx, float &dy)
+{
+#if !defined(PLATFORM_XBOX)
+    dx = dy = 0.0f;
+    if (!hostSettings().mouse || steadyMs() < g_menuUntil.load(std::memory_order_relaxed))
+        return false;
+    {
+        std::lock_guard<std::mutex> lock(g_mouseMutex);
+        dx = g_mouseDx;
+        dy = g_mouseDy;
+        g_mouseDx = g_mouseDy = 0.0f;
+    }
+    // TS_TEST_MOUSE_LOOK="dx dy" (tests): that movement every take.
+    static const std::pair<float, float> test = [] {
+        std::pair<float, float> v{0.0f, 0.0f};
+        if (const char *e = std::getenv("TS_TEST_MOUSE_LOOK"))
+            std::sscanf(e, "%f %f", &v.first, &v.second);
+        return v;
+    }();
+    dx = (dx + test.first) * hostSettings().mouseSensitivity;
+    dy = (dy + test.second) * hostSettings().mouseSensitivity;
+    return true;
+#else
+    dx = dy = 0.0f;
+    return false;
+#endif
+}
+
+uint32_t ps2PadClickCount()
+{
+#if !defined(PLATFORM_XBOX)
+    return g_clicks.load(std::memory_order_relaxed);
+#else
+    return 0u;
+#endif
+}
+
+int ps2PadPromptAt(float x, float y)
+{
+#if !defined(PLATFORM_XBOX)
+    const auto lookup = g_promptLookup.load(std::memory_order_relaxed);
+    return lookup ? lookup(x / 640.0f, y / 448.0f) : -1;
+#else
+    (void)x, (void)y;
+    return -1;
+#endif
+}
+
+void ps2PadSetPromptLookup(int (*lookup)(float x, float y))
+{
+#if !defined(PLATFORM_XBOX)
+    g_promptLookup.store(lookup, std::memory_order_relaxed);
+#else
+    (void)lookup;
+#endif
+}
+
+void ps2PadQueueMenuPress(Ps2MenuPress press)
+{
+#if !defined(PLATFORM_XBOX)
+    uint16_t buttons = PAD_CROSS;
+    switch (press)
+    {
+    case Ps2MenuPress::Accept: buttons = PAD_CROSS; break;
+    case Ps2MenuPress::Back: buttons = PAD_TRIANGLE; break;
+    case Ps2MenuPress::Next: buttons = PAD_RIGHT; break;
+    case Ps2MenuPress::Previous: buttons = PAD_LEFT; break;
+    case Ps2MenuPress::Circle: buttons = PAD_CIRCLE; break;
+    case Ps2MenuPress::Square: buttons = PAD_SQUARE; break;
+    case Ps2MenuPress::Select: buttons = PAD_SELECT; break;
+    case Ps2MenuPress::L1: buttons = PAD_L1; break;
+    case Ps2MenuPress::L2: buttons = PAD_L2; break;
+    case Ps2MenuPress::Start: buttons = PAD_START; break;
+    }
+    std::lock_guard<std::mutex> lock(g_menuPressMutex);
+    if (g_menuPresses.size() < 8u)
+        g_menuPresses.push_back(buttons);
+#else
+    (void)press;
 #endif
 }
 
@@ -1021,9 +1210,13 @@ void ps2PadNoteMenuPointer(bool inside, float x, float y, bool click, bool right
     p.inside = inside;
     p.x = x;
     p.y = y;
-    p.clicks += click ? 1 : 0;
+    p.clicks += click && !clickedPrompt(x, y) ? 1 : 0;
+    if (click)
+        g_testClick.store(true, std::memory_order_relaxed); // (a click signs the keyboard and mouse in)
     p.rightClicks += rightClick ? 1 : 0;
     p.wheel += wheel > 0.0f ? 1 : wheel < 0.0f ? -1 : 0;
+    if (click || rightClick || wheel != 0.0f)
+        g_menuPointerPressedAt = steadyMs();
 #else
     (void)inside, (void)x, (void)y, (void)click, (void)rightClick, (void)wheel;
 #endif
@@ -1062,7 +1255,9 @@ Ps2MenuPointer ps2PadTakeMenuPointer()
             taken.moved = x != at.x || y != at.y || kind == 'h';
             at.x = taken.x = x;
             at.y = taken.y = y;
-            taken.clicks = kind == 'c';
+            taken.clicks = kind == 'c' && !clickedPrompt(x, y);
+            if (kind == 'c' || kind == 'r')
+                g_testClick.store(true, std::memory_order_relaxed);
             taken.rightClicks = kind == 'r';
             taken.wheel = kind == 'u' ? 1 : kind == 'd' ? -1 : 0;
             std::fprintf(stderr, "[TS:menu-mouse] step %c %.0f,%.0f\n", kind, x, y);
@@ -1071,6 +1266,10 @@ Ps2MenuPointer ps2PadTakeMenuPointer()
     }
     std::lock_guard<std::mutex> lock(g_menuPointerMutex);
     Ps2MenuPointer taken = g_menuPointer;
+    // A click no menu took within a quarter second (made on a loading
+    // screen or a box with no rows) is dropped, not played on the next menu.
+    if (steadyMs() - g_menuPointerPressedAt > 250)
+        taken.clicks = taken.rightClicks = taken.wheel = 0;
     g_menuPointer.moved = false;
     g_menuPointer.clicks = g_menuPointer.rightClicks = g_menuPointer.wheel = 0;
     return taken;
@@ -1153,100 +1352,128 @@ bool PSPadBackend::readState(int port, int slot, uint8_t *data, size_t size)
     data[4] = data[5] = data[6] = data[7] = kPadStickCenter;
 
     uint16_t btns = 0xFFFFu;
-    auto writeScriptLane = [data](const ScriptLane &lane)
+    // TS_PAD_SCRIPT_KEYBOARD=1 (PC tests): the script's lane 0 plays as the
+    // keyboard and mouse device instead (its buttons and sticks, through the
+    // players' device locking and the live reads below), so the keyboard's
+    // own path is what is tested.
+#if !defined(PLATFORM_XBOX)
+    static const bool scriptAsKeyboard = [] { const char *v = std::getenv("TS_PAD_SCRIPT_KEYBOARD"); return v && *v == '1'; }();
+#else
+    constexpr bool scriptAsKeyboard = false;
+#endif
+    uint8_t scratch[8] = {0, 0, 0xFF, 0xFF, kPadStickCenter, kPadStickCenter, kPadStickCenter, kPadStickCenter};
+    uint8_t *out = scriptAsKeyboard ? scratch : data;
+    auto writeScriptLane = [&out](const ScriptLane &lane)
     {
-        data[2] = static_cast<uint8_t>(lane.buttons & 0xFFu);
-        data[3] = static_cast<uint8_t>(lane.buttons >> 8);
-        data[4] = lane.rx;
-        data[5] = lane.ry;
-        data[6] = lane.lx;
-        data[7] = lane.ly;
+        out[2] = static_cast<uint8_t>(lane.buttons & 0xFFu);
+        out[3] = static_cast<uint8_t>(lane.buttons >> 8);
+        out[4] = lane.rx;
+        out[5] = lane.ry;
+        out[6] = lane.lx;
+        out[7] = lane.ly;
     };
     // Lane 0 plays the script and moves it on; it notes the frame it played
     // so the other lanes, read after it in the same game frame, play the
     // same one (or nothing while lane 0 waits).
-    auto writeScriptFrame = [this, &writeScriptLane](size_t index)
+    // (A scripted run's menu mouse, TS_TEST_MENU_MOUSE, presses on lane 0:
+    // the keyboard and mouse are no player's while a script plays.)
+    auto writeScriptFrame = [this, &writeScriptLane, &out](size_t index)
     {
         writeScriptLane(m_script[index].lanes[0]);
         m_scriptLaneFrame = static_cast<uint32_t>(index + 1);
+#if !defined(PLATFORM_XBOX)
+        if (const uint16_t press = scriptAsKeyboard ? 0 : menuPressThisRead()) // (TS_PAD_SCRIPT_KEYBOARD: the device's own read)
+        {
+            out[2] &= static_cast<uint8_t>(~press & 0xFFu);
+            out[3] &= static_cast<uint8_t>((~press >> 8) & 0xFFu);
+        }
+#endif
     };
     const int lane = laneForPort(port, slot);
     if (!m_script.empty() && lane == 0)
     {
-        ++m_scriptReadCount;
-        m_scriptLaneFrame = 0;
-        if (m_scriptTimed)
-        {
-            const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - m_scriptStartTime).count() / m_scriptTimeScale;
-            if (elapsed >= m_script.front().atSeconds)
+        [&] {
+            ++m_scriptReadCount;
+            m_scriptLaneFrame = 0;
+            if (m_scriptTimed)
             {
-                while (m_scriptIndex + 1 < m_script.size() && elapsed >= m_script[m_scriptIndex + 1].atSeconds)
+                const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - m_scriptStartTime).count() / m_scriptTimeScale;
+                if (elapsed >= m_script.front().atSeconds)
+                {
+                    while (m_scriptIndex + 1 < m_script.size() && elapsed >= m_script[m_scriptIndex + 1].atSeconds)
+                    {
+                        ++m_scriptIndex;
+                    }
+                    writeScriptFrame(m_scriptIndex);
+                    m_scriptExhausted = m_scriptIndex + 1 >= m_script.size();
+                }
+                return;
+            }
+
+            // Waits and repeat ends take no read of their own.
+            while (m_scriptIndex < m_script.size() && m_script[m_scriptIndex].kind != ScriptFrame::Kind::Frame)
+            {
+                ScriptFrame &control = m_script[m_scriptIndex];
+                if (control.kind == ScriptFrame::Kind::Repeat)
+                {
+                    // Back to the block's first frame while passes remain (the
+                    // block holds a frame line, so this ends at a read).
+                    if (control.reads != 0u)
+                    {
+                        --control.reads;
+                        m_scriptIndex = control.waitAddress;
+                    }
+                    else
+                    {
+                        control.reads = control.waitValue;
+                        ++m_scriptIndex;
+                    }
+                    m_scriptFrameRead = 0;
+                    continue;
+                }
+                if (!m_scriptU32Reader || !compareU32(m_scriptU32Reader(control.waitAddress), control.waitCompare, control.waitValue))
+                {
+                    return;
+                }
+                ++m_scriptIndex;
+                m_scriptFrameRead = 0;
+            }
+
+            if (m_scriptIndex >= m_script.size())
+            {
+                m_scriptExhausted = true;
+                return;
+            }
+
+            const ScriptFrame &frame = m_script[m_scriptIndex];
+            writeScriptFrame(m_scriptIndex);
+            if (!m_scriptExhausted && ++m_scriptFrameRead >= frame.reads)
+            {
+                m_scriptFrameRead = 0;
+                if (m_scriptIndex + 1 < m_script.size())
                 {
                     ++m_scriptIndex;
-                }
-                writeScriptFrame(m_scriptIndex);
-                m_scriptExhausted = m_scriptIndex + 1 >= m_script.size();
-            }
-            return true;
-        }
-
-        // Waits and repeat ends take no read of their own.
-        while (m_scriptIndex < m_script.size() && m_script[m_scriptIndex].kind != ScriptFrame::Kind::Frame)
-        {
-            ScriptFrame &control = m_script[m_scriptIndex];
-            if (control.kind == ScriptFrame::Kind::Repeat)
-            {
-                // Back to the block's first frame while passes remain (the
-                // block holds a frame line, so this ends at a read).
-                if (control.reads != 0u)
-                {
-                    --control.reads;
-                    m_scriptIndex = control.waitAddress;
                 }
                 else
                 {
-                    control.reads = control.waitValue;
-                    ++m_scriptIndex;
+                    m_scriptExhausted = true;
                 }
-                m_scriptFrameRead = 0;
-                continue;
             }
-            if (!m_scriptU32Reader || !compareU32(m_scriptU32Reader(control.waitAddress), control.waitCompare, control.waitValue))
-            {
-                return true;
-            }
-            ++m_scriptIndex;
-            m_scriptFrameRead = 0;
-        }
-
-        if (m_scriptIndex >= m_script.size())
-        {
-            m_scriptExhausted = true;
+            return;
+        }();
+        if (!scriptAsKeyboard)
             return true;
-        }
-
-        const ScriptFrame &frame = m_script[m_scriptIndex];
-        writeScriptFrame(m_scriptIndex);
-        if (!m_scriptExhausted && ++m_scriptFrameRead >= frame.reads)
-        {
-            m_scriptFrameRead = 0;
-            if (m_scriptIndex + 1 < m_script.size())
-            {
-                ++m_scriptIndex;
-            }
-            else
-            {
-                m_scriptExhausted = true;
-            }
-        }
-        return true;
+#if !defined(PLATFORM_XBOX)
+        std::memcpy(g_keyboardScript, scratch + 2, 6);
+        g_keyboardScriptSet.store(true, std::memory_order_relaxed);
+#endif
     }
     if (lane < 0)
     {
         // No controller behind this handle (Pad.cpp keeps it disconnected).
         return true;
     }
-    if (!m_script.empty())
+    if (!m_script.empty() && !scriptAsKeyboard)
     {
         // Lanes 1-3 play the frame lane 0 played (connected only when the
         // script has them).

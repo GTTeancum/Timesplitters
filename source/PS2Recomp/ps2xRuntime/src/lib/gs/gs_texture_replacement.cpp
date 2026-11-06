@@ -175,6 +175,118 @@ namespace gs_texture_replacement
         return buttonHashes().count(hash) != 0;
     }
 
+    std::unordered_map<uint64_t, int> &buttonPresses()
+    {
+        static std::unordered_map<uint64_t, int> presses;
+        return presses;
+    }
+
+    struct FontImage
+    {
+        uint64_t areaHash;
+        uint32_t width, height;
+        const unsigned char *png;
+        size_t size;
+    };
+    std::vector<FontImage> &fontImages()
+    {
+        static std::vector<FontImage> images;
+        return images;
+    }
+
+    void addFontImage(uint64_t areaHash, uint32_t areaWidth, uint32_t areaHeight, const unsigned char *png, size_t size)
+    {
+        fontImages().push_back({areaHash, areaWidth, areaHeight, png, size});
+    }
+
+    bool fontTexture(const uint32_t *texels, uint32_t width, uint32_t height, std::vector<uint32_t> &out, int &outWidth,
+                     int &outHeight, uint64_t &areaHash)
+    {
+        std::vector<uint32_t> area;
+        for (const FontImage &font : fontImages())
+        {
+            if (font.width > width || font.height > height)
+                continue;
+            area.resize(size_t(font.width) * font.height);
+            for (uint32_t y = 0; y < font.height; ++y)
+                std::memcpy(area.data() + size_t(y) * font.width, texels + size_t(y) * width, font.width * sizeof(uint32_t));
+            if (hash(area.data(), font.width, font.height) != font.areaHash)
+                continue;
+            Image image = LoadImageFromMemory(".png", font.png, static_cast<int>(font.size));
+            if (!image.data)
+                return false;
+            ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+            const uint32_t sx = std::max<uint32_t>(1u, uint32_t(image.width) / font.width);
+            const uint32_t sy = std::max<uint32_t>(1u, uint32_t(image.height) / font.height);
+            outWidth = int(width * sx);
+            outHeight = int(height * sy);
+            out.resize(size_t(outWidth) * outHeight);
+            const uint32_t *drawn = static_cast<const uint32_t *>(image.data);
+            for (uint32_t y = 0; y < uint32_t(outHeight); ++y)
+                for (uint32_t x = 0; x < uint32_t(outWidth); ++x)
+                {
+                    uint32_t texel = texels[size_t(y / sy) * width + x / sx];
+                    if (x < uint32_t(image.width) && y < uint32_t(image.height))
+                    {
+                        const uint32_t d = drawn[size_t(y) * image.width + x];
+                        if ((d & 0xFFu) == 0xFFu) // PNG alpha 0..255 -> GS 0..128
+                            texel = 0x00FFFFFFu | ((((d >> 24) + 1u) / 2u) << 24);
+                    }
+                    out[size_t(y) * outWidth + x] = texel;
+                }
+            UnloadImage(image);
+            areaHash = font.areaHash;
+            return true;
+        }
+        return false;
+    }
+
+    struct ButtonArea
+    {
+        uint64_t areaHash;
+        uint32_t width, height;
+        uint64_t buttonHash;
+    };
+    std::vector<ButtonArea> &buttonAreas()
+    {
+        static std::vector<ButtonArea> areas;
+        return areas;
+    }
+
+    void addButtonArea(uint64_t areaHash, uint32_t areaWidth, uint32_t areaHeight, uint64_t buttonHash)
+    {
+        buttonAreas().push_back({areaHash, areaWidth, areaHeight, buttonHash});
+    }
+
+    uint64_t buttonOf(const uint32_t *texels, uint32_t width, uint32_t height)
+    {
+        if (width > 64u || height > 64u) // (button textures are 32 x 32)
+            return 0;
+        std::vector<uint32_t> area;
+        for (const ButtonArea &b : buttonAreas())
+        {
+            if (b.width > width || b.height > height)
+                continue;
+            area.resize(size_t(b.width) * b.height);
+            for (uint32_t y = 0; y < b.height; ++y)
+                std::memcpy(area.data() + size_t(y) * b.width, texels + size_t(y) * width, b.width * sizeof(uint32_t));
+            if (hash(area.data(), b.width, b.height) == b.areaHash)
+                return b.buttonHash;
+        }
+        return 0;
+    }
+
+    void setButtonPress(uint64_t hash, int press)
+    {
+        buttonPresses()[hash] = press;
+    }
+
+    int buttonPress(uint64_t hash)
+    {
+        const auto found = buttonPresses().find(hash);
+        return found != buttonPresses().end() ? found->second : -1;
+    }
+
     bool loadButton(int set, uint64_t hash, std::vector<uint32_t> &texels, int &width, int &height)
     {
         const auto found = buttonImages().find(buttonKey(set, hash));

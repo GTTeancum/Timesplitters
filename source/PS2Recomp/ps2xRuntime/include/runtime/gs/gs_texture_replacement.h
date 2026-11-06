@@ -49,4 +49,27 @@ namespace gs_texture_replacement
     void addButtonImage(int set, uint64_t hash, const unsigned char *png, size_t size);
     bool isButton(uint64_t hash);
     bool loadButton(int set, uint64_t hash, std::vector<uint32_t> &texels, int &width, int &height);
+    // Which pad button a button texture shows (the program's own numbering,
+    // Ps2MenuPress in runtime/ps2_pad_host.h), so a drawn prompt can be
+    // clicked; -1 when not set.
+    void setButtonPress(uint64_t hash, int press);
+    // A button texture is named by its whole texture's hash, but the game
+    // uploads the same button with other things beside its picture (in play,
+    // the spare columns hold other video memory). buttonOf names a texture
+    // whose top left areaWidth x areaHeight hashes to a registered button
+    // picture by that button's hash (0: none).
+    void addButtonArea(uint64_t areaHash, uint32_t areaWidth, uint32_t areaHeight, uint64_t buttonHash);
+    uint64_t buttonOf(const uint32_t *texels, uint32_t width, uint32_t height);
+    int buttonPress(uint64_t hash);
+
+    // Redrawn fonts (PC; tools/pc_font_atlases.py): a font's atlas is the top
+    // left areaWidth x areaHeight of its texture, named by the hash of that
+    // area alone (the rest is other video memory). The PNG covers the area
+    // at any scale: where its red is 255 it replaces the texel (white, its
+    // alpha), elsewhere the game's own texel stays. fontTexture builds the
+    // whole texture at the PNG's scale when texels (width x height, GS
+    // alpha) hold a registered atlas; false otherwise.
+    void addFontImage(uint64_t areaHash, uint32_t areaWidth, uint32_t areaHeight, const unsigned char *png, size_t size);
+    bool fontTexture(const uint32_t *texels, uint32_t width, uint32_t height, std::vector<uint32_t> &out, int &outWidth,
+                     int &outHeight, uint64_t &areaHash);
 }

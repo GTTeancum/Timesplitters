@@ -280,6 +280,11 @@ namespace
         return *reinterpret_cast<uint32_t *>(rdram + (address & 0x1FFFFFCu));
     }
 
+    float &guestFloat(uint8_t *rdram, uint32_t address)
+    {
+        return *reinterpret_cast<float *>(rdram + (address & 0x1FFFFFCu));
+    }
+
     uint16_t &guestHalf(uint8_t *rdram, uint32_t address)
     {
         return *reinterpret_cast<uint16_t *>(rdram + (address & 0x1FFFFFEu));
@@ -556,8 +561,8 @@ namespace
     // links, which entries show), so the copy is rebuilt from it each time.
 #if !defined(PLATFORM_XBOX)
     // PC: Exit Game asks once more before quitting. The first Cross on it
-    // turns its text into "Press again to exit" for three seconds; a second
-    // Cross then quits. Moving off it, or the three seconds passing, puts it
+    // turns its text into "Press again to exit" for five seconds; a second
+    // Cross then quits. Moving off it, or the five seconds passing, puts it
     // back.
     std::chrono::steady_clock::time_point g_exitArmedUntil{};
     bool exitArmed()
@@ -699,17 +704,30 @@ namespace
 #endif
 
 #if !defined(PLATFORM_XBOX)
-    // The front end's menu items as drawn (draw_menuitem(entry): the laid
-    // out entry's x at +0 and y at +2, its item at +0x10, whose id is at +8
-    // and flags at +10, 0x200 hidden), collected over a frame's drawing and
-    // used by the next menu tick for the mouse (menuMouse).
+    // The menu items as drawn (draw_menuitem(entry): the laid out entry's x
+    // at +0 and y at +2, its item at +0x10, whose id is at +8 and flags at
+    // +10, 0x200 hidden), collected over a frame's drawing and used by the
+    // next menu tick for the mouse (menuMouse). The box is the item text's
+    // own: drawmenuitemtext selects the item's font and draws its text with
+    // textOutline(x, y, text) at the menu window's origin plus the entry's
+    // place, so that call (kTextOutline, while an item is drawn) measures
+    // the text with the game's textWidth and textHeight. In menu
+    // coordinates: game pixels across, half of them down.
     constexpr uint32_t kDrawMenuItem = 0x22D230u;
+    constexpr uint32_t kTextOutline = 0x2023B0u;
     struct MenuRow
     {
         uint16_t id, flags;
-        int x, y;
+        int x, y;             // the entry's place
+        int x0, y0, x1, y1;   // the text's box (x1 < x0: not measured)
     };
     std::vector<MenuRow> g_menuRows, g_menuRowsDrawn;
+    MenuRow *g_rowDrawn = nullptr; // the row draw_menuitem is drawing
+    // TS_TEST_CLICKS (tests): a script of clicks played on the menus' ticks
+    // (defined after menuMouse). menu: the menu being ticked (0 none, 1 a
+    // message box); inPlay: the pause screen.
+    void testClicksTick(uint8_t *rdram, uint32_t menu, bool inPlay);
+    uint32_t g_menuAsked = 0; // the menu the page ticks (before ours replaces it): TS_TEST_CLICKS' "menu" steps
 
     void traceMenuRows(const std::vector<MenuRow> &rows)
     {
@@ -722,7 +740,7 @@ namespace
         lastY = rows.front().y;
         std::fprintf(stderr, "[TS:menu] rows");
         for (const MenuRow &r : rows)
-            std::fprintf(stderr, " %u@%d,%d/%x", r.id, r.x, r.y, r.flags);
+            std::fprintf(stderr, " %u@%d,%d/%x[%d-%d,%d-%d]", r.id, r.x, r.y, r.flags, r.x0, r.x1, r.y0, r.y1);
         std::fprintf(stderr, "\n");
     }
 
@@ -734,42 +752,425 @@ namespace
         {
             const uint16_t flags = guestHalf(rdram, item + 10u);
             if (!(flags & 0x200u))
-                g_menuRowsDrawn.push_back({guestHalf(rdram, item + 8u), flags, static_cast<int16_t>(guestHalf(rdram, entry)),
-                                           static_cast<int16_t>(guestHalf(rdram, entry + 2u))});
+            {
+                const int x = static_cast<int16_t>(guestHalf(rdram, entry)), y = static_cast<int16_t>(guestHalf(rdram, entry + 2u));
+                g_menuRowsDrawn.push_back({guestHalf(rdram, item + 8u), flags, x, y, 0, 0, -1, 0});
+                g_rowDrawn = &g_menuRowsDrawn.back();
+            }
         }
         draw_menuitem_0x22d230(rdram, ctx, runtime);
+        g_rowDrawn = nullptr;
     }
 
-    // The mouse in the front end's menus. Rows are those drawn last frame;
-    // the pointer comes in the game picture's pixels, and menu coordinates
-    // are those pixels across and half of them down (the GS field), so a
-    // row's text spans y .. y + 8. Moving the pointer onto a row highlights
-    // it (the page's highlighted id, a0 + 4; a still pointer leaves the pad
-    // and keyboard their way); a left click on it presses Cross, or on a
-    // value (flags 0x4: On/Off, a list, a slider) steps it to the next one;
-    // the wheel over a value steps it either way; a right click presses
-    // Triangle (back), as does a click on the page's back item (id 0x8000).
-    // The presses are the game's own input for that tick: the newly pressed
-    // buttons joyNewBut reads (Cross 0x40, Triangle 0x10; the pad record as
-    // exitGameChosen finds it) and the menu input's directions at
-    // *(gp-0x5FFC) + 12 (left 0x10, right 0x20) with their amount at + 16
-    // (menutick steps a value by amount >> 5: a pad's press is +-32), all
-    // put back after.
-    struct MenuPress
+    // The front end's backdrop and logo (frontfxTick(mode), every front-end
+    // screen): the pointer stays free for the menus meanwhile, and the
+    // title's opening (mode 1 from the start: the logo flies in for some
+    // seconds before 1up ... 4up show) is skipped by any button, key or
+    // click while the logo is still flying in, as the game itself skips it on coming back to the title (mode
+    // 1 entered from another mode: the logo's time, gp-0x605C, set to 100,
+    // gp-0x6058 to 1.5, gp-0x6054 to the constant at gp-0x7F10).
+    constexpr uint32_t kFrontfxTick = 0x22A610u;
+    void frontfxTickSkippable(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
-        uint32_t buttonsAt = 0, buttonsWas = 0, directionsAt = 0, directionsWas = 0, amountWas = 0;
-    };
+        ps2PadNoteMenu();
+        const uint32_t gp = GPR_U32(ctx, 28);
+        const float logoTime = guestFloat(rdram, gp - 0x605Cu);
+        // (frontfxFinished(1): the logo is in place once its time reaches gp-0x7F14)
+        if (GPR_U32(ctx, 4) == 1u && guestWord(rdram, gp - 0x606Cu) == 1u && logoTime < guestFloat(rdram, gp - 0x7F14u))
+        {
+            bool pressed = false;
+            for (uint32_t record = 0; record < 8u; ++record)
+                pressed = pressed || (guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) & 0xFFFFu) != 0u;
+            static uint32_t clicksSeen = ps2PadClickCount();
+            const uint32_t clicks = ps2PadClickCount();
+            if (pressed || clicks != clicksSeen)
+            {
+                std::fprintf(stderr, "[TS:menu] title opening skipped at %.2f\n", logoTime);
+                guestFloat(rdram, gp - 0x605Cu) = 100.0f;
+                guestFloat(rdram, gp - 0x6058u) = 1.5f;
+                guestFloat(rdram, gp - 0x6054u) = guestFloat(rdram, gp - 0x7F10u);
+                // The press only skips: it does not also choose 1up.
+                for (uint32_t record = 0; record < 8u; ++record)
+                    guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) &= ~0xFFFFu;
+            }
+            clicksSeen = clicks;
+        }
+        frontfxTick_0x22a610(rdram, ctx, runtime);
+    }
 
-    const MenuRow *menuRowAt(float x, float y)
+    // Saving and loading (PC): the game's card routine, mcardTick (once a
+    // frame: lvTickAfter ends by jumping to it), takes one step a frame:
+    // issue a card call, then check it finished (sceMcSync), so a sign-on
+    // save's ~25 card operations kept the "Saving" box up for over a second.
+    // The runtime's cards are folders and every call has finished (written
+    // and flushed) when it returns, so after lvTickAfter the routine's steps
+    // run on within the frame until it is idle (state 0, gp-0x6414), waits
+    // (its state unchanged by a step) or comes back to a state it was in
+    // this frame (a polling loop). (The jump is compiled as a direct call,
+    // so lvTickAfter is the place to hook.)
+    // The save sequence above it, mcseqTick (from the save and load pages,
+    // gp-0x5F58 its state), also moves one state a frame; it runs on the
+    // same way, with the card's steps between, until a state holds (a
+    // message waiting for the player, a choice, a timed check).
+    constexpr uint32_t kLvTickAfter = 0x2263A0u;
+    constexpr uint32_t kMcseqTick = 0x2434A8u;
+
+    // The card routine's further steps this frame (first: its state before
+    // the frame's own step; entry: registers to call it with).
+    void runCardSteps(uint8_t *rdram, const R5900Context &entry, PS2Runtime *runtime, uint32_t first)
     {
+        R5900Context probe = entry, *const probed = &probe;
+        const uint32_t stateAt = GPR_U32(probed, 28) - 0x6414u;
+        static const bool trace = std::getenv("TS_TRACE_MC") != nullptr;
+        uint64_t seen = first < 64u ? 1ull << first : 0u;
+        for (int step = 0; step < 64; ++step)
+        {
+            const uint32_t before = guestWord(rdram, stateAt);
+            if (before == 0u || (step == 0 && before == first) || (before < 64u && (seen >> before & 1u)))
+                break;
+            seen |= before < 64u ? 1ull << before : 0u;
+            R5900Context call = entry;
+            mcardTick_0x207ad0(rdram, &call, runtime);
+            const uint32_t after = guestWord(rdram, stateAt);
+            if (trace)
+                std::fprintf(stderr, "[TS:mc] card step %d: state %u -> %u\n", step, before, after);
+            if (after == before)
+                break;
+        }
+    }
+
+    void lvTickAfterCardRunOn(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const R5900Context entry = *ctx;
+        const uint32_t first = guestWord(rdram, GPR_U32(ctx, 28) - 0x6414u);
+        lvTickAfter_0x2263a0(rdram, ctx, runtime);
+        runCardSteps(rdram, entry, runtime, first);
+    }
+
+    void mcseqTickRunOn(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        testClicksTick(rdram, 3u, false); // (TS_TEST_CLICKS: "menu 3" waits for the save and load screens)
+        const R5900Context entry = *ctx;
+        const uint32_t stateAt = GPR_U32(ctx, 28) - 0x5F58u;
+        static const bool trace = std::getenv("TS_TRACE_MC") != nullptr;
+        uint32_t before = guestWord(rdram, stateAt);
+        mcseqTick_0x2434a8(rdram, ctx, runtime);
+        uint64_t seen = before < 64u ? 1ull << before : 0u;
+        for (int step = 0; step < 32; ++step)
+        {
+            const uint32_t now = guestWord(rdram, stateAt);
+            if (now == before || (now < 64u && (seen >> now & 1u)))
+                break;
+            seen |= now < 64u ? 1ull << now : 0u;
+            runCardSteps(rdram, entry, runtime, ~0u);
+            R5900Context call = entry;
+            mcseqTick_0x2434a8(rdram, &call, runtime);
+            if (trace)
+                std::fprintf(stderr, "[TS:mc] save step %d: state %u -> %u\n", step, now, guestWord(rdram, stateAt));
+            before = now;
+            *ctx = call;
+        }
+    }
+
+    // Mouse look (PC): playerTick runs for each local player with the
+    // player's struct at *(gp-0x4DCC) (its pad first); the view turns by the
+    // struct's yaw, +0x114, in degrees (0 .. 360), and its pitch, +0x11C
+    // (kept within +-50 in play). The keyboard and mouse player's view is
+    // turned by the mouse's movement before the game's own tick, at
+    // kMouseDegrees a window pixel at mouse speed 5 (ps2PadTakeMouseLook
+    // scales by the speed): a mouse turns by distance, not at a rate.
+    constexpr uint32_t kPlayerTick = 0x281248u;
+    constexpr float kMouseDegrees = 0.12f;
+    void playerTickMouseLook(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const uint32_t player = guestWord(rdram, GPR_U32(ctx, 28) - 0x4DCCu);
+        const int lane = ps2PadKeyboardLane();
+        float dx = 0.0f, dy = 0.0f;
+        if (player && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane) && ps2PadTakeMouseLook(dx, dy) &&
+            (dx != 0.0f || dy != 0.0f))
+        {
+            float &yaw = guestFloat(rdram, player + 0x114u);
+            float &pitch = guestFloat(rdram, player + 0x11Cu);
+            // Zoomed in (a scope), the view is narrower and turns slower:
+            // the game scales the stick's turn by the field of view, +0x104
+            // (60 degrees unzoomed) over 60; the mouse is scaled the same.
+            const float fov = guestFloat(rdram, player + 0x104u);
+            const float zoom = std::isfinite(fov) && fov > 1.0f && fov <= 120.0f ? fov / 60.0f : 1.0f;
+            yaw = std::fmod(yaw - dx * kMouseDegrees * zoom + 360.0f, 360.0f);
+            pitch = std::clamp(pitch - dy * kMouseDegrees * zoom, -50.0f, 50.0f);
+            if (static const bool trace = std::getenv("TS_TRACE_LOOK") != nullptr; trace)
+                std::fprintf(stderr, "[TS:look] field of view %.1f, mouse scale %.2f\n", fov, zoom);
+        }
+        if (player && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane))
+            testClicksTick(rdram, 4u, false);
+        playerTick_0x281248(rdram, ctx, runtime);
+    }
+
+    // Pop-up boxes (PC): zoomboxInit(box) starts a message box's grow-in,
+    // its countdown (+36 of the box's 40-byte record at 0x352E80) at 10
+    // frames, drawn at (11 - count) / 10 of its size; at 4 the box opens in
+    // 4 frames, starting at 70% of its size.
+    constexpr uint32_t kZoomboxInit = 0x22EF10u;
+    void zoomboxInitQuick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const uint32_t box = GPR_U32(ctx, 4);
+        zoomboxInit_0x22ef10(rdram, ctx, runtime);
+        uint32_t &count = guestWord(rdram, 0x352E80u + box * 40u + 36u);
+        if (std::getenv("TS_TRACE_MENUS"))
+            std::fprintf(stderr, "[TS:menu] pop-up box %u starts at %u\n", box, count);
+        if (box < 16u && count > 4u)
+            count = 4u;
+    }
+
+    // Message boxes ("... ^2 OK", a question with its buttons): the pointer
+    // stays free while one is up, for its prompts (a click on a prompt
+    // presses its button: ps2PadSetPromptLookup). message_pageTick has a
+    // copy per module: the front end's, the in-game one and the map maker's.
+    bool g_exitAsked = false; // the title's "Exit TimeSplitters?" box is up (titleTickExitable)
+
+    template <void (*Tick)(uint8_t *, R5900Context *, PS2Runtime *)>
+    void messageTickClickable(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        ps2PadNoteMenu();
+        testClicksTick(rdram, 1u, false);
+        (void)ps2PadTakeMenuPointer(); // a click on the box away from its prompts does nothing (and is not kept for the next menu)
+        if (Tick == &message_pageTick_0x2313b0 && g_exitAsked)
+        {
+            // Cross (Enter, its Exit prompt) quits; Triangle closes the box
+            // (the default message tick), back to the title.
+            uint32_t pressed = 0;
+            for (uint32_t record = 0; record < 8u; ++record)
+                pressed |= guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u);
+            if (pressed & 0x40u)
+            {
+                std::fprintf(stderr, "[TS:menu] Exit chosen at the title\n");
+                runtime->requestStop();
+            }
+            else if (pressed & 0x10u)
+                g_exitAsked = false;
+        }
+        Tick(rdram, ctx, runtime);
+    }
+
+    // The title (1up ... 4up, nplayers_pageTick): Esc (Triangle, from any
+    // pad) asks to exit, in the game's own message box (frontStartMessage(0,
+    // text, colour, 0): its default tick closes it on Cross or Triangle and
+    // the title comes back). Its text is kept in the block after the SETUP
+    // tab's copy (0x7EE00, below the trace word at 0x7EFF0).
+    constexpr uint32_t kNplayersTick = 0x23FD70u;
+    constexpr uint32_t kExitAskText = 0x7EE00u;
+    void titleTickExitable(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        uint32_t pressed = 0;
+        for (uint32_t record = 0; record < 8u; ++record)
+            pressed |= guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u);
+        const R5900Context entry = *ctx;
+        nplayers_pageTick_0x23fd70(rdram, ctx, runtime);
+        static const bool textFree = [&] {
+            for (uint32_t i = 0; i < 0x1F0u; i += 4u)
+                if (guestWord(rdram, kExitAskText + i) != 0u)
+                    return false;
+            return true;
+        }();
+        if (!(pressed & 0x10u) || (pressed & 0x40u) || !textFree)
+            return;
+        writeGuestString(rdram, kExitAskText, "Exit TimeSplitters?\n`^2 Exit   ^3 Cancel");
+        R5900Context call = entry;
+        R5900Context *const cp = &call;
+        SET_GPR_U32(cp, 4, 0u);
+        SET_GPR_U32(cp, 5, kExitAskText);
+        SET_GPR_U32(cp, 6, 0x6464647Fu); // the colour the game's own messages use
+        SET_GPR_U32(cp, 7, 0u);
+        frontStartMessage_0x231458(rdram, cp, runtime);
+        g_exitAsked = true;
+        std::fprintf(stderr, "[TS:menu] Exit TimeSplitters? asked at the title\n");
+    }
+
+    // A game function of one argument (a0), its result (v0), the caller's
+    // registers as they were.
+    uint32_t callGuest(void (*function)(uint8_t *, R5900Context *, PS2Runtime *), uint8_t *rdram, R5900Context *ctx,
+                       PS2Runtime *runtime, uint32_t a0)
+    {
+        const R5900Context saved = *ctx;
+        SET_GPR_U32(ctx, 4, a0);
+        function(rdram, ctx, runtime);
+        const uint32_t result = GPR_U32(ctx, 2);
+        *ctx = saved;
+        return result;
+    }
+
+    // Outlined text (PC): textOutline(x, y, text, colour, outline colour)
+    // prints the text in the outline colour at (x - 2, y), (x, y - 1),
+    // (x + 2, y) and (x, y + 1) (a 224-line field: one line down is two
+    // pixels across), then in its colour at (x, y), with the outline bits
+    // of the text flags (gp-0x654B) set and a dither matrix while it does.
+    // Drawn sharp at a high render scale, four copies give the outline
+    // notched, square corners; this draws it the same width from eight
+    // directions, so its edge is round, then the text as the game does.
+    void textOutlineRound(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const R5900Context entry = *ctx;
+        const int32_t x = static_cast<int32_t>(GPR_U32(ctx, 4)), y = static_cast<int32_t>(GPR_U32(ctx, 5));
+        const uint32_t text = GPR_U32(ctx, 6), colour = GPR_U32(ctx, 7), outline = GPR_U32(ctx, 8);
+        const uint32_t sp = GPR_U32(ctx, 29) - 0xA0u; // x and y for textPrint, below the caller's frame
+        uint8_t &flags = rdram[(GPR_U32(ctx, 28) - 0x654Bu) & 0x1FFFFFFu];
+        auto call = [&](void (*function)(uint8_t *, R5900Context *, PS2Runtime *), uint32_t a0, uint32_t a1, uint32_t a2,
+                        uint32_t a3) {
+            R5900Context c = entry;
+            R5900Context *const cp = &c;
+            SET_GPR_U32(cp, 29, sp - 0x10u);
+            SET_GPR_U32(cp, 4, a0);
+            SET_GPR_U32(cp, 5, a1);
+            SET_GPR_U32(cp, 6, a2);
+            SET_GPR_U32(cp, 7, a3);
+            function(rdram, cp, runtime);
+            return GPR_U32(cp, 2);
+        };
+        auto print = [&](int32_t px, int32_t py, uint32_t withColour) {
+            guestWord(rdram, sp) = static_cast<uint32_t>(px);
+            guestWord(rdram, sp + 4u) = static_cast<uint32_t>(py);
+            call(&textPrint_0x2024f0, sp, sp + 4u, text, withColour);
+        };
+        const uint32_t dither = call(&dlSetDitherMatrix_0x2b7df0, 2u, 0u, 0u, 0u);
+        flags |= 0x0Cu;
+        static constexpr int32_t kAround[8][2] = {{-2, 0}, {2, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+        for (const auto &d : kAround)
+            print(x + d[0], y + d[1], outline);
+        flags &= ~0x04u;
+        print(x, y, colour);
+        call(&dlSetDitherMatrix_0x2b7df0, dither, 0u, 0u, 0u);
+        flags &= ~0x08u;
+        *ctx = entry;
+    }
+
+    void textOutlineMeasured(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        if (MenuRow *row = g_rowDrawn; row && row->x1 < row->x0 && GPR_U32(ctx, 6))
+        {
+            const int x = static_cast<int32_t>(GPR_U32(ctx, 4)), y = static_cast<int32_t>(GPR_U32(ctx, 5));
+            const uint32_t text = GPR_U32(ctx, 6);
+            const int width = static_cast<int32_t>(callGuest(&textWidth_0x202a38, rdram, ctx, runtime, text));
+            const int height = static_cast<int32_t>(callGuest(&textHeight_0x202a60, rdram, ctx, runtime, text));
+            row->x0 = x;
+            row->y0 = y;
+            row->x1 = x + std::max(width, 1);
+            row->y1 = y + std::max(height, 1);
+        }
+        textOutlineRound(rdram, ctx, runtime);
+    }
+
+    // The mouse in the menus (the front end's and the pause screen's).
+    // Rows are those drawn last frame, with their text's boxes; the pointer
+    // comes in the game picture's pixels, and menu coordinates are those
+    // pixels across and half of them down (the GS field). Moving the pointer
+    // onto a row highlights it (the page's highlighted id, a0 + 4; a still
+    // pointer leaves the pad and keyboard their way). A left click on it
+    // accepts it, or on a value (flags 0x4: On/Off, a list, a slider) steps
+    // it to the next one; the wheel over a value steps it either way; a
+    // right click goes back, as does a click on the page's back item (id
+    // 0x8000). The presses are the keyboard and mouse player's pad buttons
+    // in the next reads (ps2PadQueueMenuPress: Cross, Triangle, Right,
+    // Left), so a page that reads its pad before its menu does (the title's
+    // nplayers_pageTick: Cross or Start chooses) sees them as a key's.
+
+    // The row under the pointer: inside its text's box, grown by a few
+    // pixels (and, for a value, across to the value at the right), else the
+    // nearest box within a short reach. Unnamed rows (id 0) and rows with no
+    // text drawn are not chosen. narrowed: the rows are drawn as the
+    // widescreen picture's HUD (gs_frontend.cpp adjustWidescreenHud: during
+    // play, in one view, text is narrowed to 3/4 towards the left margin,
+    // the centre or the right margin by where its row starts), so the boxes
+    // are narrowed the same way.
+    // Whether the menu being ticked (16-byte header, its item count first,
+    // then 32-byte items: id at +8, flags at +10, 0x200 hidden) has the item.
+    // The rows drawn last frame can be another menu's (a page changing), and
+    // a page told to highlight an id it does not have highlights nothing and
+    // takes no Cross.
+    bool menuHasItem(uint8_t *rdram, uint32_t menu, uint16_t id)
+    {
+        if (menu < 0x1000u || menu >= 0x2000000u)
+            return false;
+        const uint32_t count = guestWord(rdram, menu);
+        for (uint32_t i = 0; i < count && i < 64u; ++i)
+        {
+            const uint32_t item = menu + 16u + i * kItemSize;
+            if (guestHalf(rdram, item + 8u) == id)
+                return !(guestHalf(rdram, item + 10u) & 0x200u);
+        }
+        return false;
+    }
+
+    // Whether the item can be highlighted from the one that is: reached by
+    // the items' own up, down, left and right links (+16, +18, +20, +22), as
+    // the pad and keys would. A menu also lists items that only show text
+    // (character select's "Start" beside its button); one of those
+    // highlighted leaves nothing to choose, and Cross is ignored.
+    bool menuReachable(uint8_t *rdram, uint32_t menu, uint16_t from, uint16_t id)
+    {
+        if (from == id)
+            return true;
+        const uint32_t count = std::min<uint32_t>(guestWord(rdram, menu), 64u);
+        auto itemOf = [&](uint16_t want) -> uint32_t {
+            for (uint32_t i = 0; i < count; ++i)
+                if (guestHalf(rdram, menu + 16u + i * kItemSize + 8u) == want)
+                    return menu + 16u + i * kItemSize;
+            return 0u;
+        };
+        uint16_t queue[64];
+        size_t head = 0, tail = 0;
+        uint16_t seen[64];
+        size_t seenCount = 0;
+        queue[tail++] = from;
+        seen[seenCount++] = from;
+        while (head < tail)
+        {
+            const uint32_t item = itemOf(queue[head++]);
+            if (!item)
+                continue;
+            for (uint32_t link = 16u; link <= 22u; link += 2u)
+            {
+                const uint16_t to = guestHalf(rdram, item + link);
+                if (to == 0u || std::find(seen, seen + seenCount, to) != seen + seenCount || seenCount >= 64u)
+                    continue;
+                if (to == id)
+                    return true;
+                seen[seenCount++] = to;
+                queue[tail++] = to;
+            }
+        }
+        return false;
+    }
+
+    const MenuRow *menuRowAt(uint8_t *rdram, uint32_t menu, uint16_t current, float x, float y, bool narrowed)
+    {
+        // Pages that draw rows of a list they build themselves (Sign On, the
+        // level list) tick a menu without those items: only a menu that has
+        // some of the rows is held to its own.
+        bool strict = false;
+        for (const MenuRow &r : g_menuRows)
+            strict = strict || (r.id != 0u && menuHasItem(rdram, menu, r.id));
         const MenuRow *best = nullptr;
-        int bestDistance = 0;
+        float bestDistance = 0.0f;
         for (const MenuRow &r : g_menuRows)
         {
-            if (r.id == 0u || x < r.x - 12.0f || y < r.y - 2.0f || y > r.y + 9.0f)
+            if (r.id == 0u || r.x1 < r.x0 || (strict && !menuHasItem(rdram, menu, r.id)))
                 continue;
-            const int distance = std::abs(static_cast<int>(y) - (r.y + 4));
-            if (!best || distance < bestDistance)
+            if (strict && r.id != 0x8000u && menuHasItem(rdram, menu, current) && !menuReachable(rdram, menu, current, r.id))
+                continue; // (text beside a button, a heading)
+            float x0 = static_cast<float>(r.x0), x1 = static_cast<float>((r.flags & 0x4u) ? std::max(r.x1, 600) : r.x1);
+            if (narrowed)
+            {
+                const float anchor = x0 < 640.0f * 0.22f ? 0.0f : x0 + 10.0f > 640.0f * 0.78f ? 640.0f : 320.0f;
+                x0 = anchor + (x0 - anchor) * 0.75f;
+                x1 = anchor + (x1 - anchor) * 0.75f;
+            }
+            x0 -= 6.0f;
+            x1 += 6.0f;
+            const float y0 = r.y0 - 1.0f, y1 = r.y1 + 1.0f;
+            const float dx = x < x0 ? x0 - x : x > x1 ? x - x1 : 0.0f;
+            const float dy = y < y0 ? y0 - y : y > y1 ? y - y1 : 0.0f;
+            const float distance = dx + dy * 2.0f;
+            if (distance <= 8.0f && (!best || distance < bestDistance))
             {
                 best = &r;
                 bestDistance = distance;
@@ -778,69 +1179,222 @@ namespace
         return best;
     }
 
-    MenuPress menuMouse(uint8_t *rdram, R5900Context *ctx)
+    // The rows drawn since the last menu tick become the mouse's. A tick with
+    // nothing drawn since keeps the rows: a page may run its menu more than
+    // once a frame (the pause screen does), and when drawing falls behind
+    // the game runs several ticks a drawn frame. When the menu ticked
+    // changes (another page), the rows go: those drawn so far are the last
+    // page's, and pointing at one would set the new page's highlight to an
+    // item it does not have (nothing highlighted, Cross ignored).
+    void takeMenuRows(uint32_t menu)
     {
-        MenuPress press;
+        static uint32_t rowsMenu = 0;
+        if (menu != rowsMenu)
+        {
+            rowsMenu = menu;
+            g_menuRows.clear();
+            g_menuRowsDrawn.clear();
+            return;
+        }
+        if (!g_menuRowsDrawn.empty())
+        {
+            g_menuRows.swap(g_menuRowsDrawn);
+            g_menuRowsDrawn.clear();
+        }
+        traceMenuRows(g_menuRows);
+    }
+
+    void menuMouse(uint8_t *rdram, R5900Context *ctx, bool inPlay)
+    {
         ps2PadNoteMenu();
+        // TS_TEST_MENU_MOUSE_PAUSE=1 (tests): the scripted pointer plays in
+        // the pause screen only.
+        static const bool pauseOnly = [] { const char *v = std::getenv("TS_TEST_MENU_MOUSE_PAUSE"); return v && *v == '1'; }();
+        if (pauseOnly && !inPlay)
+            return;
+        testClicksTick(rdram, g_menuAsked, inPlay);
         const Ps2MenuPointer pointer = ps2PadTakeMenuPointer();
         if (!hostSettings().mouse || !pointer.inside)
-            return press;
+            return;
         const uint32_t page = GPR_U32(ctx, 4);
-        const MenuRow *row = menuRowAt(pointer.x, pointer.y * 0.5f);
-        if (row && (pointer.moved || pointer.clicks || pointer.wheel))
+        const MenuRow *row = menuRowAt(rdram, GPR_U32(ctx, 5), guestHalf(rdram, page + 4u), pointer.x, pointer.y * 0.5f,
+                                       inPlay && hostSettings().widescreen && !gsSplitScreen());
+        // (The back item is clicked, not highlighted: it is no choice of the list.)
+        if (row && row->id != 0x8000u && (pointer.moved || pointer.clicks || pointer.wheel))
             guestHalf(rdram, page + 4u) = row->id;
-        uint32_t buttons = 0, directions = 0;
+        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
+        auto press = [&](Ps2MenuPress p, const char *what) {
+            if (trace)
+                std::fprintf(stderr, "[TS:menu-mouse] row %u flags %x: %s\n", row ? row->id : 0u, row ? row->flags : 0u, what);
+            ps2PadQueueMenuPress(p);
+        };
+        if (trace && pointer.clicks && !row)
+            std::fprintf(stderr, "[TS:menu-mouse] click at %.0f,%.0f is on no row (%zu rows)\n", pointer.x, pointer.y,
+                         g_menuRows.size());
         if (pointer.rightClicks)
-            buttons = 0x10u;
+            press(Ps2MenuPress::Back, "back");
         else if (row && pointer.clicks)
         {
             if (row->id == 0x8000u)
-                buttons = 0x10u;
+                press(Ps2MenuPress::Back, "back");
             else if (row->flags & 0x4u)
-                directions = 0x20u;
+                press(Ps2MenuPress::Next, "next value");
             else
-                buttons = 0x40u;
+                press(Ps2MenuPress::Accept, "accept");
         }
         else if (row && pointer.wheel && (row->flags & 0x4u))
-            directions = pointer.wheel > 0 ? 0x20u : 0x10u;
-        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
-        if (trace && (buttons || directions))
-            std::fprintf(stderr, "[TS:menu-mouse] row %u flags %x: buttons %x directions %x\n", row ? row->id : 0u,
-                         row ? row->flags : 0u, buttons, directions);
-        const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
-        if (!input)
-            return press;
-        if (buttons)
-        {
-            const uint32_t pad = guestWord(rdram, input);
-            const uint32_t record = pad <= 7u ? guestWord(rdram, 0x31DF68u + pad * 4u) : 8u;
-            if (record <= 7u)
-            {
-                press.buttonsAt = 0x31C740u + record * 0x180u + 0x124u;
-                press.buttonsWas = guestWord(rdram, press.buttonsAt);
-                guestWord(rdram, press.buttonsAt) = press.buttonsWas | buttons;
-            }
-        }
-        if (directions)
-        {
-            press.directionsAt = input + 12u;
-            press.directionsWas = guestWord(rdram, press.directionsAt);
-            press.amountWas = guestWord(rdram, input + 16u);
-            guestWord(rdram, press.directionsAt) = press.directionsWas | directions;
-            guestWord(rdram, input + 16u) = directions == 0x20u ? 32u : static_cast<uint32_t>(-32);
-        }
-        return press;
+            press(pointer.wheel > 0 ? Ps2MenuPress::Next : Ps2MenuPress::Previous, "wheel");
     }
 
-    void menuMouseRelease(uint8_t *rdram, const MenuPress &press)
+    // TS_TEST_CLICKS=<file> (tests): mouse steps played on the menus' ticks
+    // (menuMouse, message boxes, the on-screen keyboard), through the same
+    // pointer path as the window's, one a line:
+    //   menu <hex> [ticks]   wait until that menu has been ticked that long (20)
+    //   message [ticks]      the same for a message box; keys: the on-screen keyboard
+    //   wait <ticks>
+    //   row <id> / hover <id>  click / point at the middle of that drawn row
+    //   prompt <press>       click the middle of a drawn prompt (Ps2MenuPress: 0 Cross, 1 Triangle)
+    //   at <x> <y> / right / wheel <up|down>   in 640 x 448 game pixels
+    //   key <accept|back|next|previous|start>
+    //   (menu 4: in play, the keyboard and mouse player's tick)
+    // Each step is logged ([TS:test]); one that finds nothing to click in
+    // 600 ticks is logged as failed and skipped.
+    void testClicksTick(uint8_t *rdram, uint32_t menu, bool inPlay)
     {
-        if (press.buttonsAt)
-            guestWord(rdram, press.buttonsAt) = press.buttonsWas;
-        if (press.directionsAt)
+        static const std::vector<std::string> steps = [] {
+            std::vector<std::string> lines;
+            if (const char *path = std::getenv("TS_TEST_CLICKS"))
+                if (FILE *f = std::fopen(path, "r"))
+                {
+                    char line[256];
+                    while (std::fgets(line, sizeof(line), f))
+                    {
+                        std::string s(line);
+                        while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' '))
+                            s.pop_back();
+                        if (!s.empty() && s[0] != '#')
+                            lines.push_back(s);
+                    }
+                    std::fclose(f);
+                }
+            return lines;
+        }();
+        static size_t next = 0;
+        static int waiting = 0, tries = 0, matchTicks = 0;
+        static float atX = 320.0f, atY = 224.0f;
+        if (steps.empty())
+            return;
+        if (waiting > 0)
         {
-            guestWord(rdram, press.directionsAt) = press.directionsWas;
-            guestWord(rdram, press.directionsAt + 4u) = press.amountWas;
+            --waiting;
+            return;
         }
+        if (next >= steps.size())
+            return;
+        const std::string &step = steps[next];
+        char op[16] = {}, arg[64] = {};
+        float a = 0.0f, b = 0.0f;
+        std::sscanf(step.c_str(), "%15s %63s", op, arg);
+        const std::string kind(op);
+        auto done = [&](const char *how) {
+            std::fprintf(stderr, "[TS:test] step %zu '%s': %s\n", next + 1, step.c_str(), how);
+            ++next;
+            tries = 0;
+            matchTicks = 0;
+        };
+        auto click = [&](float x, float y, bool press) {
+            atX = x;
+            atY = y;
+            ps2PadNoteMenuPointer(true, x, y, press, false, 0.0f);
+        };
+        auto failOrRetry = [&]() {
+            if (++tries > 600)
+                done("FAILED (nothing to click)");
+        };
+        if (kind == "menu" || kind == "message" || kind == "keys")
+        {
+            int settle = 20;
+            uint32_t want = kind == "message" ? 1u : kind == "keys" ? 2u : 0u;
+            if (kind == "menu")
+            {
+                want = static_cast<uint32_t>(std::strtoul(arg, nullptr, 16));
+                std::sscanf(step.c_str(), "%*s %*s %d", &settle);
+            }
+            else
+                std::sscanf(step.c_str(), "%*s %d", &settle);
+            // (ticks of that menu since the step began: the pause screen's
+            // ticks come between the player's)
+            if (menu == want && ++matchTicks >= settle)
+                done("reached");
+        }
+        else if (kind == "wait")
+        {
+            waiting = std::atoi(arg);
+            done("waiting");
+        }
+        else if (kind == "row" || kind == "hover")
+        {
+            const uint16_t id = static_cast<uint16_t>(std::strtoul(arg, nullptr, 0));
+            const MenuRow *found = nullptr;
+            for (const MenuRow &r : g_menuRows)
+                if (r.id == id && r.x1 >= r.x0)
+                    found = &r;
+            if (!found)
+                return failOrRetry();
+            float x0 = static_cast<float>(found->x0), x1 = static_cast<float>(found->x1);
+            if (inPlay && hostSettings().widescreen && !gsSplitScreen())
+            {
+                const float anchor = x0 < 640.0f * 0.22f ? 0.0f : x0 + 10.0f > 640.0f * 0.78f ? 640.0f : 320.0f;
+                x0 = anchor + (x0 - anchor) * 0.75f;
+                x1 = anchor + (x1 - anchor) * 0.75f;
+            }
+            click((x0 + x1) * 0.5f, static_cast<float>(found->y0 + found->y1), kind == "row");
+            done(kind == "row" ? "clicked" : "pointed");
+        }
+        else if (kind == "prompt")
+        {
+            const int want = std::atoi(arg);
+            float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+            for (float y = 2.0f; y < 448.0f; y += 4.0f)
+                for (float x = 2.0f; x < 640.0f; x += 4.0f)
+                    if (ps2PadPromptAt(x, y) == want)
+                    {
+                        x0 = std::min(x0, x);
+                        x1 = std::max(x1, x);
+                        y0 = std::min(y0, y);
+                        y1 = std::max(y1, y);
+                    }
+            if (x1 < x0)
+                return failOrRetry();
+            click((x0 + x1) * 0.5f, (y0 + y1) * 0.5f, true);
+            done("clicked");
+        }
+        else if (kind == "at")
+        {
+            std::sscanf(step.c_str(), "%*s %f %f", &a, &b);
+            click(a, b, true);
+            done("clicked");
+        }
+        else if (kind == "right")
+        {
+            ps2PadNoteMenuPointer(true, atX, atY, false, true, 0.0f);
+            done("right-clicked");
+        }
+        else if (kind == "wheel")
+        {
+            ps2PadNoteMenuPointer(true, atX, atY, false, false, std::string(arg) == "up" ? 1.0f : -1.0f);
+            done("wheeled");
+        }
+        else if (kind == "key")
+        {
+            const std::string k(arg);
+            ps2PadQueueMenuPress(k == "back" ? Ps2MenuPress::Back : k == "next" ? Ps2MenuPress::Next
+                                 : k == "previous" ? Ps2MenuPress::Previous : k == "start" ? Ps2MenuPress::Start
+                                                                             : Ps2MenuPress::Accept);
+            done("pressed");
+        }
+        else
+            done("UNKNOWN step");
     }
 #endif
 
@@ -927,6 +1481,9 @@ namespace
 
     void ingameMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        // The pause screen's lists take the mouse as the front end's do.
+        takeMenuRows(GPR_U32(ctx, 5));
+        g_menuAsked = GPR_U32(ctx, 5);
         static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
         static uint32_t lastMenu = 0;
         if (trace && GPR_U32(ctx, 5) != lastMenu)
@@ -943,6 +1500,7 @@ namespace
             if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == kExitItemId && ingameCrossPressed(rdram, ctx))
                 g_exitConfirm = true;
         }
+        menuMouse(rdram, ctx, true); // (on the menu ticked: our SETUP copy there)
         ingame_menutick_0x20e240(rdram, ctx, runtime);
     }
 
@@ -967,10 +1525,8 @@ namespace
     void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
 #if !defined(PLATFORM_XBOX)
-        g_menuRows.swap(g_menuRowsDrawn);
-        g_menuRowsDrawn.clear();
-        traceMenuRows(g_menuRows);
-        const MenuPress mousePress = menuMouse(rdram, ctx);
+        takeMenuRows(GPR_U32(ctx, 5));
+        g_menuAsked = GPR_U32(ctx, 5);
 #endif
 #if !defined(PLATFORM_XBOX)
         static const bool reworded = (applyGenericWording(rdram), true);
@@ -1011,7 +1567,7 @@ namespace
                 // Armed: this Cross does nothing else (the item's link
                 // would reopen the page and take the highlight off it).
                 std::fprintf(stderr, "[TS:menu] Exit Game: press again to exit\n");
-                g_exitArmedUntil = std::chrono::steady_clock::now() + std::chrono::seconds(3);
+                g_exitArmedUntil = std::chrono::steady_clock::now() + std::chrono::seconds(5);
                 const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
                 const uint32_t record = guestWord(rdram, 0x31DF68u + guestWord(rdram, input) * 4u);
                 guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) &= ~0x40u;
@@ -1025,10 +1581,10 @@ namespace
         }
 #endif
         const bool ours = useDisplayMenu(rdram, ctx);
-        menutick_0x230238(rdram, ctx, runtime);
 #if !defined(PLATFORM_XBOX)
-        menuMouseRelease(rdram, mousePress);
+        menuMouse(rdram, ctx, false); // (on the menu ticked: ours where we extend it)
 #endif
+        menutick_0x230238(rdram, ctx, runtime);
         if (ours)
             applyDisplayMenuToSettings(rdram);
     }
@@ -1078,6 +1634,9 @@ namespace
     void typedStringeditTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         ps2PadNoteTextEntry();
+        ps2PadNoteMenu();
+        testClicksTick(rdram, 2u, false);
+        (void)ps2PadTakeMenuPointer(); // (its Add / Cancel prompts take clicks; nothing else here does)
         static int capsThen = 0; // a letter waiting for the CAPS press before it
         const uint32_t pad = GPR_U32(ctx, 4);
         const uint32_t state = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FCCu);
@@ -1885,6 +2444,28 @@ namespace
 #if !defined(PLATFORM_XBOX)
         runtime.replaceFunction(kStringeditTick, &typedStringeditTick);
         runtime.replaceFunction(kDrawMenuItem, &drawMenuItemRecorded);
+        // TS_HOOKS_OFF=name,... (tests): leave those hooks out.
+        const auto hookOn = [](const char *name) {
+            const char *off = std::getenv("TS_HOOKS_OFF");
+            return !(off && std::strstr(off, name));
+        };
+        if (hookOn("textOutline"))
+            runtime.replaceFunction(kTextOutline, &textOutlineMeasured);
+        if (hookOn("frontfx"))
+            runtime.replaceFunction(kFrontfxTick, &frontfxTickSkippable);
+        if (hookOn("playerTick"))
+            runtime.replaceFunction(kPlayerTick, &playerTickMouseLook);
+        if (hookOn("lvTickAfter"))
+            runtime.replaceFunction(kLvTickAfter, &lvTickAfterCardRunOn);
+        if (hookOn("mcseq"))
+            runtime.replaceFunction(kMcseqTick, &mcseqTickRunOn);
+        if (hookOn("zoombox"))
+            runtime.replaceFunction(kZoomboxInit, &zoomboxInitQuick);
+        if (hookOn("title"))
+            runtime.replaceFunction(kNplayersTick, &titleTickExitable);
+        runtime.replaceFunction(0x2313B0u, &messageTickClickable<&message_pageTick_0x2313b0>);
+        runtime.replaceFunction(0x206B90u, &messageTickClickable<&message_pageTick_0x206b90>);
+        runtime.replaceFunction(0x24C990u, &messageTickClickable<&message_pageTick_0x24c990>);
         runtime.replaceFunction(kIngameMenuTick, &ingameMenuTick);
         runtime.replaceFunction(kConfirmEndGameTick, &confirmEndGameTick);
 #endif

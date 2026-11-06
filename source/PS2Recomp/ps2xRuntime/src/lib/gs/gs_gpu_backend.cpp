@@ -285,6 +285,36 @@ bool GSGpuBackend::LatestHdFrame(unsigned &texture, int &width, int &height)
     return true;
 }
 
+// The button prompts of the frame last presented (PromptPressAt), in
+// fractions of the frame.
+namespace
+{
+    struct Prompt
+    {
+        int press;
+        float x0, y0, x1, y1;
+    };
+    std::mutex g_promptMutex;
+    std::vector<Prompt> g_prompts;
+}
+
+int GSGpuBackend::PromptPressAt(float x, float y)
+{
+    std::lock_guard<std::mutex> lock(g_promptMutex);
+    constexpr float kReach = 0.006f; // a few pixels around the glyph and label
+    for (const Prompt &p : g_prompts)
+        if (x >= p.x0 - kReach && x <= p.x1 + kReach && y >= p.y0 - kReach && y <= p.y1 + kReach)
+            return p.press;
+    if (std::getenv("TS_TRACE_PROMPTS"))
+    {
+        std::fprintf(stderr, "[TS:menu-mouse] no prompt at %.3f,%.3f; %zu prompts:", x, y, g_prompts.size());
+        for (const Prompt &p : g_prompts)
+            std::fprintf(stderr, " %d[%.3f-%.3f,%.3f-%.3f]", p.press, p.x0, p.x1, p.y0, p.y1);
+        std::fprintf(stderr, "\n");
+    }
+    return -1;
+}
+
 struct GSGpuBackend::Impl
 {
     // ------------------------------------------------------------ targets
@@ -1092,9 +1122,14 @@ struct GSGpuBackend::Impl
         if (!e.renderTarget && texels.size() >= size_t(w) * h && gs_texture_replacement::active())
         {
             e.contentHash = gs_texture_replacement::hash(texels.data(), w, h);
+            if (!gs_texture_replacement::isButton(e.contentHash))
+                if (const uint64_t button = gs_texture_replacement::buttonOf(texels.data(), w, h))
+                    e.contentHash = button; // (a button picture uploaded with other texels beside it)
             if (gs_texture_replacement::dumping())
                 dumpTexels(e, state, texels, w, h);
             e.replacement = replacementTexture(e.contentHash, gs_texture_replacement::rawAlpha(texels.data(), w, h));
+            if (!e.replacement)
+                e.replacement = fontTexture(e.contentHash, texels, w, h);
         }
         glBindTexture(GL_TEXTURE_2D, e.texture);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, int(w), int(h), 0, GL_RGBA, GL_UNSIGNED_BYTE, texels.data());
@@ -1107,8 +1142,10 @@ struct GSGpuBackend::Impl
     // its replacement PNG, else itself.
     GLuint drawnTexture(const TextureEntry &e, bool &replaced)
     {
+        drawnButtonHash = 0;
         if (!e.renderTarget && e.contentHash && gs_texture_replacement::isButton(e.contentHash))
         {
+            drawnButtonHash = e.contentHash;
             if (const GLuint glyph = buttonTexture(e.contentHash, ps2PadButtonSet()))
             {
                 replaced = true;
@@ -1117,6 +1154,79 @@ struct GSGpuBackend::Impl
         }
         replaced = e.replacement != 0;
         return replaced ? e.replacement : e.texture;
+    }
+
+    // The prompts being drawn: a button texture (drawnButtonHash, set when
+    // its texture is looked up) drawn flat is a prompt's glyph; the other
+    // flat textured sprites of the frame (text glyphs among them) are kept
+    // too, and when the frame is presented each prompt is widened over the
+    // ones that continue its line to the right (its label), up to the next
+    // prompt. In frame pixels until then.
+    uint64_t drawnButtonHash = 0;
+    struct DrawnRect
+    {
+        int press; // -1: not a prompt's glyph
+        float x0, y0, x1, y1, width, height;
+    };
+    std::vector<DrawnRect> promptsDrawn, spritesDrawn;
+    uint32_t flatDrawsSincePresent = 0; // a present with none drawn since keeps the last prompts
+
+    void notePrompt(const GSPrimitiveBatch &batch, float ofx, float ofy, float width, float height)
+    {
+        const GSDrawState &state = batch.state;
+        if (!state.prim.tme || !flatDraw(state) || batch.vertexCount == 0u)
+            return;
+        ++flatDrawsSincePresent;
+        DrawnRect r{-1, 1e9f, 1e9f, -1e9f, -1e9f, width, height};
+        for (uint32_t i = 0; i < batch.vertexCount; ++i)
+        {
+            r.x0 = std::min(r.x0, batch.vertices[i].x - ofx);
+            r.x1 = std::max(r.x1, batch.vertices[i].x - ofx);
+            r.y0 = std::min(r.y0, batch.vertices[i].y - ofy);
+            r.y1 = std::max(r.y1, batch.vertices[i].y - ofy);
+        }
+        r.press = drawnButtonHash ? gs_texture_replacement::buttonPress(drawnButtonHash) : -1;
+        if (r.press >= 0)
+            promptsDrawn.push_back(r);
+        else if (spritesDrawn.size() < 8192u && r.x1 - r.x0 < width * 0.25f)
+            spritesDrawn.push_back(r); // (not backdrops)
+    }
+
+    void publishPrompts()
+    {
+        if (!flatDrawsSincePresent)
+            return;
+        flatDrawsSincePresent = 0;
+        std::sort(spritesDrawn.begin(), spritesDrawn.end(), [](const DrawnRect &a, const DrawnRect &b) { return a.x0 < b.x0; });
+        std::vector<Prompt> prompts;
+        prompts.reserve(promptsDrawn.size());
+        for (const DrawnRect &glyph : promptsDrawn)
+        {
+            DrawnRect p = glyph;
+            const float lineHeight = std::max(p.y1 - p.y0, 1.0f);
+            float stop = 1e9f; // the next prompt along the line
+            for (const DrawnRect &other : promptsDrawn)
+                if (other.x0 > p.x0 + 1.0f && other.y0 < p.y1 && other.y1 > p.y0)
+                    stop = std::min(stop, other.x0);
+            for (const DrawnRect &t : spritesDrawn)
+            {
+                if (t.x0 >= stop)
+                    break;
+                const float overlap = std::min(t.y1, p.y1) - std::max(t.y0, p.y0);
+                if (t.x0 >= p.x0 - 4.0f && t.x0 <= p.x1 + lineHeight * 1.2f &&
+                    overlap >= 0.4f * std::min(lineHeight, std::max(t.y1 - t.y0, 1.0f)))
+                    p.x1 = std::max(p.x1, std::min(t.x1, stop));
+            }
+            prompts.push_back({p.press, p.x0 / p.width, p.y0 / p.height, p.x1 / p.width, p.y1 / p.height});
+        }
+        static const bool trace = std::getenv("TS_TRACE_PROMPTS") != nullptr;
+        if (trace && !prompts.empty())
+            std::fprintf(stderr, "[TS:prompts] %zu this frame, the first %d at %.3f-%.3f\n", prompts.size(), prompts[0].press,
+                         prompts[0].x0, prompts[0].x1);
+        promptsDrawn.clear();
+        spritesDrawn.clear();
+        std::lock_guard<std::mutex> lock(g_promptMutex);
+        g_prompts.swap(prompts);
     }
 
     GLuint buttonTexture(uint64_t contentHash, int set)
@@ -1137,6 +1247,32 @@ struct GSGpuBackend::Impl
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         }
         buttonTextures[key] = texture;
+        return texture;
+    }
+
+    // A redrawn font's texture (gs_texture_replacement::fontTexture), by the
+    // whole texture's content (its atlas plus whatever shares the texture).
+    std::unordered_map<uint64_t, GLuint> fontTextures;
+    GLuint fontTexture(uint64_t contentHash, const std::vector<uint32_t> &texels, uint32_t w, uint32_t h)
+    {
+        if (const auto found = fontTextures.find(contentHash); found != fontTextures.end())
+            return found->second;
+        GLuint texture = 0;
+        std::vector<uint32_t> drawn;
+        int width = 0, height = 0;
+        uint64_t font = 0;
+        if (gs_texture_replacement::fontTexture(texels.data(), w, h, drawn, width, height, font))
+        {
+            glGenTextures(1, &texture);
+            glBindTexture(GL_TEXTURE_2D, texture);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, drawn.data());
+            glGenerateMipmap(GL_TEXTURE_2D);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            if (std::getenv("TS_TRACE_PROMPTS") || std::getenv("TS_TRACE_FONTS"))
+                std::fprintf(stderr, "[TS:fonts] font %016llx redrawn (%dx%d)\n", (unsigned long long)font, width, height);
+        }
+        fontTextures[contentHash] = texture;
         return texture;
     }
 
@@ -1299,6 +1435,7 @@ struct GSGpuBackend::Impl
 
         GLuint texture = 0;
         bool replaced = false;
+        drawnButtonHash = 0;
         if (state.prim.tme)
             texture = acquireTexture(state, replaced);
         const int colorTarget = acquireTarget(false, ctx.frame.fbp, fbw, ctx.frame.psm, rows);
@@ -1385,6 +1522,7 @@ struct GSGpuBackend::Impl
 
         const float ofx = float(int(ctx.xyoffset.ofx >> 4));
         const float ofy = float(int(ctx.xyoffset.ofy >> 4));
+        notePrompt(batch, ofx, ofy, float(fbw * 64u), float(rows));
         auto vertex = [&](const GSVertex &v, float s, float t, float q) {
             Vertex out;
             out.x = v.x - ofx;
@@ -1547,6 +1685,7 @@ struct GSGpuBackend::Impl
                     writeBack(t);
             if (scale > 1 && !presentHd(c.request))
                 publishHdFrame(0, 0, 0, nullptr); // the window shows the native frame
+            publishPrompts();
             queuePresent(c);
             break;
         }

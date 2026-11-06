@@ -55,6 +55,12 @@ public:
     // shared with the window's context. Call on the window's thread.
     static bool LatestHdFrame(unsigned &texture, int &width, int &height);
 
+    // The button prompts on the last presented frame (PC): where each button
+    // texture with a press (gs_texture_replacement::buttonPress) was drawn,
+    // widened over the label drawn after it on its line. At (x, y), as
+    // fractions of the frame's width and height: the press, or -1.
+    static int PromptPressAt(float x, float y);
+
     // Sets the CLUT buffer (replaying a GS command capture).
     void SetClutState(const std::array<uint16_t, 512> &clut, const std::array<uint32_t, 2> &cbp);
 

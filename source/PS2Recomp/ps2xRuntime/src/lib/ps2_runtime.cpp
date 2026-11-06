@@ -886,6 +886,19 @@ bool PS2Runtime::syncCoreSubsystems()
     return true;
 }
 
+// Borderless fullscreen (timesplitters.ini fullscreen). raylib makes the
+// window stay on top of every other one too (GLFW_FLOATING), so Alt+Tab
+// changed the focus but the game still covered the desktop; it is put back
+// to an ordinary window after.
+static void enterBorderless()
+{
+#if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
+    ToggleBorderlessWindowed();
+    if (IsWindowState(FLAG_WINDOW_TOPMOST))
+        ClearWindowState(FLAG_WINDOW_TOPMOST);
+#endif
+}
+
 bool PS2Runtime::initialize(const char *title)
 {
     PS2X_TRY
@@ -920,7 +933,7 @@ bool PS2Runtime::initialize(const char *title)
         SetExitKey(KEY_NULL); // Esc is the game's Back (ps2_pad.cpp); Alt+F4 or Exit Game quits
 #endif
         if (hostSettings().fullscreen && !std::getenv("TS_TEST_HIDDEN"))
-            ToggleBorderlessWindowed();
+            enterBorderless();
         InitAudioDevice();
         m_audioBackend.setAudioReady(IsAudioDeviceReady());
 #endif
@@ -2883,10 +2896,9 @@ void PS2Runtime::run()
 
             }
         });
-        // Where the game's picture was last drawn in the window, and its size
-        // in game pixels (the menus' mouse maps the pointer through them).
+        // Where the game's picture was last drawn in the window (the menus'
+        // mouse maps the pointer through it).
         static Rectangle presentRect{};
-        static float presentPixelsX = 640.0f, presentPixelsY = 448.0f;
         uint32_t presentWidth = FB_WIDTH;
         uint32_t presentHeight = DEFAULT_DISPLAY_HEIGHT;
         UploadFrame(frameTex, this, presentWidth, presentHeight, uploadState);
@@ -2902,7 +2914,12 @@ void PS2Runtime::run()
                 appliedWindowChanges = changes;
                 const bool wantFullscreen = hostSettings().fullscreen;
                 if (IsWindowState(FLAG_BORDERLESS_WINDOWED_MODE) != wantFullscreen)
-                    ToggleBorderlessWindowed();
+                {
+                    if (wantFullscreen)
+                        enterBorderless();
+                    else
+                        ToggleBorderlessWindowed();
+                }
                 if (!wantFullscreen)
                 {
                     const int width = hostSettings().windowWidth, height = hostSettings().windowHeight;
@@ -2964,8 +2981,6 @@ void PS2Runtime::run()
             dstWidth,
             dstHeight};
         presentRect = dstRect; // (the menus' mouse, below)
-        presentPixelsX = static_cast<float>(std::max<uint32_t>(1u, presentWidth));
-        presentPixelsY = static_cast<float>(std::max<uint32_t>(1u, presentHeight));
         const bool fxaa = hostSettings().fxaa && fxaaShader.id != 0;
         if (fxaa)
         {
@@ -3019,14 +3034,62 @@ void PS2Runtime::run()
         // menu tick with the clicks and wheel (ps2PadNoteMenuPointer).
         {
             static bool cursorHeld = false;
+            {
+                static int lastSizes[4] = {};
+                const int sizes[4] = {GetScreenWidth(), GetScreenHeight(), GetRenderWidth(), GetRenderHeight()};
+                if (std::memcmp(sizes, lastSizes, sizeof(sizes)) != 0)
+                {
+                    std::memcpy(lastSizes, sizes, sizeof(sizes));
+                    std::fprintf(stderr, "[TS:window] screen %dx%d, drawn at %dx%d\n", sizes[0], sizes[1], sizes[2], sizes[3]);
+                }
+            }
+            static const bool promptsLooked = (ps2PadSetPromptLookup(&GSGpuBackend::PromptPressAt), true);
+            (void)promptsLooked;
             const bool inMenu = ps2PadMenuActive();
+            // TS_TEST_WINDOW_CLICKS="<frame> <x> <y>;..." (tests, hidden
+            // window): a left click at game pixel (x, y) of 640 x 448 on that
+            // window frame (the TS_CAPTURE_WINDOW numbering), through the
+            // same path as the real pointer's.
+            {
+                static uint64_t testFrame = 0;
+                static const std::vector<std::array<float, 3>> testClicks = [] {
+                    std::vector<std::array<float, 3>> clicks;
+                    if (const char *v = std::getenv("TS_TEST_WINDOW_CLICKS"))
+                    {
+                        std::stringstream list(v);
+                        for (std::string step; std::getline(list, step, ';');)
+                        {
+                            std::array<float, 3> c{};
+                            if (std::sscanf(step.c_str(), "%f %f %f", &c[0], &c[1], &c[2]) == 3)
+                                clicks.push_back(c);
+                        }
+                    }
+                    return clicks;
+                }();
+                ++testFrame;
+                for (const auto &c : testClicks)
+                    if (static_cast<uint64_t>(c[0]) == testFrame)
+                        ps2PadNoteMenuPointer(true, c[1], c[2], true, false, 0.0f);
+            }
             if (inMenu && hostSettings().mouse && !std::getenv("TS_TEST_HIDDEN"))
             {
-                const Vector2 at = GetMousePosition();
-                const float fx = (at.x - presentRect.x) / presentRect.width * presentPixelsX;
-                const float fy = (at.y - presentRect.y) / presentRect.height * presentPixelsY;
+                // The pointer comes in the window's own pixels, the picture is
+                // placed in the screen's units (presentRect); they differ when
+                // the resolution set is not the window's real size (a 3840 x
+                // 2160 setting on a 1920 x 1080 display, fullscreen).
+                Vector2 at = GetMousePosition();
+                if (GetRenderWidth() > 0 && GetRenderHeight() > 0)
+                {
+                    at.x *= static_cast<float>(GetScreenWidth()) / static_cast<float>(GetRenderWidth());
+                    at.y *= static_cast<float>(GetScreenHeight()) / static_cast<float>(GetRenderHeight());
+                }
+                // In 640 x 448 game pixels whatever the frame's own height:
+                // the front end shows 224-line fields, its menus' places are
+                // still in 640 x 448 terms (y halved).
+                const float fx = (at.x - presentRect.x) / presentRect.width * 640.0f;
+                const float fy = (at.y - presentRect.y) / presentRect.height * 448.0f;
                 const bool inside = IsWindowFocused() && presentRect.width > 0.0f && fx >= 0.0f && fy >= 0.0f &&
-                                    fx < presentPixelsX && fy < presentPixelsY;
+                                    fx < 640.0f && fy < 448.0f;
                 ps2PadNoteMenuPointer(inside, fx, fy, inside && IsMouseButtonPressed(MOUSE_BUTTON_LEFT),
                                       inside && IsMouseButtonPressed(MOUSE_BUTTON_RIGHT), inside ? GetMouseWheelMove() : 0.0f);
             }

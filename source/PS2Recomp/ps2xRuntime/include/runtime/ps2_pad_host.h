@@ -1,13 +1,18 @@
 #pragma once
+#include <cstdint>
 
 // Player 1's PC mouse and typing (ps2_pad.cpp). A header of its own so
 // ps2_pad.h, which every compiled game file includes through ps2_runtime.h,
 // stays as it is.
 
 // Mouse look (timesplitters.ini mouse): the window thread hands over each
-// window frame's mouse movement, in window pixels; player 1's next pad read
-// turns what built up into right-stick movement.
+// window frame's mouse movement, in window pixels, to be taken by
+// ps2PadTakeMouseLook.
 void ps2PadNoteMouseMotion(float dx, float dy);
+// The mouse look built up since the last take, in window pixels times the
+// mouse speed setting (the playerTick hook turns the view by it); false
+// while the mouse is off or a menu has it.
+bool ps2PadTakeMouseLook(float &dx, float &dy);
 
 // Typing into the game's text entry (sign-on names, map maker names; the
 // stringeditTick hook in project/game/ts_overrides.cpp). The hook calls
@@ -46,6 +51,35 @@ struct Ps2MenuPointer
     int wheel = 0;        // notches, up positive
 };
 void ps2PadNoteMenu();
+// A press the pointer made in a menu (on the row it highlighted, or on a
+// button prompt): the keyboard and mouse player's pad presses Cross
+// (Accept), Triangle (Back), Right / Left (Next / Previous: a value) or the
+// button named, in its next reads, as a key would, so the page sees it
+// however it reads its pad.
+enum class Ps2MenuPress
+{
+    Accept,
+    Back,
+    Next,
+    Previous,
+    Circle,
+    Square,
+    Select,
+    L1,
+    L2,
+    Start
+};
+void ps2PadQueueMenuPress(Ps2MenuPress press);
+// Button prompts (PC): where the renderer last drew them (the window code
+// sets GSGpuBackend::PromptPressAt). A left click on one, glyph or label,
+// presses its button instead of reaching the menu; at (x, y) as fractions
+// of the picture it returns the press (a Ps2MenuPress), or -1.
+void ps2PadSetPromptLookup(int (*lookup)(float x, float y));
+// The prompt's press at (x, y) in 640 x 448 game pixels, or -1 (tests).
+int ps2PadPromptAt(float x, float y);
+// Mouse button presses (left or right) so far: a page that only waits for
+// any press compares it with the count it saw last.
+uint32_t ps2PadClickCount();
 bool ps2PadMenuActive();
 void ps2PadNoteMenuPointer(bool inside, float x, float y, bool click, bool rightClick, float wheel);
 Ps2MenuPointer ps2PadTakeMenuPointer();

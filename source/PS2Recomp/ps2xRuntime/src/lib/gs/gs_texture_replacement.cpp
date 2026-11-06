@@ -202,6 +202,11 @@ namespace gs_texture_replacement
     bool fontTexture(const uint32_t *texels, uint32_t width, uint32_t height, std::vector<uint32_t> &out, int &outWidth,
                      int &outHeight, uint64_t &areaHash)
     {
+#if defined(PLATFORM_XBOX)
+        // (The PC's redrawn fonts: no PNG decoder on the Xbox.)
+        (void)texels, (void)width, (void)height, (void)out, (void)outWidth, (void)outHeight, (void)areaHash;
+        return false;
+#else
         std::vector<uint32_t> area;
         for (const FontImage &font : fontImages())
         {
@@ -239,6 +244,7 @@ namespace gs_texture_replacement
             return true;
         }
         return false;
+#endif
     }
 
     struct ButtonArea
@@ -289,6 +295,12 @@ namespace gs_texture_replacement
 
     bool loadButton(int set, uint64_t hash, std::vector<uint32_t> &texels, int &width, int &height)
     {
+#if defined(PLATFORM_XBOX)
+        // (The Xbox's glyphs are patched onto its disc: mk/glyphs.mk. It has
+        // no PNG decoder.)
+        (void)set, (void)hash, (void)texels, (void)width, (void)height;
+        return false;
+#else
         const auto found = buttonImages().find(buttonKey(set, hash));
         if (found == buttonImages().end())
             return false;
@@ -305,6 +317,7 @@ namespace gs_texture_replacement
         for (uint32_t &texel : texels)
             texel = (texel & 0x00FFFFFFu) | ((((texel >> 24) + 1u) / 2u) << 24);
         return true;
+#endif
     }
 
     bool dumping()

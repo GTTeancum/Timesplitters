@@ -1191,6 +1191,29 @@ void ps2PadQueueMenuPress(Ps2MenuPress press)
 #endif
 }
 
+#if !defined(PLATFORM_XBOX)
+namespace
+{
+    std::atomic<int64_t> g_crosshairUntil{0};
+}
+#endif
+
+void ps2PadNoteCrosshair()
+{
+#if !defined(PLATFORM_XBOX)
+    g_crosshairUntil.store(steadyMs() + 100, std::memory_order_relaxed);
+#endif
+}
+
+bool ps2PadCrosshairShown()
+{
+#if !defined(PLATFORM_XBOX)
+    return steadyMs() < g_crosshairUntil.load(std::memory_order_relaxed) && !ps2PadMenuActive();
+#else
+    return false;
+#endif
+}
+
 bool ps2PadMenuActive()
 {
 #if !defined(PLATFORM_XBOX)

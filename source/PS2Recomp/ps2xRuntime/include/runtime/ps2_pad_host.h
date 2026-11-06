@@ -83,3 +83,9 @@ uint32_t ps2PadClickCount();
 bool ps2PadMenuActive();
 void ps2PadNoteMenuPointer(bool inside, float x, float y, bool click, bool rightClick, float wheel);
 Ps2MenuPointer ps2PadTakeMenuPointer();
+// The crosshair (timesplitters.ini crosshair, PC): the keyboard and mouse
+// player's tick notes, each tick of play, that the view is theirs (one
+// view, no menu or level-end screen up); the window draws it while noted
+// lately.
+void ps2PadNoteCrosshair();
+bool ps2PadCrosshairShown();

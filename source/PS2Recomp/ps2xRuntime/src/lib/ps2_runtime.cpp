@@ -3,6 +3,7 @@
 #include "ps2x/exceptions.h"
 #include "runtime/ps2_sample_profiler.h"
 #include "runtime/ps2_host_settings.h"
+#include "runtime/ps2_loading.h"
 #include "runtime/ps2_pad_host.h"
 
 namespace
@@ -40,6 +41,8 @@ static_assert(PS2X_GUEST_DISPATCH_CYCLES == EeScheduler::kGuestDispatchCycles,
 void *xboxThreadStart(uint32_t stackBytes, void (*entry)(void *), void *arg);
 void xboxThreadJoin(void *thread);
 void xboxStackReport();
+// src/xbox/gs_nv2a_backend.cpp
+void xboxNv2aLoadingWheel(int step);
 // TS_LAZY_GUEST_RAM 1 (src/xbox/xbox_lazy_commit.cpp): guest memory is
 // committed on first touch; the game thread installs the handler for it.
 #ifndef TS_LAZY_GUEST_RAM
@@ -2991,6 +2994,43 @@ void PS2Runtime::run()
         DrawTexturePro(drawTex, srcRect, dstRect, Vector2{0.0f, 0.0f}, 0.0f, WHITE);
         if (fxaa)
             EndShaderMode();
+#if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
+        // The crosshair (timesplitters.ini crosshair): a small white cross
+        // with a dark edge in the middle of the view, while the keyboard and
+        // mouse player plays in one view (ps2PadCrosshairShown).
+        if (hostSettings().crosshair && hostSettings().mouse && ps2PadCrosshairShown())
+        {
+            const float unit = std::max(1.0f, std::round(dstRect.height / 540.0f));
+            const float cx = std::round(dstRect.x + dstRect.width * 0.5f), cy = std::round(dstRect.y + dstRect.height * 0.5f);
+            const float gap = 4.0f * unit, arm = 7.0f * unit, thick = unit * 2.0f;
+            const Rectangle arms[4] = {{cx - gap - arm, cy - thick * 0.5f, arm, thick},
+                                       {cx + gap, cy - thick * 0.5f, arm, thick},
+                                       {cx - thick * 0.5f, cy - gap - arm, thick, arm},
+                                       {cx - thick * 0.5f, cy + gap, thick, arm}};
+            for (const Rectangle &r : arms)
+                DrawRectangleRec({r.x - unit, r.y - unit, r.width + unit * 2.0f, r.height + unit * 2.0f}, Color{0, 0, 0, 140});
+            for (const Rectangle &r : arms)
+                DrawRectangleRec(r, Color{255, 255, 255, 220});
+        }
+#endif
+        // The loading wheel (runtime/ps2_loading.h) over the last picture
+        // while the game loads.
+        {
+            const int step = ps2_loading::wheelStep();
+#if defined(PLATFORM_XBOX)
+            xboxNv2aLoadingWheel(step);
+#elif !defined(PLATFORM_VITA)
+            if (step >= 0)
+            {
+                ps2_loading::Dot dots[8];
+                ps2_loading::wheelDots(static_cast<int>(dstRect.width), static_cast<int>(dstRect.height), step, dots);
+                for (const ps2_loading::Dot &d : dots)
+                    DrawRectangleRec({dstRect.x + static_cast<float>(d.x - d.half), dstRect.y + static_cast<float>(d.y - d.half),
+                                      static_cast<float>(d.half * 2), static_cast<float>(d.half * 2)},
+                                     Color{d.r, d.g, d.b, 255});
+            }
+#endif
+        }
         if (m_debugUiInitialized && m_debugUiDrawCallback)
         {
             m_debugUiDrawCallback(*this, m_debugUiUserData);
@@ -3070,6 +3110,12 @@ void PS2Runtime::run()
                 for (const auto &c : testClicks)
                     if (static_cast<uint64_t>(c[0]) == testFrame)
                         ps2PadNoteMenuPointer(true, c[1], c[2], true, false, 0.0f);
+            }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && std::getenv("TS_TRACE_MENUS"))
+            {
+                const Vector2 at = GetMousePosition();
+                std::fprintf(stderr, "[TS:window] left click at %.0f,%.0f (in a menu %d, focused %d)\n", at.x, at.y,
+                             inMenu ? 1 : 0, IsWindowFocused() ? 1 : 0);
             }
             if (inMenu && hostSettings().mouse && !std::getenv("TS_TEST_HIDDEN"))
             {

@@ -11,12 +11,13 @@
 //   vsync        = 0|1         present in step with the display (no tearing)
 //   mouse        = 0|1         mouse look and buttons for player 1 (PC)
 //   mouse_sensitivity = 0.1..10 how far a mouse movement turns
+//   crosshair    = 0|1         a crosshair in the middle of the view in play (PC)
 //   render_scale = 1..4        internal rendering resolution multiplier
 //   texture_dump = 0|1         save each new texture to textures/dump
 //   texture_replace = 0|1      draw PNGs from textures/replacements instead
 // widescreen and fxaa can be toggled while playing (F10, F9). The game's
 // Audio / Video Options menu changes all of them (on the PC: V-Sync, Mouse
-// and Mouse speed too) and saves the file.
+// Mouse speed and Crosshair too) and saves the file.
 struct HostSettings
 {
     std::atomic<int> windowWidth{1280};
@@ -27,6 +28,7 @@ struct HostSettings
     std::atomic<bool> vsync{true};     // the window thread applies a change
     std::atomic<bool> mouse{true};
     std::atomic<float> mouseSensitivity{1.0f};
+    std::atomic<bool> crosshair{true};
     std::atomic<int> renderScale{1};  // the value the file holds; used at start-up
     bool textureDump = false;          // read at start-up
     bool textureReplace = true;

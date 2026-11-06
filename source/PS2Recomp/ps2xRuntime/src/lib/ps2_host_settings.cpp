@@ -87,6 +87,8 @@ namespace
                 settings.mouse = parseBool(value);
             else if (key == "mouse_sensitivity")
                 settings.mouseSensitivity = std::clamp(static_cast<float>(std::atof(value.c_str())), 0.1f, 10.0f);
+            else if (key == "crosshair")
+                settings.crosshair = parseBool(value);
             else if (key == "texture_dump")
                 settings.textureDump = parseBool(value);
             else if (key == "texture_replace")
@@ -127,6 +129,9 @@ void saveHostSettings()
         {"vsync", settings.vsync ? "1" : "0"},
         {"mouse", settings.mouse ? "1" : "0"},
         {"mouse_sensitivity", sensitivityText(settings.mouseSensitivity)},
+#if !defined(PLATFORM_XBOX)
+        {"crosshair", settings.crosshair ? "1" : "0"},
+#endif
     };
     std::vector<std::string> lines;
     {

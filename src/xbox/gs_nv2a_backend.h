@@ -170,6 +170,10 @@ bool xboxNv2aFastRun(uint32_t handle, const GSContext &context, const GSPrimReg 
                      uint32_t format, uint32_t strips);
 #endif
 
+// The loading wheel at step (0..7; -1: none, and what it covered back), drawn
+// into the shown buffer from the main thread's loop (runtime/ps2_loading.h).
+void xboxNv2aLoadingWheel(int step);
+
 class GSNv2aBackend final : public GSRasterBackend
 {
 public:

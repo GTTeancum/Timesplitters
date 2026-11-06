@@ -1204,9 +1204,13 @@ struct GSGpuBackend::Impl
         {
             DrawnRect p = glyph;
             const float lineHeight = std::max(p.y1 - p.y0, 1.0f);
-            float stop = 1e9f; // the next prompt along the line
+            // The next prompt along the line: one sharing half its height (a
+            // prompt on the line below, overlapping it a little, as the story
+            // screen's Esc Back under Enter Start Game, is not).
+            float stop = 1e9f;
             for (const DrawnRect &other : promptsDrawn)
-                if (other.x0 > p.x0 + 1.0f && other.y0 < p.y1 && other.y1 > p.y0)
+                if (other.x0 > p.x0 + 1.0f &&
+                    std::min(other.y1, p.y1) - std::max(other.y0, p.y0) >= 0.5f * lineHeight)
                     stop = std::min(stop, other.x0);
             for (const DrawnRect &t : spritesDrawn)
             {

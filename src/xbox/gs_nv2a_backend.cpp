@@ -5,6 +5,7 @@
 #include "xbox_texture_source.h"
 #include "runtime/gs/gs_texture_hash.h"
 #include "runtime/gs/ps2_gs_memory.h"
+#include "runtime/ps2_loading.h"
 
 // Split screen (REWRITE-PLAN.md M2.3). Each switch at 0 restores the old path.
 // TS_NV2A_DISPLAY_HEIGHT 1: the GS frame's height (its mapping onto the
@@ -4138,6 +4139,16 @@ struct GSNv2aBackend::Impl
                     sb = float(b.u) / 16.0f / texW;
                     tb = float(b.v) / 16.0f / texH;
                     q = 1.0f;
+                    // Half a texel in from each edge: the screen is stretched
+                    // (448 lines shown on 480) and filtered, and at a sprite's
+                    // edge the filter took in the texel past it, which belongs
+                    // to whatever lies beside the picture in local memory (a
+                    // light line under the 24x24 button glyphs).
+                    const float hs = (sb >= sa ? 0.5f : -0.5f) / texW, ht = (tb >= ta ? 0.5f : -0.5f) / texH;
+                    sa += hs;
+                    sb -= hs;
+                    ta += ht;
+                    tb -= ht;
                 }
                 else
                 {
@@ -4171,9 +4182,23 @@ struct GSNv2aBackend::Impl
                 const GSVertex &a = verts[0], &b = verts[1];
                 // Two triangles; colour, depth and fog come from the second vertex.
                 GSVertex corners[4] = {a, a, a, a};
-                corners[1].x = b.x; corners[1].u = b.u; corners[1].s = b.s;
-                corners[2].x = b.x; corners[2].y = b.y; corners[2].u = b.u; corners[2].v = b.v; corners[2].s = b.s; corners[2].t = b.t;
-                corners[3].y = b.y; corners[3].v = b.v; corners[3].t = b.t;
+                GSVertex bi = b;
+                if (state.prim.fst)
+                {
+                    // Half a texel in from each edge (as the route above: the
+                    // filter took in the texel past a sprite's edge).
+                    const int du = b.u >= a.u ? 8 : -8, dv = b.v >= a.v ? 8 : -8;
+                    for (GSVertex &c : corners)
+                    {
+                        c.u = uint16_t(int(c.u) + du);
+                        c.v = uint16_t(int(c.v) + dv);
+                    }
+                    bi.u = uint16_t(int(b.u) - du);
+                    bi.v = uint16_t(int(b.v) - dv);
+                }
+                corners[1].x = b.x; corners[1].u = bi.u; corners[1].s = b.s;
+                corners[2].x = b.x; corners[2].y = b.y; corners[2].u = bi.u; corners[2].v = bi.v; corners[2].s = b.s; corners[2].t = b.t;
+                corners[3].y = b.y; corners[3].v = bi.v; corners[3].t = b.t;
                 for (GSVertex &c : corners)
                 {
                     c.z = b.z;
@@ -5167,6 +5192,61 @@ void xboxNv2aWaitIdle()
 }
 #endif
 
+// The loading wheel (runtime/ps2_loading.h), from the main thread's loop
+// while the game thread loads a level and presents no frame: the dots go
+// straight into the shown buffer (CPU writes, on screen at once; the GPU
+// finished that frame long before the wheel's first quarter second), and
+// what they covered is put back when the wheel stops, unless the game has
+// presented a frame since (its own picture then stands).
+namespace
+{
+    GSNv2aBackend::Impl *g_wheelImpl = nullptr; // Create
+}
+
+void xboxNv2aLoadingWheel(int step)
+{
+    static int shownStep = -1;
+    static uint8_t *savedBuffer = nullptr;
+    static uint32_t savedFrame = 0;
+    static int boxX = 0, boxY = 0, boxW = 0, boxH = 0;
+    static uint8_t saved[64u * 64u * 4u];
+    if (step == shownStep || !g_wheelImpl)
+        return;
+    const uint32_t pitch = pb_back_buffer_pitch();
+    const uint32_t bytes = XVideoGetMode().bpp == 16 ? 2u : 4u;
+    if (shownStep >= 0 && savedBuffer)
+    {
+        if (savedFrame == g_tsFramesPresented)
+            for (int y = 0; y < boxH; ++y)
+                std::memcpy(savedBuffer + size_t(boxY + y) * pitch + size_t(boxX) * bytes,
+                            saved + size_t(y) * boxW * bytes, size_t(boxW) * bytes);
+        savedBuffer = nullptr;
+    }
+    shownStep = step;
+    uint8_t *fb = reinterpret_cast<uint8_t *>(g_wheelImpl->shownBuffer);
+    if (step < 0 || !fb)
+        return;
+    ps2_loading::Dot dots[8];
+    ps2_loading::wheelDots(int(kScreenWidth), int(kScreenHeight), step, dots);
+    boxX = dots[6].x - dots[6].half;
+    boxY = dots[0].y - dots[0].half;
+    boxW = std::min(dots[2].x + dots[2].half - boxX, 64);
+    boxH = std::min(dots[4].y + dots[4].half - boxY, 64);
+    for (int y = 0; y < boxH; ++y)
+        std::memcpy(saved + size_t(y) * boxW * bytes, fb + size_t(boxY + y) * pitch + size_t(boxX) * bytes,
+                    size_t(boxW) * bytes);
+    savedBuffer = fb;
+    savedFrame = g_tsFramesPresented;
+    for (const ps2_loading::Dot &d : dots)
+    {
+        const uint32_t colour = bytes == 2u ? uint32_t(((d.r & 0xF8u) << 8) | ((d.g & 0xFCu) << 3) | (d.b >> 3))
+                                            : 0xFF000000u | (uint32_t(d.r) << 16) | (uint32_t(d.g) << 8) | d.b;
+        for (int y = std::max(d.y - d.half, boxY); y < std::min(d.y + d.half, boxY + boxH); ++y)
+            for (int x = std::max(d.x - d.half, boxX); x < std::min(d.x + d.half, boxX + boxW); ++x)
+                std::memcpy(fb + size_t(y) * pitch + size_t(x) * bytes, &colour, bytes);
+    }
+}
+
 #if TS_GIF_DIRECT || TS_NATIVE_FX
 #include "xbox_gif_direct.h"
 namespace
@@ -5197,6 +5277,7 @@ std::unique_ptr<GSNv2aBackend> GSNv2aBackend::Create()
         return nullptr;
     }
     Impl &impl = *backend->m;
+    g_wheelImpl = &impl;
 #if TS_NATIVE_MODELS
     g_residentImpl = &impl;
 #if TS_NATIVE_REPLAY && TS_FAST_REPLAY

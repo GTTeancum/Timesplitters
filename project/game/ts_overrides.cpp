@@ -6,6 +6,7 @@
 #include "runtime/ps2_music.h"
 #include "runtime/ps2_vfs.h"
 #include "runtime/ps2_host_settings.h"
+#include "runtime/ps2_loading.h"
 #include "runtime/ps2_pad_host.h"
 #include "ps2_recompiled_functions.h"
 
@@ -241,6 +242,29 @@ namespace
         matrixPerspective_0x2b5258(rdram, ctx, runtime);
     }
 
+    // The loading wheel (runtime/ps2_loading.h): cpuMain loads a level from
+    // lvResetBefore to gameResetAfter (lvPreload, the textures, the level's
+    // setup between), drawing no frame meanwhile. The start-up's loads (the
+    // splash screen, before the front end's first menu: displayMenuTick
+    // sets g_menusShown) show none.
+    bool g_menusShown = false;
+    void lvResetBeforeLoading(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        if (g_menusShown)
+            ps2_loading::begin();
+        if (std::getenv("TS_TRACE_LOADING"))
+            std::fprintf(stderr, "[TS:loading] level load begins\n");
+        lvResetBefore_0x225cd8(rdram, ctx, runtime);
+    }
+
+    void gameResetAfterLoaded(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        gameResetAfter_0x21ede8(rdram, ctx, runtime);
+        if (std::getenv("TS_TRACE_LOADING"))
+            std::fprintf(stderr, "[TS:loading] level load ends\n");
+        ps2_loading::end();
+    }
+
 
     // The game's Audio / Video Options page (audiovideo_pageTick) runs the
     // generic menutick and std_menumake on audiovideo_menu: a 16-byte header
@@ -268,7 +292,7 @@ namespace
     {
         uint32_t menu = 0;
         uint32_t gvWidescreen = 0, gvFxaa = 0, gvResolution = 0, gvFullscreen = 0, gvScale = 0;
-        uint32_t gvVsync = 0, gvMouse = 0, gvMouseSpeed = 0; // PC only (0 on the Xbox)
+        uint32_t gvVsync = 0, gvMouse = 0, gvMouseSpeed = 0, gvCrosshair = 0; // PC only (0 on the Xbox)
         uint32_t scaleLabel = 0; // notes when the change waits for a restart
         std::vector<Resolution> resolutions;
         int startupScale = 1;
@@ -364,6 +388,7 @@ namespace
         for (uint32_t level = 1; level <= kMouseSpeedLevels; ++level)
             speedTexts.push_back(text(std::to_string(level)));
         m.gvMouseSpeed = gv(kMouseSpeedLevels - 1u, choices(speedTexts));
+        m.gvCrosshair = gv(1u, kDispOnOff);
 #endif
 
         struct NewItem
@@ -381,6 +406,7 @@ namespace
             {"V-Sync", m.gvVsync},
             {"Mouse", m.gvMouse},
             {"Mouse speed", m.gvMouseSpeed},
+            {"Crosshair", m.gvCrosshair},
 #endif
         };
         const uint32_t itemCount = kOriginalItems + static_cast<uint32_t>(std::size(added));
@@ -450,6 +476,7 @@ namespace
         guestWord(rdram, m.gvVsync) = settings.vsync ? 1u : 0u;
         guestWord(rdram, m.gvMouse) = settings.mouse ? 1u : 0u;
         guestWord(rdram, m.gvMouseSpeed) = mouseSpeedLevel(settings.mouseSensitivity) - 1u;
+        guestWord(rdram, m.gvCrosshair) = settings.crosshair ? 1u : 0u;
 #endif
         writeGuestString(rdram, m.scaleLabel,
                          settings.renderScale == m.startupScale ? "Render quality" : "Render quality (on restart)");
@@ -512,6 +539,11 @@ namespace
         if (speed != mouseSpeedLevel(settings.mouseSensitivity))
         {
             settings.mouseSensitivity = static_cast<float>(speed) / 5.0f;
+            changed = true;
+        }
+        if (const bool crosshair = guestWord(rdram, m.gvCrosshair) != 0u; crosshair != settings.crosshair)
+        {
+            settings.crosshair = crosshair;
             changed = true;
         }
 #endif
@@ -701,6 +733,256 @@ namespace
         std::fprintf(stderr, "[TS:text] save and controller wording: %u of %u texts reworded\n", applied,
                      static_cast<unsigned>(std::size(kGenericWording)));
     }
+#else
+    // The Xbox's wording (English, the language table at 0x2F2C18's first:
+    // texts by language id, 0x313750). The custom controls' button names
+    // (setupcontrols' 14 choices, ids 1236-1245; the face buttons are their
+    // glyphs, patched onto the disc: src/xbox/mk/glyphs.mk) are the Duke's
+    // as the Xbox pad drives them (White L1 and Black R1 as their glyphs,
+    // ^6 and ^7 below; the triggers L2 and R2, the stick clicks L3 and R3),
+    // without "button", the sticks without "Analog" (as the PC's: ids 1049,
+    // 1050) and the directions as "dpad up" ...; names longer than
+    // the original's slot go in new text (0x7EC00: the PC's pause-screen
+    // block, unused here) and the table entry points there. The map maker's
+    // help says the same. "Memory Card (PS2)" is "Memory Card" everywhere
+    // (the Xbox's two cards are its dashboard saves "Memory Card 1" and
+    // "2"). Each only where the original is found exactly; once, at the
+    // first menu tick.
+    constexpr uint32_t kXboxTextBlock = 0x7EC00u, kXboxTextBlockEnd = 0x7EF80u;
+#endif
+
+    // The White and Black buttons in text (^6, ^7), as the face buttons'
+    // ^1..^4: textPrint and textSize draw "^<digit>" as the texture
+    // 0x319A48[digit - '1'] (guiRestart fills entries 0..4, mm_button01..05,
+    // which guiPreload loads; entries 5 and 6 are unused). Two 24x24
+    // textures MISC.PAK holds but the game never loads, mm_circle_24x24 and
+    // mm_newedge, are the disc patch's White and Black (src/xbox/tools/
+    // xboxglyphs.py); they are loaded beside the buttons and put in entries
+    // 5 and 6. Their names stay in guest RAM (the preload keeps the pointer),
+    // after the text block.
+    constexpr uint32_t kGlyphTable = 0x319A48u;
+    constexpr uint32_t kExtraGlyphNames = 0x7EF80u; // two 0x30-byte names, below the trace word 0x7EFF0
+    constexpr const char *kExtraGlyphs[] = {"host0:textures/misc/mm_circle_24x24.qpm", // ^6 White
+                                            "host0:textures/misc/mm_newedge.qpm"};     // ^7 Black
+
+    // The preload list (preloadAddTexName, preloadGetTexName, as the game
+    // keeps it), done here rather than by calling the game's routines from a
+    // hook: a call made there can stop at any inner call when the scheduler
+    // is due to switch threads, and the rest of it would be lost. Entries are
+    // 24 bytes at 0x1FB4C60, gp-0x6290 of them: type (2: a texture), next
+    // (the list by disc sector, from gp-0x4910), sector, name, flags, then
+    // the texture's id once loaded.
+    constexpr uint32_t kPreloadEntries = 0x1FB4C60u, kPreloadMax = 400u;
+
+    uint32_t preloadFind(uint8_t *rdram, uint32_t gp, const char *name)
+    {
+        const uint32_t count = std::min(guestWord(rdram, gp - 0x6290u), kPreloadMax);
+        for (uint32_t e = 0; e < count; ++e)
+        {
+            const uint32_t at = kPreloadEntries + e * 24u, nameAt = guestWord(rdram, at + 12u);
+            if (guestWord(rdram, at) == 2u && nameAt >= 0x1000u && nameAt < 0x2000000u &&
+                std::strcmp(reinterpret_cast<const char *>(rdram + nameAt), name) == 0)
+                return at;
+        }
+        return 0u;
+    }
+
+    // The file's first sector (fileGetSector -> packfileSeek): its record in
+    // one of the open packs (gp-0x4948 of them, listed at 0x1FB4C40; each
+    // with its sector at +4, its record count at +0xC and its 60-byte
+    // records, a 48-byte name then the offset, at +0x14), the pack's sector
+    // plus the offset in sectors. 0 if no pack has it.
+    uint32_t packSector(uint8_t *rdram, uint32_t gp, const char *name)
+    {
+        if (std::strncmp(name, "host0:", 6) == 0)
+            name += 6;
+        const uint32_t packs = std::min(guestWord(rdram, gp - 0x4948u), 16u);
+        for (uint32_t p = 0; p < packs; ++p)
+        {
+            const uint32_t pack = guestWord(rdram, 0x1FB4C40u + p * 4u);
+            if (pack < 0x1000u || pack >= 0x2000000u)
+                continue;
+            const uint32_t count = std::min(guestWord(rdram, pack + 0xCu), 8192u), records = guestWord(rdram, pack + 0x14u);
+            for (uint32_t r = 0; r < count; ++r)
+            {
+                const uint32_t record = records + r * 60u;
+                if (std::strncmp(reinterpret_cast<const char *>(rdram + record), name, 48) == 0)
+                    return guestWord(rdram, pack + 4u) + (guestWord(rdram, record + 0x30u) >> 11);
+            }
+        }
+        return 0u;
+    }
+
+    void preloadExtraGlyphs(uint8_t *rdram, R5900Context *ctx, PS2Runtime *)
+    {
+        const uint32_t gp = GPR_U32(ctx, 28);
+        for (uint32_t i = 0; i < std::size(kExtraGlyphs); ++i)
+        {
+            const uint32_t name = kExtraGlyphNames + i * 0x30u;
+            writeGuestString(rdram, name, kExtraGlyphs[i]);
+            uint32_t &count = guestWord(rdram, gp - 0x6290u);
+            const uint32_t sector = packSector(rdram, gp, kExtraGlyphs[i]);
+            if (preloadFind(rdram, gp, kExtraGlyphs[i]) || !sector || count >= kPreloadMax)
+                continue;
+            const uint32_t entry = kPreloadEntries + count * 24u;
+            ++count;
+            guestWord(rdram, entry) = 2u;
+            guestWord(rdram, entry + 4u) = 0u;
+            guestWord(rdram, entry + 8u) = sector;
+            guestWord(rdram, entry + 12u) = name;
+            guestWord(rdram, entry + 16u) = 0u;
+            guestWord(rdram, entry + 20u) = 0u;
+            // preloadInsert: into the list by sector (head gp-0x4910, next at +4).
+            uint32_t &head = guestWord(rdram, gp - 0x4910u);
+            if (!head || guestWord(rdram, head + 8u) >= sector)
+            {
+                guestWord(rdram, entry + 4u) = head;
+                head = entry;
+            }
+            else
+            {
+                uint32_t at = head;
+                while (guestWord(rdram, at + 4u) && guestWord(rdram, guestWord(rdram, at + 4u) + 8u) < sector)
+                    at = guestWord(rdram, at + 4u);
+                guestWord(rdram, entry + 4u) = guestWord(rdram, at + 4u);
+                guestWord(rdram, at + 4u) = entry;
+            }
+            if (std::getenv("TS_TRACE_GLYPHS"))
+                std::fprintf(stderr, "[TS:glyphs] preload %s: sector %u, entry %u\n", kExtraGlyphs[i], sector, count - 1u);
+        }
+    }
+
+    void restartExtraGlyphs(uint8_t *rdram, R5900Context *ctx, PS2Runtime *)
+    {
+        for (uint32_t i = 0; i < std::size(kExtraGlyphs); ++i)
+        {
+            const uint32_t entry = preloadFind(rdram, GPR_U32(ctx, 28), kExtraGlyphs[i]);
+            if (entry)
+                guestWord(rdram, kGlyphTable + (5u + i) * 4u) = guestWord(rdram, entry + 20u);
+            if (std::getenv("TS_TRACE_GLYPHS"))
+                std::fprintf(stderr, "[TS:glyphs] ^%u: %s entry 0x%x texture %u (^1's %u)\n", 6u + i, kExtraGlyphs[i], entry,
+                             guestWord(rdram, kGlyphTable + (5u + i) * 4u), guestWord(rdram, kGlyphTable));
+        }
+    }
+
+    // guiPreload and guiRestart, and the two that end by jumping to them
+    // (compiled as direct calls, past a replaced function).
+    void guiPreloadXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const R5900Context entry = *ctx;
+        guiPreload_0x22e250(rdram, ctx, runtime);
+        R5900Context call = entry;
+        preloadExtraGlyphs(rdram, &call, runtime);
+    }
+
+    void ingamemenuPreloadXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const R5900Context entry = *ctx;
+        ingamemenuPreload_0x2124a0(rdram, ctx, runtime);
+        R5900Context call = entry;
+        preloadExtraGlyphs(rdram, &call, runtime);
+    }
+
+    void guiRestartXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const R5900Context entry = *ctx;
+        guiRestart_0x22e350(rdram, ctx, runtime);
+        R5900Context call = entry;
+        restartExtraGlyphs(rdram, &call, runtime);
+    }
+
+    void guiResetXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        const R5900Context entry = *ctx;
+        guiReset_0x22e420(rdram, ctx, runtime);
+        R5900Context call = entry;
+        restartExtraGlyphs(rdram, &call, runtime);
+    }
+
+#if defined(PLATFORM_XBOX)
+    void applyXboxWording(uint8_t *rdram)
+    {
+        const uint32_t table = guestWord(rdram, 0x2F2C18u);
+        if (table < 0x100000u || table >= 0x2000000u)
+            return;
+        auto text = [&](uint32_t id) { return guestWord(rdram, table + id * 4u); };
+        auto matches = [&](uint32_t at, const char *original) {
+            return at >= 0x100000u && at < 0x2000000u && std::strcmp(reinterpret_cast<const char *>(rdram + at), original) == 0;
+        };
+        uint32_t applied = 0, cursor = kXboxTextBlock;
+        for (uint32_t i = kXboxTextBlock; i < kXboxTextBlockEnd; i += 4u)
+            if (guestWord(rdram, i) != 0u)
+            {
+                std::fprintf(stderr, "[TS:text] RAM at 0x%x is in use; longer names left out\n", i);
+                cursor = kXboxTextBlockEnd;
+                break;
+            }
+        static constexpr struct
+        {
+            uint32_t id;
+            const char *original, *text;
+        } kNames[] = {
+            {1236u, "^3 button", "^3"},          {1237u, "^2 button", "^2"},
+            {1238u, "^4 button", "^4"},          {1239u, "^1 button", "^1"},
+            {1240u, "L1 button", "^6"},          {1241u, "L2 button", "Left trigger"},
+            {1242u, "R1 button", "^7"},          {1243u, "R2 button", "Right trigger"},
+            {1051u, "Up directional button", "dpad up"},      {1052u, "Down directional button", "dpad down"},
+            {1053u, "Left directional button", "dpad left"},  {1054u, "Right directional button", "dpad right"},
+            {1244u, "L3 button", "Left stick click"}, {1245u, "R3 button", "Right stick click"},
+            {1049u, "Left Analog Stick", "Left Stick"}, {1050u, "Right Analog Stick", "Right Stick"}, // (as the PC's)
+            {998u,
+             "left analog stick - Move cursor\nright analog stick - Pan map\nR1 / R2 button - Zoom Out / In\n"
+             "L1 / L2 button - Move to Upper / Lower Floor\n^2 button - Insert Tile / Item / Light\n"
+             "^2 button (HOLD DOWN) - Lasso Selection\n^1 button - Rotate / Mark / Unmark\n"
+             "^3 button - Delete / Cancel Selection\n^4 button - Copy Object\n",
+             "left stick - Move cursor\nright stick - Pan map\n^7 / Right trigger - Zoom Out / In\n"
+             "^6 / Left trigger - Move to Upper / Lower Floor\n^2 - Insert Tile / Item / Light\n"
+             "^2 (HOLD DOWN) - Lasso Selection\n^1 - Rotate / Mark / Unmark\n"
+             "^3 - Delete / Cancel Selection\n^4 - Copy Object\n"},
+        };
+        for (const auto &n : kNames)
+        {
+            const uint32_t at = text(n.id);
+            if (!matches(at, n.original))
+                continue;
+            const size_t length = std::strlen(n.text) + 1u;
+            if (length <= std::strlen(n.original) + 1u)
+            {
+                std::memset(rdram + at, 0, std::strlen(n.original) + 1u);
+                std::memcpy(rdram + at, n.text, length);
+            }
+            else
+            {
+                if (cursor + length > kXboxTextBlockEnd)
+                    continue;
+                std::memcpy(rdram + cursor, n.text, length);
+                guestWord(rdram, table + n.id * 4u) = cursor;
+                cursor += static_cast<uint32_t>((length + 3u) & ~size_t(3));
+            }
+            ++applied;
+        }
+        // "Memory Card (PS2)" -> "Memory Card" in every text (shorter: in place).
+        uint32_t cards = 0;
+        for (uint32_t id = 0; id < 0x4DEu; ++id)
+        {
+            const uint32_t at = text(id);
+            if (at < 0x100000u || at >= 0x2000000u || (at >= kXboxTextBlock && at < kXboxTextBlockEnd))
+                continue;
+            char *s = reinterpret_cast<char *>(rdram + at);
+            bool changed = false;
+            for (const char *mark : {"Memory Card (PS2)", "MEMORY CARD (PS2)"})
+                for (char *found = std::strstr(s, mark); found; found = std::strstr(found, mark))
+                {
+                    char *after = found + std::strlen(mark);
+                    found += std::strlen(mark) - 6u; // keep "Memory Card", drop " (PS2)"
+                    std::memmove(found, after, std::strlen(after) + 1u);
+                    changed = true;
+                }
+            cards += changed ? 1u : 0u;
+        }
+        std::fprintf(stderr, "[TS:text] Xbox wording: %u of %u controller texts, %u memory card texts\n", applied,
+                     static_cast<unsigned>(std::size(kNames)), cards);
+    }
 #endif
 
 #if !defined(PLATFORM_XBOX)
@@ -881,6 +1163,7 @@ namespace
     // scales by the speed): a mouse turns by distance, not at a rate.
     constexpr uint32_t kPlayerTick = 0x281248u;
     constexpr float kMouseDegrees = 0.12f;
+    bool g_levelEndShown = false; // gameTickClickable: the level's end screen is up
     void playerTickMouseLook(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         const uint32_t player = guestWord(rdram, GPR_U32(ctx, 28) - 0x4DCCu);
@@ -902,8 +1185,42 @@ namespace
                 std::fprintf(stderr, "[TS:look] field of view %.1f, mouse scale %.2f\n", fov, zoom);
         }
         if (player && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane))
+        {
             testClicksTick(rdram, 4u, false);
+            if (hostSettings().crosshair && !gsSplitScreen() && !g_levelEndShown)
+                ps2PadNoteCrosshair();
+        }
         playerTick_0x281248(rdram, ctx, runtime);
+    }
+
+    // The level's end (PC): gameTick, in game state 0x69 (gp-0x6090: "Level
+    // Completed", "Level Failed" with its time and stats), waits for player
+    // 1's joyNewBut to show a face button, Select or Start (0x9F0), so the
+    // mouse's left button (R1 in play) does not close it. A click made while
+    // it is up is Cross there.
+    constexpr uint32_t kGameTick = 0x21EEB8u;
+    void gameTickClickable(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        static uint32_t clicksSeen = 0;
+        const uint32_t clicks = ps2PadClickCount();
+        const uint32_t state = guestWord(rdram, GPR_U32(ctx, 28) - 0x6090u);
+        if (static uint32_t stateSeen = ~0u; state != stateSeen)
+        {
+            stateSeen = state;
+            if (std::getenv("TS_TRACE_MENUS"))
+                std::fprintf(stderr, "[TS:menu] game state %x (next %x)\n", state, guestWord(rdram, GPR_U32(ctx, 28) - 0x6254u));
+        }
+        g_levelEndShown = state == 0x69u;
+        if (g_levelEndShown && clicks != clicksSeen && hostSettings().mouse)
+        {
+            const uint32_t record = guestWord(rdram, 0x31DF68u);
+            if (record < 8u)
+                guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u) |= 0x40u;
+            if (std::getenv("TS_TRACE_MENUS"))
+                std::fprintf(stderr, "[TS:menu] click closes the level's end\n");
+        }
+        clicksSeen = clicks;
+        gameTick_0x21eeb8(rdram, ctx, runtime);
     }
 
     // Pop-up boxes (PC): zoomboxInit(box) starts a message box's grow-in,
@@ -1225,7 +1542,13 @@ namespace
         static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
         auto press = [&](Ps2MenuPress p, const char *what) {
             if (trace)
-                std::fprintf(stderr, "[TS:menu-mouse] row %u flags %x: %s\n", row ? row->id : 0u, row ? row->flags : 0u, what);
+            {
+                std::fprintf(stderr, "[TS:menu-mouse] row %u flags %x: %s (pointer %.0f,%.0f; rows", row ? row->id : 0u,
+                             row ? row->flags : 0u, what, pointer.x, pointer.y * 0.5f);
+                for (const MenuRow &r : g_menuRows)
+                    std::fprintf(stderr, " %u[%d-%d,%d-%d]", r.id, r.x0, r.x1, r.y0, r.y1);
+                std::fprintf(stderr, ")\n");
+            }
             ps2PadQueueMenuPress(p);
         };
         if (trace && pointer.clicks && !row)
@@ -1524,14 +1847,24 @@ namespace
 
     void displayMenuTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        g_menusShown = true; // (the loading wheel from now on)
 #if !defined(PLATFORM_XBOX)
         takeMenuRows(GPR_U32(ctx, 5));
         g_menuAsked = GPR_U32(ctx, 5);
 #endif
 #if !defined(PLATFORM_XBOX)
         static const bool reworded = (applyGenericWording(rdram), true);
-        (void)reworded;
+        static const bool glyphTest = [&] {
+            const uint32_t accept = guestWord(rdram, guestWord(rdram, 0x2F2C18u) + 370u * 4u); // "^2 Accept   ^3 Cancel"
+            if (std::getenv("TS_TEST_EXTRA_GLYPHS") && accept >= 0x100000u && accept < 0x2000000u)
+                writeGuestString(rdram, accept, "^6 Accept   ^7 Cancel");
+            return true;
+        }();
+        (void)glyphTest;
+#else
+        static const bool reworded = (applyXboxWording(rdram), true);
 #endif
+        (void)reworded;
         static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
         static uint32_t lastMenu = 0;
         if (trace) // also left in guest RAM for pad scripts (wait_u32 0x7eff0)
@@ -2455,6 +2788,8 @@ namespace
             runtime.replaceFunction(kFrontfxTick, &frontfxTickSkippable);
         if (hookOn("playerTick"))
             runtime.replaceFunction(kPlayerTick, &playerTickMouseLook);
+        if (hookOn("gameTick"))
+            runtime.replaceFunction(kGameTick, &gameTickClickable);
         if (hookOn("lvTickAfter"))
             runtime.replaceFunction(kLvTickAfter, &lvTickAfterCardRunOn);
         if (hookOn("mcseq"))
@@ -2475,6 +2810,19 @@ namespace
             runtime.replaceFunction(kStdMenuMake, &displayMenuMake);
         }
         runtime.replaceFunction(0x2B5258u, &widescreenMatrixPerspective);
+        // (TS_TEST_EXTRA_GLYPHS=1, tests: the same on the PC, with the Load
+        // Sign Ons box's prompts as ^6 / ^7.)
+#if !defined(PLATFORM_XBOX)
+        if (std::getenv("TS_TEST_EXTRA_GLYPHS"))
+#endif
+        {
+        runtime.replaceFunction(0x22E250u, &guiPreloadXbox);
+        runtime.replaceFunction(0x2124A0u, &ingamemenuPreloadXbox);
+        runtime.replaceFunction(0x22E350u, &guiRestartXbox);
+        runtime.replaceFunction(0x22E420u, &guiResetXbox);
+        }
+        runtime.replaceFunction(0x225CD8u, &lvResetBeforeLoading);
+        runtime.replaceFunction(0x21EDE8u, &gameResetAfterLoaded);
         if (const char *test = std::getenv("TS_LIBM_SELFTEST"); test && *test == '1')
             libmSelfTest(runtime);
         if (const char *trace = std::getenv("TS_TRACE_DAMAGE"); trace && *trace == '1')

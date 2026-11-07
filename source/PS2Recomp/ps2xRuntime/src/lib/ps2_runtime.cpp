@@ -902,6 +902,29 @@ static void enterBorderless()
 #endif
 }
 
+#if defined(_WIN32) && !defined(PLATFORM_XBOX)
+extern "C" __declspec(dllimport) long __stdcall DwmFlush(void);
+#pragma comment(lib, "dwmapi.lib")
+#endif
+
+// V-Sync (timesplitters.ini vsync) on Windows: the window waits for the
+// desktop compositor's next refresh (DwmFlush) after its present instead
+// of the swap waiting for the display. A swap that waits holds the GL
+// driver's queue, and the GS renderer's thread, which shares the context,
+// then waited behind it in every glFinish: the front end, which reads its
+// frame back each frame (the wavey backdrop), lost one or two of every
+// three vblanks (16-18 frames a second, pop-up boxes growing slowly).
+// TS_VSYNC_SWAP=1: the swap's own wait, as before.
+static bool compositorVsync()
+{
+#if defined(_WIN32) && !defined(PLATFORM_XBOX)
+    static const bool on = !std::getenv("TS_VSYNC_SWAP");
+    return on;
+#else
+    return false;
+#endif
+}
+
 bool PS2Runtime::initialize(const char *title)
 {
     PS2X_TRY
@@ -928,7 +951,7 @@ bool PS2Runtime::initialize(const char *title)
 #else
         SetConfigFlags(FLAG_WINDOW_RESIZABLE |
             (std::getenv("TS_TEST_HIDDEN") ? FLAG_WINDOW_HIDDEN : 0) |
-            (hostSettings().vsync ? FLAG_VSYNC_HINT : 0));
+            (hostSettings().vsync && !compositorVsync() ? FLAG_VSYNC_HINT : 0));
 #endif
         // Window size and fullscreen come from timesplitters.ini.
         InitWindow(hostSettings().windowWidth, hostSettings().windowHeight, title);
@@ -1219,10 +1242,15 @@ bool PS2Runtime::loadELF(const std::string &elfPath)
         // TimeSplitters' dmalists[0] explicitly points at 0x00100000.
         constexpr uint32_t kKernelArenaBase = 0x00080000u;
         constexpr uint32_t kKernelArenaEnd = 0x00100000u;
+        static_assert(kHostReservedBase == kKernelArenaBase && kHostReservedSize < kKernelArenaEnd - kKernelArenaBase,
+                      "the host reserve is the bottom of the kernel window");
+        m_hostReservedActive = false;
         if (maxLoadedRdramEnd >= hardLimit && minLoadedRdramBase >= kKernelArenaEnd)
         {
-            m_asyncCallbackStackFloor = kKernelArenaBase;
+            // (its bottom kHostReservedSize bytes are the host reserve)
+            m_asyncCallbackStackFloor = kKernelArenaBase + kHostReservedSize;
             m_asyncCallbackStackTop = kKernelArenaEnd;
+            m_hostReservedActive = true;
             std::cout << "[kernel:callback-arena] base=0x" << std::hex << m_asyncCallbackStackFloor
                       << " end=0x" << m_asyncCallbackStackTop << std::dec << '\n';
         }
@@ -3065,6 +3093,10 @@ void PS2Runtime::run()
             }
         }
         EndDrawing();
+#if defined(_WIN32) && !defined(PLATFORM_XBOX)
+        if (hostSettings().vsync && compositorVsync())
+            DwmFlush(); // (compositorVsync)
+#endif
 #if !defined(PLATFORM_VITA) && !defined(PLATFORM_XBOX)
         // Mouse look (timesplitters.ini mouse): the cursor is held in the
         // window while it has focus, and each window frame's movement goes
@@ -3162,7 +3194,9 @@ void PS2Runtime::run()
             if (hostSettings().vsync != vsyncOn)
             {
                 vsyncOn = !vsyncOn;
-                if (vsyncOn)
+                if (compositorVsync())
+                    ; // (paced after each present below)
+                else if (vsyncOn)
                     SetWindowState(FLAG_VSYNC_HINT);
                 else
                     ClearWindowState(FLAG_VSYNC_HINT);

@@ -569,6 +569,18 @@ private:
     uint32_t m_guestHeapLimit = PS2_RAM_SIZE;
     uint32_t m_guestHeapSuggestedBase = 0x00100000u;
     bool m_guestHeapConfigured = false;
+public:
+    // Guest RAM the runtime keeps for the game's host-side additions (menu
+    // copies, texts): the bottom of the HLE kernel window (0x80000 .. 1 MB,
+    // below the game's code, not the game's to use), taken out of the
+    // callback stacks' share. Valid when hostReservedActive(); its bytes are
+    // only ever written by the code that lays them out (project/game).
+    static constexpr uint32_t kHostReservedBase = 0x00080000u;
+    static constexpr uint32_t kHostReservedSize = 0x4000u;
+    bool hostReservedActive() const { return m_hostReservedActive; }
+
+private:
+    bool m_hostReservedActive = false;
     uint32_t m_asyncCallbackStackFloor = 0x01F00000u;
     uint32_t m_asyncCallbackStackTop = PS2_RAM_SIZE;
 

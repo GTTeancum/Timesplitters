@@ -1143,6 +1143,11 @@ struct GSGpuBackend::Impl
     GLuint drawnTexture(const TextureEntry &e, bool &replaced)
     {
         drawnButtonHash = 0;
+        // (A texture with a press but no glyphs of its own, the green arrows
+        // beside a value, is a prompt as drawn: a click on it presses.)
+        if (!e.renderTarget && e.contentHash && gs_texture_replacement::buttonPress(e.contentHash) >= 0 &&
+            !gs_texture_replacement::isButton(e.contentHash))
+            drawnButtonHash = e.contentHash;
         if (!e.renderTarget && e.contentHash && gs_texture_replacement::isButton(e.contentHash))
         {
             drawnButtonHash = e.contentHash;
@@ -1212,9 +1217,12 @@ struct GSGpuBackend::Impl
                 if (other.x0 > p.x0 + 1.0f &&
                     std::min(other.y1, p.y1) - std::max(other.y0, p.y0) >= 0.5f * lineHeight)
                     stop = std::min(stop, other.x0);
+            // (An arrow, Next or Previous, has no label: the text beside it is
+            // the value it steps.)
+            const bool arrow = p.press == 2 || p.press == 3;
             for (const DrawnRect &t : spritesDrawn)
             {
-                if (t.x0 >= stop)
+                if (arrow || t.x0 >= stop)
                     break;
                 const float overlap = std::min(t.y1, p.y1) - std::max(t.y0, p.y0);
                 if (t.x0 >= p.x0 - 4.0f && t.x0 <= p.x1 + lineHeight * 1.2f &&

@@ -44,7 +44,8 @@ widescreen while playing).
 - The game's own Audio / Video Options page shows them after Screen Adjust
   (Widescreen, Edge smoothing, Resolution, Full screen, Render quality).
   ts_overrides.cpp wraps menutick/std_menumake for that page and substitutes
-  an extended copy of its menu built at 0x7E000 (unused kernel RAM); values
+  an extended copy of its menu built in the runtime's host reserve (0x80000,
+  kept for the overrides' additions: PS2Runtime::kHostReservedBase); values
   apply at once and are written back to the ini. Render quality applies on
   the next start. TS_DISPLAY_MENU=0 keeps the original page.
 - Select Game Type gets an "Exit Game" item under Audio / Video Options

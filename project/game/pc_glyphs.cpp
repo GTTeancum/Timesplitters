@@ -45,6 +45,9 @@ void registerPcButtonGlyphs()
         {0x40a5963645bd34f2ull, Ps2MenuPress::Circle}, {0xc4d7e929a4aebb6cull, Ps2MenuPress::Square},
         {0x99179ab41f0aabcfull, Ps2MenuPress::Select}, {0xd95b517dd8ddee93ull, Ps2MenuPress::L1},
         {0xe62dfde3d0332176ull, Ps2MenuPress::L2},
+        // The green arrows either side of a value (level, difficulty, the
+        // options' values, the pause screen's tabs): Left and Right.
+        {0xfc62e8d908bbe2adull, Ps2MenuPress::Previous}, {0x022edd403c181afcull, Ps2MenuPress::Next},
     };
     for (const auto &p : kPresses)
         gs_texture_replacement::setButtonPress(p.hash, static_cast<int>(p.press));
@@ -64,7 +67,8 @@ void registerPcButtonGlyphs()
     };
     for (const auto &a : kAreas)
         gs_texture_replacement::addButtonArea(a.area, 24u, 24u, a.button);
-    // The UI fonts redrawn from Jost (tools/pc_font_atlases.py).
+    // The UI fonts redrawn from Jost (tools/pc_font_atlases.py), when built
+    // in (project/game/CMakeLists.txt TS_PC_FONTS, off: the game's own).
     for (const PcFont &font : kPcFonts)
         if (font.png)
             gs_texture_replacement::addFontImage(font.areaHash, font.width, font.height, font.png, font.size);

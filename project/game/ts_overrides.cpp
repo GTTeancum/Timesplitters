@@ -274,6 +274,27 @@ namespace
     // pointer. The two calls are wrapped so the page uses an extended copy of
     // the menu with the PC display settings added after Screen Adjust; after
     // each tick the chosen values are applied and saved to timesplitters.ini.
+    // Guest RAM for what the overrides add (menu copies, texts the game
+    // points at): the runtime's host reserve (PS2Runtime::kHostReservedBase,
+    // kept out of the game's and the kernel's use), laid out here and
+    // nowhere else. Every write stays inside its own part.
+    constexpr uint32_t kReserve = PS2Runtime::kHostReservedBase;
+    constexpr uint32_t kDisplayMenuBlock = kReserve + 0x0000u, kDisplayMenuBlockSize = 0x800u; // the Audio / Video menu's copy
+    constexpr uint32_t kGameModeBlock = kReserve + 0x0800u, kGameModeBlockSize = 0x400u;       // Select Game Type's copy
+    constexpr uint32_t kSetupBlock = kReserve + 0x0C00u, kSetupBlockSize = 0x300u;             // the pause SETUP tab's copy (PC)
+    constexpr uint32_t kExitAskText = kReserve + 0x0F00u, kExitAskTextSize = 0x100u;           // "Exit TimeSplitters?" (PC)
+    constexpr uint32_t kXboxTextBlock = kReserve + 0x1000u, kXboxTextBlockEnd = kReserve + 0x1400u; // longer Xbox names
+    constexpr uint32_t kExtraGlyphNames = kReserve + 0x1400u, kExtraGlyphNamesSize = 0x80u;     // the Xbox's ^6 / ^7 file names
+    constexpr uint32_t kMenuTraceWord = kReserve + 0x3FF0u;                                    // TS_TRACE_MENUS: the menu ticked
+    static_assert(kExtraGlyphNames + kExtraGlyphNamesSize <= kMenuTraceWord &&
+                      kMenuTraceWord + 4u <= kReserve + PS2Runtime::kHostReservedSize,
+                  "the overrides' guest RAM fits the host reserve");
+    const PS2Runtime *g_reserveOwner = nullptr; // (set at registration; the reserve exists once the ELF is loaded)
+    bool reserveReady()
+    {
+        return g_reserveOwner && g_reserveOwner->hostReservedActive();
+    }
+
     constexpr uint32_t kMenuTick = 0x230238u;
     constexpr uint32_t kStdMenuMake = 0x22DAF8u;
     constexpr uint32_t kAudioVideoMenu = 0x353C08u;
@@ -331,21 +352,24 @@ namespace
             }))
             m.resolutions.push_back({settings.windowWidth, settings.windowHeight});
 
-        // The game's own allocator owns the heap it sets up, so this uses the
-        // unused kernel-reserved RAM just below the HLE callback arena.
-        constexpr uint32_t block = 0x7E000u;
-        for (uint32_t i = 0; i < 0x800u; i += 4u)
-        {
-            if (guestWord(rdram, block + i) != 0u)
-            {
-                std::fprintf(stderr, "[TS:menu] RAM at 0x%x is in use; display options not added\n", block + i);
-                return 0;
-            }
-        }
+        // The game's own allocator owns the heap it sets up, so the copy is
+        // kept in the host reserve's part for it (kDisplayMenuBlock). A part
+        // too small is never written past: what does not fit goes over the
+        // part's start, and the copy is not used.
+        if (!reserveReady())
+            return 0;
+        constexpr uint32_t block = kDisplayMenuBlock;
         uint32_t cursor = block;
+        bool overflow = false;
         auto take = [&](uint32_t bytes) {
+            const uint32_t size = (bytes + 15u) & ~15u;
+            if (cursor + size > block + kDisplayMenuBlockSize)
+            {
+                overflow = true;
+                return block;
+            }
             const uint32_t at = cursor;
-            cursor += (bytes + 15u) & ~15u;
+            cursor += size;
             return at;
         };
         auto text = [&](const std::string &value, uint32_t room = 0) {
@@ -437,8 +461,11 @@ namespace
         // The page-link item that ends the list.
         std::memcpy(rdram + items + itemCount * kItemSize, rdram + kAudioVideoMenu + 16u + kOriginalItems * kItemSize,
                     kItemSize);
-        if (cursor > block + 0x800u)
-            std::fprintf(stderr, "[TS:menu] display options overflowed their block\n");
+        if (overflow)
+        {
+            std::fprintf(stderr, "[TS:menu] display options do not fit their block; not added\n");
+            m.menu = 0;
+        }
         return m.menu;
     }
 
@@ -574,19 +601,17 @@ namespace
     constexpr uint32_t kGameModeTail = 2u;
     constexpr uint16_t kExitGameId = 7u;
 
-    constexpr uint32_t kGameModeBlock = 0x7E800u;
+    // The copy's layout in its part of the host reserve: the label (0x20
+    // bytes), then the menu, its header and the link items, Exit Game and the
+    // tail.
+    static_assert(0x20u + 16u + (kGameModeLinks + 1u + kGameModeTail) * 32u <= kGameModeBlockSize,
+                  "Select Game Type's copy fits its block");
 
-    bool gameModeBlockFree(uint8_t *rdram)
+    bool gameModeBlockFree(uint8_t *)
     {
-        for (uint32_t i = 0; i < 0x400u; i += 4u)
-        {
-            if (guestWord(rdram, kGameModeBlock + i) != 0u)
-            {
-                std::fprintf(stderr, "[TS:menu] RAM at 0x%x is in use; Exit Game not added\n", kGameModeBlock + i);
-                return false;
-            }
-        }
-        return true;
+        if (!reserveReady())
+            std::fprintf(stderr, "[TS:menu] no host reserve; Exit Game not added\n");
+        return reserveReady();
     }
 
     // The page's tick rewrites the original items every frame (positions,
@@ -742,26 +767,27 @@ namespace
     // ^6 and ^7 below; the triggers L2 and R2, the stick clicks L3 and R3),
     // without "button", the sticks without "Analog" (as the PC's: ids 1049,
     // 1050) and the directions as "dpad up" ...; names longer than
-    // the original's slot go in new text (0x7EC00: the PC's pause-screen
-    // block, unused here) and the table entry points there. The map maker's
+    // the original's slot go in new text (kXboxTextBlock, in the host
+    // reserve) and the table entry points there. The map maker's
     // help says the same. "Memory Card (PS2)" is "Memory Card" everywhere
     // (the Xbox's two cards are its dashboard saves "Memory Card 1" and
     // "2"). Each only where the original is found exactly; once, at the
     // first menu tick.
-    constexpr uint32_t kXboxTextBlock = 0x7EC00u, kXboxTextBlockEnd = 0x7EF80u;
 #endif
 
     // The White and Black buttons in text (^6, ^7), as the face buttons'
     // ^1..^4: textPrint and textSize draw "^<digit>" as the texture
-    // 0x319A48[digit - '1'] (guiRestart fills entries 0..4, mm_button01..05,
-    // which guiPreload loads; entries 5 and 6 are unused). Two 24x24
-    // textures MISC.PAK holds but the game never loads, mm_circle_24x24 and
-    // mm_newedge, are the disc patch's White and Black (src/xbox/tools/
-    // xboxglyphs.py); they are loaded beside the buttons and put in entries
-    // 5 and 6. Their names stay in guest RAM (the preload keeps the pointer),
-    // after the text block.
-    constexpr uint32_t kGlyphTable = 0x319A48u;
-    constexpr uint32_t kExtraGlyphNames = 0x7EF80u; // two 0x30-byte names, below the trace word 0x7EFF0
+    // 0x319A48[digit - '1'] (texnum_text_gfx in the ELF's symbols, 36 bytes:
+    // one entry for each digit 1..9; guiRestart fills entries 0..4,
+    // mm_button01..05, which guiPreload loads; entries 5 and 6 are the
+    // table's own, unused). Two 24x24 textures MISC.PAK holds but the game
+    // never loads, mm_circle_24x24 and mm_newedge, are the disc patch's White
+    // and Black (src/xbox/tools/xboxglyphs.py); they are loaded beside the
+    // buttons and put in entries 5 and 6. Their names stay in guest RAM (the
+    // preload keeps the pointer): kExtraGlyphNames, in the host reserve.
+    constexpr uint32_t kGlyphTable = 0x319A48u, kGlyphTableEntries = 9u;
+    static_assert(5u + 2u <= kGlyphTableEntries, "^6 and ^7 are entries of the glyph table");
+    static_assert(2u * 0x30u <= kExtraGlyphNamesSize, "the two names fit their block");
     constexpr const char *kExtraGlyphs[] = {"host0:textures/misc/mm_circle_24x24.qpm", // ^6 White
                                             "host0:textures/misc/mm_newedge.qpm"};     // ^7 Black
 
@@ -771,8 +797,11 @@ namespace
     // is due to switch threads, and the rest of it would be lost. Entries are
     // 24 bytes at 0x1FB4C60, gp-0x6290 of them: type (2: a texture), next
     // (the list by disc sector, from gp-0x4910), sector, name, flags, then
-    // the texture's id once loaded.
-    constexpr uint32_t kPreloadEntries = 0x1FB4C60u, kPreloadMax = 400u;
+    // the texture's id once loaded. The array (the ELF's "preload") ends
+    // where "preloadpass2" starts, 0x1FB7B40: 500 entries, never more added
+    // here. (The game's own preloadAddTexName does not check.)
+    constexpr uint32_t kPreloadEntries = 0x1FB4C60u, kPreloadMax = (0x1FB7B40u - 0x1FB4C60u) / 24u;
+    static_assert(kPreloadMax == 500u, "the preload array's size, from the ELF's symbols");
 
     uint32_t preloadFind(uint8_t *rdram, uint32_t gp, const char *name)
     {
@@ -816,9 +845,13 @@ namespace
     void preloadExtraGlyphs(uint8_t *rdram, R5900Context *ctx, PS2Runtime *)
     {
         const uint32_t gp = GPR_U32(ctx, 28);
+        if (!reserveReady())
+            return;
         for (uint32_t i = 0; i < std::size(kExtraGlyphs); ++i)
         {
             const uint32_t name = kExtraGlyphNames + i * 0x30u;
+            if (std::strlen(kExtraGlyphs[i]) >= 0x30u)
+                continue;
             writeGuestString(rdram, name, kExtraGlyphs[i]);
             uint32_t &count = guestWord(rdram, gp - 0x6290u);
             const uint32_t sector = packSector(rdram, gp, kExtraGlyphs[i]);
@@ -842,7 +875,9 @@ namespace
             else
             {
                 uint32_t at = head;
-                while (guestWord(rdram, at + 4u) && guestWord(rdram, guestWord(rdram, at + 4u) + 8u) < sector)
+                for (uint32_t steps = 0; steps < kPreloadMax && guestWord(rdram, at + 4u) &&
+                                         guestWord(rdram, guestWord(rdram, at + 4u) + 8u) < sector;
+                     ++steps)
                     at = guestWord(rdram, at + 4u);
                 guestWord(rdram, entry + 4u) = guestWord(rdram, at + 4u);
                 guestWord(rdram, at + 4u) = entry;
@@ -909,14 +944,8 @@ namespace
         auto matches = [&](uint32_t at, const char *original) {
             return at >= 0x100000u && at < 0x2000000u && std::strcmp(reinterpret_cast<const char *>(rdram + at), original) == 0;
         };
-        uint32_t applied = 0, cursor = kXboxTextBlock;
-        for (uint32_t i = kXboxTextBlock; i < kXboxTextBlockEnd; i += 4u)
-            if (guestWord(rdram, i) != 0u)
-            {
-                std::fprintf(stderr, "[TS:text] RAM at 0x%x is in use; longer names left out\n", i);
-                cursor = kXboxTextBlockEnd;
-                break;
-            }
+        // (Without the host reserve the longer names are left out.)
+        uint32_t applied = 0, cursor = reserveReady() ? kXboxTextBlock : kXboxTextBlockEnd;
         static constexpr struct
         {
             uint32_t id;
@@ -990,13 +1019,9 @@ namespace
     // at +0 and y at +2, its item at +0x10, whose id is at +8 and flags at
     // +10, 0x200 hidden), collected over a frame's drawing and used by the
     // next menu tick for the mouse (menuMouse). The box is the item text's
-    // own: drawmenuitemtext selects the item's font and draws its text with
-    // textOutline(x, y, text) at the menu window's origin plus the entry's
-    // place, so that call (kTextOutline, while an item is drawn) measures
-    // the text with the game's textWidth and textHeight. In menu
-    // coordinates: game pixels across, half of them down.
+    // own (drawMenuItemRecorded, measureText). In menu coordinates: game
+    // pixels across, half of them down.
     constexpr uint32_t kDrawMenuItem = 0x22D230u;
-    constexpr uint32_t kTextOutline = 0x2023B0u;
     struct MenuRow
     {
         uint16_t id, flags;
@@ -1004,7 +1029,6 @@ namespace
         int x0, y0, x1, y1;   // the text's box (x1 < x0: not measured)
     };
     std::vector<MenuRow> g_menuRows, g_menuRowsDrawn;
-    MenuRow *g_rowDrawn = nullptr; // the row draw_menuitem is drawing
     // TS_TEST_CLICKS (tests): a script of clicks played on the menus' ticks
     // (defined after menuMouse). menu: the menu being ticked (0 none, 1 a
     // message box); inPlay: the pause screen.
@@ -1026,6 +1050,89 @@ namespace
         std::fprintf(stderr, "\n");
     }
 
+    // The size of a text in a font as the game's textSize(&w, &h, text)
+    // works it out (with GetXOffset's kerning), done here on the game's
+    // data, the game's code not called: font (the 24-byte record textSelect
+    // makes current, 0x3198A8 + n * 24) +0 its glyph records (10 bytes from
+    // character 0x20: +4 advance, +6 height, +8 y offset), +4 the kerning
+    // records (12 bytes: +0 class, +4 row, +8 offset), +8 the kerning values,
+    // +0xC the line height, +0x14 the fixed width (text flags bit 1). Text
+    // flags (gp-0x654B) bit 0 halves. '^' and a digit is a button glyph (its
+    // texture's size, 0x319A48), '\n' a new line, '`' half a line down;
+    // characters 0x80 and up are mapped by the tables at 0x319920 / 0x3199A0.
+    void measureText(uint8_t *rdram, uint32_t gp, uint32_t font, uint32_t text, int &width, int &height)
+    {
+        width = height = 0;
+        if (!text || text >= 0x2000000u || font < 0x100000u || font >= 0x2000000u)
+            return;
+        auto byte = [&](uint32_t at) { return rdram[at & 0x1FFFFFFu]; };
+        const uint8_t textFlags = byte(gp - 0x654Bu);
+        const int halve = textFlags & 1u;
+        const int lineHeight = static_cast<int32_t>(guestWord(rdram, font + 0xCu)) >> halve;
+        const uint32_t glyphs = guestWord(rdram, font);
+        auto mapped = [&](uint8_t c) -> uint32_t { return (c & 0x80u) ? byte(0x319920u + (c & 0x7Fu)) : c; };
+        auto kerning = [&](uint32_t at) -> int32_t {
+            const uint32_t pairs = guestWord(rdram, font + 4u);
+            const uint32_t index = mapped(byte(at)) - 0x20u;
+            if (index >= 0x60u || !pairs)
+                return 0;
+            int32_t offset = static_cast<int32_t>(guestWord(rdram, pairs + index * 12u + 8u));
+            const uint32_t values = guestWord(rdram, font + 8u), next = byte(at + 1u);
+            if (!values || !next || next == '\n')
+                return offset;
+            const uint32_t nextIndex = mapped(static_cast<uint8_t>(next)) - 0x20u;
+            if (nextIndex >= 0x60u)
+                return offset;
+            const uint32_t cell = guestWord(rdram, pairs + nextIndex * 12u) + guestWord(rdram, pairs + index * 12u + 4u) * 11u;
+            if (cell < 0x79u)
+                offset += static_cast<int32_t>(guestWord(rdram, values + cell * 4u));
+            return offset;
+        };
+        int x = 0, lines = 0, halfLines = 0, maxWidth = 0, maxHeight = 0;
+        for (uint32_t at = text, n = 0; byte(at) && n < 1024u; ++at, ++n)
+        {
+            const uint8_t c = byte(at);
+            if (c == '^')
+            {
+                ++at;
+                const uint32_t texture = guestWord(rdram, 0x319A48u + (byte(at) - 0x31u) * 4u);
+                const uint32_t record = guestWord(rdram, guestWord(rdram, gp - 0x4B68u) + 4u) + texture * 40u;
+                x += guestHalf(rdram, record) >> halve;
+                maxHeight = std::max(maxHeight, lines + halfLines + ((guestHalf(rdram, record + 2u) >> 1) >> halve));
+                maxWidth = std::max(maxWidth, x - 1);
+                continue;
+            }
+            if (c == '\n')
+            {
+                x = 0;
+                lines += lineHeight;
+                continue;
+            }
+            if (c == '`')
+            {
+                halfLines += lineHeight >> 1;
+                continue;
+            }
+            uint32_t code = mapped(c);
+            if ((c & 0x80u) && code == 0x20u)
+                code = byte(0x319A23u + (byte(0x3199A0u + (c & 0x7Fu)) - 1u) * 4u);
+            const uint32_t glyph = glyphs + code * 10u - 0x140u;
+            if (textFlags & 2u)
+                x += c == '/' ? 6 : (c == '.' || c == ':') ? 5 : static_cast<int32_t>(guestWord(rdram, font + 0x14u)) >> halve;
+            else
+                x += (static_cast<int32_t>(guestHalf(rdram, glyph + 4u)) + kerning(at)) >> halve;
+            maxWidth = std::max(maxWidth, x - 1);
+            const int glyphHeight = (static_cast<int8_t>(byte(glyph + 8u)) + static_cast<int32_t>(guestHalf(rdram, glyph + 6u))) >> halve;
+            maxHeight = std::max(maxHeight, lines + halfLines + glyphHeight);
+        }
+        width = maxWidth;
+        height = maxHeight;
+    }
+
+    // Each drawn item's text box, as drawmenuitemtext(entry) places it: at
+    // the menu window's origin (0x3299F0: x at +0, y at +0x14) plus the
+    // entry's place, the entry's text (+0x14) in the font it selects
+    // (textSelect of gp-0x5FD8 for items with flags 0x100, else gp-0x5FDC).
     void drawMenuItemRecorded(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         const uint32_t entry = GPR_U32(ctx, 4);
@@ -1036,12 +1143,22 @@ namespace
             if (!(flags & 0x200u))
             {
                 const int x = static_cast<int16_t>(guestHalf(rdram, entry)), y = static_cast<int16_t>(guestHalf(rdram, entry + 2u));
-                g_menuRowsDrawn.push_back({guestHalf(rdram, item + 8u), flags, x, y, 0, 0, -1, 0});
-                g_rowDrawn = &g_menuRowsDrawn.back();
+                MenuRow row{guestHalf(rdram, item + 8u), flags, x, y, 0, 0, -1, 0};
+                const uint32_t gp = GPR_U32(ctx, 28), text = guestWord(rdram, entry + 0x14u);
+                const uint32_t fontIndex = guestWord(rdram, gp - ((flags & 0x100u) ? 0x5FD8u : 0x5FDCu));
+                int width = 0, height = 0;
+                if (text && fontIndex < 16u)
+                {
+                    measureText(rdram, gp, 0x3198A8u + fontIndex * 24u, text, width, height);
+                    row.x0 = static_cast<int32_t>(guestWord(rdram, 0x3299F0u)) + x;
+                    row.y0 = static_cast<int32_t>(guestWord(rdram, 0x3299F0u + 0x14u)) + y;
+                    row.x1 = row.x0 + std::max(width, 1);
+                    row.y1 = row.y0 + std::max(height, 1);
+                }
+                g_menuRowsDrawn.push_back(row);
             }
         }
         draw_menuitem_0x22d230(rdram, ctx, runtime);
-        g_rowDrawn = nullptr;
     }
 
     // The front end's backdrop and logo (frontfxTick(mode), every front-end
@@ -1097,9 +1214,25 @@ namespace
     constexpr uint32_t kLvTickAfter = 0x2263A0u;
     constexpr uint32_t kMcseqTick = 0x2434A8u;
 
+    // Whether a game routine called from here (with entry's registers) ran
+    // to its end: it returns to entry's return address. The scheduler can
+    // stop a routine at any inner call when a thread switch is due (the
+    // context then holds the call it stopped at); such a call is handed on
+    // as it stands (*ctx = it, and this hook returns), and the scheduler
+    // finishes it as it would the game's own. Run on further, a stopped
+    // call's rest was lost: the card's routine then waited for a step that
+    // never finished (the game froze after a save or a load).
+    bool ranToEnd(const R5900Context &entry, const R5900Context &after)
+    {
+        R5900Context copy = entry;
+        R5900Context *const cp = &copy;
+        return after.pc == GPR_U32(cp, 31);
+    }
+
     // The card routine's further steps this frame (first: its state before
-    // the frame's own step; entry: registers to call it with).
-    void runCardSteps(uint8_t *rdram, const R5900Context &entry, PS2Runtime *runtime, uint32_t first)
+    // the frame's own step; entry: registers to call it with). False when a
+    // step was stopped by the scheduler (*ctx is then that step, to finish).
+    bool runCardSteps(uint8_t *rdram, R5900Context *ctx, const R5900Context &entry, PS2Runtime *runtime, uint32_t first)
     {
         R5900Context probe = entry, *const probed = &probe;
         const uint32_t stateAt = GPR_U32(probed, 28) - 0x6414u;
@@ -1113,12 +1246,20 @@ namespace
             seen |= before < 64u ? 1ull << before : 0u;
             R5900Context call = entry;
             mcardTick_0x207ad0(rdram, &call, runtime);
+            if (!ranToEnd(entry, call))
+            {
+                if (trace)
+                    std::fprintf(stderr, "[TS:mc] card step %d stopped at 0x%x; finished by the scheduler\n", step, call.pc);
+                *ctx = call;
+                return false;
+            }
             const uint32_t after = guestWord(rdram, stateAt);
             if (trace)
                 std::fprintf(stderr, "[TS:mc] card step %d: state %u -> %u\n", step, before, after);
             if (after == before)
                 break;
         }
+        return true;
     }
 
     void lvTickAfterCardRunOn(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
@@ -1126,7 +1267,8 @@ namespace
         const R5900Context entry = *ctx;
         const uint32_t first = guestWord(rdram, GPR_U32(ctx, 28) - 0x6414u);
         lvTickAfter_0x2263a0(rdram, ctx, runtime);
-        runCardSteps(rdram, entry, runtime, first);
+        if (ranToEnd(entry, *ctx)) // (else lvTickAfter itself is still to finish)
+            runCardSteps(rdram, ctx, entry, runtime, first);
     }
 
     void mcseqTickRunOn(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
@@ -1137,6 +1279,8 @@ namespace
         static const bool trace = std::getenv("TS_TRACE_MC") != nullptr;
         uint32_t before = guestWord(rdram, stateAt);
         mcseqTick_0x2434a8(rdram, ctx, runtime);
+        if (!ranToEnd(entry, *ctx))
+            return;
         uint64_t seen = before < 64u ? 1ull << before : 0u;
         for (int step = 0; step < 32; ++step)
         {
@@ -1144,13 +1288,16 @@ namespace
             if (now == before || (now < 64u && (seen >> now & 1u)))
                 break;
             seen |= now < 64u ? 1ull << now : 0u;
-            runCardSteps(rdram, entry, runtime, ~0u);
+            if (!runCardSteps(rdram, ctx, entry, runtime, ~0u))
+                return;
             R5900Context call = entry;
             mcseqTick_0x2434a8(rdram, &call, runtime);
+            *ctx = call;
+            if (!ranToEnd(entry, call))
+                return;
             if (trace)
                 std::fprintf(stderr, "[TS:mc] save step %d: state %u -> %u\n", step, now, guestWord(rdram, stateAt));
             before = now;
-            *ctx = call;
         }
     }
 
@@ -1164,6 +1311,7 @@ namespace
     constexpr uint32_t kPlayerTick = 0x281248u;
     constexpr float kMouseDegrees = 0.12f;
     bool g_levelEndShown = false; // gameTickClickable: the level's end screen is up
+    bool g_testComplete = false;  // TS_TEST_CLICKS complete
     void playerTickMouseLook(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         const uint32_t player = guestWord(rdram, GPR_U32(ctx, 28) - 0x4DCCu);
@@ -1187,6 +1335,11 @@ namespace
         if (player && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane))
         {
             testClicksTick(rdram, 4u, false);
+            if (g_testComplete)
+            {
+                g_testComplete = false; // (TS_TEST_CLICKS complete: the story's "objectives done", as story_pageTick reads it)
+                guestWord(rdram, player + 0x128u) = 4u;
+            }
             if (hostSettings().crosshair && !gsSplitScreen() && !g_levelEndShown)
                 ps2PadNoteCrosshair();
         }
@@ -1272,10 +1425,11 @@ namespace
     // The title (1up ... 4up, nplayers_pageTick): Esc (Triangle, from any
     // pad) asks to exit, in the game's own message box (frontStartMessage(0,
     // text, colour, 0): its default tick closes it on Cross or Triangle and
-    // the title comes back). Its text is kept in the block after the SETUP
-    // tab's copy (0x7EE00, below the trace word at 0x7EFF0).
+    // the title comes back). Its text is kept in the host reserve
+    // (kExitAskText).
     constexpr uint32_t kNplayersTick = 0x23FD70u;
-    constexpr uint32_t kExitAskText = 0x7EE00u;
+    constexpr char kExitAsk[] = "Exit TimeSplitters?\n`^2 Exit   ^3 Cancel";
+    static_assert(sizeof(kExitAsk) <= kExitAskTextSize, "the question fits its block");
     void titleTickExitable(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         uint32_t pressed = 0;
@@ -1283,15 +1437,11 @@ namespace
             pressed |= guestWord(rdram, 0x31C740u + record * 0x180u + 0x124u);
         const R5900Context entry = *ctx;
         nplayers_pageTick_0x23fd70(rdram, ctx, runtime);
-        static const bool textFree = [&] {
-            for (uint32_t i = 0; i < 0x1F0u; i += 4u)
-                if (guestWord(rdram, kExitAskText + i) != 0u)
-                    return false;
-            return true;
-        }();
-        if (!(pressed & 0x10u) || (pressed & 0x40u) || !textFree)
+        if (!ranToEnd(entry, *ctx))
+            return; // (the scheduler finishes the page's tick; the box waits for the next press)
+        if (!(pressed & 0x10u) || (pressed & 0x40u) || !reserveReady())
             return;
-        writeGuestString(rdram, kExitAskText, "Exit TimeSplitters?\n`^2 Exit   ^3 Cancel");
+        writeGuestString(rdram, kExitAskText, kExitAsk);
         R5900Context call = entry;
         R5900Context *const cp = &call;
         SET_GPR_U32(cp, 4, 0u);
@@ -1299,81 +1449,10 @@ namespace
         SET_GPR_U32(cp, 6, 0x6464647Fu); // the colour the game's own messages use
         SET_GPR_U32(cp, 7, 0u);
         frontStartMessage_0x231458(rdram, cp, runtime);
+        if (!ranToEnd(entry, call))
+            *ctx = call; // (stopped by the scheduler: it finishes starting the box, then returns to the page's caller)
         g_exitAsked = true;
         std::fprintf(stderr, "[TS:menu] Exit TimeSplitters? asked at the title\n");
-    }
-
-    // A game function of one argument (a0), its result (v0), the caller's
-    // registers as they were.
-    uint32_t callGuest(void (*function)(uint8_t *, R5900Context *, PS2Runtime *), uint8_t *rdram, R5900Context *ctx,
-                       PS2Runtime *runtime, uint32_t a0)
-    {
-        const R5900Context saved = *ctx;
-        SET_GPR_U32(ctx, 4, a0);
-        function(rdram, ctx, runtime);
-        const uint32_t result = GPR_U32(ctx, 2);
-        *ctx = saved;
-        return result;
-    }
-
-    // Outlined text (PC): textOutline(x, y, text, colour, outline colour)
-    // prints the text in the outline colour at (x - 2, y), (x, y - 1),
-    // (x + 2, y) and (x, y + 1) (a 224-line field: one line down is two
-    // pixels across), then in its colour at (x, y), with the outline bits
-    // of the text flags (gp-0x654B) set and a dither matrix while it does.
-    // Drawn sharp at a high render scale, four copies give the outline
-    // notched, square corners; this draws it the same width from eight
-    // directions, so its edge is round, then the text as the game does.
-    void textOutlineRound(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
-    {
-        const R5900Context entry = *ctx;
-        const int32_t x = static_cast<int32_t>(GPR_U32(ctx, 4)), y = static_cast<int32_t>(GPR_U32(ctx, 5));
-        const uint32_t text = GPR_U32(ctx, 6), colour = GPR_U32(ctx, 7), outline = GPR_U32(ctx, 8);
-        const uint32_t sp = GPR_U32(ctx, 29) - 0xA0u; // x and y for textPrint, below the caller's frame
-        uint8_t &flags = rdram[(GPR_U32(ctx, 28) - 0x654Bu) & 0x1FFFFFFu];
-        auto call = [&](void (*function)(uint8_t *, R5900Context *, PS2Runtime *), uint32_t a0, uint32_t a1, uint32_t a2,
-                        uint32_t a3) {
-            R5900Context c = entry;
-            R5900Context *const cp = &c;
-            SET_GPR_U32(cp, 29, sp - 0x10u);
-            SET_GPR_U32(cp, 4, a0);
-            SET_GPR_U32(cp, 5, a1);
-            SET_GPR_U32(cp, 6, a2);
-            SET_GPR_U32(cp, 7, a3);
-            function(rdram, cp, runtime);
-            return GPR_U32(cp, 2);
-        };
-        auto print = [&](int32_t px, int32_t py, uint32_t withColour) {
-            guestWord(rdram, sp) = static_cast<uint32_t>(px);
-            guestWord(rdram, sp + 4u) = static_cast<uint32_t>(py);
-            call(&textPrint_0x2024f0, sp, sp + 4u, text, withColour);
-        };
-        const uint32_t dither = call(&dlSetDitherMatrix_0x2b7df0, 2u, 0u, 0u, 0u);
-        flags |= 0x0Cu;
-        static constexpr int32_t kAround[8][2] = {{-2, 0}, {2, 0}, {0, -1}, {0, 1}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
-        for (const auto &d : kAround)
-            print(x + d[0], y + d[1], outline);
-        flags &= ~0x04u;
-        print(x, y, colour);
-        call(&dlSetDitherMatrix_0x2b7df0, dither, 0u, 0u, 0u);
-        flags &= ~0x08u;
-        *ctx = entry;
-    }
-
-    void textOutlineMeasured(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
-    {
-        if (MenuRow *row = g_rowDrawn; row && row->x1 < row->x0 && GPR_U32(ctx, 6))
-        {
-            const int x = static_cast<int32_t>(GPR_U32(ctx, 4)), y = static_cast<int32_t>(GPR_U32(ctx, 5));
-            const uint32_t text = GPR_U32(ctx, 6);
-            const int width = static_cast<int32_t>(callGuest(&textWidth_0x202a38, rdram, ctx, runtime, text));
-            const int height = static_cast<int32_t>(callGuest(&textHeight_0x202a60, rdram, ctx, runtime, text));
-            row->x0 = x;
-            row->y0 = y;
-            row->x1 = x + std::max(width, 1);
-            row->y1 = y + std::max(height, 1);
-        }
-        textOutlineRound(rdram, ctx, runtime);
     }
 
     // The mouse in the menus (the front end's and the pause screen's).
@@ -1413,6 +1492,32 @@ namespace
             const uint32_t item = menu + 16u + i * kItemSize;
             if (guestHalf(rdram, item + 8u) == id)
                 return !(guestHalf(rdram, item + 10u) & 0x200u);
+        }
+        return false;
+    }
+
+    // Whether the menu's item is a prompt's label (flags 0x30, its text, a
+    // language id below 0x4DE or a string, starting with '^').
+    bool menuItemIsPromptLabel(uint8_t *rdram, uint32_t menu, uint16_t id)
+    {
+        if (menu < 0x1000u || menu >= 0x2000000u)
+            return false;
+        const uint32_t count = std::min<uint32_t>(guestWord(rdram, menu), 64u);
+        for (uint32_t i = 0; i < count; ++i)
+        {
+            const uint32_t item = menu + 16u + i * kItemSize;
+            if (guestHalf(rdram, item + 8u) != id)
+                continue;
+            if ((guestHalf(rdram, item + 10u) & 0x30u) != 0x30u)
+                return false;
+            uint32_t text = guestWord(rdram, item);
+            if (text && text < 0x4DEu)
+            {
+                const uint32_t language = std::min<uint32_t>(guestWord(rdram, 0x3B47F0u - 0x6CACu), 7u); // (gp-0x6CAC)
+                const uint32_t table = guestWord(rdram, 0x2F2C18u + language * 4u);
+                text = table >= 0x100000u && table < 0x2000000u ? guestWord(rdram, table + text * 4u) : 0u;
+            }
+            return text >= 0x1000u && text < 0x2000000u && rdram[text] == '^';
         }
         return false;
     }
@@ -1471,6 +1576,12 @@ namespace
         for (const MenuRow &r : g_menuRows)
         {
             if (r.id == 0u || r.x1 < r.x0 || (strict && !menuHasItem(rdram, menu, r.id)))
+                continue;
+            // A prompt's label as an item ("^2 Start" beside character
+            // select's character, "^3 Back" under "^2 Start Game": flags 0x30,
+            // a text starting with a glyph): no choice; highlighted, Cross
+            // does nothing. Its prompt takes the click (ps2PadSetPromptLookup).
+            if (r.id != 0x8000u && menuItemIsPromptLabel(rdram, menu, r.id))
                 continue;
             if (strict && r.id != 0x8000u && menuHasItem(rdram, menu, current) && !menuReachable(rdram, menu, current, r.id))
                 continue; // (text beside a button, a heading)
@@ -1534,12 +1645,22 @@ namespace
         if (!hostSettings().mouse || !pointer.inside)
             return;
         const uint32_t page = GPR_U32(ctx, 4);
+        const bool narrowed = inPlay && hostSettings().widescreen && !gsSplitScreen();
         const MenuRow *row = menuRowAt(rdram, GPR_U32(ctx, 5), guestHalf(rdram, page + 4u), pointer.x, pointer.y * 0.5f,
-                                       inPlay && hostSettings().widescreen && !gsSplitScreen());
+                                       narrowed);
+        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
+        if (static const MenuRow *pointed = nullptr; trace && pointer.moved && row != pointed)
+        {
+            pointed = row;
+            std::fprintf(stderr, "[TS:menu-mouse] pointer %.0f,%.0f on row %d (rows", pointer.x, pointer.y * 0.5f,
+                         row ? int(row->id) : -1);
+            for (const MenuRow &r : g_menuRows)
+                std::fprintf(stderr, " %u[%d-%d,%d-%d]", r.id, r.x0, r.x1, r.y0, r.y1);
+            std::fprintf(stderr, ")\n");
+        }
         // (The back item is clicked, not highlighted: it is no choice of the list.)
         if (row && row->id != 0x8000u && (pointer.moved || pointer.clicks || pointer.wheel))
             guestHalf(rdram, page + 4u) = row->id;
-        static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
         auto press = [&](Ps2MenuPress p, const char *what) {
             if (trace)
             {
@@ -1552,8 +1673,14 @@ namespace
             ps2PadQueueMenuPress(p);
         };
         if (trace && pointer.clicks && !row)
-            std::fprintf(stderr, "[TS:menu-mouse] click at %.0f,%.0f is on no row (%zu rows)\n", pointer.x, pointer.y,
-                         g_menuRows.size());
+        {
+            std::fprintf(stderr, "[TS:menu-mouse] click at %.0f,%.0f is on no row of menu %x (highlighted %u; rows",
+                         pointer.x, pointer.y, GPR_U32(ctx, 5), guestHalf(rdram, page + 4u));
+            for (const MenuRow &r : g_menuRows)
+                std::fprintf(stderr, " %u[%d-%d,%d-%d]%s", r.id, r.x0, r.x1, r.y0, r.y1,
+                             menuHasItem(rdram, GPR_U32(ctx, 5), r.id) ? "" : " (not in menu)");
+            std::fprintf(stderr, ")\n");
+        }
         if (pointer.rightClicks)
             press(Ps2MenuPress::Back, "back");
         else if (row && pointer.clicks)
@@ -1579,6 +1706,7 @@ namespace
     //   prompt <press>       click the middle of a drawn prompt (Ps2MenuPress: 0 Cross, 1 Triangle)
     //   at <x> <y> / right / wheel <up|down>   in 640 x 448 game pixels
     //   key <accept|back|next|previous|start>
+    //   complete             the story level's objectives done (player +0x128 = 4)
     //   (menu 4: in play, the keyboard and mouse player's tick)
     // Each step is logged ([TS:test]); one that finds nothing to click in
     // 600 ticks is logged as failed and skipped.
@@ -1698,6 +1826,11 @@ namespace
             click(a, b, true);
             done("clicked");
         }
+        else if (kind == "complete")
+        {
+            g_testComplete = true;
+            done("completing the level");
+        }
         else if (kind == "right")
         {
             ps2PadNoteMenuPointer(true, atX, atY, false, true, 0.0f);
@@ -1735,7 +1868,6 @@ namespace
     constexpr uint32_t kConfirmEndPage = 0x32AA00u;
     constexpr uint32_t kSetupItems = 3u;
     constexpr uint16_t kExitItemId = 4u;
-    constexpr uint32_t kSetupBlock = 0x7EC00u; // 0x300 bytes below the trace word at 0x7EFF0
     bool g_exitConfirm = false;              // the confirmation was reached from Exit Game
 
     // The pad the pause screen is for (confirmendgame_pageTick reads it so).
@@ -1753,16 +1885,10 @@ namespace
     // change the original's flags). Returns 0 when its block is in use.
     uint32_t layoutSetupMenu(uint8_t *rdram)
     {
-        static const bool free = [&] {
-            for (uint32_t i = 0; i < 0x300u; i += 4u)
-                if (guestWord(rdram, kSetupBlock + i) != 0u)
-                {
-                    std::fprintf(stderr, "[TS:menu] RAM at 0x%x is in use; pause Exit Game not added\n", kSetupBlock + i);
-                    return false;
-                }
-            return true;
-        }();
-        if (!free)
+        // (In the host reserve, kSetupBlock: the label, 0x20 bytes, then the
+        // menu with the heading, Preferences and Exit Game.)
+        static_assert(0x20u + 16u + (kSetupItems + 1u) * 32u <= kSetupBlockSize, "the SETUP copy fits its block");
+        if (!reserveReady())
             return 0;
         const uint32_t label = kSetupBlock;
         writeGuestString(rdram, label, "Exit Game");
@@ -1827,6 +1953,38 @@ namespace
         ingame_menutick_0x20e240(rdram, ctx, runtime);
     }
 
+    // The story tab of the pause screen (story_pageTick). Once the level is
+    // over (0x32C4F8 bit 0x20000000, set as it calls gameLevelCompleted) the
+    // page takes Cross as Restart and Triangle as Quit, the way on: "Game
+    // Over" shows both as prompts (which take clicks), "Level Completed"
+    // ("PRESS START BUTTON") none. A left click there, with no prompt on the
+    // screen, is Triangle (Esc in a menu, as the keyboard has it). The
+    // pointer is free on it, as in the menus.
+    constexpr uint32_t kStoryPageTick = 0x2119C8u;
+    void storyPageTickClickable(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
+    {
+        ps2PadNoteMenu();
+        const bool ended = (guestWord(rdram, 0x32C4F8u) & 0x20000000u) != 0u;
+        testClicksTick(rdram, ended ? 5u : 6u, false); // (TS_TEST_CLICKS: "menu 5" waits for the level's end)
+        const Ps2MenuPointer pointer = ps2PadTakeMenuPointer();
+        if (ended && pointer.inside && pointer.clicks)
+        {
+            bool prompts = false;
+            for (float y = 8.0f; y < 448.0f && !prompts; y += 16.0f)
+                for (float x = 8.0f; x < 640.0f && !prompts; x += 16.0f)
+                {
+                    const int press = ps2PadPromptAt(x, y); // (the tabs' arrows, Next and Previous, are no prompt of the page)
+                    prompts = press >= 0 && press != static_cast<int>(Ps2MenuPress::Next) &&
+                              press != static_cast<int>(Ps2MenuPress::Previous);
+                }
+            if (!prompts)
+                ps2PadQueueMenuPress(Ps2MenuPress::Back);
+            if (std::getenv("TS_TRACE_MENUS"))
+                std::fprintf(stderr, "[TS:menu] click at the level's end: %s\n", prompts ? "prompts up, nothing" : "Back");
+        }
+        story_pageTick_0x2119c8(rdram, ctx, runtime);
+    }
+
     // The confirmation page: reached from Exit Game, Yes (item 2) quits the
     // program; anything else is the game's own (No resumes the game).
     void confirmEndGameTick(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
@@ -1867,8 +2025,8 @@ namespace
         (void)reworded;
         static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
         static uint32_t lastMenu = 0;
-        if (trace) // also left in guest RAM for pad scripts (wait_u32 0x7eff0)
-            guestWord(rdram, 0x7EFF0u) = GPR_U32(ctx, 5);
+        if (trace && reserveReady()) // also left in guest RAM for pad scripts (wait_u32 on kMenuTraceWord, 0x83ff0)
+            guestWord(rdram, kMenuTraceWord) = GPR_U32(ctx, 5);
         if (trace && GPR_U32(ctx, 5) != lastMenu)
         {
             lastMenu = GPR_U32(ctx, 5);
@@ -2006,8 +2164,12 @@ namespace
             else
                 capsThen = 0;
         }
+        const R5900Context entry = *ctx;
         stringeditTick_0x22f820(rdram, ctx, runtime);
-        if (pressedAt)
+        // (Stopped by the scheduler before its end, the tick reads Cross
+        // when it goes on: the press stays for this frame, else the letter
+        // was lost. ranToEnd)
+        if (pressedAt && ranToEnd(entry, *ctx))
             guestWord(rdram, pressedAt) = pressedWas;
     }
 #endif
@@ -2770,6 +2932,7 @@ namespace
         installPerfBrackets(runtime, std::make_index_sequence<std::size(g_perfBrackets)>{});
 #endif
 #endif
+        g_reserveOwner = &runtime; // (reserveReady: the host reserve, once the ELF is loaded)
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);
         runtime.replaceFunction(kUnlockedEx, &cheatUnlockedEx);
@@ -2782,14 +2945,14 @@ namespace
             const char *off = std::getenv("TS_HOOKS_OFF");
             return !(off && std::strstr(off, name));
         };
-        if (hookOn("textOutline"))
-            runtime.replaceFunction(kTextOutline, &textOutlineMeasured);
         if (hookOn("frontfx"))
             runtime.replaceFunction(kFrontfxTick, &frontfxTickSkippable);
         if (hookOn("playerTick"))
             runtime.replaceFunction(kPlayerTick, &playerTickMouseLook);
         if (hookOn("gameTick"))
             runtime.replaceFunction(kGameTick, &gameTickClickable);
+        if (hookOn("story"))
+            runtime.replaceFunction(kStoryPageTick, &storyPageTickClickable);
         if (hookOn("lvTickAfter"))
             runtime.replaceFunction(kLvTickAfter, &lvTickAfterCardRunOn);
         if (hookOn("mcseq"))

@@ -144,10 +144,16 @@ namespace
     void libmSelfTest(PS2Runtime &runtime)
     {
         uint8_t *rdram = runtime.memory().getRDRAM();
-        auto fresh = [] {
-            R5900Context ctx;
+        // This opt-in diagnostic exits after completion. Reserve an owned stack
+        // from the runtime, rather than borrowing active high-BSS game storage.
+        constexpr uint32_t stackBytes = 0x4000u;
+        const uint32_t stack = runtime.reserveKernelMemory(stackBytes);
+        if (!stack) { std::fprintf(stderr, "[TS:libm] no test stack available\n"); std::exit(1); }
+        std::memset(rdram + stack, 0, stackBytes);
+        auto fresh = [stack] {
+            R5900Context ctx{};
             R5900Context *ctxp = &ctx;
-            SET_GPR_U32(ctxp, 29, 0x01F80000u);
+            SET_GPR_U32(ctxp, 29, stack + stackBytes - 16u);
             SET_GPR_U32(ctxp, 31, 0u);
             return ctx;
         };
@@ -283,10 +289,9 @@ namespace
     constexpr uint32_t kGameModeBlock = kReserve + 0x0800u, kGameModeBlockSize = 0x400u;       // Select Game Type's copy
     constexpr uint32_t kSetupBlock = kReserve + 0x0C00u, kSetupBlockSize = 0x300u;             // the pause SETUP tab's copy (PC)
     constexpr uint32_t kExitAskText = kReserve + 0x0F00u, kExitAskTextSize = 0x100u;           // "Exit TimeSplitters?" (PC)
-    constexpr uint32_t kXboxTextBlock = kReserve + 0x1000u, kXboxTextBlockEnd = kReserve + 0x1400u; // longer Xbox names
-    constexpr uint32_t kExtraGlyphNames = kReserve + 0x1400u, kExtraGlyphNamesSize = 0x80u;     // the Xbox's ^6 / ^7 file names
+    constexpr uint32_t kTextBlock = kReserve + 0x1000u, kTextBlockEnd = kReserve + 0x3FF0u; // owned replacement strings
     constexpr uint32_t kMenuTraceWord = kReserve + 0x3FF0u;                                    // TS_TRACE_MENUS: the menu ticked
-    static_assert(kExtraGlyphNames + kExtraGlyphNamesSize <= kMenuTraceWord &&
+    static_assert(kTextBlockEnd <= kMenuTraceWord &&
                       kMenuTraceWord + 4u <= kReserve + PS2Runtime::kHostReservedSize,
                   "the overrides' guest RAM fits the host reserve");
     const PS2Runtime *g_reserveOwner = nullptr; // (set at registration; the reserve exists once the ELF is loaded)
@@ -335,6 +340,46 @@ namespace
         return *reinterpret_cast<uint16_t *>(rdram + (address & 0x1FFFFFEu));
     }
 
+    // Host overrides accept physical RAM and its documented cached/uncached aliases,
+    // not arbitrary addresses silently folded into unrelated RAM.
+    bool guestRange(uint32_t address, uint32_t bytes, uint32_t alignment = 1u)
+    {
+        const uint32_t segment = address & 0xE0000000u;
+        if (segment != 0u && segment != 0x20000000u && segment != 0x80000000u && segment != 0xA0000000u)
+            return false;
+        const uint32_t physical = address & 0x1FFFFFFFu;
+        return physical >= 0x1000u && physical < 0x2000000u &&
+               bytes <= 0x2000000u - physical && (physical % alignment) == 0u;
+    }
+    uint32_t g_textCursor = kTextBlock;
+    bool g_wordingApplied = false;
+    int g_capsThen = 0;
+    uint32_t copyReplacementText(uint8_t *rdram, const std::string &text)
+    {
+        if (!reserveReady() || text.size() >= kTextBlockEnd - kTextBlock)
+            return 0;
+        const uint32_t bytes = (static_cast<uint32_t>(text.size()) + 4u) & ~3u;
+        if (g_textCursor > kTextBlockEnd || bytes > kTextBlockEnd - g_textCursor)
+            return 0;
+        const uint32_t at = g_textCursor;
+        std::memcpy(rdram + at, text.c_str(), text.size() + 1u);
+        g_textCursor += bytes;
+        return at;
+    }
+    bool readGuestText(uint8_t *rdram, uint32_t address, std::string &out)
+    {
+        if (!guestRange(address, 1u)) return false;
+        const uint32_t at = address & 0x1FFFFFFFu;
+        // Strings in this interface must terminate inside RAM and within a
+        // practical text limit. A damaged pointer must not scan the whole image.
+        const size_t room = std::min<size_t>(4096u, 0x2000000u - at);
+        const char *text = reinterpret_cast<const char *>(rdram + at);
+        const char *end = static_cast<const char *>(std::memchr(text, 0, room));
+        if (!end) return false;
+        out.assign(text, end);
+        return true;
+    }
+
     void writeGuestString(uint8_t *rdram, uint32_t address, const std::string &text)
     {
         std::memcpy(rdram + address, text.c_str(), text.size() + 1);
@@ -354,8 +399,7 @@ namespace
 
         // The game's own allocator owns the heap it sets up, so the copy is
         // kept in the host reserve's part for it (kDisplayMenuBlock). A part
-        // too small is never written past: what does not fit goes over the
-        // part's start, and the copy is not used.
+        // too small fails closed: callers never write after a failed take.
         if (!reserveReady())
             return 0;
         constexpr uint32_t block = kDisplayMenuBlock;
@@ -363,10 +407,10 @@ namespace
         bool overflow = false;
         auto take = [&](uint32_t bytes) {
             const uint32_t size = (bytes + 15u) & ~15u;
-            if (cursor + size > block + kDisplayMenuBlockSize)
+            if (overflow || bytes > kDisplayMenuBlockSize || size > block + kDisplayMenuBlockSize - cursor)
             {
                 overflow = true;
-                return block;
+                return 0u;
             }
             const uint32_t at = cursor;
             cursor += size;
@@ -374,11 +418,13 @@ namespace
         };
         auto text = [&](const std::string &value, uint32_t room = 0) {
             const uint32_t at = take(std::max<uint32_t>(room, static_cast<uint32_t>(value.size()) + 1u));
-            writeGuestString(rdram, at, value);
+            if (at) writeGuestString(rdram, at, value);
             return at;
         };
         auto choices = [&](const std::vector<uint32_t> &texts) {
             const uint32_t at = take(static_cast<uint32_t>(texts.size() + 1u) * 8u);
+            if (!at) return 0u;
+            std::memset(rdram + at, 0, (texts.size() + 1u) * 8u);
             for (uint32_t i = 0; i < texts.size(); ++i)
             {
                 guestWord(rdram, at + i * 8u) = i;
@@ -388,6 +434,7 @@ namespace
         };
         auto gv = [&](uint32_t max, uint32_t list) {
             const uint32_t at = take(kGvSize);
+            if (!at) return 0u;
             std::memcpy(rdram + at, rdram + kGvPlaySound, kGvSize);
             guestWord(rdram, at + 0u) = 0u;
             guestWord(rdram, at + 4u) = 0u;
@@ -440,6 +487,7 @@ namespace
         m.scaleLabel = labels[4]; // Render quality
 
         m.menu = take(16u + (itemCount + 1u) * kItemSize);
+        if (!m.menu || overflow) { m = DisplayMenu{}; return 0u; }
         std::memcpy(rdram + m.menu, rdram + kAudioVideoMenu, 16u + kOriginalItems * kItemSize);
         guestWord(rdram, m.menu) = itemCount + 1u;
         const uint32_t items = m.menu + 16u;
@@ -582,7 +630,7 @@ namespace
 
     bool useDisplayMenu(uint8_t *rdram, R5900Context *ctx)
     {
-        if (GPR_U32(ctx, 5) != kAudioVideoMenu)
+        if (!reserveReady() || GPR_U32(ctx, 5) != kAudioVideoMenu)
             return false;
         if (!g_displayMenu.menu && !buildDisplayMenu(rdram))
             return false;
@@ -671,10 +719,22 @@ namespace
     {
         if (GPR_U32(ctx, 5) != kGameModeMenu)
             return false;
-        static const bool usable = gameModeBlockFree(rdram);
-        if (!usable)
+        if (!gameModeBlockFree(rdram))
             return false;
-        SET_GPR_U32(ctx, 5, layoutGameModeMenu(rdram));
+        const uint32_t menu = layoutGameModeMenu(rdram);
+        if (!menu) return false;
+        if (guestRange(GPR_U32(ctx, 4), 6u, 2u) && guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == kExitGameId &&
+            guestRange(GPR_U32(ctx, 28) - 0x6CACu, 4u, 4u))
+        {
+            const uint32_t language = guestWord(rdram, GPR_U32(ctx, 28) - 0x6CACu);
+            if (language < 8u)
+            {
+                const uint32_t table = guestWord(rdram, 0x2F2C18u + language * 4u);
+                if (guestRange(table, 0x204u, 4u))
+                    guestWord(rdram, menu + 16u + (kGameModeLinks + 2u) * kItemSize) = guestWord(rdram, table + 0x200u);
+            }
+        }
+        SET_GPR_U32(ctx, 5, menu);
         return true;
     }
 
@@ -686,10 +746,12 @@ namespace
     // its newly pressed buttons at +0x124.
     bool exitGameChosen(uint8_t *rdram, R5900Context *ctx)
     {
-        if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) != kExitGameId)
+        if (!guestRange(GPR_U32(ctx, 4), 6u, 2u) || guestHalf(rdram, GPR_U32(ctx, 4) + 4u) != kExitGameId)
             return false;
-        const uint32_t input = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FFCu);
-        if (!input)
+        const uint32_t inputAt = GPR_U32(ctx, 28) - 0x5FFCu;
+        if (!guestRange(inputAt, 4u, 4u)) return false;
+        const uint32_t input = guestWord(rdram, inputAt);
+        if (!guestRange(input, 4u, 4u))
             return false;
         const uint32_t pad = guestWord(rdram, input);
         if (pad > 7u)
@@ -703,8 +765,8 @@ namespace
 #if !defined(PLATFORM_XBOX)
     // The PC has no PlayStation 2 memory cards: its two cards are save
     // folders. The game's save and controller texts (ELF data, English only)
-    // are reworded in place, each no longer than the original so it stays in
-    // its own slot, and only where the original is found exactly. The game
+    // are copied to owned storage; only exact language-table references to
+    // verified originals are redirected. Original bytes remain untouched. The game
     // builds sentences from pieces ("TimeSplitters Sign Ons on" + "MEMORY
     // CARD slot" + " 1"), so the pieces are reworded to read together:
     // "TimeSplitters Sign Ons in SAVE SLOT 1". Applied once, at the first
@@ -745,15 +807,23 @@ namespace
 
     void applyGenericWording(uint8_t *rdram)
     {
+        const uint32_t table = guestWord(rdram, 0x2F2C18u);
+        if (!guestRange(table, 0x4DEu * 4u, 4u) || !reserveReady()) return;
         uint32_t applied = 0;
         for (const Rewording &r : kGenericWording)
         {
-            const size_t length = std::strlen(r.original);
-            if (std::strlen(r.text) > length || std::memcmp(rdram + r.address, r.original, length + 1) != 0)
-                continue;
-            std::memset(rdram + r.address, 0, length + 1);
-            std::memcpy(rdram + r.address, r.text, std::strlen(r.text));
-            ++applied;
+            std::string original;
+            if (!readGuestText(rdram, r.address, original) || original != r.original) continue;
+            uint32_t replacement = 0;
+            for (uint32_t id = 0; id < 0x4DEu; ++id)
+            {
+                uint32_t &entry = guestWord(rdram, table + id * 4u);
+                if (entry != r.address) continue;
+                if (!replacement) replacement = copyReplacementText(rdram, r.text);
+                if (!replacement) break;
+                entry = replacement;
+            }
+            applied += replacement != 0u;
         }
         std::fprintf(stderr, "[TS:text] save and controller wording: %u of %u texts reworded\n", applied,
                      static_cast<unsigned>(std::size(kGenericWording)));
@@ -763,11 +833,10 @@ namespace
     // texts by language id, 0x313750). The custom controls' button names
     // (setupcontrols' 14 choices, ids 1236-1245; the face buttons are their
     // glyphs, patched onto the disc: src/xbox/mk/glyphs.mk) are the Duke's
-    // as the Xbox pad drives them (White L1 and Black R1 as their glyphs,
-    // ^6 and ^7 below; the triggers L2 and R2, the stick clicks L3 and R3),
+    // as the Xbox pad drives them (White L1 and Black R1 as words; the triggers L2 and R2, the stick clicks L3 and R3),
     // without "button", the sticks without "Analog" (as the PC's: ids 1049,
     // 1050) and the directions as "dpad up" ...; names longer than
-    // the original's slot go in new text (kXboxTextBlock, in the host
+    // the original's slot also go in new text (kTextBlock, in the host
     // reserve) and the table entry points there. The map maker's
     // help says the same. "Memory Card (PS2)" is "Memory Card" everywhere
     // (the Xbox's two cards are its dashboard saves "Memory Card 1" and
@@ -775,177 +844,19 @@ namespace
     // first menu tick.
 #endif
 
-    // The White and Black buttons in text (^6, ^7), as the face buttons'
-    // ^1..^4: textPrint and textSize draw "^<digit>" as the texture
-    // 0x319A48[digit - '1'] (texnum_text_gfx in the ELF's symbols, 36 bytes:
-    // one entry for each digit 1..9; guiRestart fills entries 0..4,
-    // mm_button01..05, which guiPreload loads; entries 5 and 6 are the
-    // table's own, unused). Two 24x24 textures MISC.PAK holds but the game
-    // never loads, mm_circle_24x24 and mm_newedge, are the disc patch's White
-    // and Black (src/xbox/tools/xboxglyphs.py); they are loaded beside the
-    // buttons and put in entries 5 and 6. Their names stay in guest RAM (the
-    // preload keeps the pointer): kExtraGlyphNames, in the host reserve.
-    constexpr uint32_t kGlyphTable = 0x319A48u, kGlyphTableEntries = 9u;
-    static_assert(5u + 2u <= kGlyphTableEntries, "^6 and ^7 are entries of the glyph table");
-    static_assert(2u * 0x30u <= kExtraGlyphNamesSize, "the two names fit their block");
-    constexpr const char *kExtraGlyphs[] = {"host0:textures/misc/mm_circle_24x24.qpm", // ^6 White
-                                            "host0:textures/misc/mm_newedge.qpm"};     // ^7 Black
-
-    // The preload list (preloadAddTexName, preloadGetTexName, as the game
-    // keeps it), done here rather than by calling the game's routines from a
-    // hook: a call made there can stop at any inner call when the scheduler
-    // is due to switch threads, and the rest of it would be lost. Entries are
-    // 24 bytes at 0x1FB4C60, gp-0x6290 of them: type (2: a texture), next
-    // (the list by disc sector, from gp-0x4910), sector, name, flags, then
-    // the texture's id once loaded. The array (the ELF's "preload") ends
-    // where "preloadpass2" starts, 0x1FB7B40: 500 entries, never more added
-    // here. (The game's own preloadAddTexName does not check.)
-    constexpr uint32_t kPreloadEntries = 0x1FB4C60u, kPreloadMax = (0x1FB7B40u - 0x1FB4C60u) / 24u;
-    static_assert(kPreloadMax == 500u, "the preload array's size, from the ELF's symbols");
-
-    uint32_t preloadFind(uint8_t *rdram, uint32_t gp, const char *name)
-    {
-        const uint32_t count = std::min(guestWord(rdram, gp - 0x6290u), kPreloadMax);
-        for (uint32_t e = 0; e < count; ++e)
-        {
-            const uint32_t at = kPreloadEntries + e * 24u, nameAt = guestWord(rdram, at + 12u);
-            if (guestWord(rdram, at) == 2u && nameAt >= 0x1000u && nameAt < 0x2000000u &&
-                std::strcmp(reinterpret_cast<const char *>(rdram + nameAt), name) == 0)
-                return at;
-        }
-        return 0u;
-    }
-
-    // The file's first sector (fileGetSector -> packfileSeek): its record in
-    // one of the open packs (gp-0x4948 of them, listed at 0x1FB4C40; each
-    // with its sector at +4, its record count at +0xC and its 60-byte
-    // records, a 48-byte name then the offset, at +0x14), the pack's sector
-    // plus the offset in sectors. 0 if no pack has it.
-    uint32_t packSector(uint8_t *rdram, uint32_t gp, const char *name)
-    {
-        if (std::strncmp(name, "host0:", 6) == 0)
-            name += 6;
-        const uint32_t packs = std::min(guestWord(rdram, gp - 0x4948u), 16u);
-        for (uint32_t p = 0; p < packs; ++p)
-        {
-            const uint32_t pack = guestWord(rdram, 0x1FB4C40u + p * 4u);
-            if (pack < 0x1000u || pack >= 0x2000000u)
-                continue;
-            const uint32_t count = std::min(guestWord(rdram, pack + 0xCu), 8192u), records = guestWord(rdram, pack + 0x14u);
-            for (uint32_t r = 0; r < count; ++r)
-            {
-                const uint32_t record = records + r * 60u;
-                if (std::strncmp(reinterpret_cast<const char *>(rdram + record), name, 48) == 0)
-                    return guestWord(rdram, pack + 4u) + (guestWord(rdram, record + 0x30u) >> 11);
-            }
-        }
-        return 0u;
-    }
-
-    void preloadExtraGlyphs(uint8_t *rdram, R5900Context *ctx, PS2Runtime *)
-    {
-        const uint32_t gp = GPR_U32(ctx, 28);
-        if (!reserveReady())
-            return;
-        for (uint32_t i = 0; i < std::size(kExtraGlyphs); ++i)
-        {
-            const uint32_t name = kExtraGlyphNames + i * 0x30u;
-            if (std::strlen(kExtraGlyphs[i]) >= 0x30u)
-                continue;
-            writeGuestString(rdram, name, kExtraGlyphs[i]);
-            uint32_t &count = guestWord(rdram, gp - 0x6290u);
-            const uint32_t sector = packSector(rdram, gp, kExtraGlyphs[i]);
-            if (preloadFind(rdram, gp, kExtraGlyphs[i]) || !sector || count >= kPreloadMax)
-                continue;
-            const uint32_t entry = kPreloadEntries + count * 24u;
-            ++count;
-            guestWord(rdram, entry) = 2u;
-            guestWord(rdram, entry + 4u) = 0u;
-            guestWord(rdram, entry + 8u) = sector;
-            guestWord(rdram, entry + 12u) = name;
-            guestWord(rdram, entry + 16u) = 0u;
-            guestWord(rdram, entry + 20u) = 0u;
-            // preloadInsert: into the list by sector (head gp-0x4910, next at +4).
-            uint32_t &head = guestWord(rdram, gp - 0x4910u);
-            if (!head || guestWord(rdram, head + 8u) >= sector)
-            {
-                guestWord(rdram, entry + 4u) = head;
-                head = entry;
-            }
-            else
-            {
-                uint32_t at = head;
-                for (uint32_t steps = 0; steps < kPreloadMax && guestWord(rdram, at + 4u) &&
-                                         guestWord(rdram, guestWord(rdram, at + 4u) + 8u) < sector;
-                     ++steps)
-                    at = guestWord(rdram, at + 4u);
-                guestWord(rdram, entry + 4u) = guestWord(rdram, at + 4u);
-                guestWord(rdram, at + 4u) = entry;
-            }
-            if (std::getenv("TS_TRACE_GLYPHS"))
-                std::fprintf(stderr, "[TS:glyphs] preload %s: sector %u, entry %u\n", kExtraGlyphs[i], sector, count - 1u);
-        }
-    }
-
-    void restartExtraGlyphs(uint8_t *rdram, R5900Context *ctx, PS2Runtime *)
-    {
-        for (uint32_t i = 0; i < std::size(kExtraGlyphs); ++i)
-        {
-            const uint32_t entry = preloadFind(rdram, GPR_U32(ctx, 28), kExtraGlyphs[i]);
-            if (entry)
-                guestWord(rdram, kGlyphTable + (5u + i) * 4u) = guestWord(rdram, entry + 20u);
-            if (std::getenv("TS_TRACE_GLYPHS"))
-                std::fprintf(stderr, "[TS:glyphs] ^%u: %s entry 0x%x texture %u (^1's %u)\n", 6u + i, kExtraGlyphs[i], entry,
-                             guestWord(rdram, kGlyphTable + (5u + i) * 4u), guestWord(rdram, kGlyphTable));
-        }
-    }
-
-    // guiPreload and guiRestart, and the two that end by jumping to them
-    // (compiled as direct calls, past a replaced function).
-    void guiPreloadXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
-    {
-        const R5900Context entry = *ctx;
-        guiPreload_0x22e250(rdram, ctx, runtime);
-        R5900Context call = entry;
-        preloadExtraGlyphs(rdram, &call, runtime);
-    }
-
-    void ingamemenuPreloadXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
-    {
-        const R5900Context entry = *ctx;
-        ingamemenuPreload_0x2124a0(rdram, ctx, runtime);
-        R5900Context call = entry;
-        preloadExtraGlyphs(rdram, &call, runtime);
-    }
-
-    void guiRestartXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
-    {
-        const R5900Context entry = *ctx;
-        guiRestart_0x22e350(rdram, ctx, runtime);
-        R5900Context call = entry;
-        restartExtraGlyphs(rdram, &call, runtime);
-    }
-
-    void guiResetXbox(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
-    {
-        const R5900Context entry = *ctx;
-        guiReset_0x22e420(rdram, ctx, runtime);
-        R5900Context call = entry;
-        restartExtraGlyphs(rdram, &call, runtime);
-    }
-
 #if defined(PLATFORM_XBOX)
     void applyXboxWording(uint8_t *rdram)
     {
         const uint32_t table = guestWord(rdram, 0x2F2C18u);
-        if (table < 0x100000u || table >= 0x2000000u)
+        if (!reserveReady() || !guestRange(table, 0x4DEu * 4u, 4u))
             return;
         auto text = [&](uint32_t id) { return guestWord(rdram, table + id * 4u); };
         auto matches = [&](uint32_t at, const char *original) {
-            return at >= 0x100000u && at < 0x2000000u && std::strcmp(reinterpret_cast<const char *>(rdram + at), original) == 0;
+            std::string value;
+            return readGuestText(rdram, at, value) && value == original;
         };
-        // (Without the host reserve the longer names are left out.)
-        uint32_t applied = 0, cursor = reserveReady() ? kXboxTextBlock : kXboxTextBlockEnd;
+        // Without an active reserve, preserve all original wording.
+        uint32_t applied = 0;
         static constexpr struct
         {
             uint32_t id;
@@ -953,8 +864,8 @@ namespace
         } kNames[] = {
             {1236u, "^3 button", "^3"},          {1237u, "^2 button", "^2"},
             {1238u, "^4 button", "^4"},          {1239u, "^1 button", "^1"},
-            {1240u, "L1 button", "^6"},          {1241u, "L2 button", "Left trigger"},
-            {1242u, "R1 button", "^7"},          {1243u, "R2 button", "Right trigger"},
+            {1240u, "L1 button", "White"},          {1241u, "L2 button", "Left trigger"},
+            {1242u, "R1 button", "Black"},          {1243u, "R2 button", "Right trigger"},
             {1051u, "Up directional button", "dpad up"},      {1052u, "Down directional button", "dpad down"},
             {1053u, "Left directional button", "dpad left"},  {1054u, "Right directional button", "dpad right"},
             {1244u, "L3 button", "Left stick click"}, {1245u, "R3 button", "Right stick click"},
@@ -964,8 +875,8 @@ namespace
              "L1 / L2 button - Move to Upper / Lower Floor\n^2 button - Insert Tile / Item / Light\n"
              "^2 button (HOLD DOWN) - Lasso Selection\n^1 button - Rotate / Mark / Unmark\n"
              "^3 button - Delete / Cancel Selection\n^4 button - Copy Object\n",
-             "left stick - Move cursor\nright stick - Pan map\n^7 / Right trigger - Zoom Out / In\n"
-             "^6 / Left trigger - Move to Upper / Lower Floor\n^2 - Insert Tile / Item / Light\n"
+             "left stick - Move cursor\nright stick - Pan map\nBlack / Right trigger - Zoom Out / In\n"
+             "White / Left trigger - Move to Upper / Lower Floor\n^2 - Insert Tile / Item / Light\n"
              "^2 (HOLD DOWN) - Lasso Selection\n^1 - Rotate / Mark / Unmark\n"
              "^3 - Delete / Cancel Selection\n^4 - Copy Object\n"},
         };
@@ -974,40 +885,26 @@ namespace
             const uint32_t at = text(n.id);
             if (!matches(at, n.original))
                 continue;
-            const size_t length = std::strlen(n.text) + 1u;
-            if (length <= std::strlen(n.original) + 1u)
-            {
-                std::memset(rdram + at, 0, std::strlen(n.original) + 1u);
-                std::memcpy(rdram + at, n.text, length);
-            }
-            else
-            {
-                if (cursor + length > kXboxTextBlockEnd)
-                    continue;
-                std::memcpy(rdram + cursor, n.text, length);
-                guestWord(rdram, table + n.id * 4u) = cursor;
-                cursor += static_cast<uint32_t>((length + 3u) & ~size_t(3));
-            }
+            const uint32_t replacement = copyReplacementText(rdram, n.text);
+            if (!replacement) continue;
+            guestWord(rdram, table + n.id * 4u) = replacement;
             ++applied;
         }
-        // "Memory Card (PS2)" -> "Memory Card" in every text (shorter: in place).
+        // Build replacements privately; never mutate a shared source string.
         uint32_t cards = 0;
         for (uint32_t id = 0; id < 0x4DEu; ++id)
         {
-            const uint32_t at = text(id);
-            if (at < 0x100000u || at >= 0x2000000u || (at >= kXboxTextBlock && at < kXboxTextBlockEnd))
-                continue;
-            char *s = reinterpret_cast<char *>(rdram + at);
-            bool changed = false;
+            std::string value;
+            if (!readGuestText(rdram, text(id), value)) continue;
+            const std::string original = value;
             for (const char *mark : {"Memory Card (PS2)", "MEMORY CARD (PS2)"})
-                for (char *found = std::strstr(s, mark); found; found = std::strstr(found, mark))
-                {
-                    char *after = found + std::strlen(mark);
-                    found += std::strlen(mark) - 6u; // keep "Memory Card", drop " (PS2)"
-                    std::memmove(found, after, std::strlen(after) + 1u);
-                    changed = true;
-                }
-            cards += changed ? 1u : 0u;
+                for (size_t at = value.find(mark); at != std::string::npos; at = value.find(mark, at))
+                    value.erase(at + std::strlen(mark) - 6u, 6u);
+            if (value == original) continue;
+            const uint32_t replacement = copyReplacementText(rdram, value);
+            if (!replacement) continue;
+            guestWord(rdram, table + id * 4u) = replacement;
+            ++cards;
         }
         std::fprintf(stderr, "[TS:text] Xbox wording: %u of %u controller texts, %u memory card texts\n", applied,
                      static_cast<unsigned>(std::size(kNames)), cards);
@@ -1314,10 +1211,11 @@ namespace
     bool g_testComplete = false;  // TS_TEST_CLICKS complete
     void playerTickMouseLook(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
-        const uint32_t player = guestWord(rdram, GPR_U32(ctx, 28) - 0x4DCCu);
+        const uint32_t playerAt = GPR_U32(ctx, 28) - 0x4DCCu;
+        const uint32_t player = guestRange(playerAt, 4u, 4u) ? guestWord(rdram, playerAt) : 0u;
         const int lane = ps2PadKeyboardLane();
         float dx = 0.0f, dy = 0.0f;
-        if (player && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane) && ps2PadTakeMouseLook(dx, dy) &&
+        if (guestRange(player, 0x12Cu, 4u) && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane) && ps2PadTakeMouseLook(dx, dy) &&
             (dx != 0.0f || dy != 0.0f))
         {
             float &yaw = guestFloat(rdram, player + 0x114u);
@@ -1332,7 +1230,7 @@ namespace
             if (static const bool trace = std::getenv("TS_TRACE_LOOK") != nullptr; trace)
                 std::fprintf(stderr, "[TS:look] field of view %.1f, mouse scale %.2f\n", fov, zoom);
         }
-        if (player && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane))
+        if (guestRange(player, 0x12Cu, 4u) && lane >= 0 && guestWord(rdram, player) == static_cast<uint32_t>(lane))
         {
             testClicksTick(rdram, 4u, false);
             if (g_testComplete)
@@ -1645,6 +1543,7 @@ namespace
         if (!hostSettings().mouse || !pointer.inside)
             return;
         const uint32_t page = GPR_U32(ctx, 4);
+        if (!guestRange(page, 6u, 2u)) return;
         const bool narrowed = inPlay && hostSettings().widescreen && !gsSplitScreen();
         const MenuRow *row = menuRowAt(rdram, GPR_U32(ctx, 5), guestHalf(rdram, page + 4u), pointer.x, pointer.y * 0.5f,
                                        narrowed);
@@ -1941,7 +1840,7 @@ namespace
             std::fprintf(stderr, "[TS:menu] in-game page %08x menu %08x highlighted %u\n", GPR_U32(ctx, 4), lastMenu,
                          guestHalf(rdram, GPR_U32(ctx, 4) + 4u));
         }
-        if (useSetupMenu(rdram, ctx))
+        if (guestRange(GPR_U32(ctx, 4), 6u, 2u) && useSetupMenu(rdram, ctx))
         {
             // The page opens on Setup Controls (2), which the copy leaves out.
             if (guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == 2u)
@@ -2010,19 +1909,15 @@ namespace
         takeMenuRows(GPR_U32(ctx, 5));
         g_menuAsked = GPR_U32(ctx, 5);
 #endif
+        if (!g_wordingApplied && reserveReady() && guestRange(guestWord(rdram, 0x2F2C18u), 0x4DEu * 4u, 4u))
+        {
 #if !defined(PLATFORM_XBOX)
-        static const bool reworded = (applyGenericWording(rdram), true);
-        static const bool glyphTest = [&] {
-            const uint32_t accept = guestWord(rdram, guestWord(rdram, 0x2F2C18u) + 370u * 4u); // "^2 Accept   ^3 Cancel"
-            if (std::getenv("TS_TEST_EXTRA_GLYPHS") && accept >= 0x100000u && accept < 0x2000000u)
-                writeGuestString(rdram, accept, "^6 Accept   ^7 Cancel");
-            return true;
-        }();
-        (void)glyphTest;
+            applyGenericWording(rdram);
 #else
-        static const bool reworded = (applyXboxWording(rdram), true);
+            applyXboxWording(rdram);
 #endif
-        (void)reworded;
+            g_wordingApplied = true;
+        }
         static const bool trace = [] { const char *v = std::getenv("TS_TRACE_MENUS"); return v && *v == '1'; }();
         static uint32_t lastMenu = 0;
         if (trace && reserveReady()) // also left in guest RAM for pad scripts (wait_u32 on kMenuTraceWord, 0x83ff0)
@@ -2032,19 +1927,8 @@ namespace
             lastMenu = GPR_U32(ctx, 5);
             std::fprintf(stderr, "[TS:menu] page %08x menu %08x\n", GPR_U32(ctx, 4), lastMenu);
         }
-        // The page's tick sets the "Select" button hint (the text of the
-        // last item) only for its own entries; show it on Exit Game too. The
-        // text is entry 0x80 of the current language's table.
-        if (GPR_U32(ctx, 5) == kGameModeMenu && guestHalf(rdram, GPR_U32(ctx, 4) + 4u) == kExitGameId)
-        {
-            const uint32_t language = guestWord(rdram, GPR_U32(ctx, 28) - 0x6CACu);
-            const uint32_t table = guestWord(rdram, 0x2F2C18u + language * 4u);
-            if (language < 8u && table)
-                guestWord(rdram, kGameModeMenu + 16u + (kGameModeLinks + 1u) * kItemSize) =
-                    guestWord(rdram, table + 0x200u);
-        }
 #if !defined(PLATFORM_XBOX)
-        if (GPR_U32(ctx, 5) == kGameModeMenu && guestHalf(rdram, GPR_U32(ctx, 4) + 4u) != kExitGameId)
+        if (GPR_U32(ctx, 5) == kGameModeMenu && guestRange(GPR_U32(ctx, 4), 6u, 2u) && guestHalf(rdram, GPR_U32(ctx, 4) + 4u) != kExitGameId)
             g_exitArmedUntil = {};
         if (useGameModeMenu(rdram, ctx) && exitGameChosen(rdram, ctx))
         {
@@ -2114,6 +1998,8 @@ namespace
     // The key index of c in a layout, or -1.
     int stringeditKey(uint8_t *rdram, uint32_t layout, int c)
     {
+        if (!guestRange(layout, kLayoutKeys)) return -1;
+        layout &= 0x1FFFFFFFu;
         const uint8_t code = c == ' ' ? kKeySpace : c == '\b' ? kKeyDelete : c == '\n' ? kKeyEnd : static_cast<uint8_t>(c);
         const bool special = code >= kKeyCaps;
         for (uint32_t i = special ? kCharKeys : 0u; i < (special ? kLayoutKeys : kCharKeys); ++i)
@@ -2128,9 +2014,10 @@ namespace
         ps2PadNoteMenu();
         testClicksTick(rdram, 2u, false);
         (void)ps2PadTakeMenuPointer(); // (its Add / Cancel prompts take clicks; nothing else here does)
-        static int capsThen = 0; // a letter waiting for the CAPS press before it
+        int &capsThen = g_capsThen; // a letter waiting for the CAPS press before it
         const uint32_t pad = GPR_U32(ctx, 4);
-        const uint32_t state = guestWord(rdram, GPR_U32(ctx, 28) - 0x5FCCu);
+        const uint32_t stateAt = GPR_U32(ctx, 28) - 0x5FCCu;
+        const uint32_t state = guestRange(stateAt, 4u, 4u) ? guestWord(rdram, stateAt) : 0u;
         // Only the keyboard's own player types (pad = that player's lane in
         // the menus), or anyone while no player has used the keyboard yet.
         const int keyboardLane = ps2PadKeyboardLane();
@@ -2138,7 +2025,7 @@ namespace
         int c = capsThen ? capsThen : keyboardPlayer ? ps2PadTakeTypedChar() : 0;
         capsThen = 0;
         uint32_t pressedAt = 0, pressedWas = 0;
-        if (c && state && pad <= 7u)
+        if (c && guestRange(state, 0x30u, 4u) && pad <= 7u)
         {
             const uint32_t layout = guestWord(rdram, state + 0x1Cu);
             int key = stringeditKey(rdram, layout, c);
@@ -2393,7 +2280,12 @@ namespace
     {
         (void)runtime;
         const uint32_t gp = GPR_U32(ctx, 28);
-        WRITE32(kFrameSlots + READ32(gp - kGpDrawSlot) * kFrameSlotBytes + 8u, 2u); // no second draw
+        if (!guestRange(gp - kGpDrawSlot, 4u, 4u) || !guestRange(gp - 0x4CDCu, 4u, 4u))
+        { ctx->pc = GPR_U32(ctx, 31); return; }
+        const uint32_t drawSlot = READ32(gp - kGpDrawSlot);
+        if (drawSlot >= 2u || READ32(gp - 0x4CDCu) >= 2u)
+        { ctx->pc = GPR_U32(ctx, 31); return; }
+        WRITE32(kFrameSlots + drawSlot * kFrameSlotBytes + 8u, 2u); // no second draw
         ++g_nv2aTextureStats.gameFrames;
         xboxPerfGameFrame(); // the frame-time histogram
         const uint32_t next = 1u - READ32(gp - 0x4CDCu);
@@ -2406,9 +2298,13 @@ namespace
     {
         (void)runtime;
         const uint32_t gp = GPR_U32(ctx, 28);
+        if (!guestRange(gp - 0x467Cu, 4u, 4u)) { ctx->pc = GPR_U32(ctx, 31); return; }
         const uint32_t buffer = READ32(gp - 0x467Cu);
-        const int32_t points = static_cast<int32_t>(READ32(0x01FEA0A0u + buffer * 4u)) * 9;
+        if (buffer >= 3u) { ctx->pc = GPR_U32(ctx, 31); return; }
+        const uint32_t glows = READ32(0x01FEA0A0u + buffer * 4u);
         const uint32_t table = READ32(0x0036A590u + buffer * 4u);
+        if (glows > 72u || !guestRange(table, 0x3CC0u, 4u)) { ctx->pc = GPR_U32(ctx, 31); return; }
+        const int32_t points = static_cast<int32_t>(glows * 9u);
         for (int32_t i = 0; i < points; ++i)
         {
             const uint32_t entry = table + static_cast<uint32_t>(i) * 24u;
@@ -2932,6 +2828,19 @@ namespace
         installPerfBrackets(runtime, std::make_index_sequence<std::size(g_perfBrackets)>{});
 #endif
 #endif
+        g_displayMenu = DisplayMenu{};
+        g_wordingApplied = false;
+        g_textCursor = kTextBlock;
+        g_capsThen = 0;
+#if !defined(PLATFORM_XBOX)
+        g_exitArmedUntil = {};
+        g_exitConfirm = false;
+        g_menuRows.clear();
+        g_menuRowsDrawn.clear();
+        g_menuAsked = 0;
+        g_levelEndShown = false;
+        g_testComplete = false;
+#endif
         g_reserveOwner = &runtime; // (reserveReady: the host reserve, once the ELF is loaded)
         runtime.replaceFunction(0x201A60u, &nativeMemMark);
         runtime.replaceFunction(0x2E46A8u, &loggedAssert);
@@ -2973,17 +2882,6 @@ namespace
             runtime.replaceFunction(kStdMenuMake, &displayMenuMake);
         }
         runtime.replaceFunction(0x2B5258u, &widescreenMatrixPerspective);
-        // (TS_TEST_EXTRA_GLYPHS=1, tests: the same on the PC, with the Load
-        // Sign Ons box's prompts as ^6 / ^7.)
-#if !defined(PLATFORM_XBOX)
-        if (std::getenv("TS_TEST_EXTRA_GLYPHS"))
-#endif
-        {
-        runtime.replaceFunction(0x22E250u, &guiPreloadXbox);
-        runtime.replaceFunction(0x2124A0u, &ingamemenuPreloadXbox);
-        runtime.replaceFunction(0x22E350u, &guiRestartXbox);
-        runtime.replaceFunction(0x22E420u, &guiResetXbox);
-        }
         runtime.replaceFunction(0x225CD8u, &lvResetBeforeLoading);
         runtime.replaceFunction(0x21EDE8u, &gameResetAfterLoaded);
         if (const char *test = std::getenv("TS_LIBM_SELFTEST"); test && *test == '1')

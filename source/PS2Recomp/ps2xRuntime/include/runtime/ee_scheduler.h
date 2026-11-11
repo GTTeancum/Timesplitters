@@ -126,6 +126,7 @@ struct GuestThread
     uint32_t wakeupCount = 0;
     bool ownsStack = false;
     uint32_t tlsBase = 0;
+    uint64_t tlsGeneration = 0;
     EeWaitState wait{};
     std::function<void(R5900Context &)> resumeCompletion;
     std::vector<GuestInvocation> invocations;
@@ -387,6 +388,13 @@ public:
     [[nodiscard]] GuestThread *currentThread();
     [[nodiscard]] const GuestThread *currentThread() const;
     [[nodiscard]] int currentThreadId() const noexcept;
+    // Boot diagnostics may borrow kernel scratch only before scheduler setup.
+    // Call on the loader thread, never concurrently with reset/run.
+    [[nodiscard]] bool pristineForBootDiagnostics() const noexcept
+    {
+        return !m_running.load(std::memory_order_acquire) && m_threads.empty();
+    }
+
     [[nodiscard]] R5900Context *currentContext();
     [[nodiscard]] uint8_t *rdram() const noexcept;
 
@@ -541,6 +549,7 @@ private:
     // Invocation stacks of deleted threads, for the next (thread, depth)
     // that needs one (all are kInvocationStackSize).
     std::vector<uint32_t> m_freeInvocationStacks;
+    uint64_t m_invocationArenaGeneration = 0;
     std::atomic<uint64_t> m_nextDeadlineCycle{0};
 #if defined(PLATFORM_XBOX)
     // Performance-counter value below which no entry of m_deadlines is due

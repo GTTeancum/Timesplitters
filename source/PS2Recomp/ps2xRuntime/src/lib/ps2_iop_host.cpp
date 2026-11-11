@@ -232,8 +232,8 @@ uint32_t PS2IopHostAdapter::allocateIopHandle(ps2x::iop::IopHandleKind kind)
         return 0;
     }
     return kind == ps2x::iop::IopHandleKind::RpcPacket
-               ? rpcAllocPacketAddr(rdram)
-               : rpcAllocServerAddr(rdram);
+               ? rpcAllocPacketAddr(rdram, &m_runtime)
+               : rpcAllocServerAddr(rdram, &m_runtime);
 }
 
 uint32_t PS2IopHostAdapter::allocateGuest(uint32_t size, uint32_t alignment)

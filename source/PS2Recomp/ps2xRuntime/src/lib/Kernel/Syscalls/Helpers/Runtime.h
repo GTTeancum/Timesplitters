@@ -83,26 +83,44 @@ static bool readStackU32(uint8_t *rdram, uint32_t sp, uint32_t offset, uint32_t 
     return true;
 }
 
-static uint32_t rpcAllocPacketAddr(uint8_t *rdram)
+static uint32_t allocKernelObject(uint8_t *rdram, PS2Runtime *runtime, uint32_t bytes)
 {
-    if (kRpcPacketPoolCount == 0)
+    if (!rdram || !runtime)
         return 0;
-
-    uint32_t slot = g_rpc_packet_index++ % kRpcPacketPoolCount;
-    uint32_t addr = kRpcPacketPoolBase + (slot * kRpcPacketSize);
-    rpcZeroRdram(rdram, addr, kRpcPacketSize);
+    const uint32_t addr = runtime->reserveKernelMemory(bytes, 16u);
+    if (addr)
+        rpcZeroRdram(rdram, addr, bytes);
     return addr;
 }
 
-static uint32_t rpcAllocServerAddr(uint8_t *rdram)
+static uint32_t rpcAllocPacketAddr(uint8_t *rdram, PS2Runtime *runtime)
 {
-    if (kRpcServerPoolCount == 0)
-        return 0;
-
-    uint32_t slot = g_rpc_server_index++ % kRpcServerPoolCount;
-    uint32_t addr = kRpcServerPoolBase + (slot * kRpcServerStride);
-    rpcZeroRdram(rdram, addr, kRpcServerStride);
+    const uint32_t addr = allocKernelObject(rdram, runtime, kRpcPacketSize);
+    if (addr) { std::lock_guard<std::mutex> lock(g_rpc_mutex); ++g_rpc_packet_index; }
     return addr;
+}
+
+static uint32_t rpcAllocServerAddr(uint8_t *rdram, PS2Runtime *runtime)
+{
+    static_assert(sizeof(t_SifRpcServerData) <= kRpcServerStride, "RPC descriptor must fit allocation");
+    const uint32_t addr = allocKernelObject(rdram, runtime, kRpcServerStride);
+    if (addr) { std::lock_guard<std::mutex> lock(g_rpc_mutex); ++g_rpc_server_index; }
+    return addr;
+}
+
+// Global RPC caches must never publish descriptors from an earlier runtime/load.
+static void ensureRpcGeneration(PS2Runtime *runtime)
+{
+    if (!runtime) return;
+    std::lock_guard<std::mutex> lock(g_rpc_mutex);
+    const uint64_t generation = runtime->kernelMemoryGeneration();
+    if (g_rpc_generation == generation) return;
+    g_rpc_generation = generation;
+    g_rpc_servers.clear();
+    g_rpc_clients.clear();
+    g_rpc_initialized = false;
+    g_rpc_next_id = 1;
+    g_rpc_packet_index = g_rpc_server_index = g_rpc_active_queue = 0;
 }
 
 inline std::string translatePs2Path(const char *ps2Path)
@@ -328,38 +346,24 @@ static void ensureOsdConfigInitialized()
     g_osd_config_initialized = true;
 }
 
-static uint32_t allocTlsAddr(uint8_t *rdram)
+static uint32_t allocTlsAddr(uint8_t *rdram, PS2Runtime *runtime)
 {
-    if (!rdram || kTlsPoolCount == 0)
-        return 0;
-
-    std::lock_guard<std::mutex> lock(g_tls_mutex);
-    uint32_t slot = g_tls_index++ % kTlsPoolCount;
-    uint32_t addr = kTlsPoolBase + (slot * kTlsBlockSize);
-    rpcZeroRdram(rdram, addr, kTlsBlockSize);
-    return addr;
+    // A thread owns its block for this runtime generation. Never wrap onto a
+    // live thread. Retaining deleted-thread storage is conservative and bounded.
+    return allocKernelObject(rdram, runtime, kTlsBlockSize);
 }
 
-static uint32_t allocBootModeAddr(uint8_t *rdram, size_t bytes)
+static uint32_t allocBootModeAddr(uint8_t *rdram, PS2Runtime *runtime, size_t bytes)
 {
-    if (!rdram)
-        return 0;
-
-    size_t aligned = (bytes + 15u) & ~15u;
-    if (g_bootmode_pool_offset + aligned > kBootModePoolBytes)
-        return 0;
-
-    uint32_t addr = kBootModePoolBase + g_bootmode_pool_offset;
-    g_bootmode_pool_offset += static_cast<uint32_t>(aligned);
-    rpcZeroRdram(rdram, addr, aligned);
-    return addr;
+    if (bytes > kBootModePoolBytes) return 0;
+    return allocKernelObject(rdram, runtime, static_cast<uint32_t>(bytes));
 }
 
-static uint32_t createBootModeEntry(uint8_t *rdram, uint8_t id, uint16_t value, uint8_t lenField, const uint32_t *data, uint8_t dataCount)
+static uint32_t createBootModeEntry(uint8_t *rdram, PS2Runtime *runtime, uint8_t id, uint16_t value, uint8_t lenField, const uint32_t *data, uint8_t dataCount)
 {
     uint8_t allocCount = (dataCount == 0) ? 1 : dataCount;
     size_t bytes = static_cast<size_t>(1 + allocCount) * sizeof(uint32_t);
-    uint32_t addr = allocBootModeAddr(rdram, bytes);
+    uint32_t addr = allocBootModeAddr(rdram, runtime, bytes);
     if (!addr)
         return 0;
 
@@ -380,24 +384,25 @@ static uint32_t createBootModeEntry(uint8_t *rdram, uint8_t id, uint16_t value, 
     return addr;
 }
 
-static void ensureBootModeTable(uint8_t *rdram)
+static void ensureBootModeTable(uint8_t *rdram, PS2Runtime *runtime)
 {
     std::lock_guard<std::mutex> lock(g_bootmode_mutex);
-    if (g_bootmode_initialized)
+    if (!runtime) return;
+    if (g_bootmode_initialized && g_bootmode_generation == runtime->kernelMemoryGeneration())
         return;
+    g_bootmode_generation = runtime->kernelMemoryGeneration();
 
-    g_bootmode_pool_offset = 0;
     g_bootmode_addresses.clear();
 
     const uint32_t boot3Data[1] = {0};
     const uint32_t boot5Data[1] = {0};
 
-    g_bootmode_addresses[1] = createBootModeEntry(rdram, 1, 0, 0, nullptr, 0);
-    g_bootmode_addresses[3] = createBootModeEntry(rdram, 3, 0, 1, boot3Data, 1);
-    g_bootmode_addresses[4] = createBootModeEntry(rdram, 4, 0, 0, nullptr, 0);
-    g_bootmode_addresses[5] = createBootModeEntry(rdram, 5, 0, 1, boot5Data, 1);
-    g_bootmode_addresses[6] = createBootModeEntry(rdram, 6, 0, 0, nullptr, 0);
-    g_bootmode_addresses[7] = createBootModeEntry(rdram, 7, 0, 0, nullptr, 0);
+    g_bootmode_addresses[1] = createBootModeEntry(rdram, runtime, 1, 0, 0, nullptr, 0);
+    g_bootmode_addresses[3] = createBootModeEntry(rdram, runtime, 3, 0, 1, boot3Data, 1);
+    g_bootmode_addresses[4] = createBootModeEntry(rdram, runtime, 4, 0, 0, nullptr, 0);
+    g_bootmode_addresses[5] = createBootModeEntry(rdram, runtime, 5, 0, 1, boot5Data, 1);
+    g_bootmode_addresses[6] = createBootModeEntry(rdram, runtime, 6, 0, 0, nullptr, 0);
+    g_bootmode_addresses[7] = createBootModeEntry(rdram, runtime, 7, 0, 0, nullptr, 0);
 
     g_bootmode_initialized = true;
 }

@@ -228,6 +228,7 @@ namespace ps2_syscalls
 
     void SifInitRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         std::lock_guard<std::mutex> lock(g_rpc_mutex);
         if (!g_rpc_initialized)
         {
@@ -254,6 +255,7 @@ namespace ps2_syscalls
 
     void SifBindRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         uint32_t clientPtr = getRegU32(ctx, 4);
         uint32_t rpcId = getRegU32(ctx, 5);
         uint32_t mode = getRegU32(ctx, 6);
@@ -302,7 +304,7 @@ namespace ps2_syscalls
             // With an emulated IOP, only publish it after the IRX has actually
             // registered the SID; cd->server == nullptr is the SDK's retry
             // signal while the IOP server thread is still starting.
-            serverPtr = rpcAllocServerAddr(rdram);
+            serverPtr = rpcAllocServerAddr(rdram, runtime);
             if (serverPtr)
             {
                 t_SifRpcServerData *dummy = reinterpret_cast<t_SifRpcServerData *>(getMemPtr(rdram, serverPtr));
@@ -342,6 +344,7 @@ namespace ps2_syscalls
 
     void SifCallRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         std::lock_guard<std::recursive_mutex> rpcCallLock(g_sif_call_rpc_mutex);
 
         const uint32_t clientPtr = getRegU32(ctx, 4);
@@ -708,6 +711,7 @@ namespace ps2_syscalls
 
     void SifRegisterRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         uint32_t sdPtr = getRegU32(ctx, 4);
         uint32_t sid = getRegU32(ctx, 5);
         uint32_t func = getRegU32(ctx, 6);
@@ -820,6 +824,7 @@ namespace ps2_syscalls
 
     void SifCheckStatRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         uint32_t clientPtr = getRegU32(ctx, 4);
         std::lock_guard<std::mutex> lock(g_rpc_mutex);
         auto it = g_rpc_clients.find(clientPtr);
@@ -833,6 +838,7 @@ namespace ps2_syscalls
 
     void SifSetRpcQueue(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         uint32_t qdPtr = getRegU32(ctx, 4);
         int threadId = static_cast<int>(getRegU32(ctx, 5));
 
@@ -881,6 +887,7 @@ namespace ps2_syscalls
 
     void SifRemoveRpcQueue(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         uint32_t qdPtr = getRegU32(ctx, 4);
         if (!qdPtr)
         {
@@ -924,6 +931,7 @@ namespace ps2_syscalls
 
     void SifRemoveRpc(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         uint32_t sdPtr = getRegU32(ctx, 4);
         uint32_t qdPtr = getRegU32(ctx, 5);
 
@@ -1006,6 +1014,7 @@ namespace ps2_syscalls
 
     void sceRpcGetPacket(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
+        ensureRpcGeneration(runtime);
         uint32_t queuePtr = getRegU32(ctx, 4);
         setReturnS32(ctx, static_cast<int32_t>(queuePtr));
     }

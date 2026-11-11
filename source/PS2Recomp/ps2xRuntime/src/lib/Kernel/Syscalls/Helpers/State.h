@@ -221,13 +221,14 @@ inline uint64_t g_sif_rpc_debug_next_seq = 0;
 inline std::mutex g_rpc_mutex;
 inline std::recursive_mutex g_sif_call_rpc_mutex;
 inline bool g_rpc_initialized = false;
+inline uint64_t g_rpc_generation = 0;
 inline uint32_t g_rpc_next_id = 1;
 inline uint32_t g_rpc_packet_index = 0;
 inline uint32_t g_rpc_server_index = 0;
 inline uint32_t g_rpc_active_queue = 0;
 inline std::mutex g_bootmode_mutex;
 inline bool g_bootmode_initialized = false;
-inline uint32_t g_bootmode_pool_offset = 0;
+inline uint64_t g_bootmode_generation = 0;
 inline std::unordered_map<uint8_t, uint32_t> g_bootmode_addresses;
 
 static constexpr uint32_t kGuestSyscallTableGuestBase = 0x80011F80u;
@@ -235,8 +236,6 @@ static constexpr uint32_t kGuestSyscallTablePhysBase = kGuestSyscallTableGuestBa
 static constexpr uint32_t kGuestSyscallMirrorLimit = 0x00080000u;
 static constexpr uint32_t kGuestSyscallTableProbeBase = 0x000002F0u;
 
-inline std::mutex g_tls_mutex;
-inline uint32_t g_tls_index = 0;
 
 inline std::mutex g_osd_mutex;
 inline bool g_osd_config_initialized = false;
@@ -252,20 +251,10 @@ inline std::filesystem::path g_cdrom_cwd;
 inline std::string g_ps2_cwd_device = "host0";
 
 static constexpr uint32_t kRpcPacketSize = 64;
-static constexpr uint32_t kRpcPacketPoolBase = 0x01F00000;
-static constexpr uint32_t kRpcPacketPoolBytes = 0x00010000;
-static constexpr uint32_t kRpcPacketPoolCount = kRpcPacketPoolBytes / kRpcPacketSize;
-static constexpr uint32_t kRpcServerPoolBase = 0x01F10000;
-static constexpr uint32_t kRpcServerPoolBytes = 0x00010000;
 static constexpr uint32_t kRpcServerStride = 0x80;
-static constexpr uint32_t kRpcServerPoolCount = kRpcServerPoolBytes / kRpcServerStride;
 
-static constexpr uint32_t kTlsPoolBase = 0x01F20000;
-static constexpr uint32_t kTlsPoolBytes = 0x00010000;
 static constexpr uint32_t kTlsBlockSize = 0x100;
-static constexpr uint32_t kTlsPoolCount = kTlsPoolBytes / kTlsBlockSize;
 
-static constexpr uint32_t kBootModePoolBase = 0x01F30000;
 static constexpr uint32_t kBootModePoolBytes = 0x00001000;
 
 static constexpr uint32_t kSifRpcModeNowait = 0x01;

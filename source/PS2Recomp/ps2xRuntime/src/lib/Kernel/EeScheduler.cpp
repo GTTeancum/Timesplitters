@@ -137,6 +137,19 @@ void EeScheduler::reset(uint8_t *rdram, const R5900Context &mainContext)
     m_rdram = rdram;
     m_readyQueues = {};
     m_threads.clear();
+    // Only reuse stack addresses while their owning arena generation survives.
+    const uint64_t arenaGeneration = m_runtime.kernelMemoryGeneration();
+    if (m_invocationArenaGeneration != arenaGeneration)
+    {
+        m_freeInvocationStacks.clear();
+        m_invocationArenaGeneration = arenaGeneration;
+    }
+    else
+    {
+        for (const auto &entry : m_invocationStackTops)
+            m_freeInvocationStacks.push_back(entry.second);
+    }
+    m_invocationStackTops.clear();
     m_semaphores.clear();
     m_eventFlags.clear();
     m_alarms.clear();
@@ -1308,10 +1321,10 @@ uint32_t EeScheduler::invocationStackTop()
 }
 
 // A deleted thread's invocation stacks go back for reuse. The callback arena
-// they come from (512 KB, 32 stacks) is never given back, and thread ids go
-// round 2..255 as threads are created and deleted, so a game that kept
-// making short-lived threads which took an interrupt or callback stopped
-// with "EE invocation stack space exhausted" after 32 of them. Nothing runs
+// they come from is shared with runtime-owned kernel objects. Its capacity
+// depends on the ELF layout and host reserve (at most 31 full stacks in the
+// current low arena). Reuse avoids exhausting it as thread ids cycle.
+// Nothing runs
 // on the stacks once the thread record is gone (its pending invocations go
 // with it).
 void EeScheduler::releaseInvocationStacks(int threadId)

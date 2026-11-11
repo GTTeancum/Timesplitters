@@ -412,6 +412,12 @@ public:
     uint32_t guestHeapEnd() const;
     uint32_t guestHeapLimit() const;
     uint32_t reserveAsyncCallbackStack(uint32_t size, uint32_t alignment = 16u);
+    // Kernel objects and callback stacks share one ELF-aware owned arena.
+    // Allocations are retained until the next ELF load; exhaustion never reuses
+    // a live object. Returns a base address, unlike the stack API.
+    uint32_t reserveKernelMemory(uint32_t size, uint32_t alignment = 16u);
+    bool kernelArenaUnused(uint32_t base, uint32_t size) const;
+    uint64_t kernelMemoryGeneration() const { return m_kernelMemoryGeneration; }
 
     void drainCompletedDmacHandlers(uint8_t *rdram);
     // EE thread: completes an asynchronous VIF1 transfer and runs its DMAC handlers.
@@ -583,6 +589,8 @@ private:
     bool m_hostReservedActive = false;
     uint32_t m_asyncCallbackStackFloor = 0x01F00000u;
     uint32_t m_asyncCallbackStackTop = PS2_RAM_SIZE;
+    uint32_t m_kernelArenaEnd = PS2_RAM_SIZE;
+    uint64_t m_kernelMemoryGeneration = 0;
 
     std::atomic<uint32_t> m_missingFunctionPolicy{static_cast<uint32_t>(MissingFunctionPolicy::ContinueToTarget)};
     std::atomic<bool> m_missingFunctionReported{false};

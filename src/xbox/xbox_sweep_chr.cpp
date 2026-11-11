@@ -71,6 +71,8 @@
 #include "ps2_runtime_macros.h"
 #include "runtime/ee_scheduler.h"
 #include "../../project/game/ts_native_selftest.h"
+#include "../../project/game/ts_scope_exit.h"
+#include "../../project/game/ts_boot_test_guard.h"
 
 #include <cmath>
 #include <cstdint>
@@ -1707,6 +1709,9 @@ namespace
     // kGlobalNatives[i]: passed.
     uint32_t selfTest(PS2Runtime &runtime, GuestFunction prevFind, GuestFunction prevClosest, GuestFunction prevRotate)
     {
+        if (!ts_diagnostics::canBorrowBootScratch(runtime, kScratch, kScratchBytes) ||
+            !ts_diagnostics::canBorrowBootScratch(runtime, kHeap, kHeapBytes))
+            return 0u;
         // Zeroed contexts, 16-byte aligned (their vector registers are stored
         // with movaps; calloc only promises 8): freed below.
         void *block = std::calloc(1, sizeof(Buffers) + alignof(Buffers));
@@ -1724,6 +1729,17 @@ namespace
             std::memcpy(buf->globals + used, rdram + kGlobals[i].address, kGlobals[i].bytes);
             used += kGlobals[i].bytes;
         }
+        auto restoreMemory = ts_diagnostics::onExit([&]() noexcept {
+            std::memcpy(rdram + kScratch, buf->scratch, kScratchBytes);
+            std::memcpy(rdram + kHeap, buf->heap, kHeapBytes);
+            used = 0;
+            for (uint32_t i = 0; i < kGlobalCount; ++i)
+            {
+                std::memcpy(rdram + kGlobals[i].address, buf->globals + used, kGlobals[i].bytes);
+                used += kGlobals[i].bytes;
+            }
+            std::free(block);
+        });
         uint32_t passed = 0;
         {
             ClockHold hold(runtime);
@@ -1747,15 +1763,6 @@ namespace
                 passed |= bad == 0u ? (8u << g) : 0u;
             }
         }
-        std::memcpy(rdram + kScratch, buf->scratch, kScratchBytes);
-        std::memcpy(rdram + kHeap, buf->heap, kHeapBytes);
-        used = 0;
-        for (uint32_t i = 0; i < kGlobalCount; ++i)
-        {
-            std::memcpy(rdram + kGlobals[i].address, buf->globals + used, kGlobals[i].bytes);
-            used += kGlobals[i].bytes;
-        }
-        std::free(block);
         return passed;
     }
 #endif

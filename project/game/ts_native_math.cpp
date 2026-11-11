@@ -25,6 +25,8 @@
 #include "ts_native_math.h"
 
 #if defined(PLATFORM_XBOX)
+#include "ts_scope_exit.h"
+#include "ts_boot_test_guard.h"
 #include "ps2_runtime.h"
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
@@ -3828,6 +3830,8 @@ namespace
 
     void selfTest(PS2Runtime &runtime)
     {
+        if (!ts_diagnostics::canBorrowBootScratch(runtime, kScratch, kScratchBytes))
+            return;
         uint8_t *rdram = runtime.memory().getRDRAM();
         const auto start = std::chrono::steady_clock::now();
         static uint8_t saved[kScratchBytes], savedGlobals[kTestGlobalBytes];
@@ -3839,6 +3843,15 @@ namespace
             std::memcpy(savedGlobals + savedOffset, rdram + region.address, region.bytes);
             savedOffset += region.bytes;
         }
+        auto restoreMemory = ts_diagnostics::onExit([&]() noexcept {
+            std::memcpy(rdram + kScratch, saved, kScratchBytes);
+            savedOffset = 0;
+            for (const SavedRegion &region : kTestGlobals)
+            {
+                std::memcpy(rdram + region.address, savedGlobals + savedOffset, region.bytes);
+                savedOffset += region.bytes;
+            }
+        });
         {
             ClockHold hold(runtime);
             for (const NativeMath &fn : kNativeMath)
@@ -3857,13 +3870,6 @@ namespace
                              outcome.mismatches != 0u ? "ORIGINAL" : "native", kTestCases, outcome.mismatches,
                              outcome.nanOnly);
             }
-        }
-        std::memcpy(rdram + kScratch, saved, kScratchBytes);
-        savedOffset = 0;
-        for (const SavedRegion &region : kTestGlobals)
-        {
-            std::memcpy(rdram + region.address, savedGlobals + savedOffset, region.bytes);
-            savedOffset += region.bytes;
         }
         const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);
         std::fprintf(stderr, "[TS:math] self-test: %u of %u native, mathdiff=%u, NaN-only=%u, %u ms\n",

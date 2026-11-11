@@ -31,6 +31,8 @@
 #include "ts_native_game.h"
 
 #if defined(PLATFORM_XBOX)
+#include "ts_scope_exit.h"
+#include "ts_boot_test_guard.h"
 #include "ps2_runtime.h"
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
@@ -3027,6 +3029,8 @@ namespace
     // Returns the set of functions that passed.
     uint32_t selfTest(PS2Runtime &runtime)
     {
+        if (!ts_diagnostics::canBorrowBootScratch(runtime, kScratch, kScratchBytes))
+            return 0u;
         uint8_t *rdram = runtime.memory().getRDRAM();
         const auto start = std::chrono::steady_clock::now();
         static uint8_t saved[kScratchBytes], savedGlobals[kTestGlobalBytes];
@@ -3037,6 +3041,15 @@ namespace
             std::memcpy(savedGlobals + savedOffset, rdram + region.address, region.bytes);
             savedOffset += region.bytes;
         }
+        auto restoreMemory = ts_diagnostics::onExit([&]() noexcept {
+            std::memcpy(rdram + kScratch, saved, kScratchBytes);
+            savedOffset = 0;
+            for (const SavedRegion &region : kTestGlobals)
+            {
+                std::memcpy(rdram + region.address, savedGlobals + savedOffset, region.bytes);
+                savedOffset += region.bytes;
+            }
+        });
         uint32_t passed = 0, failed = 0, mismatches = 0, nanOnly = 0;
         {
             ClockHold hold(runtime);
@@ -3060,13 +3073,6 @@ namespace
                              outcome.mismatches != 0u ? "ORIGINAL" : "native", kTestCases, outcome.mismatches,
                              outcome.nanOnly);
             }
-        }
-        std::memcpy(rdram + kScratch, saved, kScratchBytes);
-        savedOffset = 0;
-        for (const SavedRegion &region : kTestGlobals)
-        {
-            std::memcpy(rdram + region.address, savedGlobals + savedOffset, region.bytes);
-            savedOffset += region.bytes;
         }
         g_tsNativeMath.mismatches += mismatches;
         g_tsNativeMath.nanPayloads += nanOnly;

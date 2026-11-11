@@ -2,12 +2,9 @@
 
 TimeSplitters draws every button prompt (the front end's footers such as
 "triangle Back  cross Select", the sign-on keyboard, the message boxes) with
-eight small palettised textures in MISC.PAK, the map maker's button icons:
+seven small palettised textures in MISC.PAK, the map maker's button icons:
 
   textures/misc/mm_button01.qpm      24x24  circle    -> B
-  textures/misc/mm_circle_24x24.qpm  24x24  circle    -> White (not loaded by the game;
-                                                         the Xbox build loads it as ^6)
-  textures/misc/mm_newedge.qpm       24x24  edge      -> Black (likewise, ^7)
   textures/misc/mm_button02.qpm      24x24  cross     -> A
   textures/misc/mm_button03.qpm      24x24  triangle  -> Y
   textures/misc/mm_button04.qpm      24x24  square    -> X
@@ -74,10 +71,6 @@ ATLAS_ROWS = [
 # x, y, w, h). The glyph is fitted into the box, aspect kept, centred.
 REPLACEMENTS = {
     "textures/misc/mm_button01.qpm": ("b", (24, 24), (0, 0, 24, 24)),
-    # Two 24x24 textures the game never loads: the Xbox build loads them as
-    # the text glyphs ^6 and ^7 (project/game/ts_overrides.cpp, kExtraGlyphs).
-    "textures/misc/mm_circle_24x24.qpm": ("white", (24, 24), (0, 0, 24, 24)),
-    "textures/misc/mm_newedge.qpm": ("black", (24, 24), (0, 0, 24, 24)),
     "textures/misc/mm_button02.qpm": ("a", (24, 24), (0, 0, 24, 24)),
     "textures/misc/mm_button03.qpm": ("y", (24, 24), (0, 0, 24, 24)),
     "textures/misc/mm_button04.qpm": ("x", (24, 24), (0, 0, 24, 24)),

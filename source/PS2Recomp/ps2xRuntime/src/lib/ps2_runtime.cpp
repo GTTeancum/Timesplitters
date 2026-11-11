@@ -142,6 +142,7 @@ struct ProgramHeader
 
 namespace
 {
+    std::atomic<uint64_t> g_kernelMemoryGeneration{0};
     constexpr uint32_t kGuestHeapDefaultBase = 0x00100000u;
     constexpr uint32_t kGuestHeapDefaultAlignment = 16u;
     constexpr uint32_t kGuestHeapSafetyPad = 0x1000u;
@@ -597,6 +598,7 @@ static void UploadFrame(Texture2D &tex, PS2Runtime *rt, uint32_t &outWidth, uint
 
 PS2Runtime::PS2Runtime()
 {
+    m_kernelMemoryGeneration = ++g_kernelMemoryGeneration;
     m_iopHost = std::make_unique<PS2IopHostAdapter>(*this);
     m_iopSubsystem = std::make_unique<ps2x::iop::IopSubsystem>(*m_iopHost);
 
@@ -1255,6 +1257,9 @@ bool PS2Runtime::loadELF(const std::string &elfPath)
                       << " end=0x" << m_asyncCallbackStackTop << std::dec << '\n';
         }
     }
+
+    m_kernelArenaEnd = m_asyncCallbackStackTop;
+    m_kernelMemoryGeneration = ++g_kernelMemoryGeneration;
 
     LoadedModule module;
     module.name = elfPath.substr(elfPath.find_last_of("/\\") + 1);
@@ -2085,6 +2090,11 @@ void PS2Runtime::resetGuestHeapLocked(uint32_t guestBase, uint32_t guestLimit)
         limit = 0u;
     }
 
+    if (m_hostReservedActive && base < m_kernelArenaEnd && limit > kHostReservedBase)
+    {
+        // SetupHeap cannot claim runtime objects or callback stacks.
+        base = limit = 0u;
+    }
     m_guestHeapBlocks.clear();
     if (limit > base)
     {
@@ -2402,42 +2412,37 @@ uint32_t PS2Runtime::guestHeapLimit() const
     return m_guestHeapConfigured ? m_guestHeapLimit : m_guestHeapSuggestedBase;
 }
 
+uint32_t PS2Runtime::reserveKernelMemory(uint32_t size, uint32_t alignment)
+{
+    // Reject overflow and invalid alignment before rounding or moving the frontier.
+    if (size == 0u || size > PS2_RAM_SIZE || !isGuestHeapAlignmentValid(alignment) || alignment > PS2_RAM_SIZE)
+        return 0u;
+    const uint32_t allocSize = alignGuestHeapValue(size, kGuestHeapDefaultAlignment);
+    const uint32_t normalizedAlignment = std::max(alignment, kGuestHeapDefaultAlignment);
+    std::lock_guard<std::mutex> lock(m_asyncCallbackStackMutex);
+    const uint32_t top = m_asyncCallbackStackTop;
+    if (top > PS2_RAM_SIZE || allocSize > top)
+        return 0u;
+    const uint32_t base = (top - allocSize) & ~(normalizedAlignment - 1u);
+    if (base == 0u || base < m_asyncCallbackStackFloor || base >= top)
+        return 0u;
+    m_asyncCallbackStackTop = base;
+    return base;
+}
+
 uint32_t PS2Runtime::reserveAsyncCallbackStack(uint32_t size, uint32_t alignment)
 {
-    if (size == 0u)
-    {
+    if (size < 16u || size > PS2_RAM_SIZE)
         return 0u;
-    }
+    const uint32_t base = reserveKernelMemory(size, alignment);
+    return base ? base + alignGuestHeapValue(size, kGuestHeapDefaultAlignment) - 16u : 0u;
+}
 
-    const uint32_t normalizedAlignment = normalizeGuestHeapAlignment(alignment);
-    const uint32_t allocSize = alignGuestHeapValue(size, kGuestHeapDefaultAlignment);
-    if (allocSize == 0u)
-    {
-        return 0u;
-    }
-
+bool PS2Runtime::kernelArenaUnused(uint32_t base, uint32_t size) const
+{
     std::lock_guard<std::mutex> lock(m_asyncCallbackStackMutex);
-    uint32_t top = m_asyncCallbackStackTop;
-    if (top > PS2_RAM_SIZE)
-    {
-        top = PS2_RAM_SIZE;
-    }
-    top &= ~(kGuestHeapDefaultAlignment - 1u);
-
-    if (top <= allocSize)
-    {
-        return 0u;
-    }
-
-    uint32_t base = top - allocSize;
-    base &= ~(normalizedAlignment - 1u);
-    if (base < m_asyncCallbackStackFloor || base >= top)
-    {
-        return 0u;
-    }
-
-    m_asyncCallbackStackTop = base;
-    return top - 0x10u;
+    return base >= m_asyncCallbackStackFloor && base <= m_kernelArenaEnd &&
+           size <= m_kernelArenaEnd - base && m_asyncCallbackStackTop == m_kernelArenaEnd;
 }
 
 uint8_t PS2Runtime::Load8(uint8_t *rdram, R5900Context *ctx, uint32_t vaddr)

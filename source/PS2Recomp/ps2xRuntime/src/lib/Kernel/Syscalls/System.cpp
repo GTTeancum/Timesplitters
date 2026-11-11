@@ -934,7 +934,7 @@ namespace ps2_syscalls
     void QueryBootMode(uint8_t *rdram, R5900Context *ctx, PS2Runtime *runtime)
     {
         uint32_t mode = getRegU32(ctx, 4);
-        ensureBootModeTable(rdram);
+        ensureBootModeTable(rdram, runtime);
         uint32_t addr = 0;
         {
             std::lock_guard<std::mutex> lock(g_bootmode_mutex);
@@ -957,9 +957,14 @@ namespace ps2_syscalls
             return;
         }
 
+        if (info->tlsGeneration != runtime->kernelMemoryGeneration())
+        {
+            info->tlsBase = 0;
+            info->tlsGeneration = runtime->kernelMemoryGeneration();
+        }
         if (info->tlsBase == 0)
         {
-            info->tlsBase = allocTlsAddr(rdram);
+            info->tlsBase = allocTlsAddr(rdram, runtime);
         }
 
         setReturnU32(ctx, info->tlsBase);
@@ -971,16 +976,29 @@ namespace ps2_syscalls
         const uint32_t src = getRegU32(ctx, 5);
         const uint32_t size = getRegU32(ctx, 6);
 
-        if (rdram && size > 0)
+        if (size == 0u)
         {
-            uint8_t *destPtr = getMemPtr(rdram, dest);
-            const uint8_t *srcPtr = getConstMemPtr(rdram, src);
-            if (destPtr && srcPtr)
-            {
-                ps2TraceGuestRangeWrite(rdram, dest, size, "syscallCopy", ctx);
-                std::memcpy(destPtr, srcPtr, size);
-            }
+            setReturnS32(ctx, 0);
+            return;
         }
+        uint32_t destOffset = 0, srcOffset = 0;
+        bool destScratch = false, srcScratch = false;
+        if (!rdram || !resolveEeGuestRange(dest, size, destOffset, destScratch) ||
+            !resolveEeGuestRange(src, size, srcOffset, srcScratch))
+        {
+            setReturnS32(ctx, -1);
+            return;
+        }
+        uint8_t *destBase = destScratch ? ps2GetScratchpadHostPtr() : rdram;
+        const uint8_t *srcBase = srcScratch ? ps2GetScratchpadHostPtr() : rdram;
+        if (!destBase || !srcBase)
+        {
+            setReturnS32(ctx, -1);
+            return;
+        }
+        ps2TraceGuestRangeWrite(rdram, dest, size, "syscallCopy", ctx);
+        // Defined for aliases and overlapping guest spans as well as disjoint copies.
+        std::memmove(destBase + destOffset, srcBase + srcOffset, size);
         setReturnS32(ctx, 0);
     }
 

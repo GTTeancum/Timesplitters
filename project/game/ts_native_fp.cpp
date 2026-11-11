@@ -27,6 +27,8 @@
 #include "ts_native_fp.h"
 
 #if defined(PLATFORM_XBOX)
+#include "ts_scope_exit.h"
+#include "ts_boot_test_guard.h"
 #include "ps2_runtime.h"
 #include "ps2_runtime_macros.h"
 #include "ps2_recompiled_functions.h"
@@ -2177,10 +2179,15 @@ namespace
     // Returns the set of functions that passed.
     uint32_t selfTest(PS2Runtime &runtime)
     {
+        if (!ts_diagnostics::canBorrowBootScratch(runtime, kScratch, kScratchBytes))
+            return 0u;
         uint8_t *rdram = runtime.memory().getRDRAM();
         const auto start = std::chrono::steady_clock::now();
         static uint8_t saved[kScratchBytes];
         std::memcpy(saved, rdram + kScratch, kScratchBytes);
+        auto restoreMemory = ts_diagnostics::onExit([&]() noexcept {
+            std::memcpy(rdram + kScratch, saved, kScratchBytes);
+        });
         uint32_t passed = 0, failed = 0, mismatches = 0;
         {
             ClockHold hold(runtime);
@@ -2203,7 +2210,6 @@ namespace
                              kTestCases, differ);
             }
         }
-        std::memcpy(rdram + kScratch, saved, kScratchBytes);
         g_tsNativeMath.mismatches += mismatches;
         g_tsNativeMath.failed += failed;
         const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start);

@@ -3,6 +3,7 @@
 #include "ps2_runtime_macros.h"
 #include "ps2_syscalls.h"
 #include "ps2_stubs.h"
+#include "../../ps2xRuntime/src/lib/Kernel/Syscalls/System.h"
 #include "runtime/ee_scheduler.h"
 
 #include <array>
@@ -1544,6 +1545,57 @@ void register_ps2_runtime_kernel_tests()
             }
         });
 
+        tc.Run("Copy rejects crossing RAM boundaries and unsupported segments without writes", [](TestCase &t)
+        {
+            TestEnv env;
+            writeGuestU32(env.rdram.data(), 0u, 0xAABBCCDDu);
+            writeGuestU32(env.rdram.data(), PS2_RAM_SIZE - 4u, 0x11223344u);
+            const uint32_t cases[][3] = {
+                {PS2_RAM_SIZE - 4u, 0x1000u, 8u},
+                {0x1000u, PS2_RAM_SIZE - 4u, 8u},
+                {0x40000000u, 0x1000u, 4u},
+                {0x1000u, 0x40000000u, 4u},
+                {0x70003FFCu, 0x1000u, 8u},
+                {0x1000u, 0x70003FFCu, 8u},
+                {0x1000u, 0x2000u, 0xFFFFFFFFu}
+            };
+            for (const auto &c : cases)
+            {
+                setRegU32(env.ctx, 4, c[0]); setRegU32(env.ctx, 5, c[1]); setRegU32(env.ctx, 6, c[2]);
+                t.IsTrue(callSyscall(0x5Au, env.rdram.data(), &env.ctx, &env.runtime), "Copy dispatch");
+                t.Equals(getRegS32(env.ctx, 2), -1, "invalid complete span is rejected");
+                t.Equals(readGuestU32(env.rdram.data(), 0u), 0xAABBCCDDu, "unsupported segment must not alias RAM zero");
+                t.Equals(readGuestU32(env.rdram.data(), PS2_RAM_SIZE - 4u), 0x11223344u, "rejected copy must not write its valid prefix");
+            }
+            for (uint32_t i=0; i<16u; ++i) env.rdram[0x1000u+i] = static_cast<uint8_t>(i);
+            setRegU32(env.ctx,4,0x80001004u);setRegU32(env.ctx,5,0x1000u);setRegU32(env.ctx,6,12u);
+            callSyscall(0x5Au,env.rdram.data(),&env.ctx,&env.runtime);
+            for(uint32_t i=0;i<12u;++i) t.Equals(static_cast<uint32_t>(env.rdram[0x1004u+i]),i,"overlapping aliases copy safely");
+        });
+
+        tc.Run("kernel allocations never wrap onto live objects or callback stacks", [](TestCase &t)
+        {
+            PS2Runtime runtime;
+            t.Equals(runtime.reserveKernelMemory(0u),0u,"zero size fails");
+            t.Equals(runtime.reserveKernelMemory(0xFFFFFFFFu),0u,"size overflow fails");
+            t.Equals(runtime.reserveKernelMemory(16u,3u),0u,"invalid alignment fails");
+            const uint32_t first=runtime.reserveKernelMemory(256u);
+            t.IsTrue(first!=0u,"first kernel allocation succeeds");
+            uint32_t previous=first;
+            // Pass all old modulo thresholds. Every retained descriptor stays distinct.
+            for(uint32_t i=1;i<1100u;++i)
+            {
+                const uint32_t next=runtime.reserveKernelMemory(256u);
+                t.IsTrue(next!=0u && next+256u<=previous,"allocation cannot reuse an earlier object");
+                previous=next;
+            }
+            const uint32_t sp=runtime.reserveAsyncCallbackStack(0x4000u);
+            t.IsTrue(sp!=0u && sp+16u<=previous,"callback and kernel objects share disjoint storage");
+            while(runtime.reserveKernelMemory(256u)) {}
+            t.Equals(runtime.reserveKernelMemory(256u),0u,"exhaustion stays failed rather than wrapping");
+            t.Equals(runtime.reserveAsyncCallbackStack(0x4000u),0u,"callbacks cannot overwrite allocated objects on exhaustion");
+        });
+
         tc.Run("GetEntryAddress syscall (0x5B) returns handler from guest table", [](TestCase &t)
         {
             TestEnv env;
@@ -1593,17 +1645,43 @@ void register_ps2_runtime_kernel_tests()
             const uint32_t a=runtime.guestMalloc(0x8000u);
             t.Equals(a,0x1ff5390u,"allocation stays after BSS");
             t.Equals(runtime.guestMalloc(16u),0u,"heap exhaustion must fail without wraparound");
-            for(uint32_t i=0;i<32u;++i)
+            for(uint32_t i=0;i<31u;++i)
             {
                 const uint32_t sp=runtime.reserveAsyncCallbackStack(0x4000u,16u);
                 t.Equals(sp,0xffff0u-i*0x4000u,"callback stack stays inside kernel-reserved storage");
-                t.IsTrue(sp>=0x80000u && sp<0x100000u,"callback stack cannot overlap low user DMA buffers, image, or heap");
+                t.IsTrue(sp>=0x84000u && sp<0x100000u,"callback stack cannot overlap low user DMA buffers, image, or heap");
             }
             t.Equals(runtime.reserveAsyncCallbackStack(0x4000u,16u),0u,"callback pool exhaustion must fail");
             uint32_t code=0;std::memcpy(&code,ram+0x200000u,4);
             t.Equals(code,0x03e00008u,"original loaded bytes must remain intact");
             runtime.guestFree(a);
             t.Equals(runtime.guestMalloc(0x8000u),a,"heap block can be reclaimed without touching callback stacks");
+
+            PS2Runtime kernelRuntime;
+            t.IsTrue(kernelRuntime.memory().initialize(PS2_RAM_SIZE),"kernel test memory initialization");
+            t.IsTrue(kernelRuntime.loadELF(path.string()),"kernel test high-BSS ELF load");
+            uint8_t *kernelRam=kernelRuntime.memory().getRDRAM();
+            std::memset(kernelRam+0x1F00000u,0xA5,0x31000u);
+            R5900Context kernelCtx{};
+            kernelRuntime.eeScheduler().reset(kernelRam,kernelCtx);
+            setRegU32(kernelCtx,4,3u);
+            QueryBootMode(kernelRam,&kernelCtx,&kernelRuntime);
+            const uint32_t boot=getRegU32(&kernelCtx,2);
+            t.IsTrue(boot>=0x84000u && boot+16u<=0x100000u,"boot table uses owned low arena");
+            GetThreadTLS(kernelRam,&kernelCtx,&kernelRuntime);
+            const uint32_t tls=getRegU32(&kernelCtx,2);
+            t.IsTrue(tls>=0x84000u && tls+0x100u<=boot,"TLS is disjoint from boot records");
+            const uint32_t callback=kernelRuntime.reserveAsyncCallbackStack(0x4000u);
+            t.IsTrue(callback>=0x84000u && callback+16u<=tls,"callback stack avoids kernel records");
+            const uint32_t bootValue=readGuestU32(kernelRam,boot);
+            while(kernelRuntime.reserveKernelMemory(256u)) {}
+            setRegU32(kernelCtx,4,3u);
+            QueryBootMode(kernelRam,&kernelCtx,&kernelRuntime);
+            t.Equals(getRegU32(&kernelCtx,2),boot,"live boot address stable after arena exhaustion");
+            t.Equals(readGuestU32(kernelRam,boot),bootValue,"live boot data intact after exhaustion");
+            bool intact=true;
+            for(uint32_t i=0;i<0x31000u;++i) intact &= kernelRam[0x1F00000u+i]==0xA5;
+            t.IsTrue(intact,"old fixed pool addresses in game BSS must remain untouched");
         });
     });
 }
